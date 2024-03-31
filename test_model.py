@@ -77,18 +77,24 @@ def process_file(filepath: str, data_root_dir: str,
         json_data = json.load(json_file)
         vernac_cmds = json_data["vernac_cmds"]
         for proof in json_data["proofs"]:
-            entry = {"filepath": filepath, "context": "", "proof_offset": 0, "proof": ""}
+            entry = {
+                        "filepath": filepath,
+                        "context": "",
+                        "proof_start_offset": -1,
+                        "proof_end_offset": -1,
+                        "proof": ""
+                    }
             proof_str = vernac_cmds[proof["line_nb"]][0]
             if any(proof_str.startswith(keyword) for keyword in to_remove):
                 continue
-            pos = proof_str.find(":")
-            if pos == -1:
+            pos_dd = proof_str.find(":")
+            if pos_dd == -1:
                 # print(f": NOT FOUND FOR {coq_projects_filepath}")
                 # print(proof_str)
                 # return []
                 continue
             # proof_name = " ".join(proof_str.split()[:5])
-            proof_name = proof_str[:pos].strip()
+            proof_name = proof_str[:pos_dd].strip()
 
             coq_projects_filepath = transform_data_path_into_coq_path(
                                 data_root_dir, coq_projects_path, filepath
@@ -107,7 +113,7 @@ def process_file(filepath: str, data_root_dir: str,
                     continue
                 else:
                     pos = poses[0][0]
-                    entry["proof_offset"] = pos
+                    entry["proof_start_offset"] = pos
                     # context_tokens = max_len_input - (len(proof_str) // chars_per_token)
                     context_offset = max(pos-int(chars_per_token*context_tokens), 0)
                     if (len(proof_str) > int(max_len_input * chars_per_token) - (pos - context_offset)):
@@ -129,6 +135,14 @@ def process_file(filepath: str, data_root_dir: str,
             entry["proof"] = proof_str
             if step["command"][1] != "VernacEndProof":
                 print(f"ERROR, last command is not VernacEndProof: {filepath}")
+
+            pos_end = coq_file_content.find(step["command"][0], pos)
+            entry["proof_end_offset"] = pos_end
+            if (pos_end == -1):
+                print("CAN NOT FIND POS END")
+                print(filepath, proof_name)
+                continue
+
             theorems.append(entry)
     return theorems
 
@@ -164,6 +178,13 @@ if __name__ == "__main__":
         create_dataset("./theorems/test_theorems.json", "./coq_projects",
                        "../datasets/CoqGym/data/data/",
                        test_projs, chars_per_token, context_tokens)
+
+    if False:
+        with open("./coq_projects/buchberger/Preduce.v", mode='r') as f:
+            fc = f.read()
+            print(fc[14314:14314+28])
+            print(fc[18318-20:18318+20])
+            print(fc[30747:30747+20])
 
     if False:
         with open("./theorems/test_theorems.json", mode='r') as json_file:
