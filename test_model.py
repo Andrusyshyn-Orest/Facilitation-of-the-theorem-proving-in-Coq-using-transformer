@@ -6,6 +6,11 @@ import re
 
 context_length = 1024
 max_len_input = 768
+to_remove = ["Instance", "Global Instance", "Local Instance", "Polymorphic Instance",
+             "Global Polymorphic Instance", "Local Polymorphic Instance",
+             "Next Obligation",
+             "Add Morphism", "Add Parametric Morphism",
+             "Fixpoint", "Function"]
 
 def find_positions_in_file(input_string, file_content):
     pattern = r'\s+'.join(re.escape(word) for word in input_string.split())
@@ -15,7 +20,6 @@ def find_positions_in_file(input_string, file_content):
     for match in re.finditer(pattern, file_content):
         positions.append((match.start(), match.end()))
     return positions
-
 
 def get_average_chars_per_token(dataset_path: str, p_tokenizer):
     total_chars = 0
@@ -49,8 +53,10 @@ def truncate_on_Qed(generated_proof: str):
     return generated_proof
 
 def json_file_iterator(project, root_folder):
+    if project == "disel":
+        pass
     project_path = os.path.join(root_folder, project)
-    for dirpath, dirnames, filenames in os.walk(project_path):
+    for dirpath, _, filenames in os.walk(project_path):
         for filename in filenames:
             if filename.endswith(".json"):
                 yield os.path.join(dirpath, filename)
@@ -64,14 +70,17 @@ def transform_data_path_into_coq_path(data_folder: str, coq_projs_folder: str, f
 
 def process_file(filepath: str, data_root_dir: str,
                  coq_projects_path: str, chars_per_token:float, context_tokens: int):
+    global max_len_input, context_length
     theorems = []
+
     with open(filepath, mode='r') as json_file:
         json_data = json.load(json_file)
         vernac_cmds = json_data["vernac_cmds"]
         for proof in json_data["proofs"]:
             entry = {"filepath": filepath, "context": "", "proof_offset": 0, "proof": ""}
             proof_str = vernac_cmds[proof["line_nb"]][0]
-
+            if any(proof_str.startswith(keyword) for keyword in to_remove):
+                continue
             pos = proof_str.find(":")
             if pos == -1:
                 # print(f": NOT FOUND FOR {coq_projects_filepath}")
