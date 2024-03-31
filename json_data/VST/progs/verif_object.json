@@ -1,0 +1,1829 @@
+{
+    "filename": "progs/verif_object.v",
+    "coq_project": "VST",
+    "vernac_cmds": [
+        [
+            "Require Import VST.floyd.proofauto.",
+            "VernacRequire",
+            "1b5b5bd8f6976ab2a8ffc41bb68ef58d6fb49b99"
+        ],
+        [
+            "Require Import VST.floyd.library.",
+            "VernacRequire",
+            "6a5c4a7ef069547805cde0a21bc2f88c62ea9f89"
+        ],
+        [
+            "Require Import VST.progs.object.",
+            "VernacRequire",
+            "023b4d21ea55dded8e63d163ca741e0598e63125"
+        ],
+        [
+            "Instance CompSpecs : compspecs.",
+            "VernacInstance",
+            "154eee01c656800e0ca79db421bf2abcdf325f7f"
+        ],
+        [
+            "make_compspecs prog.",
+            "VernacExtend",
+            "36220761a2e554d38938361d97a6a7824a7eb4eb"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Definition Vprog : varspecs.",
+            "VernacDefinition",
+            "071102901c915338608cbb3742cc92eff26260b2"
+        ],
+        [
+            "mk_varspecs prog.",
+            "VernacExtend",
+            "3d71166af717afdd6c2d6e7673cef893ac1c6afc"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Local Open Scope Z.",
+            "VernacOpenCloseScope",
+            "ee62cf4bac3e76299017acccba0c49849b537904"
+        ],
+        [
+            "Local Open Scope logic.",
+            "VernacOpenCloseScope",
+            "5937723d189e5aa98ad78e1018bed51ea2c1b0cd"
+        ],
+        [
+            "Definition object_invariant := list Z -> val -> mpred.",
+            "VernacDefinition",
+            "62284ef7496fb7c969fc4d29e2f316c7721ded7c"
+        ],
+        [
+            "Definition tobject := tptr (Tstruct _object noattr).",
+            "VernacDefinition",
+            "c01005635a8da00795ad2b4e3ec3d1ec766ad615"
+        ],
+        [
+            "Definition reset_spec (instance: object_invariant) := WITH self: val, history: list Z PRE [ _self OF tobject] PROP () LOCAL (temp _self self) SEP (instance history self) POST [ tvoid ] PROP() LOCAL () SEP(instance nil self).",
+            "VernacDefinition",
+            "3c33f9b3823e09a5cd2320664566f661886cf90e"
+        ],
+        [
+            "Definition twiddle_spec (instance: object_invariant) := WITH self: val, i: Z, history: list Z PRE [ _self OF tobject, _i OF tint] PROP (0 < i <= Int.max_signed / 4; 0 <= fold_right Z.add 0 history <= Int.max_signed / 4) LOCAL (temp _self self; temp _i (Vint (Int.repr i))) SEP (instance history self) POST [ tint ] EX v: Z, PROP(2* fold_right Z.add 0 history < v <= 2* fold_right Z.add 0 (i::history)) LOCAL (temp ret_temp (Vint (Int.repr v))) SEP(instance (i::history) self).",
+            "VernacDefinition",
+            "18a07978ddf4cfd146dc74b93ba78fda81469851"
+        ],
+        [
+            "Definition object_methods (instance: object_invariant) (mtable: val) : mpred := EX sh: share, EX reset: val, EX twiddle: val, !! readable_share sh && func_ptr' (reset_spec instance) reset * func_ptr' (twiddle_spec instance) twiddle * data_at sh (Tstruct _methods noattr) (reset,twiddle) mtable.",
+            "VernacDefinition",
+            "5fba3eacf4c4faed641eec4ecb42603aeeedfde9"
+        ],
+        [
+            "Lemma object_methods_local_facts: forall instance p, object_methods instance p |-- !! isptr p.",
+            "VernacStartTheoremProof",
+            "76a6eb895191f2d42a88267e61e9a540fc041769"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold object_methods.",
+            "VernacExtend",
+            "c63ca11ff8aea3d37cf2cce47763dd9a9ffa4d39"
+        ],
+        [
+            "Intros sh reset twiddle.",
+            "VernacExtend",
+            "a05e9fc4231210fe9e7fa13a80a489f76273c1d7"
+        ],
+        [
+            "entailer!.",
+            "VernacExtend",
+            "e9311eb469ece63c985af7872ea148a97277818d"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Hint Resolve object_methods_local_facts : saturate_local.",
+            "VernacHints",
+            "f43a32bb6860b11cda7720642c6f18f11c8d99e1"
+        ],
+        [
+            "Definition object_mpred (history: list Z) (self: val) : mpred := EX instance: object_invariant, EX mtable: val, (object_methods instance mtable * field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable self* instance history self).",
+            "VernacDefinition",
+            "9e8809f48f3d5f72749ba0813ebd354c223898e5"
+        ],
+        [
+            "Definition foo_invariant : object_invariant := (fun (history: list Z) p => withspacer Ews (sizeof size_t + sizeof tint) (2 * sizeof size_t) (field_at Ews (Tstruct _foo_object noattr) [StructField _data] (Vint (Int.repr (2*fold_right Z.add 0 history)))) p * malloc_token Ews (Tstruct _foo_object noattr) p).",
+            "VernacDefinition",
+            "4fc05c8a351859a13674f701e7ba060f926b46d3"
+        ],
+        [
+            "Definition foo_reset_spec := DECLARE _foo_reset (reset_spec foo_invariant).",
+            "VernacDefinition",
+            "a4ab983f8357716d04f681ad78a0c5fae73d9021"
+        ],
+        [
+            "Definition foo_twiddle_spec := DECLARE _foo_twiddle (twiddle_spec foo_invariant).",
+            "VernacDefinition",
+            "3ef4b7e54a619348f67a564caba20da4247a2d47"
+        ],
+        [
+            "Definition make_foo_spec := DECLARE _make_foo WITH gv: globals PRE [ ] PROP () LOCAL (gvars gv) SEP (mem_mgr gv; object_methods foo_invariant (gv _foo_methods)) POST [ tobject ] EX p: val, PROP () LOCAL (temp ret_temp p) SEP (mem_mgr gv; object_mpred nil p; object_methods foo_invariant (gv _foo_methods)).",
+            "VernacDefinition",
+            "0cbe8ef60008463ffc6f1a6dd9859233d0b6e3d8"
+        ],
+        [
+            "Definition main_spec := DECLARE _main WITH gv: globals PRE [] main_pre prog nil gv POST [ tint ] EX i:Z, PROP(0<=i<=6) LOCAL (temp ret_temp (Vint (Int.repr i))) SEP(TT).",
+            "VernacDefinition",
+            "2e5e7dffb873f5ff6ffae50ed6a932c98387dedb"
+        ],
+        [
+            "Definition Gprog : funspecs := ltac:(with_library prog [ foo_reset_spec; foo_twiddle_spec; make_foo_spec; main_spec]).",
+            "VernacDefinition",
+            "d22885b87088c3896b171badbe87323414262bd7"
+        ],
+        [
+            "Lemma object_mpred_i: forall (history: list Z) (self: val) (instance: object_invariant) (mtable: val), object_methods instance mtable * field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable self * instance history self |-- object_mpred history self.",
+            "VernacStartTheoremProof",
+            "29e964aefcd59168114586e9076613cd2cfbdcee"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold object_mpred.",
+            "VernacExtend",
+            "23946661269f055053e3cf1bee23f2c5bcdc3f3f"
+        ],
+        [
+            "Exists instance mtable; auto.",
+            "VernacExtend",
+            "45fb9470f3c0b3996e2bf4298e3fb31086f1bd29"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma body_foo_reset: semax_body Vprog Gprog f_foo_reset foo_reset_spec.",
+            "VernacStartTheoremProof",
+            "0ceb4fa160a9b5f253fa5180f69d2a5ded844a1e"
+        ],
+        [
+            "unfold foo_reset_spec, foo_invariant, reset_spec.",
+            "VernacExtend",
+            "dacc008c91c4af660d1607cc673a6262f75b8d07"
+        ],
+        [
+            "start_function.",
+            "VernacExtend",
+            "c9d31eecaa0cff79fee4b43862828db880600e1a"
+        ],
+        [
+            "unfold withspacer; simpl; Intros.",
+            "VernacExtend",
+            "229f6bf9bd663f29bfb6c6bf3d87e6103f53b3eb"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "all: unfold withspacer; simpl; entailer!.",
+            "VernacExtend",
+            "6f8672bb73aeda5ba8321167a6b2bb788c0922d3"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma body_foo_twiddle: semax_body Vprog Gprog f_foo_twiddle foo_twiddle_spec.",
+            "VernacStartTheoremProof",
+            "514bec8890f8c825bb810c641ccbfe8ef1763920"
+        ],
+        [
+            "unfold foo_twiddle_spec, foo_invariant, twiddle_spec.",
+            "VernacExtend",
+            "549d56620da7e1a0dbd6e8380bd621d33e49eb79"
+        ],
+        [
+            "start_function.",
+            "VernacExtend",
+            "c9d31eecaa0cff79fee4b43862828db880600e1a"
+        ],
+        [
+            "unfold withspacer; simpl.",
+            "VernacExtend",
+            "298edc5b288e9818c8a53809299e1973a0a70e8f"
+        ],
+        [
+            "Intros.",
+            "VernacExtend",
+            "58784a78af6fa36ccbd531d2a460b187e88b99db"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "set (j:= Int.max_signed / 4) in *; compute in j; subst j.",
+            "VernacExtend",
+            "de85bc1ad13dd642eec20a0e3cbec7e12ba0c3ce"
+        ],
+        [
+            "forget (fold_right Z.add 0 history) as h.",
+            "VernacExtend",
+            "a84a7516d4cb4e8fff50c6e29d48a1103c0d89be"
+        ],
+        [
+            "entailer!.",
+            "VernacExtend",
+            "e9311eb469ece63c985af7872ea148a97277818d"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "set (j:= Int.max_signed / 4) in *; compute in j; subst j.",
+            "VernacExtend",
+            "de85bc1ad13dd642eec20a0e3cbec7e12ba0c3ce"
+        ],
+        [
+            "forget (fold_right Z.add 0 history) as h.",
+            "VernacExtend",
+            "a84a7516d4cb4e8fff50c6e29d48a1103c0d89be"
+        ],
+        [
+            "entailer!.",
+            "VernacExtend",
+            "e9311eb469ece63c985af7872ea148a97277818d"
+        ],
+        [
+            "Exists (2 * fold_right Z.add 0 history + i).",
+            "VernacExtend",
+            "99268c25c34f723c389ed9dc332a4fb0768be4a7"
+        ],
+        [
+            "simpl; entailer!.",
+            "VernacExtend",
+            "77dc2d5b9f1a0120e41a35720f3d1b960409ba48"
+        ],
+        [
+            "rewrite Z.mul_add_distr_l, Z.add_comm.",
+            "VernacExtend",
+            "05fe5fd14b2c5aca766aea9273f0c43b09836d94"
+        ],
+        [
+            "unfold withspacer; simpl.",
+            "VernacExtend",
+            "298edc5b288e9818c8a53809299e1973a0a70e8f"
+        ],
+        [
+            "entailer!.",
+            "VernacExtend",
+            "e9311eb469ece63c985af7872ea148a97277818d"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma split_object_methods: forall instance m, object_methods instance m |-- object_methods instance m * object_methods instance m.",
+            "VernacStartTheoremProof",
+            "669d09b1615f795431d3402d37e472ce0cb63190"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold object_methods.",
+            "VernacExtend",
+            "c63ca11ff8aea3d37cf2cce47763dd9a9ffa4d39"
+        ],
+        [
+            "Intros sh reset twiddle.",
+            "VernacExtend",
+            "a05e9fc4231210fe9e7fa13a80a489f76273c1d7"
+        ],
+        [
+            "Exists (fst (slice.cleave sh)) reset twiddle.",
+            "VernacExtend",
+            "883524e36dd52aaafb60449ea54d09c3df3c183b"
+        ],
+        [
+            "Exists (snd (slice.cleave sh)) reset twiddle.",
+            "VernacExtend",
+            "0e40b764e6122d9bcd7c4117617da074efe1dc6c"
+        ],
+        [
+            "rewrite (split_func_ptr' (reset_spec instance) reset) at 1.",
+            "VernacExtend",
+            "bcbe922a7821d23bdb1d1487fa87465c633a996e"
+        ],
+        [
+            "rewrite (split_func_ptr' (twiddle_spec instance) twiddle) at 1.",
+            "VernacExtend",
+            "29cd733d181d4be12c1ab1d3f2b7595d21b23b9e"
+        ],
+        [
+            "entailer!.",
+            "VernacExtend",
+            "e9311eb469ece63c985af7872ea148a97277818d"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "apply slice.cleave_readable1; auto.",
+            "VernacExtend",
+            "34f01f65c6aa3e9f6965bc52ae9ece2150b05fbf"
+        ],
+        [
+            "apply slice.cleave_readable2; auto.",
+            "VernacExtend",
+            "ad0db287268a3b69fb4f3541b905f596687be5f7"
+        ],
+        [
+            "rewrite (data_at_share_join (fst (slice.cleave sh)) (snd (slice.cleave sh)) sh).",
+            "VernacExtend",
+            "b2c37f494091d7a4d6a92605d1eb26bccf54148c"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "apply slice.cleave_join.",
+            "VernacExtend",
+            "cdf6f3ab1eac98f9cdb67fc7ee62fe78a90116ee"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma body_make_foo: semax_body Vprog Gprog f_make_foo make_foo_spec.",
+            "VernacStartTheoremProof",
+            "9db96a29212c68ab7b667e6f2cb8aae31c0eeffe"
+        ],
+        [
+            "unfold make_foo_spec.",
+            "VernacExtend",
+            "3c09c9ec1588a091ac4ce11c6475adac29658cfe"
+        ],
+        [
+            "start_function.",
+            "VernacExtend",
+            "c9d31eecaa0cff79fee4b43862828db880600e1a"
+        ],
+        [
+            "forward_call (Tstruct _foo_object noattr, gv).",
+            "VernacExtend",
+            "5cae3731ac96b338413fe5f18102d460d6798fe0"
+        ],
+        [
+            "split3; simpl; auto; computable.",
+            "VernacExtend",
+            "03c4d9ce0ad3df30d0a84ec9a3af9463a617d198"
+        ],
+        [
+            "Intros p.",
+            "VernacExtend",
+            "c327d475e8eccae0fcf084432fa3aa8277df1af0"
+        ],
+        [
+            "forward_if (PROP ( ) LOCAL (temp _p p; gvars gv) SEP (mem_mgr gv; malloc_token Ews (Tstruct _foo_object noattr) p; data_at_ Ews (Tstruct _foo_object noattr) p; object_methods foo_invariant (gv _foo_methods))).",
+            "VernacExtend",
+            "3d9e348acce659c2706c03103b3efd20e23a862d"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "change (Memory.EqDec_val p nullval) with (eq_dec p nullval).",
+            "VernacExtend",
+            "cc46290c59e1a6377aea5edb9f1d0f61d448556a"
+        ],
+        [
+            "if_tac; entailer!.",
+            "VernacExtend",
+            "ee48b3733553c268af4dff9b00538501f3f3120c"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "forward_call tt.",
+            "VernacExtend",
+            "10ad066f392d4505df7bb095c9782400947e7ba9"
+        ],
+        [
+            "contradiction.",
+            "VernacExtend",
+            "9b6a5c45e1144cbbccd544effb2a97082518704a"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "rewrite if_false by auto.",
+            "VernacExtend",
+            "5a76c3b1b70df813cbad68c4a8a05295b8091083"
+        ],
+        [
+            "Intros.",
+            "VernacExtend",
+            "58784a78af6fa36ccbd531d2a460b187e88b99db"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "entailer!.",
+            "VernacExtend",
+            "e9311eb469ece63c985af7872ea148a97277818d"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "unfold data_at_, field_at_, default_val; simpl.",
+            "VernacExtend",
+            "2f1eb4c3a8f7f54cfad4b96ae1f14fc8e1b33c5e"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "Exists p.",
+            "VernacExtend",
+            "c8a981dcfa2ede959ccb3b57364aad6d1110432c"
+        ],
+        [
+            "unfold object_mpred.",
+            "VernacExtend",
+            "23946661269f055053e3cf1bee23f2c5bcdc3f3f"
+        ],
+        [
+            "Exists foo_invariant (gv _foo_methods).",
+            "VernacExtend",
+            "a925eb985a07f90744d5dfd4c5bb99dcc8f90084"
+        ],
+        [
+            "sep_apply (split_object_methods foo_invariant (gv _foo_methods)).",
+            "VernacExtend",
+            "c2f52c62d4c0c5a5e20df2ff523e7a52e3f00781"
+        ],
+        [
+            "unfold foo_invariant at 4.",
+            "VernacExtend",
+            "6b8db71ad339a3f819e4015ce6a776fadc2b0d82"
+        ],
+        [
+            "entailer!.",
+            "VernacExtend",
+            "e9311eb469ece63c985af7872ea148a97277818d"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "unfold_data_at (field_at _ _ nil _ p).",
+            "VernacExtend",
+            "ee0629c729bc37e7217e71eaaedbdee387df0853"
+        ],
+        [
+            "cancel.",
+            "VernacExtend",
+            "24ea99f626ec31ff5120f99494a934737348354b"
+        ],
+        [
+            "unfold withspacer; simpl.",
+            "VernacExtend",
+            "298edc5b288e9818c8a53809299e1973a0a70e8f"
+        ],
+        [
+            "rewrite !field_at_data_at.",
+            "VernacExtend",
+            "0544b25aac22b00d242046e2c0be9f6f5156b3d7"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "apply derives_refl'.",
+            "VernacExtend",
+            "c778e5f165b217e12e92c88c8e5f68e18a05e94d"
+        ],
+        [
+            "rewrite <- ?sepcon_assoc.",
+            "VernacExtend",
+            "96d9808682c7e16d7b7b04c599a3afcceb6a9aeb"
+        ],
+        [
+            "rewrite !field_compatible_field_address; auto with field_compatible.",
+            "VernacExtend",
+            "43195801a1ab869c296005ae64d88526c1a58e39"
+        ],
+        [
+            "clear - H.",
+            "VernacExtend",
+            "0feb8621f12176e9894f4f3ff86ecf0003739aed"
+        ],
+        [
+            "destruct p; try contradiction.",
+            "VernacExtend",
+            "37341727d80c03a0b4c7e5d341aa44c21eb8d9ff"
+        ],
+        [
+            "destruct H as [AL SZ].",
+            "VernacExtend",
+            "3bf99e5e75c4a51ce559160b16694c38cc5479ea"
+        ],
+        [
+            "repeat split; auto.",
+            "VernacExtend",
+            "68be7c4701ceff95aa9f283aa43fa2774d48c7a0"
+        ],
+        [
+            "simpl in *; omega.",
+            "VernacExtend",
+            "2e505872d892cb5022bef5b246ceb26cdd84b133"
+        ],
+        [
+            "eapply align_compatible_rec_Tstruct; [reflexivity |].",
+            "VernacExtend",
+            "f21414e4b341f31b1dd387192d8a9304b7114c1d"
+        ],
+        [
+            "simpl co_members; intros.",
+            "VernacExtend",
+            "72b3d296a581242f395b3662842eeb2a10b2991f"
+        ],
+        [
+            "simpl in H.",
+            "VernacExtend",
+            "78dad51b2bb1130f71851d1e55489020824f59f6"
+        ],
+        [
+            "if_tac in H; [| inv H].",
+            "VernacExtend",
+            "a870045083518522611a5e28fbda099be2b4d8b7"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "inv H0.",
+            "VernacExtend",
+            "52c34ef20c88d5292e2350aff94f149a3968b772"
+        ],
+        [
+            "eapply align_compatible_rec_by_value.",
+            "VernacExtend",
+            "9c54607277f126818671822464488ed76d041c77"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "rewrite Z.add_0_r.",
+            "VernacExtend",
+            "06ae07741c51588ad5058ce812450f10227d7b7a"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "unfold natural_alignment in AL.",
+            "VernacExtend",
+            "521861accdb3717c9fe4b356e6240180f471dc94"
+        ],
+        [
+            "eapply Z.divide_trans; [ | apply AL].",
+            "VernacExtend",
+            "e7067e4f68529f943970b3f0a0855c1058abe45c"
+        ],
+        [
+            "apply prove_Zdivide.",
+            "VernacExtend",
+            "e50cf806d7966e18960ba828013283fefd5aa1cd"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "left; auto.",
+            "VernacExtend",
+            "b03090a3068bb41ee1034a9c886a5e47eddfb98a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma make_object_methods: forall sh instance reset twiddle mtable, readable_share sh -> func_ptr' (reset_spec instance) reset * func_ptr' (twiddle_spec instance) twiddle * data_at sh (Tstruct _methods noattr) (reset, twiddle) mtable |-- object_methods instance mtable.",
+            "VernacStartTheoremProof",
+            "26fa3443249fdb62a159b8071e90d662d8a22249"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold object_methods.",
+            "VernacExtend",
+            "c63ca11ff8aea3d37cf2cce47763dd9a9ffa4d39"
+        ],
+        [
+            "Exists sh reset twiddle.",
+            "VernacExtend",
+            "ae88a9149cde80274c8bb1723d7743c350f52f63"
+        ],
+        [
+            "entailer!.",
+            "VernacExtend",
+            "e9311eb469ece63c985af7872ea148a97277818d"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Ltac method_call witness hist' result := repeat apply seq_assoc1; match goal with |- semax _ (PROPx _ (LOCALx ?Q (SEPx ?R))) (Ssequence (Sset ?mt (Efield (Ederef (Etempvar ?x _) _) _ _)) _) _ => match Q with context [temp ?x ?x'] => match R with context [object_mpred _ x'] => let instance := fresh \"instance\" in let mtable := fresh \"mtable\" in unfold object_mpred; Intros instance mtable; forward; unfold object_methods at 1; let sh := fresh \"sh\" in let r := fresh \"r\" in let t := fresh \"t\" in Intros sh r t; forward; forward_call witness; [ .. | try Intros result; sep_apply (make_object_methods sh instance r t mtable); [ auto .. | ]; sep_apply (object_mpred_i hist' x' instance mtable); deadvars; try clear dependent sh; try clear r; try clear t ] end end end.",
+            "VernacExtend",
+            "70f8b7ddeed727df64047fd4d1dae71c84640f12"
+        ],
+        [
+            "Lemma body_main: semax_body Vprog Gprog f_main main_spec.",
+            "VernacStartTheoremProof",
+            "85a708d624631a1347a8e25eb25f081de372da3b"
+        ],
+        [
+            "start_function.",
+            "VernacExtend",
+            "c9d31eecaa0cff79fee4b43862828db880600e1a"
+        ],
+        [
+            "sep_apply (create_mem_mgr gv).",
+            "VernacExtend",
+            "ca2bc1160b45ea07c6045a98402d459454919792"
+        ],
+        [
+            "fold noattr cc_default.",
+            "VernacExtend",
+            "fa4e3553c656b77f07aac3cdf9162b67fc69df01"
+        ],
+        [
+            "gather_SEP 1 2; replace_SEP 0 (data_at Ews (Tstruct _methods noattr) (gv _foo_reset, gv _foo_twiddle) (gv _foo_methods)).",
+            "VernacExtend",
+            "6a51e1493ab69f4510ec2c866e56092e15bef053"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "entailer!.",
+            "VernacExtend",
+            "e9311eb469ece63c985af7872ea148a97277818d"
+        ],
+        [
+            "unfold_data_at (data_at _ (Tstruct _methods _) _ (gv _foo_methods)).",
+            "VernacExtend",
+            "57e7aaae96e255f383cef78041e7af47f03c46ad"
+        ],
+        [
+            "rewrite <- mapsto_field_at with (gfs := [StructField _twiddle]) (v:= (gv _foo_twiddle)) by auto with field_compatible.",
+            "VernacExtend",
+            "b5e7cb987d7d3bca199c8ea999756e9ea3f04244"
+        ],
+        [
+            "rewrite field_at_data_at.",
+            "VernacExtend",
+            "574f3b04d77aacbaa7b36ed60622f8e84d690df9"
+        ],
+        [
+            "rewrite !field_compatible_field_address by auto with field_compatible.",
+            "VernacExtend",
+            "f744e9709c7928a5c55c7abe8bd4749c056a5eab"
+        ],
+        [
+            "rewrite !isptr_offset_val_zero by auto.",
+            "VernacExtend",
+            "3ef164001fb176fbf5c0a0f05fa5001627a64a18"
+        ],
+        [
+            "rewrite sepcon_comm.",
+            "VernacExtend",
+            "fd2af6f842f71517e95b56c21ef3f6449c4ad38d"
+        ],
+        [
+            "apply derives_refl.",
+            "VernacExtend",
+            "e6aad07de74a98e9e95ce8bc0aeafdd1290e4b6f"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "make_func_ptr _foo_twiddle.",
+            "VernacExtend",
+            "21913c951c7e8ea8f8dff98c6010b13cab49915a"
+        ],
+        [
+            "make_func_ptr _foo_reset.",
+            "VernacExtend",
+            "959d2de6607cda36dd21315dac1dcbd9c7a6ba6e"
+        ],
+        [
+            "sep_apply (make_object_methods Ews foo_invariant(gv _foo_reset) (gv _foo_twiddle) (gv _foo_methods)); auto.",
+            "VernacExtend",
+            "4a77e1d562a529e65c2bdfc3a7cf6049387f7467"
+        ],
+        [
+            "forward_call gv.",
+            "VernacExtend",
+            "d5c7b7e1fdc38cce467a033bd8588669a093a6b4"
+        ],
+        [
+            "Intros p.",
+            "VernacExtend",
+            "c327d475e8eccae0fcf084432fa3aa8277df1af0"
+        ],
+        [
+            "freeze [2] MT.",
+            "VernacExtend",
+            "e4ae47c03c7fc77dccbf9ff39ffcb0d0a543c1ce"
+        ],
+        [
+            "gather_SEP 1.",
+            "VernacExtend",
+            "ad40f10648adebca60bf5bdc7b9b395159667ecb"
+        ],
+        [
+            "try (tryif (method_call (p, @nil Z) (@nil Z) whatever; method_call (p, 3, @nil Z) [3%Z] i; [simpl; computable | ]) then fail else fail 99) .",
+            "VernacExtend",
+            "dc6c9a018d6aecfccdec611f560bbcf6b3bccf38"
+        ],
+        [
+            "unfold object_mpred.",
+            "VernacExtend",
+            "23946661269f055053e3cf1bee23f2c5bcdc3f3f"
+        ],
+        [
+            "Intros instance mtable0.",
+            "VernacExtend",
+            "ce84e6a8609a1154b6fc813250e4eb85fa0f25fe"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "unfold object_methods at 1.",
+            "VernacExtend",
+            "271e939f12cac884d0ad13bc8f5ded6558ed856a"
+        ],
+        [
+            "Intros sh r0 t0.",
+            "VernacExtend",
+            "7b70baaac300a87b158d175c71d4c176982d6944"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "forward_call (p, @nil Z).",
+            "VernacExtend",
+            "dead787a7e3e19b0c549bcd134e8866adbfd4ee5"
+        ],
+        [
+            "sep_apply (make_object_methods sh instance r0 t0 mtable0); auto.",
+            "VernacExtend",
+            "6fb51815ee6708e3cdd7d999e75eed3506d25adf"
+        ],
+        [
+            "sep_apply (object_mpred_i [] p instance mtable0).",
+            "VernacExtend",
+            "32fbb1a33b18d0ed8e7cbb75fd9605718949a1de"
+        ],
+        [
+            "deadvars!.",
+            "VernacExtend",
+            "e42b5ebfb97781026be26a8528de403e16a00c1a"
+        ],
+        [
+            "clear.",
+            "VernacExtend",
+            "086ee0db0bdefcfa1ec15bb5cd44d451de64c569"
+        ],
+        [
+            "unfold object_mpred.",
+            "VernacExtend",
+            "23946661269f055053e3cf1bee23f2c5bcdc3f3f"
+        ],
+        [
+            "Intros instance mtable0.",
+            "VernacExtend",
+            "ce84e6a8609a1154b6fc813250e4eb85fa0f25fe"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "unfold object_methods at 1.",
+            "VernacExtend",
+            "271e939f12cac884d0ad13bc8f5ded6558ed856a"
+        ],
+        [
+            "Intros sh r0 t0.",
+            "VernacExtend",
+            "7b70baaac300a87b158d175c71d4c176982d6944"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "forward_call (p, 3, @nil Z).",
+            "VernacExtend",
+            "b64cdd100a5a3de1305214cad9a8e1f6284783e5"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "computable.",
+            "VernacExtend",
+            "0ec9007776f5ee4cc0bb3f3af5e413aab823693c"
+        ],
+        [
+            "Intros i.",
+            "VernacExtend",
+            "186579fe52813d623451d11fad01ccb321430c84"
+        ],
+        [
+            "simpl in H0.",
+            "VernacExtend",
+            "a4a6a8421870dbf7255f8d031744eec32f12a941"
+        ],
+        [
+            "sep_apply (make_object_methods sh instance r0 t0 mtable0); auto.",
+            "VernacExtend",
+            "6fb51815ee6708e3cdd7d999e75eed3506d25adf"
+        ],
+        [
+            "sep_apply (object_mpred_i [3] p instance mtable0).",
+            "VernacExtend",
+            "2c783eb1b61d3417ec26d3051c6d01e384e4c35c"
+        ],
+        [
+            "deadvars!.",
+            "VernacExtend",
+            "e42b5ebfb97781026be26a8528de403e16a00c1a"
+        ],
+        [
+            "clear - H0.",
+            "VernacExtend",
+            "26b60cd70d9cbb77dd5e024fa10fa554555a88cc"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "Exists i; entailer!.",
+            "VernacExtend",
+            "fe0889e761c9f598a352736f420f7acedfe92a67"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "CompSpecs",
+            "line_nb": 3,
+            "steps": [
+                {
+                    "command": [
+                        "make_compspecs prog.",
+                        "VernacExtend",
+                        "36220761a2e554d38938361d97a6a7824a7eb4eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Vprog",
+            "line_nb": 6,
+            "steps": [
+                {
+                    "command": [
+                        "mk_varspecs prog.",
+                        "VernacExtend",
+                        "3d71166af717afdd6c2d6e7673cef893ac1c6afc"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "object_methods_local_facts",
+            "line_nb": 16,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold object_methods.",
+                        "VernacExtend",
+                        "c63ca11ff8aea3d37cf2cce47763dd9a9ffa4d39"
+                    ]
+                },
+                {
+                    "command": [
+                        "Intros sh reset twiddle.",
+                        "VernacExtend",
+                        "a05e9fc4231210fe9e7fa13a80a489f76273c1d7"
+                    ]
+                },
+                {
+                    "command": [
+                        "entailer!.",
+                        "VernacExtend",
+                        "e9311eb469ece63c985af7872ea148a97277818d"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "object_mpred_i",
+            "line_nb": 30,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold object_mpred.",
+                        "VernacExtend",
+                        "23946661269f055053e3cf1bee23f2c5bcdc3f3f"
+                    ]
+                },
+                {
+                    "command": [
+                        "Exists instance mtable; auto.",
+                        "VernacExtend",
+                        "45fb9470f3c0b3996e2bf4298e3fb31086f1bd29"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "body_foo_reset",
+            "line_nb": 35,
+            "steps": [
+                {
+                    "command": [
+                        "unfold foo_reset_spec, foo_invariant, reset_spec.",
+                        "VernacExtend",
+                        "dacc008c91c4af660d1607cc673a6262f75b8d07"
+                    ]
+                },
+                {
+                    "command": [
+                        "start_function.",
+                        "VernacExtend",
+                        "c9d31eecaa0cff79fee4b43862828db880600e1a"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold withspacer; simpl; Intros.",
+                        "VernacExtend",
+                        "229f6bf9bd663f29bfb6c6bf3d87e6103f53b3eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "all: unfold withspacer; simpl; entailer!.",
+                        "VernacExtend",
+                        "6f8672bb73aeda5ba8321167a6b2bb788c0922d3"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "body_foo_twiddle",
+            "line_nb": 43,
+            "steps": [
+                {
+                    "command": [
+                        "unfold foo_twiddle_spec, foo_invariant, twiddle_spec.",
+                        "VernacExtend",
+                        "549d56620da7e1a0dbd6e8380bd621d33e49eb79"
+                    ]
+                },
+                {
+                    "command": [
+                        "start_function.",
+                        "VernacExtend",
+                        "c9d31eecaa0cff79fee4b43862828db880600e1a"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold withspacer; simpl.",
+                        "VernacExtend",
+                        "298edc5b288e9818c8a53809299e1973a0a70e8f"
+                    ]
+                },
+                {
+                    "command": [
+                        "Intros.",
+                        "VernacExtend",
+                        "58784a78af6fa36ccbd531d2a460b187e88b99db"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "set (j:= Int.max_signed / 4) in *; compute in j; subst j.",
+                        "VernacExtend",
+                        "de85bc1ad13dd642eec20a0e3cbec7e12ba0c3ce"
+                    ]
+                },
+                {
+                    "command": [
+                        "forget (fold_right Z.add 0 history) as h.",
+                        "VernacExtend",
+                        "a84a7516d4cb4e8fff50c6e29d48a1103c0d89be"
+                    ]
+                },
+                {
+                    "command": [
+                        "entailer!.",
+                        "VernacExtend",
+                        "e9311eb469ece63c985af7872ea148a97277818d"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "set (j:= Int.max_signed / 4) in *; compute in j; subst j.",
+                        "VernacExtend",
+                        "de85bc1ad13dd642eec20a0e3cbec7e12ba0c3ce"
+                    ]
+                },
+                {
+                    "command": [
+                        "forget (fold_right Z.add 0 history) as h.",
+                        "VernacExtend",
+                        "a84a7516d4cb4e8fff50c6e29d48a1103c0d89be"
+                    ]
+                },
+                {
+                    "command": [
+                        "entailer!.",
+                        "VernacExtend",
+                        "e9311eb469ece63c985af7872ea148a97277818d"
+                    ]
+                },
+                {
+                    "command": [
+                        "Exists (2 * fold_right Z.add 0 history + i).",
+                        "VernacExtend",
+                        "99268c25c34f723c389ed9dc332a4fb0768be4a7"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl; entailer!.",
+                        "VernacExtend",
+                        "77dc2d5b9f1a0120e41a35720f3d1b960409ba48"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Z.mul_add_distr_l, Z.add_comm.",
+                        "VernacExtend",
+                        "05fe5fd14b2c5aca766aea9273f0c43b09836d94"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold withspacer; simpl.",
+                        "VernacExtend",
+                        "298edc5b288e9818c8a53809299e1973a0a70e8f"
+                    ]
+                },
+                {
+                    "command": [
+                        "entailer!.",
+                        "VernacExtend",
+                        "e9311eb469ece63c985af7872ea148a97277818d"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "split_object_methods",
+            "line_nb": 64,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold object_methods.",
+                        "VernacExtend",
+                        "c63ca11ff8aea3d37cf2cce47763dd9a9ffa4d39"
+                    ]
+                },
+                {
+                    "command": [
+                        "Intros sh reset twiddle.",
+                        "VernacExtend",
+                        "a05e9fc4231210fe9e7fa13a80a489f76273c1d7"
+                    ]
+                },
+                {
+                    "command": [
+                        "Exists (fst (slice.cleave sh)) reset twiddle.",
+                        "VernacExtend",
+                        "883524e36dd52aaafb60449ea54d09c3df3c183b"
+                    ]
+                },
+                {
+                    "command": [
+                        "Exists (snd (slice.cleave sh)) reset twiddle.",
+                        "VernacExtend",
+                        "0e40b764e6122d9bcd7c4117617da074efe1dc6c"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (split_func_ptr' (reset_spec instance) reset) at 1.",
+                        "VernacExtend",
+                        "bcbe922a7821d23bdb1d1487fa87465c633a996e"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (split_func_ptr' (twiddle_spec instance) twiddle) at 1.",
+                        "VernacExtend",
+                        "29cd733d181d4be12c1ab1d3f2b7595d21b23b9e"
+                    ]
+                },
+                {
+                    "command": [
+                        "entailer!.",
+                        "VernacExtend",
+                        "e9311eb469ece63c985af7872ea148a97277818d"
+                    ]
+                },
+                {
+                    "command": [
+                        "split.",
+                        "VernacExtend",
+                        "55abc140132bd88981001ac656020469a8d503eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply slice.cleave_readable1; auto.",
+                        "VernacExtend",
+                        "34f01f65c6aa3e9f6965bc52ae9ece2150b05fbf"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply slice.cleave_readable2; auto.",
+                        "VernacExtend",
+                        "ad0db287268a3b69fb4f3541b905f596687be5f7"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (data_at_share_join (fst (slice.cleave sh)) (snd (slice.cleave sh)) sh).",
+                        "VernacExtend",
+                        "b2c37f494091d7a4d6a92605d1eb26bccf54148c"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply slice.cleave_join.",
+                        "VernacExtend",
+                        "cdf6f3ab1eac98f9cdb67fc7ee62fe78a90116ee"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "make_object_methods",
+            "line_nb": 139,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold object_methods.",
+                        "VernacExtend",
+                        "c63ca11ff8aea3d37cf2cce47763dd9a9ffa4d39"
+                    ]
+                },
+                {
+                    "command": [
+                        "Exists sh reset twiddle.",
+                        "VernacExtend",
+                        "ae88a9149cde80274c8bb1723d7743c350f52f63"
+                    ]
+                },
+                {
+                    "command": [
+                        "entailer!.",
+                        "VernacExtend",
+                        "e9311eb469ece63c985af7872ea148a97277818d"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "body_main",
+            "line_nb": 146,
+            "steps": [
+                {
+                    "command": [
+                        "start_function.",
+                        "VernacExtend",
+                        "c9d31eecaa0cff79fee4b43862828db880600e1a"
+                    ]
+                },
+                {
+                    "command": [
+                        "sep_apply (create_mem_mgr gv).",
+                        "VernacExtend",
+                        "ca2bc1160b45ea07c6045a98402d459454919792"
+                    ]
+                },
+                {
+                    "command": [
+                        "fold noattr cc_default.",
+                        "VernacExtend",
+                        "fa4e3553c656b77f07aac3cdf9162b67fc69df01"
+                    ]
+                },
+                {
+                    "command": [
+                        "gather_SEP 1 2; replace_SEP 0 (data_at Ews (Tstruct _methods noattr) (gv _foo_reset, gv _foo_twiddle) (gv _foo_methods)).",
+                        "VernacExtend",
+                        "6a51e1493ab69f4510ec2c866e56092e15bef053"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "entailer!.",
+                        "VernacExtend",
+                        "e9311eb469ece63c985af7872ea148a97277818d"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold_data_at (data_at _ (Tstruct _methods _) _ (gv _foo_methods)).",
+                        "VernacExtend",
+                        "57e7aaae96e255f383cef78041e7af47f03c46ad"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- mapsto_field_at with (gfs := [StructField _twiddle]) (v:= (gv _foo_twiddle)) by auto with field_compatible.",
+                        "VernacExtend",
+                        "b5e7cb987d7d3bca199c8ea999756e9ea3f04244"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite field_at_data_at.",
+                        "VernacExtend",
+                        "574f3b04d77aacbaa7b36ed60622f8e84d690df9"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite !field_compatible_field_address by auto with field_compatible.",
+                        "VernacExtend",
+                        "f744e9709c7928a5c55c7abe8bd4749c056a5eab"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite !isptr_offset_val_zero by auto.",
+                        "VernacExtend",
+                        "3ef164001fb176fbf5c0a0f05fa5001627a64a18"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite sepcon_comm.",
+                        "VernacExtend",
+                        "fd2af6f842f71517e95b56c21ef3f6449c4ad38d"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply derives_refl.",
+                        "VernacExtend",
+                        "e6aad07de74a98e9e95ce8bc0aeafdd1290e4b6f"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "make_func_ptr _foo_twiddle.",
+                        "VernacExtend",
+                        "21913c951c7e8ea8f8dff98c6010b13cab49915a"
+                    ]
+                },
+                {
+                    "command": [
+                        "make_func_ptr _foo_reset.",
+                        "VernacExtend",
+                        "959d2de6607cda36dd21315dac1dcbd9c7a6ba6e"
+                    ]
+                },
+                {
+                    "command": [
+                        "sep_apply (make_object_methods Ews foo_invariant(gv _foo_reset) (gv _foo_twiddle) (gv _foo_methods)); auto.",
+                        "VernacExtend",
+                        "4a77e1d562a529e65c2bdfc3a7cf6049387f7467"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward_call gv.",
+                        "VernacExtend",
+                        "d5c7b7e1fdc38cce467a033bd8588669a093a6b4"
+                    ]
+                },
+                {
+                    "command": [
+                        "Intros p.",
+                        "VernacExtend",
+                        "c327d475e8eccae0fcf084432fa3aa8277df1af0"
+                    ]
+                },
+                {
+                    "command": [
+                        "freeze [2] MT.",
+                        "VernacExtend",
+                        "e4ae47c03c7fc77dccbf9ff39ffcb0d0a543c1ce"
+                    ]
+                },
+                {
+                    "command": [
+                        "gather_SEP 1.",
+                        "VernacExtend",
+                        "ad40f10648adebca60bf5bdc7b9b395159667ecb"
+                    ]
+                },
+                {
+                    "command": [
+                        "try (tryif (method_call (p, @nil Z) (@nil Z) whatever; method_call (p, 3, @nil Z) [3%Z] i; [simpl; computable | ]) then fail else fail 99) .",
+                        "VernacExtend",
+                        "dc6c9a018d6aecfccdec611f560bbcf6b3bccf38"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold object_mpred.",
+                        "VernacExtend",
+                        "23946661269f055053e3cf1bee23f2c5bcdc3f3f"
+                    ]
+                },
+                {
+                    "command": [
+                        "Intros instance mtable0.",
+                        "VernacExtend",
+                        "ce84e6a8609a1154b6fc813250e4eb85fa0f25fe"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold object_methods at 1.",
+                        "VernacExtend",
+                        "271e939f12cac884d0ad13bc8f5ded6558ed856a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Intros sh r0 t0.",
+                        "VernacExtend",
+                        "7b70baaac300a87b158d175c71d4c176982d6944"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward_call (p, @nil Z).",
+                        "VernacExtend",
+                        "dead787a7e3e19b0c549bcd134e8866adbfd4ee5"
+                    ]
+                },
+                {
+                    "command": [
+                        "sep_apply (make_object_methods sh instance r0 t0 mtable0); auto.",
+                        "VernacExtend",
+                        "6fb51815ee6708e3cdd7d999e75eed3506d25adf"
+                    ]
+                },
+                {
+                    "command": [
+                        "sep_apply (object_mpred_i [] p instance mtable0).",
+                        "VernacExtend",
+                        "32fbb1a33b18d0ed8e7cbb75fd9605718949a1de"
+                    ]
+                },
+                {
+                    "command": [
+                        "deadvars!.",
+                        "VernacExtend",
+                        "e42b5ebfb97781026be26a8528de403e16a00c1a"
+                    ]
+                },
+                {
+                    "command": [
+                        "clear.",
+                        "VernacExtend",
+                        "086ee0db0bdefcfa1ec15bb5cd44d451de64c569"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold object_mpred.",
+                        "VernacExtend",
+                        "23946661269f055053e3cf1bee23f2c5bcdc3f3f"
+                    ]
+                },
+                {
+                    "command": [
+                        "Intros instance mtable0.",
+                        "VernacExtend",
+                        "ce84e6a8609a1154b6fc813250e4eb85fa0f25fe"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold object_methods at 1.",
+                        "VernacExtend",
+                        "271e939f12cac884d0ad13bc8f5ded6558ed856a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Intros sh r0 t0.",
+                        "VernacExtend",
+                        "7b70baaac300a87b158d175c71d4c176982d6944"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward_call (p, 3, @nil Z).",
+                        "VernacExtend",
+                        "b64cdd100a5a3de1305214cad9a8e1f6284783e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "computable.",
+                        "VernacExtend",
+                        "0ec9007776f5ee4cc0bb3f3af5e413aab823693c"
+                    ]
+                },
+                {
+                    "command": [
+                        "Intros i.",
+                        "VernacExtend",
+                        "186579fe52813d623451d11fad01ccb321430c84"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H0.",
+                        "VernacExtend",
+                        "a4a6a8421870dbf7255f8d031744eec32f12a941"
+                    ]
+                },
+                {
+                    "command": [
+                        "sep_apply (make_object_methods sh instance r0 t0 mtable0); auto.",
+                        "VernacExtend",
+                        "6fb51815ee6708e3cdd7d999e75eed3506d25adf"
+                    ]
+                },
+                {
+                    "command": [
+                        "sep_apply (object_mpred_i [3] p instance mtable0).",
+                        "VernacExtend",
+                        "2c783eb1b61d3417ec26d3051c6d01e384e4c35c"
+                    ]
+                },
+                {
+                    "command": [
+                        "deadvars!.",
+                        "VernacExtend",
+                        "e42b5ebfb97781026be26a8528de403e16a00c1a"
+                    ]
+                },
+                {
+                    "command": [
+                        "clear - H0.",
+                        "VernacExtend",
+                        "26b60cd70d9cbb77dd5e024fa10fa554555a88cc"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "Exists i; entailer!.",
+                        "VernacExtend",
+                        "fe0889e761c9f598a352736f420f7acedfe92a67"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

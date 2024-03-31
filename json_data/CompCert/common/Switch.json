@@ -1,0 +1,2032 @@
+{
+    "filename": "common/Switch.v",
+    "coq_project": "CompCert",
+    "vernac_cmds": [
+        [
+            "Require Import EqNat.",
+            "VernacRequire",
+            "6f4e2e752aa686b7ad3ad5aff446ff7d64b7cc4d"
+        ],
+        [
+            "Require Import Coqlib.",
+            "VernacRequire",
+            "bbbe15041aca3a03300067f7acd445b462d537cc"
+        ],
+        [
+            "Require Import Maps.",
+            "VernacRequire",
+            "f9a27637102e60e06a3c1ceb5a01819e80b9f645"
+        ],
+        [
+            "Require Import Integers.",
+            "VernacRequire",
+            "688f068e3335df7950b569ef75a5e993414c9874"
+        ],
+        [
+            "Require Import Values.",
+            "VernacRequire",
+            "f69762569c40def2ecf819f8117763d2ee924d2a"
+        ],
+        [
+            "Definition table : Type := list (Z * nat).",
+            "VernacDefinition",
+            "85e4f032ea7419a64a4458f199608c30f2ec4475"
+        ],
+        [
+            "Fixpoint switch_target (n: Z) (dfl: nat) (cases: table) {struct cases} : nat := match cases with | nil => dfl | (key, action) :: rem => if zeq n key then action else switch_target n dfl rem end.",
+            "VernacFixpoint",
+            "d39022ef0549d3330a565db7b9f9d9511ba3f3df"
+        ],
+        [
+            "Inductive switch_argument: bool -> val -> Z -> Prop := | switch_argument_32: forall i, switch_argument false (Vint i) (Int.unsigned i) | switch_argument_64: forall i, switch_argument true (Vlong i) (Int64.unsigned i).",
+            "VernacInductive",
+            "b1174c6a1a246283ffd0292aabd5f51870bf4e7a"
+        ],
+        [
+            "Inductive comptree : Type := | CTaction (act: nat) | CTifeq (key: Z) (act: nat) (cne: comptree) | CTiflt (key: Z) (clt: comptree) (cge: comptree) | CTjumptable (ofs: Z) (sz: Z) (acts: list nat) (cother: comptree).",
+            "VernacInductive",
+            "197446cdf14fea84b8c31b97b0eee9b69dde9c4e"
+        ],
+        [
+            "Section COMPTREE.",
+            "VernacBeginSection",
+            "28dddc9839b58cd49222bc29a684fcbccbb5aedd"
+        ],
+        [
+            "Variable modulus: Z.",
+            "VernacAssumption",
+            "4988531cd9172d8de3bf590857ce8a30ffbbbc38"
+        ],
+        [
+            "Hypothesis modulus_pos: modulus > 0.",
+            "VernacAssumption",
+            "1b683b69a427ea9a9c3df9404cd6c24460a7ad3e"
+        ],
+        [
+            "Fixpoint comptree_match (n: Z) (t: comptree) {struct t}: option nat := match t with | CTaction act => Some act | CTifeq key act t' => if zeq n key then Some act else comptree_match n t' | CTiflt key t1 t2 => if zlt n key then comptree_match n t1 else comptree_match n t2 | CTjumptable ofs sz tbl t' => let delta := (n - ofs) mod modulus in if zlt delta sz then list_nth_z tbl (delta mod Int.modulus) else comptree_match n t' end.",
+            "VernacFixpoint",
+            "f773a06f3a0b919cb1271bb67e02e25d478ac62f"
+        ],
+        [
+            "Fixpoint split_lt (pivot: Z) (cases: table) {struct cases} : table * table := match cases with | nil => (nil, nil) | (key, act) :: rem => let (l, r) := split_lt pivot rem in if zlt key pivot then ((key, act) :: l, r) else (l, (key, act) :: r) end.",
+            "VernacFixpoint",
+            "5b79eef5fd969943a05c9e6828ecf633d44440dc"
+        ],
+        [
+            "Fixpoint split_eq (pivot: Z) (cases: table) {struct cases} : option nat * table := match cases with | nil => (None, nil) | (key, act) :: rem => let (same, others) := split_eq pivot rem in if zeq key pivot then (Some act, others) else (same, (key, act) :: others) end.",
+            "VernacFixpoint",
+            "d91d5647080bded78572bb169670d854a57e6204"
+        ],
+        [
+            "Fixpoint split_between (dfl: nat) (ofs sz: Z) (cases: table) {struct cases} : ZMap.t nat * table := match cases with | nil => (ZMap.init dfl, nil) | (key, act) :: rem => let (inside, outside) := split_between dfl ofs sz rem in if zlt ((key - ofs) mod modulus) sz then (ZMap.set key act inside, outside) else (inside, (key, act) :: outside) end.",
+            "VernacFixpoint",
+            "07f501318141bcd526ad04cf32458a951617adef"
+        ],
+        [
+            "Definition refine_low_bound (v lo: Z) := if zeq v lo then lo + 1 else lo.",
+            "VernacDefinition",
+            "1a7fd3834e81fd0dd1d624b9d9d6e4e33f835a0e"
+        ],
+        [
+            "Definition refine_high_bound (v hi: Z) := if zeq v hi then hi - 1 else hi.",
+            "VernacDefinition",
+            "35479a881b68ecdf242335d19b4f331060144730"
+        ],
+        [
+            "Fixpoint validate_jumptable (cases: ZMap.t nat) (tbl: list nat) (n: Z) {struct tbl} : bool := match tbl with | nil => true | act :: rem => Nat.eqb act (ZMap.get n cases) && validate_jumptable cases rem (Z.succ n) end.",
+            "VernacFixpoint",
+            "2fc4ca44ce41c4f2378a2c5d4a6f881880b1096e"
+        ],
+        [
+            "Fixpoint validate (default: nat) (cases: table) (t: comptree) (lo hi: Z) {struct t} : bool := match t with | CTaction act => match cases with | nil => Nat.eqb act default | (key1, act1) :: _ => zeq key1 lo && zeq lo hi && Nat.eqb act act1 end | CTifeq pivot act t' => zle 0 pivot && zlt pivot modulus && match split_eq pivot cases with | (None, _) => false | (Some act', others) => Nat.eqb act act' && validate default others t' (refine_low_bound pivot lo) (refine_high_bound pivot hi) end | CTiflt pivot t1 t2 => zle 0 pivot && zlt pivot modulus && match split_lt pivot cases with | (lcases, rcases) => validate default lcases t1 lo (pivot - 1) && validate default rcases t2 pivot hi end | CTjumptable ofs sz tbl t' => let tbl_len := list_length_z tbl in zle 0 ofs && zlt ofs modulus && zle 0 sz && zlt sz modulus && zle (ofs + sz) modulus && zle sz tbl_len && zlt sz Int.modulus && match split_between default ofs sz cases with | (inside, outside) => validate_jumptable inside tbl ofs && validate default outside t' lo hi end end.",
+            "VernacFixpoint",
+            "6c4d88115a38327eb68b4f9bf5d2463f4da21718"
+        ],
+        [
+            "Definition validate_switch (default: nat) (cases: table) (t: comptree) := validate default cases t 0 (modulus - 1).",
+            "VernacDefinition",
+            "b14b25a56c6f6d4b4b2ed26445ca06907a4f823e"
+        ],
+        [
+            "Inductive wf_comptree: comptree -> Prop := | wf_action: forall act, wf_comptree (CTaction act) | wf_ifeq: forall key act cne, 0 <= key < modulus -> wf_comptree cne -> wf_comptree (CTifeq key act cne) | wf_iflt: forall key clt cge, 0 <= key < modulus -> wf_comptree clt -> wf_comptree cge -> wf_comptree (CTiflt key clt cge) | wf_jumptable: forall ofs sz acts cother, 0 <= ofs < modulus -> 0 <= sz < modulus -> wf_comptree cother -> wf_comptree (CTjumptable ofs sz acts cother).",
+            "VernacInductive",
+            "16e7d47aab427bebe4ab3cf441286c94744a57f5"
+        ],
+        [
+            "Lemma validate_wf: forall default t cases lo hi, validate default cases t lo hi = true -> wf_comptree t.",
+            "VernacStartTheoremProof",
+            "42c1c383dfa5e416eeea4f34e97a9fcfb882dc05"
+        ],
+        [
+            "induction t; simpl; intros; InvBooleans.",
+            "VernacExtend",
+            "c61ae817fce56663056ea0321721659f63a77aa2"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct (split_eq key cases) as [[act'|] others]; try discriminate; InvBooleans.",
+            "VernacExtend",
+            "1e381fec855ef6a517473e0d7dee7390d0357647"
+        ],
+        [
+            "constructor; eauto.",
+            "VernacExtend",
+            "e0e7f3b9c455b20aabae95754dcd431c74b5b789"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct (split_lt key cases) as [lc rc]; InvBooleans.",
+            "VernacExtend",
+            "bc8f9051219eabde564bbcef77d5134e5147c5ba"
+        ],
+        [
+            "constructor; eauto.",
+            "VernacExtend",
+            "e0e7f3b9c455b20aabae95754dcd431c74b5b789"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct (split_between default ofs sz cases) as [ins out]; InvBooleans.",
+            "VernacExtend",
+            "a47fb87df1e0090468bd1e974fe9869267315418"
+        ],
+        [
+            "constructor; eauto.",
+            "VernacExtend",
+            "e0e7f3b9c455b20aabae95754dcd431c74b5b789"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma split_eq_prop: forall v default n cases optact cases', split_eq n cases = (optact, cases') -> switch_target v default cases = (if zeq v n then match optact with Some act => act | None => default end else switch_target v default cases').",
+            "VernacStartTheoremProof",
+            "8e6a22eebb063359c89b66694b2b0bb4f951b410"
+        ],
+        [
+            "induction cases; simpl; intros until cases'.",
+            "VernacExtend",
+            "c71b6d507173f79051ed98b72f971cb8cbe30ad6"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "destruct (zeq v n); auto.",
+            "VernacExtend",
+            "44ab030c2f1c18b237620070316445f81bcd2cd8"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct a as [key act].",
+            "VernacExtend",
+            "b2c44d4f06cd94207c62dd507139a68e3bcb6c3d"
+        ],
+        [
+            "destruct (split_eq n cases) as [same other] eqn:SEQ.",
+            "VernacExtend",
+            "a708d2d31430f7699f95ddbdc042bf16653fb026"
+        ],
+        [
+            "rewrite (IHcases same other) by auto.",
+            "VernacExtend",
+            "f3802763685c4ba7a115dcd1c994a236db933df1"
+        ],
+        [
+            "destruct (zeq key n); intros EQ; inv EQ.",
+            "VernacExtend",
+            "73575245ed7efb170ab83c8bf058be8707eb7f1d"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct (zeq v n); auto.",
+            "VernacExtend",
+            "44ab030c2f1c18b237620070316445f81bcd2cd8"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "destruct (zeq v key).",
+            "VernacExtend",
+            "45ad3bcf61cbdb3e88860d39b8fba92e966ae0f5"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "subst v.",
+            "VernacExtend",
+            "a1d4af197c860364e3e3c9b734079b6e191cf10c"
+        ],
+        [
+            "rewrite zeq_false by auto.",
+            "VernacExtend",
+            "2f78a051efbb0bf5053efb154ff00c05e74ed19b"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma split_lt_prop: forall v default n cases lcases rcases, split_lt n cases = (lcases, rcases) -> switch_target v default cases = (if zlt v n then switch_target v default lcases else switch_target v default rcases).",
+            "VernacStartTheoremProof",
+            "068d54276f212cd7af3d5e2a34ee10594b48222d"
+        ],
+        [
+            "induction cases; intros until rcases; simpl.",
+            "VernacExtend",
+            "06ae6a75bb31951c1f89a0774136349b1715cb4e"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "destruct (zlt v n); auto.",
+            "VernacExtend",
+            "940e0710c8039f7c177de0716892b7ea8dee6057"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct a as [key act].",
+            "VernacExtend",
+            "b2c44d4f06cd94207c62dd507139a68e3bcb6c3d"
+        ],
+        [
+            "destruct (split_lt n cases) as [lc rc] eqn:SEQ.",
+            "VernacExtend",
+            "e8820fb1ce2a231916b829211e290c0ca2a7ea44"
+        ],
+        [
+            "rewrite (IHcases lc rc) by auto.",
+            "VernacExtend",
+            "31c1b2a325304c19caf4d57c7f2516703c50ef49"
+        ],
+        [
+            "destruct (zlt key n); intros EQ; inv EQ; simpl.",
+            "VernacExtend",
+            "f2f94c1b8ddeba442a35fb3129882c28d66101f1"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct (zeq v key).",
+            "VernacExtend",
+            "45ad3bcf61cbdb3e88860d39b8fba92e966ae0f5"
+        ],
+        [
+            "rewrite zlt_true by omega.",
+            "VernacExtend",
+            "6f7f6c19b07aad2882190188bcc4a5dc3ce525bb"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct (zeq v key).",
+            "VernacExtend",
+            "45ad3bcf61cbdb3e88860d39b8fba92e966ae0f5"
+        ],
+        [
+            "rewrite zlt_false by omega.",
+            "VernacExtend",
+            "1a3d93f438781af1cb3b43101336d435afaef9a1"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma split_between_prop: forall v default ofs sz cases inside outside, split_between default ofs sz cases = (inside, outside) -> switch_target v default cases = (if zlt ((v - ofs) mod modulus) sz then ZMap.get v inside else switch_target v default outside).",
+            "VernacStartTheoremProof",
+            "2121d23419f1ca6302e97034a0d51fafa04cd255"
+        ],
+        [
+            "induction cases; intros until outside; simpl; intros SEQ.",
+            "VernacExtend",
+            "6a12cd8544180e9f0e605ee3a714303af54fb04d"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "inv SEQ.",
+            "VernacExtend",
+            "5edf5955ae60ef789e0099f5f064ffc9668bee2a"
+        ],
+        [
+            "rewrite ZMap.gi.",
+            "VernacExtend",
+            "f0913a4e9681398cc8e424824c96a12844d12aa6"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "destruct (zlt ((v - ofs) mod modulus) sz); auto.",
+            "VernacExtend",
+            "5215226c416f0cc6c3fa9eac3c1377e9e6bf516e"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct a as [key act].",
+            "VernacExtend",
+            "b2c44d4f06cd94207c62dd507139a68e3bcb6c3d"
+        ],
+        [
+            "destruct (split_between default ofs sz cases) as [ins outs].",
+            "VernacExtend",
+            "547003eee122119a69a97a94197b12633f397c83"
+        ],
+        [
+            "erewrite IHcases; eauto.",
+            "VernacExtend",
+            "bb8165d0b2dbd8108319e2ff89d4624f9b72bf12"
+        ],
+        [
+            "destruct (zlt ((key - ofs) mod modulus) sz); inv SEQ.",
+            "VernacExtend",
+            "047a393d0a44077f1d435a0a6b8d19a34020164a"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite ZMap.gsspec.",
+            "VernacExtend",
+            "6b8155db1c30cdc648f306c90e200e3f424a2b2e"
+        ],
+        [
+            "unfold ZIndexed.eq.",
+            "VernacExtend",
+            "fd1bf752044ed5de75ac2199685ce67e23b33a10"
+        ],
+        [
+            "destruct (zeq v key).",
+            "VernacExtend",
+            "45ad3bcf61cbdb3e88860d39b8fba92e966ae0f5"
+        ],
+        [
+            "subst v.",
+            "VernacExtend",
+            "a1d4af197c860364e3e3c9b734079b6e191cf10c"
+        ],
+        [
+            "rewrite zlt_true by auto.",
+            "VernacExtend",
+            "6b7bb3735b5c95b8c9efb7b6e4f1153c192f8638"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "destruct (zeq v key).",
+            "VernacExtend",
+            "45ad3bcf61cbdb3e88860d39b8fba92e966ae0f5"
+        ],
+        [
+            "subst v.",
+            "VernacExtend",
+            "a1d4af197c860364e3e3c9b734079b6e191cf10c"
+        ],
+        [
+            "rewrite zlt_false by auto.",
+            "VernacExtend",
+            "f647927ae0b46a4f7d4776ae969439b9251e3d7b"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma validate_jumptable_correct_rec: forall cases tbl base v, validate_jumptable cases tbl base = true -> 0 <= v < list_length_z tbl -> list_nth_z tbl v = Some(ZMap.get (base + v) cases).",
+            "VernacStartTheoremProof",
+            "1fe084fa0253644170b433b1d9433ab43caa90fc"
+        ],
+        [
+            "induction tbl; simpl; intros.",
+            "VernacExtend",
+            "70670c138ab671e87e91c8883720cfed0bb11f56"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "unfold list_length_z in H0.",
+            "VernacExtend",
+            "9071bb84cd1c8d5c7883fc17bea2869986ba3d9b"
+        ],
+        [
+            "simpl in H0.",
+            "VernacExtend",
+            "a4a6a8421870dbf7255f8d031744eec32f12a941"
+        ],
+        [
+            "omegaContradiction.",
+            "VernacExtend",
+            "329a0d87fada76e54a403fa49705e937670711cd"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "InvBooleans.",
+            "VernacExtend",
+            "2a6e1bb1be0f04ca24c3e441e9db23c18612c002"
+        ],
+        [
+            "rewrite list_length_z_cons in H0.",
+            "VernacExtend",
+            "271a74cb2912d55ad8ab34081386ee9e16efc37a"
+        ],
+        [
+            "apply beq_nat_true in H1.",
+            "VernacExtend",
+            "1d0b73deb8af50706c716141557a103ad5f6d7ac"
+        ],
+        [
+            "destruct (zeq v 0).",
+            "VernacExtend",
+            "92856e7f14118d6f47dd79f4a53a479d97de36eb"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "replace (base + v) with base by omega.",
+            "VernacExtend",
+            "ec55037f4a4b6ca58503dfb6ed54cbda899e6803"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "replace (base + v) with (Z.succ base + Z.pred v) by omega.",
+            "VernacExtend",
+            "2ecdd8958280a4faf58c14c09be0f4b985ae2283"
+        ],
+        [
+            "apply IHtbl.",
+            "VernacExtend",
+            "8e9dcfbd9b84bf861a4d33616e62fcfc29e9ce44"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma validate_jumptable_correct: forall cases tbl ofs v sz, validate_jumptable cases tbl ofs = true -> (v - ofs) mod modulus < sz -> 0 <= sz -> 0 <= ofs -> ofs + sz <= modulus -> 0 <= v < modulus -> sz <= list_length_z tbl -> list_nth_z tbl ((v - ofs) mod modulus) = Some(ZMap.get v cases).",
+            "VernacStartTheoremProof",
+            "da3e7e50e23fb27f889a313fbcece551e3b30ebd"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite (validate_jumptable_correct_rec cases tbl ofs); auto.",
+            "VernacExtend",
+            "16e8297a0cb17ce3429bf812c0234b394780b350"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "rewrite Zmod_small.",
+            "VernacExtend",
+            "89919791f396d959b482652a3140199807abe85d"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "destruct (zle ofs v).",
+            "VernacExtend",
+            "84181ec95001ce7400111885766cae655c4e400c"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "assert (M: ((v - ofs) + 1 * modulus) mod modulus = (v - ofs) + modulus).",
+            "VernacExtend",
+            "027c1fd4736cc84fe02754fa9b7b3cf3980e06c1"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "rewrite Zmod_small.",
+            "VernacExtend",
+            "89919791f396d959b482652a3140199807abe85d"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "rewrite Z_mod_plus in M by auto.",
+            "VernacExtend",
+            "a3a98be71b3b5a6ef0687c0c9ad98e7f96d61ef6"
+        ],
+        [
+            "rewrite M in H0.",
+            "VernacExtend",
+            "20901def09d81e1d8f0ca0bec321b564891d80ec"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "generalize (Z_mod_lt (v - ofs) modulus modulus_pos).",
+            "VernacExtend",
+            "d92178f3e410a8bcf5302ec63e5e08ebd146686e"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma validate_correct_rec: forall default v, 0 <= v < modulus -> forall t cases lo hi, validate default cases t lo hi = true -> lo <= v <= hi -> comptree_match v t = Some (switch_target v default cases).",
+            "VernacStartTheoremProof",
+            "75a625059f0e5c8b0b4d66af30909d83b20da5be"
+        ],
+        [
+            "intros default v VRANGE.",
+            "VernacExtend",
+            "2b3111c33437ccd5baf6475a8de5ec664abc140c"
+        ],
+        [
+            "induction t; simpl; intros until hi.",
+            "VernacExtend",
+            "afde754e3d7db3e0415a261ca3deda6bb5a8762d"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct cases as [ | [key1 act1] cases1]; intros.",
+            "VernacExtend",
+            "a7dec07461da78dd28068b0829bc162d0188ecbb"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply beq_nat_true in H.",
+            "VernacExtend",
+            "ab32f75a4e4b0033bc8abc8fff13fdeae9235e44"
+        ],
+        [
+            "subst act.",
+            "VernacExtend",
+            "12a2045668b0f7f42167dc36e938e83dd909b87d"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "InvBooleans.",
+            "VernacExtend",
+            "2a6e1bb1be0f04ca24c3e441e9db23c18612c002"
+        ],
+        [
+            "apply beq_nat_true in H2.",
+            "VernacExtend",
+            "aedbb0d3f8eee382d1e0ffe76dbef8af1310cecd"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "destruct (zeq v hi).",
+            "VernacExtend",
+            "5beb9e9426954c7c34d83340663234de87b714fd"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "omegaContradiction.",
+            "VernacExtend",
+            "329a0d87fada76e54a403fa49705e937670711cd"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct (split_eq key cases) as [optact others] eqn:EQ.",
+            "VernacExtend",
+            "63bc401388a2c888cb5b894643d35389ee86a7ad"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct optact as [act1|]; InvBooleans; try discriminate.",
+            "VernacExtend",
+            "4a06e12478df660ef2b602e90cab935dea678402"
+        ],
+        [
+            "apply beq_nat_true in H.",
+            "VernacExtend",
+            "ab32f75a4e4b0033bc8abc8fff13fdeae9235e44"
+        ],
+        [
+            "rewrite (split_eq_prop v default _ _ _ _ EQ).",
+            "VernacExtend",
+            "c2ac0bd8f056ad2e79601b737b3ef8f4185a105a"
+        ],
+        [
+            "destruct (zeq v key).",
+            "VernacExtend",
+            "45ad3bcf61cbdb3e88860d39b8fba92e966ae0f5"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "eapply IHt; eauto.",
+            "VernacExtend",
+            "6c1ac3aeffc859411a343bc8e869304206ca52ce"
+        ],
+        [
+            "unfold refine_low_bound, refine_high_bound.",
+            "VernacExtend",
+            "a19490d31e66e695cbdbff6598f5f6216f45b130"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "destruct (zeq key lo); omega.",
+            "VernacExtend",
+            "0ca6a446e05fd46b084fc17b63a18cda326a0e27"
+        ],
+        [
+            "destruct (zeq key hi); omega.",
+            "VernacExtend",
+            "736c297bb029830fc6fed9477cd6d1614b5ef392"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct (split_lt key cases) as [lcases rcases] eqn:EQ; intros; InvBooleans.",
+            "VernacExtend",
+            "7a5e3860f0059a6c0cb82cfe2d950d613c5f444e"
+        ],
+        [
+            "rewrite (split_lt_prop v default _ _ _ _ EQ).",
+            "VernacExtend",
+            "948714cab5640eff3ffb03486f4983a745394d8b"
+        ],
+        [
+            "destruct (zlt v key).",
+            "VernacExtend",
+            "54c030e3b0e8b61358a6b01af89eac865aacec78"
+        ],
+        [
+            "eapply IHt1.",
+            "VernacExtend",
+            "9f720e5e940ec9d2857d84ace02912c0ed73318f"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "eapply IHt2.",
+            "VernacExtend",
+            "ce3ad05050a977f6af6d84b6a15019c98ec1d191"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct (split_between default ofs sz cases) as [ins outs] eqn:EQ; intros; InvBooleans.",
+            "VernacExtend",
+            "5e7a708d61d2358e4f8ce117145a69fbfaffd486"
+        ],
+        [
+            "rewrite (split_between_prop v _ _ _ _ _ _ EQ).",
+            "VernacExtend",
+            "feed32d6efcd3ca6156277e80c5b4e7a52f2627c"
+        ],
+        [
+            "assert (0 <= (v - ofs) mod modulus < modulus) by (apply Z_mod_lt; omega).",
+            "VernacExtend",
+            "ef2cab9a7261e604cb1dc4bb38a6dbd88ae598ab"
+        ],
+        [
+            "destruct (zlt ((v - ofs) mod modulus) sz).",
+            "VernacExtend",
+            "022bc2953e12485e943bc2619351237cb7503945"
+        ],
+        [
+            "rewrite Zmod_small by omega.",
+            "VernacExtend",
+            "b55bd313119b61355324b8f6158f311f7095d082"
+        ],
+        [
+            "eapply validate_jumptable_correct; eauto.",
+            "VernacExtend",
+            "dd4e82b986cbb121b17346c50a92c175416e834c"
+        ],
+        [
+            "eapply IHt; eauto.",
+            "VernacExtend",
+            "6c1ac3aeffc859411a343bc8e869304206ca52ce"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition table_tree_agree (default: nat) (cases: table) (t: comptree) : Prop := forall v, 0 <= v < modulus -> comptree_match v t = Some(switch_target v default cases).",
+            "VernacDefinition",
+            "ac6c43c01816701881618356c955bdd71fe6c52e"
+        ],
+        [
+            "Theorem validate_switch_correct: forall default t cases, validate_switch default cases t = true -> wf_comptree t /\\ table_tree_agree default cases t.",
+            "VernacStartTheoremProof",
+            "ef54be0f4965dc139bcc13de7e897efbbf47890c"
+        ],
+        [
+            "unfold validate_switch, table_tree_agree; split.",
+            "VernacExtend",
+            "6b6994a3e0c3611e42f971be6535a148021d277a"
+        ],
+        [
+            "eapply validate_wf; eauto.",
+            "VernacExtend",
+            "d8ac58c65928af25203f7c58eff52d322f1cbc05"
+        ],
+        [
+            "intros; eapply validate_correct_rec; eauto.",
+            "VernacExtend",
+            "d33d89f64b739098b651d33a96a3730763021dad"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End COMPTREE.",
+            "VernacEndSegment",
+            "e0051c65e53f007b247df6ec30067e4783abc66e"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "validate_wf",
+            "line_nb": 22,
+            "steps": [
+                {
+                    "command": [
+                        "induction t; simpl; intros; InvBooleans.",
+                        "VernacExtend",
+                        "c61ae817fce56663056ea0321721659f63a77aa2"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor.",
+                        "VernacExtend",
+                        "3c77e6be855b5086df5e918bf2a0537e1010479a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (split_eq key cases) as [[act'|] others]; try discriminate; InvBooleans.",
+                        "VernacExtend",
+                        "1e381fec855ef6a517473e0d7dee7390d0357647"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; eauto.",
+                        "VernacExtend",
+                        "e0e7f3b9c455b20aabae95754dcd431c74b5b789"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (split_lt key cases) as [lc rc]; InvBooleans.",
+                        "VernacExtend",
+                        "bc8f9051219eabde564bbcef77d5134e5147c5ba"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; eauto.",
+                        "VernacExtend",
+                        "e0e7f3b9c455b20aabae95754dcd431c74b5b789"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (split_between default ofs sz cases) as [ins out]; InvBooleans.",
+                        "VernacExtend",
+                        "a47fb87df1e0090468bd1e974fe9869267315418"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; eauto.",
+                        "VernacExtend",
+                        "e0e7f3b9c455b20aabae95754dcd431c74b5b789"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "split_eq_prop",
+            "line_nb": 36,
+            "steps": [
+                {
+                    "command": [
+                        "induction cases; simpl; intros until cases'.",
+                        "VernacExtend",
+                        "c71b6d507173f79051ed98b72f971cb8cbe30ad6"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (zeq v n); auto.",
+                        "VernacExtend",
+                        "44ab030c2f1c18b237620070316445f81bcd2cd8"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a as [key act].",
+                        "VernacExtend",
+                        "b2c44d4f06cd94207c62dd507139a68e3bcb6c3d"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (split_eq n cases) as [same other] eqn:SEQ.",
+                        "VernacExtend",
+                        "a708d2d31430f7699f95ddbdc042bf16653fb026"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (IHcases same other) by auto.",
+                        "VernacExtend",
+                        "f3802763685c4ba7a115dcd1c994a236db933df1"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (zeq key n); intros EQ; inv EQ.",
+                        "VernacExtend",
+                        "73575245ed7efb170ab83c8bf058be8707eb7f1d"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (zeq v n); auto.",
+                        "VernacExtend",
+                        "44ab030c2f1c18b237620070316445f81bcd2cd8"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (zeq v key).",
+                        "VernacExtend",
+                        "45ad3bcf61cbdb3e88860d39b8fba92e966ae0f5"
+                    ]
+                },
+                {
+                    "command": [
+                        "*",
+                        "VernacBullet",
+                        "8a329d054468e0c41ce333043e0978e30eed7b98"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst v.",
+                        "VernacExtend",
+                        "a1d4af197c860364e3e3c9b734079b6e191cf10c"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite zeq_false by auto.",
+                        "VernacExtend",
+                        "2f78a051efbb0bf5053efb154ff00c05e74ed19b"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "*",
+                        "VernacBullet",
+                        "8a329d054468e0c41ce333043e0978e30eed7b98"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "split_lt_prop",
+            "line_nb": 60,
+            "steps": [
+                {
+                    "command": [
+                        "induction cases; intros until rcases; simpl.",
+                        "VernacExtend",
+                        "06ae6a75bb31951c1f89a0774136349b1715cb4e"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (zlt v n); auto.",
+                        "VernacExtend",
+                        "940e0710c8039f7c177de0716892b7ea8dee6057"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a as [key act].",
+                        "VernacExtend",
+                        "b2c44d4f06cd94207c62dd507139a68e3bcb6c3d"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (split_lt n cases) as [lc rc] eqn:SEQ.",
+                        "VernacExtend",
+                        "e8820fb1ce2a231916b829211e290c0ca2a7ea44"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (IHcases lc rc) by auto.",
+                        "VernacExtend",
+                        "31c1b2a325304c19caf4d57c7f2516703c50ef49"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (zlt key n); intros EQ; inv EQ; simpl.",
+                        "VernacExtend",
+                        "f2f94c1b8ddeba442a35fb3129882c28d66101f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (zeq v key).",
+                        "VernacExtend",
+                        "45ad3bcf61cbdb3e88860d39b8fba92e966ae0f5"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite zlt_true by omega.",
+                        "VernacExtend",
+                        "6f7f6c19b07aad2882190188bcc4a5dc3ce525bb"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (zeq v key).",
+                        "VernacExtend",
+                        "45ad3bcf61cbdb3e88860d39b8fba92e966ae0f5"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite zlt_false by omega.",
+                        "VernacExtend",
+                        "1a3d93f438781af1cb3b43101336d435afaef9a1"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "split_between_prop",
+            "line_nb": 83,
+            "steps": [
+                {
+                    "command": [
+                        "induction cases; intros until outside; simpl; intros SEQ.",
+                        "VernacExtend",
+                        "6a12cd8544180e9f0e605ee3a714303af54fb04d"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv SEQ.",
+                        "VernacExtend",
+                        "5edf5955ae60ef789e0099f5f064ffc9668bee2a"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite ZMap.gi.",
+                        "VernacExtend",
+                        "f0913a4e9681398cc8e424824c96a12844d12aa6"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (zlt ((v - ofs) mod modulus) sz); auto.",
+                        "VernacExtend",
+                        "5215226c416f0cc6c3fa9eac3c1377e9e6bf516e"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a as [key act].",
+                        "VernacExtend",
+                        "b2c44d4f06cd94207c62dd507139a68e3bcb6c3d"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (split_between default ofs sz cases) as [ins outs].",
+                        "VernacExtend",
+                        "547003eee122119a69a97a94197b12633f397c83"
+                    ]
+                },
+                {
+                    "command": [
+                        "erewrite IHcases; eauto.",
+                        "VernacExtend",
+                        "bb8165d0b2dbd8108319e2ff89d4624f9b72bf12"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (zlt ((key - ofs) mod modulus) sz); inv SEQ.",
+                        "VernacExtend",
+                        "047a393d0a44077f1d435a0a6b8d19a34020164a"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite ZMap.gsspec.",
+                        "VernacExtend",
+                        "6b8155db1c30cdc648f306c90e200e3f424a2b2e"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold ZIndexed.eq.",
+                        "VernacExtend",
+                        "fd1bf752044ed5de75ac2199685ce67e23b33a10"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (zeq v key).",
+                        "VernacExtend",
+                        "45ad3bcf61cbdb3e88860d39b8fba92e966ae0f5"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst v.",
+                        "VernacExtend",
+                        "a1d4af197c860364e3e3c9b734079b6e191cf10c"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite zlt_true by auto.",
+                        "VernacExtend",
+                        "6b7bb3735b5c95b8c9efb7b6e4f1153c192f8638"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (zeq v key).",
+                        "VernacExtend",
+                        "45ad3bcf61cbdb3e88860d39b8fba92e966ae0f5"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst v.",
+                        "VernacExtend",
+                        "a1d4af197c860364e3e3c9b734079b6e191cf10c"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite zlt_false by auto.",
+                        "VernacExtend",
+                        "f647927ae0b46a4f7d4776ae969439b9251e3d7b"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "validate_jumptable_correct_rec",
+            "line_nb": 111,
+            "steps": [
+                {
+                    "command": [
+                        "induction tbl; simpl; intros.",
+                        "VernacExtend",
+                        "70670c138ab671e87e91c8883720cfed0bb11f56"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold list_length_z in H0.",
+                        "VernacExtend",
+                        "9071bb84cd1c8d5c7883fc17bea2869986ba3d9b"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H0.",
+                        "VernacExtend",
+                        "a4a6a8421870dbf7255f8d031744eec32f12a941"
+                    ]
+                },
+                {
+                    "command": [
+                        "omegaContradiction.",
+                        "VernacExtend",
+                        "329a0d87fada76e54a403fa49705e937670711cd"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "InvBooleans.",
+                        "VernacExtend",
+                        "2a6e1bb1be0f04ca24c3e441e9db23c18612c002"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite list_length_z_cons in H0.",
+                        "VernacExtend",
+                        "271a74cb2912d55ad8ab34081386ee9e16efc37a"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply beq_nat_true in H1.",
+                        "VernacExtend",
+                        "1d0b73deb8af50706c716141557a103ad5f6d7ac"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (zeq v 0).",
+                        "VernacExtend",
+                        "92856e7f14118d6f47dd79f4a53a479d97de36eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "replace (base + v) with base by omega.",
+                        "VernacExtend",
+                        "ec55037f4a4b6ca58503dfb6ed54cbda899e6803"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "replace (base + v) with (Z.succ base + Z.pred v) by omega.",
+                        "VernacExtend",
+                        "2ecdd8958280a4faf58c14c09be0f4b985ae2283"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply IHtbl.",
+                        "VernacExtend",
+                        "8e9dcfbd9b84bf861a4d33616e62fcfc29e9ce44"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "validate_jumptable_correct",
+            "line_nb": 131,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (validate_jumptable_correct_rec cases tbl ofs); auto.",
+                        "VernacExtend",
+                        "16e8297a0cb17ce3429bf812c0234b394780b350"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "f_equal.",
+                        "VernacExtend",
+                        "dfce814d1efcef60f8330516ad88155a3a5ec317"
+                    ]
+                },
+                {
+                    "command": [
+                        "f_equal.",
+                        "VernacExtend",
+                        "dfce814d1efcef60f8330516ad88155a3a5ec317"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Zmod_small.",
+                        "VernacExtend",
+                        "89919791f396d959b482652a3140199807abe85d"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (zle ofs v).",
+                        "VernacExtend",
+                        "84181ec95001ce7400111885766cae655c4e400c"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (M: ((v - ofs) + 1 * modulus) mod modulus = (v - ofs) + modulus).",
+                        "VernacExtend",
+                        "027c1fd4736cc84fe02754fa9b7b3cf3980e06c1"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Zmod_small.",
+                        "VernacExtend",
+                        "89919791f396d959b482652a3140199807abe85d"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Z_mod_plus in M by auto.",
+                        "VernacExtend",
+                        "a3a98be71b3b5a6ef0687c0c9ad98e7f96d61ef6"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite M in H0.",
+                        "VernacExtend",
+                        "20901def09d81e1d8f0ca0bec321b564891d80ec"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize (Z_mod_lt (v - ofs) modulus modulus_pos).",
+                        "VernacExtend",
+                        "d92178f3e410a8bcf5302ec63e5e08ebd146686e"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "validate_switch_correct",
+            "line_nb": 206,
+            "steps": [
+                {
+                    "command": [
+                        "unfold validate_switch, table_tree_agree; split.",
+                        "VernacExtend",
+                        "6b6994a3e0c3611e42f971be6535a148021d277a"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply validate_wf; eauto.",
+                        "VernacExtend",
+                        "d8ac58c65928af25203f7c58eff52d322f1cbc05"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros; eapply validate_correct_rec; eauto.",
+                        "VernacExtend",
+                        "d33d89f64b739098b651d33a96a3730763021dad"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

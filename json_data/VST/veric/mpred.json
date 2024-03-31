@@ -1,0 +1,1346 @@
+{
+    "filename": "veric/mpred.v",
+    "coq_project": "VST",
+    "vernac_cmds": [
+        [
+            "Require Import VST.veric.base.",
+            "VernacRequire",
+            "44430f3044f6ed3bc31c11a137cd98cdfe01c277"
+        ],
+        [
+            "Require Import VST.veric.rmaps.",
+            "VernacRequire",
+            "65dd06aa857655d44d3341a99fa83639cff14334"
+        ],
+        [
+            "Require Export compcert.cfrontend.Ctypes.",
+            "VernacRequire",
+            "2d0d99a22d3ae854f49404e997d6f91b0d23506f"
+        ],
+        [
+            "Require Import VST.veric.compcert_rmaps.",
+            "VernacRequire",
+            "c684a380737921a2e41654d70bb2fe8e448426cf"
+        ],
+        [
+            "Require Import VST.veric.composite_compute.",
+            "VernacRequire",
+            "4012156c6ea129f43d08826402d0c803d4add346"
+        ],
+        [
+            "Require Import VST.veric.align_mem.",
+            "VernacRequire",
+            "91124581e3e41938db234ceb71412caecfed99f3"
+        ],
+        [
+            "Require Import VST.veric.val_lemmas.",
+            "VernacRequire",
+            "a811ca80ddaf3b24024d4f284248d6d7abdb774b"
+        ],
+        [
+            "Definition strict_bool_val (v: val) (t: type) : option bool := match v, t with | Vint n, Tint _ _ _ => Some (negb (Int.eq n Int.zero)) | Vlong n, Tlong _ _ => Some (negb (Int64.eq n Int64.zero)) | (Vint n), (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) => if Archi.ptr64 then None else if Int.eq n Int.zero then Some false else None | Vlong n, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) => if Archi.ptr64 then if Int64.eq n Int64.zero then Some false else None else None | Vptr b ofs, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) => Some true | Vfloat f, Tfloat F64 _ => Some (negb(Float.cmp Ceq f Float.zero)) | Vsingle f, Tfloat F32 _ => Some (negb(Float32.cmp Ceq f Float32.zero)) | _, _ => None end.",
+            "VernacDefinition",
+            "fe82acd0e8de5a710d371afcd026a3b7dc5e6f6e"
+        ],
+        [
+            "Definition type_is_by_value (t:type) : bool := match t with | Tint _ _ _ | Tlong _ _ | Tfloat _ _ | Tpointer _ _ => true | _ => false end.",
+            "VernacDefinition",
+            "806e2500cb34b3d073eeb368ff0520da58c5db28"
+        ],
+        [
+            "Definition type_is_by_reference t : bool := match t with | Tarray _ _ _ | Tfunction _ _ _ => true | _ => false end.",
+            "VernacDefinition",
+            "2394091a46afce00b84df4dc044802300eb690d7"
+        ],
+        [
+            "Set Implicit Arguments.",
+            "VernacSetOption",
+            "9e84ff8896f028601d8aded48c1d4aebe60aa584"
+        ],
+        [
+            "Module Map.",
+            "VernacDefineModule",
+            "4ff35228eed379149eb6ed2dcde1705ea17e8e6d"
+        ],
+        [
+            "Section map.",
+            "VernacBeginSection",
+            "f5fc9f8ae91f4db732e57b3d613fdbd6a5c0f645"
+        ],
+        [
+            "Variables (B : Type).",
+            "VernacAssumption",
+            "4568535049b1468baa96afeb3c68040e1aeb1fe4"
+        ],
+        [
+            "Definition t := positive -> option B.",
+            "VernacDefinition",
+            "6f9ae3d8828e94dbecf4d07579c8fd4615003593"
+        ],
+        [
+            "Definition get (h: t) (a:positive) : option B := h a.",
+            "VernacDefinition",
+            "a741b21253323c7ccccc77ffcb388cef0792c574"
+        ],
+        [
+            "Definition set (a:positive) (v: B) (h: t) : t := fun i => if ident_eq i a then Some v else h i.",
+            "VernacDefinition",
+            "9518e237e886e6dcd0525e6bb4573bc605bf8127"
+        ],
+        [
+            "Definition remove (a: positive) (h: t) : t := fun i => if ident_eq i a then None else h i.",
+            "VernacDefinition",
+            "62032897c359c3f6723ce8200e87066949fa1c0b"
+        ],
+        [
+            "Definition empty : t := fun _ => None.",
+            "VernacDefinition",
+            "1e2c90573d9fdf984b4e83c3dff48bbfda8c908a"
+        ],
+        [
+            "Lemma gss h x v : get (set x v h) x = Some v.",
+            "VernacStartTheoremProof",
+            "345ddfebd9ebbf8cf6c1812729e05dd4aa5eeaec"
+        ],
+        [
+            "unfold get, set; if_tac; intuition.",
+            "VernacExtend",
+            "5a9a6921b093a9bb2a75c713d974f7f7664962f4"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma gso h x y v : x<>y -> get (set x v h) y = get h y.",
+            "VernacStartTheoremProof",
+            "1672f3dd5f4213276a5de130efc6d0eebd4cbc2a"
+        ],
+        [
+            "unfold get, set; intros; if_tac; intuition.",
+            "VernacExtend",
+            "7f51c2e23f2c6a21def177bab79068ac6d25a09c"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma grs h x : get (remove x h) x = None.",
+            "VernacStartTheoremProof",
+            "498009c64cf9417b53053fdd3db23bd5ffad106e"
+        ],
+        [
+            "unfold get, remove; intros; if_tac; intuition.",
+            "VernacExtend",
+            "67afa030144a7a54ed476dfd8feb3e14617212ed"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma gro h x y : x<>y -> get (remove x h) y = get h y.",
+            "VernacStartTheoremProof",
+            "5c80182061662baec8151ebb0366a8d2072d7311"
+        ],
+        [
+            "unfold get, remove; intros; if_tac; intuition.",
+            "VernacExtend",
+            "67afa030144a7a54ed476dfd8feb3e14617212ed"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma ext h h' : (forall x, get h x = get h' x) -> h=h'.",
+            "VernacStartTheoremProof",
+            "1c5f7ae431d9346505fd19dc8276cb5b89ad6bab"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "extensionality x.",
+            "VernacExtend",
+            "a02a0d77f789b5337c65fc4009fcc8ebde3d5cef"
+        ],
+        [
+            "apply H.",
+            "VernacExtend",
+            "4b47b71ad0f800d57cbdc591d68949e07decb540"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma override (a: positive) (b b' : B) h : set a b' (set a b h) = set a b' h.",
+            "VernacStartTheoremProof",
+            "3b6db659ed1ba8528a6d8550ef3a48701133ca5f"
+        ],
+        [
+            "apply ext; intros; unfold get, set; if_tac; intuition.",
+            "VernacExtend",
+            "843f24ccf4241188f4c2db733a0097327309fc85"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma gsspec: forall (i j: positive) (x: B) (m: t), get (set j x m) i = if ident_eq i j then Some x else get m i.",
+            "VernacStartTheoremProof",
+            "316392588fc249ebcf185b76a997d02bd06c3e53"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold get; unfold set; if_tac; intuition.",
+            "VernacExtend",
+            "9f83561914bbb3184fb3af834f9012752ed10eff"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma override_same : forall id t (x:B), get t id = Some x -> set id x t = t.",
+            "VernacStartTheoremProof",
+            "66bd18a2896ce931544177666ec793c65a947a10"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold set.",
+            "VernacExtend",
+            "9b0835dc2ca0800df83e9b8ff42518230137531b"
+        ],
+        [
+            "unfold get in H.",
+            "VernacExtend",
+            "96d6e278ad6d65360f2e01081cbd866603a06a7e"
+        ],
+        [
+            "apply ext.",
+            "VernacExtend",
+            "5a052e170aa1113a35d64f657b9b5e1a4fb0a173"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold get.",
+            "VernacExtend",
+            "0ee15cb7f500427115d62c79c71ab50bde1d2bb9"
+        ],
+        [
+            "if_tac; subst; auto.",
+            "VernacExtend",
+            "3bcdd0ed955d7a9c586ca964b06506fda91d5147"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End map.",
+            "VernacEndSegment",
+            "afa41641b24ef03928e443a9185b59e1842896d3"
+        ],
+        [
+            "End Map.",
+            "VernacEndSegment",
+            "8fa7735d92e76131e10c5cfe95a2247db65a4b9f"
+        ],
+        [
+            "Unset Implicit Arguments.",
+            "VernacUnsetOption",
+            "cacc0f023301fae157e1bbb31e84419045fc8198"
+        ],
+        [
+            "Section FUNSPEC.",
+            "VernacBeginSection",
+            "88728f30fd2784322b71ef8f82b950b226a89dc6"
+        ],
+        [
+            "Definition genviron := Map.t block.",
+            "VernacDefinition",
+            "694cb4c0f5ae49457f29e856d358476efb4bd046"
+        ],
+        [
+            "Definition venviron := Map.t (block * type).",
+            "VernacDefinition",
+            "b807a83aa0d114b80c272939c92d74fa12535c37"
+        ],
+        [
+            "Definition tenviron := Map.t val.",
+            "VernacDefinition",
+            "0c3ac10cf7ed5a6620ba50928f65a13d67f28b5c"
+        ],
+        [
+            "Inductive environ : Type := mkEnviron: forall (ge: genviron) (ve: venviron) (te: tenviron), environ.",
+            "VernacInductive",
+            "c39e2a2eb9b857460e80267ebcd4e90d7d53b39e"
+        ],
+        [
+            "Definition ge_of (rho: environ) : genviron := match rho with mkEnviron ge ve te => ge end.",
+            "VernacDefinition",
+            "fbae01406ae31bbd73b4b0d9b4ed21765203f11d"
+        ],
+        [
+            "Definition ve_of (rho: environ) : venviron := match rho with mkEnviron ge ve te => ve end.",
+            "VernacDefinition",
+            "e4aec8d19bc2014ea28125913a5a1618d8ea8382"
+        ],
+        [
+            "Definition te_of (rho: environ) : tenviron := match rho with mkEnviron ge ve te => te end.",
+            "VernacDefinition",
+            "64e04190597891264d34638d26c18cdd04d83e1f"
+        ],
+        [
+            "Definition any_environ : environ := mkEnviron (fun _ => None) (Map.empty _) (Map.empty _).",
+            "VernacDefinition",
+            "64cae214a88f7e724bf0ceb24c1d71f7a27f7187"
+        ],
+        [
+            "Definition mpred := pred rmap.",
+            "VernacDefinition",
+            "744b0fda1e6f436df7992723dfd784f4ab45559c"
+        ],
+        [
+            "Definition AssertTT (A: TypeTree): TypeTree := ArrowType A (ArrowType (ConstType environ) Mpred).",
+            "VernacDefinition",
+            "8ba256b93a342475ca7f38a3309315cbd70e12a3"
+        ],
+        [
+            "Definition SpecTT (A: TypeTree): TypeTree := ArrowType A (ArrowType (ConstType bool) (ArrowType (ConstType environ) Mpred)).",
+            "VernacDefinition",
+            "3e843cc2d86f838ffe02ee81ab1ec7ab936f8004"
+        ],
+        [
+            "Definition super_non_expansive {A: TypeTree} (P: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred): Prop := forall n ts (x: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts A) mpred) (rho: environ), approx n (P ts x rho) = approx n (P ts (fmap _ (approx n) (approx n) x) rho).",
+            "VernacDefinition",
+            "24ee6c498e35040c3657cd9c154c318cffc69629"
+        ],
+        [
+            "Definition const_super_non_expansive: forall (T: Type) P, @super_non_expansive (ConstType T) P := fun _ _ _ _ _ _ => eq_refl.",
+            "VernacDefinition",
+            "61a3c2e13e2c0bbe7b6b71c7cfc261c7b4fca69a"
+        ],
+        [
+            "Inductive funspec := mk_funspec: funsig -> calling_convention -> forall (A: TypeTree) (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred) (P_ne: super_non_expansive P) (Q_ne: super_non_expansive Q), funspec.",
+            "VernacInductive",
+            "34170a68a5c969fb2632d32b4d479f494d22db27"
+        ],
+        [
+            "Definition varspecs : Type := list (ident * type).",
+            "VernacDefinition",
+            "f21d6800504480eece6f8be8d0b67e0562e57ef4"
+        ],
+        [
+            "Definition funspecs := list (ident * funspec).",
+            "VernacDefinition",
+            "7fcf3800c837a0433e7b9faf118c62c33663018c"
+        ],
+        [
+            "End FUNSPEC.",
+            "VernacEndSegment",
+            "225e1f7023ff5570136ca2feb056eef1a498b02b"
+        ],
+        [
+            "Definition assert := environ -> mpred.",
+            "VernacDefinition",
+            "284d63b5a8c50c35e74a5722e8fba819f4bc16fa"
+        ],
+        [
+            "Definition packPQ {A: rmaps.TypeTree} (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)): forall ts, dependent_type_functor_rec ts (SpecTT A) (pred rmap) := fun ts a b => if b then P ts a else Q ts a.",
+            "VernacDefinition",
+            "1e4f54c3fab83f5a7f2779f547804f687c2bb7ff"
+        ],
+        [
+            "Definition int_range (sz: intsize) (sgn: signedness) (i: int) := match sz, sgn with | I8, Signed => -128 <= Int.signed i < 128 | I8, Unsigned => 0 <= Int.unsigned i < 256 | I16, Signed => -32768 <= Int.signed i < 32768 | I16, Unsigned => 0 <= Int.unsigned i < 65536 | I32, Signed => -2147483648 <= Int.signed i < 2147483648 | I32, Unsigned => 0 <= Int.unsigned i < 4294967296 | IBool, _ => 0 <= Int.unsigned i < 256 end.",
+            "VernacDefinition",
+            "a58386005240d29271c1c55c25663ad8a93f8b92"
+        ],
+        [
+            "Definition in_members i (m: members): Prop := In i (map fst m).",
+            "VernacDefinition",
+            "9dfe9434b15e80100d6731ec261528b06aaab99b"
+        ],
+        [
+            "Definition members_no_replicate (m: members) : bool := compute_list_norepet (map fst m).",
+            "VernacDefinition",
+            "554852cb6ad51ccb72757cefe654ff14d19cf445"
+        ],
+        [
+            "Definition compute_in_members id (m: members): bool := id_in_list id (map fst m).",
+            "VernacDefinition",
+            "ea466a79525541053b93b742c7297574bd69c6c8"
+        ],
+        [
+            "Lemma compute_in_members_true_iff: forall i m, compute_in_members i m = true <-> in_members i m.",
+            "VernacStartTheoremProof",
+            "652c751993a36b677e80e8fe137ec199f26dea07"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold compute_in_members.",
+            "VernacExtend",
+            "3d4fd63cb83cd3b17515f2d552eccc98b7fe0712"
+        ],
+        [
+            "destruct (id_in_list i (map fst m)) eqn:HH; [apply id_in_list_true in HH | apply id_in_list_false in HH].",
+            "VernacExtend",
+            "de235351a93638d0c3171c8a11b80ed2449ba123"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "unfold in_members.",
+            "VernacExtend",
+            "a4afca4d2f4a2accc17e5988e29d8b42fd647536"
+        ],
+        [
+            "tauto.",
+            "VernacExtend",
+            "9bfafe84fb6724789bdf6cfd21cd721dd63fdabd"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "unfold in_members; split; [congruence | tauto].",
+            "VernacExtend",
+            "d16b0d8f8585542843de455fa3d1f9e2fa521a61"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma compute_in_members_false_iff: forall i m, compute_in_members i m = false <-> ~ in_members i m.",
+            "VernacStartTheoremProof",
+            "a888969550992035b6e8b7e62171350bc142fb69"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "pose proof compute_in_members_true_iff i m.",
+            "VernacExtend",
+            "ed6d7355478da24fb4cbf66c65a4daef639f8eae"
+        ],
+        [
+            "rewrite <- H; clear H.",
+            "VernacExtend",
+            "639ff2bdef73709ce82bcd4c2d465279300358e5"
+        ],
+        [
+            "destruct (compute_in_members i m); split; congruence.",
+            "VernacExtend",
+            "1cc763f2af7f750ae5a504d74a588384f3f75b82"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Ltac destruct_in_members i m := let H := fresh \"H\" in destruct (compute_in_members i m) eqn:H; [apply compute_in_members_true_iff in H | apply compute_in_members_false_iff in H].",
+            "VernacExtend",
+            "7bb27d3b00b5001951a4e372ad15317e2329628e"
+        ],
+        [
+            "Lemma in_members_dec: forall i m, {in_members i m} + {~ in_members i m}.",
+            "VernacStartTheoremProof",
+            "3999cf44bff8c7d92ec574fb6aa76d6f3d9eb054"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct_in_members i m; [left | right]; auto.",
+            "VernacExtend",
+            "2d4461931cbf5c35ca562cdb491ea8f3e63b8cf7"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma size_chunk_sizeof: forall env t ch, access_mode t = By_value ch -> sizeof env t = Memdata.size_chunk ch.",
+            "VernacStartTheoremProof",
+            "5aa4fa93293d747e7b3e2c42d46fab4a332222ff"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct t; inversion H.",
+            "VernacExtend",
+            "2d2dd1e8cd4fec0be377130401fb551da7ec2d96"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct i, s; inversion H1; reflexivity.",
+            "VernacExtend",
+            "a2e7b0d92d3e9acb19aa2cf70c22329eb6c6d412"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct s; inversion H1; reflexivity.",
+            "VernacExtend",
+            "e2f2ba5fc9bef306f8292ae3e68c428326c5eb20"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct f; inversion H1; reflexivity.",
+            "VernacExtend",
+            "8b016d1455c0e2e7f1b5a5f00d6163c21f4fa9a7"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "inversion H1; reflexivity.",
+            "VernacExtend",
+            "6ea87601e7750c67da303aab8bf7dd0551c8f841"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition composite_legal_fieldlist (co: composite): Prop := members_no_replicate (co_members co) = true.",
+            "VernacDefinition",
+            "2cea5d576ce97fddc88c078a53d1651d03246d11"
+        ],
+        [
+            "Definition composite_env_legal_fieldlist env := forall (id : positive) (co : composite), env ! id = Some co -> composite_legal_fieldlist co.",
+            "VernacDefinition",
+            "ae9d2a24c209a0b3e8b00a4d5533e9c8591e2d27"
+        ],
+        [
+            "Class compspecs := mkcompspecs { cenv_cs : composite_env; cenv_consistent: composite_env_consistent cenv_cs; cenv_legal_fieldlist: composite_env_legal_fieldlist cenv_cs; cenv_legal_su: composite_env_complete_legal_cosu_type cenv_cs; ha_env_cs: PTree.t Z; ha_env_cs_consistent: hardware_alignof_env_consistent cenv_cs ha_env_cs; ha_env_cs_complete: hardware_alignof_env_complete cenv_cs ha_env_cs; la_env_cs: PTree.t legal_alignas_obs; la_env_cs_consistent: legal_alignas_env_consistent cenv_cs ha_env_cs la_env_cs; la_env_cs_complete: legal_alignas_env_complete cenv_cs la_env_cs; la_env_cs_sound: legal_alignas_env_sound cenv_cs ha_env_cs la_env_cs }.",
+            "VernacInductive",
+            "be3d93982419b6926ec46e568ce17ae598882595"
+        ],
+        [
+            "Existing Class composite_env.",
+            "VernacDeclareClass",
+            "e797396381a95f82fbcc484720fe1de4de43fbe0"
+        ],
+        [
+            "Existing Instance cenv_cs.",
+            "VernacDeclareInstances",
+            "72ccd3fb112bdc52b9de6fbce797827516647159"
+        ],
+        [
+            "Arguments sizeof {env} !t / .",
+            "VernacArguments",
+            "e3408160217d9895e59617508a268b2bec27020d"
+        ],
+        [
+            "Arguments alignof {env} !t / .",
+            "VernacArguments",
+            "b37211ee17b71d3d486332558528bb1806ecf07d"
+        ],
+        [
+            "Arguments sizeof_pos {env} t _.",
+            "VernacArguments",
+            "4fd3d70462a56b52d236207f7dd4a95dc4340b92"
+        ],
+        [
+            "Arguments alignof_pos {env} t.",
+            "VernacArguments",
+            "5e2e526fcfa283d3379f13e68a8d6601fafacd25"
+        ],
+        [
+            "Arguments complete_legal_cosu_type {cenv} !t / .",
+            "VernacArguments",
+            "d1afeffde24bc22bf950c467eeeec0d88d14b67d"
+        ],
+        [
+            "Goal forall {cs: compspecs} t, sizeof t >= 0.",
+            "VernacDefinition",
+            "615077ee8227cbc2fb7a310a5f83d7884af52884"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply sizeof_pos.",
+            "VernacExtend",
+            "d3e3e53409105551ee6ede9957abb3561c1945ae"
+        ],
+        [
+            "Abort.",
+            "VernacAbort",
+            "c7c176802253f03c8ef9f27e1c3c9d26e4650d85"
+        ],
+        [
+            "Definition type_of_funspec (fs: funspec) : type := match fs with mk_funspec fsig cc _ _ _ _ _ => Tfunction (type_of_params (fst fsig)) (snd fsig) cc end.",
+            "VernacDefinition",
+            "53fbcac5576b7ec41c49ad993ec88a8b3cab360b"
+        ],
+        [
+            "Fixpoint typelist2list (tl: typelist) : list type := match tl with Tcons t r => t::typelist2list r | Tnil => nil end.",
+            "VernacFixpoint",
+            "5efb349833692998662b08af889606ed8f577cd6"
+        ],
+        [
+            "Definition idset := PTree.t unit.",
+            "VernacDefinition",
+            "7024483682f4769553e75f2fb6e1ae73c455d493"
+        ],
+        [
+            "Definition idset0 : idset := PTree.empty _.",
+            "VernacDefinition",
+            "b702b3b93d952903162bf624c4a7aba2233e462e"
+        ],
+        [
+            "Definition idset1 (id: ident) : idset := PTree.set id tt idset0.",
+            "VernacDefinition",
+            "951b321572d427459393d39413c98c6f260ac469"
+        ],
+        [
+            "Definition insert_idset (id: ident) (S: idset) : idset := PTree.set id tt S.",
+            "VernacDefinition",
+            "dc250abf49d0bb4dd0c0859a8237148c8ef2bc9d"
+        ],
+        [
+            "Definition eval_id (id: ident) (rho: environ) := force_val (Map.get (te_of rho) id).",
+            "VernacDefinition",
+            "dbf2d4759ce384c61e53b64b6b673e64ce2f13e4"
+        ],
+        [
+            "Definition env_set (rho: environ) (x: ident) (v: val) : environ := mkEnviron (ge_of rho) (ve_of rho) (Map.set x v (te_of rho)).",
+            "VernacDefinition",
+            "61df3e5ebf29e8344aed7d5ceb7aca794e022851"
+        ],
+        [
+            "Lemma eval_id_same: forall rho id v, eval_id id (env_set rho id v) = v.",
+            "VernacStartTheoremProof",
+            "aaa67bfb9c577ce6fbc564d4fb95ae3f089b1890"
+        ],
+        [
+            "unfold eval_id; intros; simpl.",
+            "VernacExtend",
+            "e2ed3c28859ed0feee0007ff5db426f937995285"
+        ],
+        [
+            "unfold force_val.",
+            "VernacExtend",
+            "0c52731c3a830e4569b59a474e62e1d8f80ec55e"
+        ],
+        [
+            "rewrite Map.gss.",
+            "VernacExtend",
+            "5cffa4b9a854ae416cd4d33ea0eae84716bdfb38"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Hint Rewrite eval_id_same : normalize.",
+            "VernacExtend",
+            "ef9ec5d4d4eafee3b1da0da5a01870635adc5359"
+        ],
+        [
+            "Lemma eval_id_other: forall rho id id' v, id<>id' -> eval_id id' (env_set rho id v) = eval_id id' rho.",
+            "VernacStartTheoremProof",
+            "699d263400f15495df3589d143e65a2477e8d9e1"
+        ],
+        [
+            "unfold eval_id, force_val; intros.",
+            "VernacExtend",
+            "9f3339ff7bfa6977b884b9dd730c1bd4678120d4"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite Map.gso; auto.",
+            "VernacExtend",
+            "fc54665ad1bac494ce732a140599631866ec3445"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : normalize.",
+            "VernacExtend",
+            "9ad5ab27e470bc7178889527b708acb294e54517"
+        ],
+        [
+            "Fixpoint ptree_set {A : Type} (i : positive) (v : A) (m : PTree.t A) {struct i} : PTree.t A := match m with | PTree.Leaf => match i with | xH => PTree.Node PTree.Leaf (Some v) PTree.Leaf | xO ii => PTree.Node (ptree_set ii v PTree.Leaf) None PTree.Leaf | xI ii => PTree.Node PTree.Leaf None (ptree_set ii v PTree.Leaf) end | PTree.Node l o r => match i with | xH => PTree.Node l (Some v) r | xO ii => PTree.Node (ptree_set ii v l) o r | xI ii => PTree.Node l o (ptree_set ii v r) end end.",
+            "VernacFixpoint",
+            "fd42c3d98a57c41d6492a570017b2d8749c508ad"
+        ],
+        [
+            "Goal forall A, @ptree_set A = @PTree.set _.",
+            "VernacDefinition",
+            "9e8022232dda183c3de48eefccdb253f229e2da3"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Fixpoint make_tycontext_s (G: funspecs) := match G with | nil => @PTree.Leaf funspec | b::r => let (id,f) := b in ptree_set id f (make_tycontext_s r) end.",
+            "VernacFixpoint",
+            "b2e46bafc0ccdf21c44498d154cc279c646d0f71"
+        ],
+        [
+            "Definition lift0 {B} (P: B) : environ -> B := fun _ => P.",
+            "VernacDefinition",
+            "3801ff49764f2ae8e1a8d08affeb870e4bc1fbcd"
+        ],
+        [
+            "Definition lift1 {A1 B} (P: A1 -> B) (f1: environ -> A1) : environ -> B := fun rho => P (f1 rho).",
+            "VernacDefinition",
+            "1c8e967601bf087913c73960b62b0c3415263137"
+        ],
+        [
+            "Definition lift2 {A1 A2 B} (P: A1 -> A2 -> B) (f1: environ -> A1) (f2: environ -> A2): environ -> B := fun rho => P (f1 rho) (f2 rho).",
+            "VernacDefinition",
+            "875f4c70f6731ffd81ce3e4443f5f32ce9de1f9f"
+        ],
+        [
+            "Definition lift3 {A1 A2 A3 B} (P: A1 -> A2 -> A3 -> B) (f1: environ -> A1) (f2: environ -> A2) (f3: environ -> A3) : environ -> B := fun rho => P (f1 rho) (f2 rho) (f3 rho).",
+            "VernacDefinition",
+            "2e14322bc09434eee437497bb4f2c55213479bae"
+        ],
+        [
+            "Definition lift4 {A1 A2 A3 A4 B} (P: A1 -> A2 -> A3 -> A4 -> B) (f1: environ -> A1) (f2: environ -> A2) (f3: environ -> A3)(f4: environ -> A4): environ -> B := fun rho => P (f1 rho) (f2 rho) (f3 rho) (f4 rho).",
+            "VernacDefinition",
+            "bb385d77f6eb37d10b260da0e82db3469b2b75cb"
+        ],
+        [
+            "Require Import VST.veric.lift.",
+            "VernacRequire",
+            "5fb2bce4a3660473fb418f6f2c4cd51ce222be72"
+        ],
+        [
+            "Canonical Structure LiftEnviron := Tend environ.",
+            "VernacDefinition",
+            "d395f948d00f6d9297d91230604db3f10ca108cc"
+        ],
+        [
+            "Ltac super_unfold_lift := cbv delta [liftx LiftEnviron Tarrow Tend lift_S lift_T lift_prod lift_last lifted lift_uncurry_open lift_curry lift lift0 lift1 lift2 lift3] beta iota in *.",
+            "VernacExtend",
+            "c6809bdcca6148f754b119747a48110aeb10b35c"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "gss",
+            "line_nb": 19,
+            "steps": [
+                {
+                    "command": [
+                        "unfold get, set; if_tac; intuition.",
+                        "VernacExtend",
+                        "5a9a6921b093a9bb2a75c713d974f7f7664962f4"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "gso",
+            "line_nb": 22,
+            "steps": [
+                {
+                    "command": [
+                        "unfold get, set; intros; if_tac; intuition.",
+                        "VernacExtend",
+                        "7f51c2e23f2c6a21def177bab79068ac6d25a09c"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "grs",
+            "line_nb": 25,
+            "steps": [
+                {
+                    "command": [
+                        "unfold get, remove; intros; if_tac; intuition.",
+                        "VernacExtend",
+                        "67afa030144a7a54ed476dfd8feb3e14617212ed"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "gro",
+            "line_nb": 28,
+            "steps": [
+                {
+                    "command": [
+                        "unfold get, remove; intros; if_tac; intuition.",
+                        "VernacExtend",
+                        "67afa030144a7a54ed476dfd8feb3e14617212ed"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ext",
+            "line_nb": 31,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "extensionality x.",
+                        "VernacExtend",
+                        "a02a0d77f789b5337c65fc4009fcc8ebde3d5cef"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply H.",
+                        "VernacExtend",
+                        "4b47b71ad0f800d57cbdc591d68949e07decb540"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "override",
+            "line_nb": 36,
+            "steps": [
+                {
+                    "command": [
+                        "apply ext; intros; unfold get, set; if_tac; intuition.",
+                        "VernacExtend",
+                        "843f24ccf4241188f4c2db733a0097327309fc85"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "gsspec",
+            "line_nb": 39,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold get; unfold set; if_tac; intuition.",
+                        "VernacExtend",
+                        "9f83561914bbb3184fb3af834f9012752ed10eff"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "override_same",
+            "line_nb": 43,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold set.",
+                        "VernacExtend",
+                        "9b0835dc2ca0800df83e9b8ff42518230137531b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold get in H.",
+                        "VernacExtend",
+                        "96d6e278ad6d65360f2e01081cbd866603a06a7e"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply ext.",
+                        "VernacExtend",
+                        "5a052e170aa1113a35d64f657b9b5e1a4fb0a173"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold get.",
+                        "VernacExtend",
+                        "0ee15cb7f500427115d62c79c71ab50bde1d2bb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac; subst; auto.",
+                        "VernacExtend",
+                        "3bcdd0ed955d7a9c586ca964b06506fda91d5147"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "compute_in_members_true_iff",
+            "line_nb": 79,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold compute_in_members.",
+                        "VernacExtend",
+                        "3d4fd63cb83cd3b17515f2d552eccc98b7fe0712"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (id_in_list i (map fst m)) eqn:HH; [apply id_in_list_true in HH | apply id_in_list_false in HH].",
+                        "VernacExtend",
+                        "de235351a93638d0c3171c8a11b80ed2449ba123"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold in_members.",
+                        "VernacExtend",
+                        "a4afca4d2f4a2accc17e5988e29d8b42fd647536"
+                    ]
+                },
+                {
+                    "command": [
+                        "tauto.",
+                        "VernacExtend",
+                        "9bfafe84fb6724789bdf6cfd21cd721dd63fdabd"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold in_members; split; [congruence | tauto].",
+                        "VernacExtend",
+                        "d16b0d8f8585542843de455fa3d1f9e2fa521a61"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "compute_in_members_false_iff",
+            "line_nb": 89,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "pose proof compute_in_members_true_iff i m.",
+                        "VernacExtend",
+                        "ed6d7355478da24fb4cbf66c65a4daef639f8eae"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- H; clear H.",
+                        "VernacExtend",
+                        "639ff2bdef73709ce82bcd4c2d465279300358e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (compute_in_members i m); split; congruence.",
+                        "VernacExtend",
+                        "1cc763f2af7f750ae5a504d74a588384f3f75b82"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "in_members_dec",
+            "line_nb": 96,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct_in_members i m; [left | right]; auto.",
+                        "VernacExtend",
+                        "2d4461931cbf5c35ca562cdb491ea8f3e63b8cf7"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "size_chunk_sizeof",
+            "line_nb": 100,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct t; inversion H.",
+                        "VernacExtend",
+                        "2d2dd1e8cd4fec0be377130401fb551da7ec2d96"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct i, s; inversion H1; reflexivity.",
+                        "VernacExtend",
+                        "a2e7b0d92d3e9acb19aa2cf70c22329eb6c6d412"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct s; inversion H1; reflexivity.",
+                        "VernacExtend",
+                        "e2f2ba5fc9bef306f8292ae3e68c428326c5eb20"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct f; inversion H1; reflexivity.",
+                        "VernacExtend",
+                        "8b016d1455c0e2e7f1b5a5f00d6163c21f4fa9a7"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion H1; reflexivity.",
+                        "VernacExtend",
+                        "6ea87601e7750c67da303aab8bf7dd0551c8f841"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "eval_id_same",
+            "line_nb": 134,
+            "steps": [
+                {
+                    "command": [
+                        "unfold eval_id; intros; simpl.",
+                        "VernacExtend",
+                        "e2ed3c28859ed0feee0007ff5db426f937995285"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold force_val.",
+                        "VernacExtend",
+                        "0c52731c3a830e4569b59a474e62e1d8f80ec55e"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Map.gss.",
+                        "VernacExtend",
+                        "5cffa4b9a854ae416cd4d33ea0eae84716bdfb38"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "eval_id_other",
+            "line_nb": 141,
+            "steps": [
+                {
+                    "command": [
+                        "unfold eval_id, force_val; intros.",
+                        "VernacExtend",
+                        "9f3339ff7bfa6977b884b9dd730c1bd4678120d4"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Map.gso; auto.",
+                        "VernacExtend",
+                        "fc54665ad1bac494ce732a140599631866ec3445"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Unnamed_thm",
+            "line_nb": 148,
+            "steps": [
+                {
+                    "command": [
+                        "reflexivity.",
+                        "VernacExtend",
+                        "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,2134 @@
+{
+    "filename": "core/LabeledNet.v",
+    "coq_project": "verdi",
+    "vernac_cmds": [
+        [
+            "Require Import Verdi.Verdi.",
+            "VernacRequire",
+            "0e1dbcd85e6257dada3df6be709464bd18aff5ac"
+        ],
+        [
+            "Require Import InfSeqExt.infseq.",
+            "VernacRequire",
+            "e7bbf77b4aa9c204818d34aee79a2edd9049b789"
+        ],
+        [
+            "Require Import InfSeqExt.exteq.",
+            "VernacRequire",
+            "659e8b3d5c0e3b6a9e9e51ae5fb6f5eff089634d"
+        ],
+        [
+            "Require Import Verdi.Ssrexport.",
+            "VernacRequire",
+            "221bef907661c3c9339fdc5a21b1a546e6646096"
+        ],
+        [
+            "Set Implicit Arguments.",
+            "VernacSetOption",
+            "9e84ff8896f028601d8aded48c1d4aebe60aa584"
+        ],
+        [
+            "Class LabeledMultiParams (P : BaseParams) := { lb_name : Type ; lb_msg : Type ; lb_msg_eq_dec : forall x y : lb_msg, {x = y} + {x <> y} ; lb_name_eq_dec : forall x y : lb_name, {x = y} + {x <> y} ; lb_nodes : list lb_name ; lb_all_names_nodes : forall n, In n lb_nodes ; lb_no_dup_nodes : NoDup lb_nodes ; label : Type ; label_silent : label ; lb_init_handlers : lb_name -> data ; lb_net_handlers : lb_name -> lb_name -> lb_msg -> data -> label * (list output) * data * list (lb_name * lb_msg) ; lb_input_handlers : lb_name -> input -> data -> label * (list output) * data * list (lb_name * lb_msg) }.",
+            "VernacInductive",
+            "98a3ef46a84506f46f3b7cd942b7ea26b67a01f0"
+        ],
+        [
+            "Section UnlabeledParams.",
+            "VernacBeginSection",
+            "cc4b649fb38b3df5d560326d1d8490eedec08ba7"
+        ],
+        [
+            "Context {base_params : BaseParams}.",
+            "VernacContext",
+            "58f95a95a12107d09c64aae51a6b1211d4c9e638"
+        ],
+        [
+            "Context {labeled_multi_params : LabeledMultiParams base_params}.",
+            "VernacContext",
+            "c31a23381694996a5f21201c4d18b9ac5ea23acd"
+        ],
+        [
+            "Definition unlabeled_net_handlers me src m st := let '(lb, out, st', ps) := lb_net_handlers me src m st in (out, st', ps).",
+            "VernacDefinition",
+            "93d689f2c8eb16c00e672b92569a8cfae22f03b7"
+        ],
+        [
+            "Definition unlabeled_input_handlers me inp st := let '(lb, out, st', ps) := lb_input_handlers me inp st in (out, st', ps).",
+            "VernacDefinition",
+            "d264593c02f558048769597f2d5c126bf7718aaf"
+        ],
+        [
+            "Global Instance unlabeled_multi_params : MultiParams base_params := { name := lb_name ; msg := lb_msg ; msg_eq_dec := lb_msg_eq_dec ; name_eq_dec := lb_name_eq_dec ; nodes := lb_nodes ; all_names_nodes := lb_all_names_nodes ; no_dup_nodes := lb_no_dup_nodes ; init_handlers := lb_init_handlers; net_handlers := unlabeled_net_handlers ; input_handlers := unlabeled_input_handlers }.",
+            "VernacInstance",
+            "464444bc7013161c4f6cd0b22de00c0f2b2268c2"
+        ],
+        [
+            "End UnlabeledParams.",
+            "VernacEndSegment",
+            "824f3dd6d9b5991f552ef0a497382209a5218c2b"
+        ],
+        [
+            "Section LabeledStepExecution.",
+            "VernacBeginSection",
+            "71d9e7fbfeb5cf0c2d8ec06a98b1dd62e6bc68ba"
+        ],
+        [
+            "Variable A : Type.",
+            "VernacAssumption",
+            "8c1a433b6dc10de37f30039d70ed7113b3dab0e0"
+        ],
+        [
+            "Variable L : Type.",
+            "VernacAssumption",
+            "bcd3767c8b41afb8b964a909186156bc0fbaaf5d"
+        ],
+        [
+            "Variable trace : Type.",
+            "VernacAssumption",
+            "3344749246cc451f25c5a86a7bee9023556b8860"
+        ],
+        [
+            "Definition lb_step_relation := A -> L -> A -> list trace -> Prop.",
+            "VernacDefinition",
+            "4d130910daa386d92fbee090dbd3419ce866c789"
+        ],
+        [
+            "Definition lb_step_ex (step : lb_step_relation) (l : L) (a : A) : Prop := exists a' tr, step a l a' tr.",
+            "VernacDefinition",
+            "02b08fc128a44277d77dbeaab84018b323c48366"
+        ],
+        [
+            "Record event := { evt_a : A ; evt_l : L ; evt_trace : list trace }.",
+            "VernacInductive",
+            "36f39f3f41148514452d875ecec027f886b20f1d"
+        ],
+        [
+            "Definition enabled (step : lb_step_relation) (l : L) (e : event) : Prop := lb_step_ex step l (evt_a e).",
+            "VernacDefinition",
+            "5bfc131955b15eddf7f43e44a3a9378dbd145d6b"
+        ],
+        [
+            "Definition occurred (l : L) (e : event) : Prop := l = evt_l e.",
+            "VernacDefinition",
+            "40ecacc1f89ec64c71ff909a55499a51cd6a26f4"
+        ],
+        [
+            "Definition inf_enabled (step : lb_step_relation) (l : L) (s : infseq event) : Prop := inf_often (now (enabled step l)) s.",
+            "VernacDefinition",
+            "aa5df656e70051bc845ef99f0d10ac609227a2dc"
+        ],
+        [
+            "Definition cont_enabled (step : lb_step_relation) (l : L) (s : infseq event) : Prop := continuously (now (enabled step l)) s.",
+            "VernacDefinition",
+            "500a46c2d0a9c9b081205e829ef6328b6971f06d"
+        ],
+        [
+            "Definition inf_occurred (l : L) (s : infseq event) : Prop := inf_often (now (occurred l)) s.",
+            "VernacDefinition",
+            "044859b6077005eb9edb834685d45991aab7bd50"
+        ],
+        [
+            "Definition strong_fairness (step : lb_step_relation) (silent : L) (s : infseq event) : Prop := forall l : L, l <> silent -> inf_enabled step l s -> inf_occurred l s.",
+            "VernacDefinition",
+            "fdd45b7eb56db6a8396ccf48b4136c79de478bc4"
+        ],
+        [
+            "Definition weak_fairness (step : lb_step_relation) (silent : L) (s : infseq event) : Prop := forall l : L, l <> silent -> cont_enabled step l s -> inf_occurred l s.",
+            "VernacDefinition",
+            "3db39d1075894d1e433792b776189c4fed472335"
+        ],
+        [
+            "Lemma strong_fairness_invar : forall step e silent s, strong_fairness step silent (Cons e s) -> strong_fairness step silent s.",
+            "VernacStartTheoremProof",
+            "24ee6b46f507c5789e3e991f724ea3741d9fb3aa"
+        ],
+        [
+            "unfold strong_fairness.",
+            "VernacExtend",
+            "956f87a8e6170bfc566b4dff6370b803a25c0833"
+        ],
+        [
+            "unfold inf_enabled, inf_occurred, inf_often.",
+            "VernacExtend",
+            "c3275df37d7514e6eab99070babf651bea3582b8"
+        ],
+        [
+            "intros step e silent s fair l neq alev.",
+            "VernacExtend",
+            "8d62cb95c5add88c3ec29a64e3509931f4b5af4d"
+        ],
+        [
+            "assert (alevt_es: always (eventually (now (enabled step l))) (Cons e s)).",
+            "VernacExtend",
+            "005fe98b5771d03ea73b843a2b0531f0f25f5f89"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "constructor 2.",
+            "VernacExtend",
+            "3bbfaccba5e1a5a8e417cf2575e634e4c10773fe"
+        ],
+        [
+            "destruct alev; assumption.",
+            "VernacExtend",
+            "3891deb8e0231438b3b52d1cea1d173f1a4107a4"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "assumption.",
+            "VernacExtend",
+            "41f0308313ff87e6ab2782f90d6021ec4b55d932"
+        ],
+        [
+            "clear alev.",
+            "VernacExtend",
+            "16b2fc8078f5e1ec8948d2d7427d0dbe387a9ae1"
+        ],
+        [
+            "generalize (fair l neq alevt_es); clear fair alevt_es.",
+            "VernacExtend",
+            "2f5d30409ae9e6609218c6f29947f0bad16d33bf"
+        ],
+        [
+            "intro fair; case (always_Cons fair); trivial.",
+            "VernacExtend",
+            "69952af5534456fcaaec6a20b00751d666ae9152"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma strong_fairness_extensional : forall step silent, extensional (strong_fairness step silent).",
+            "VernacStartTheoremProof",
+            "6557ce798561bc6e849c25bc1f4258144a56dc90"
+        ],
+        [
+            "move => step silent.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "rewrite /extensional /strong_fairness /inf_enabled /inf_occurred /=.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "move => s1 s2 H_eq H_s1 l' H_neq' H_en.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "have H_s1l := H_s1 l'.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "move: H_s1l.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "set s1i := inf_often (now (occurred _)) s1.",
+            "VernacExtend",
+            "69a61e99b234580f7b41fa5b9655c87ba9a76f70"
+        ],
+        [
+            "move => H_s1l.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "suff H_suff: s1i.",
+            "VernacExtend",
+            "d07fc8b2103f140554938023774bf3f75d04ba99"
+        ],
+        [
+            "move: H_suff.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "apply extensional_inf_often => //.",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "exact: extensional_now.",
+            "VernacExtend",
+            "ce637ff86bafca5d8359473e8c02af644dcbdc43"
+        ],
+        [
+            "apply: H_s1l => {s1i}; first by [].",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "move: H_en.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "apply: extensional_inf_often; last exact: exteq_sym.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "exact: extensional_now.",
+            "VernacExtend",
+            "ce637ff86bafca5d8359473e8c02af644dcbdc43"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma weak_fairness_invar : forall step e silent s, weak_fairness step silent (Cons e s) -> weak_fairness step silent s.",
+            "VernacStartTheoremProof",
+            "a0665556f116823403d2c5221344fea738b32145"
+        ],
+        [
+            "unfold weak_fairness.",
+            "VernacExtend",
+            "d887a4ddf9df3d2e7d10c0d02691380f208368f8"
+        ],
+        [
+            "unfold cont_enabled, inf_occurred, continuously, inf_often.",
+            "VernacExtend",
+            "eb196c7158c9f1419f14d661687d08d0c854bec2"
+        ],
+        [
+            "intros step e silent s fair a neq eval.",
+            "VernacExtend",
+            "3c6d06e5a121ab0c0436ebd835ebc2d8d52d785c"
+        ],
+        [
+            "assert (eval_es: eventually (always (now (enabled step a))) (Cons e s)).",
+            "VernacExtend",
+            "1418478b1b6c9800493f742b43109130d132d809"
+        ],
+        [
+            "apply E_next.",
+            "VernacExtend",
+            "94ef81f1740a77599e7f9def4b266f10d437a7fb"
+        ],
+        [
+            "assumption.",
+            "VernacExtend",
+            "41f0308313ff87e6ab2782f90d6021ec4b55d932"
+        ],
+        [
+            "apply fair in eval_es.",
+            "VernacExtend",
+            "683c6d840c9ebb89844e37799d0174e4d0fbfdc8"
+        ],
+        [
+            "apply always_invar in eval_es.",
+            "VernacExtend",
+            "fee3f138e5c06cac45ca429448b35c78abf1518d"
+        ],
+        [
+            "assumption.",
+            "VernacExtend",
+            "41f0308313ff87e6ab2782f90d6021ec4b55d932"
+        ],
+        [
+            "assumption.",
+            "VernacExtend",
+            "41f0308313ff87e6ab2782f90d6021ec4b55d932"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma weak_fairness_extensional : forall step silent, extensional (weak_fairness step silent).",
+            "VernacStartTheoremProof",
+            "4af8a06c6211b2fb7c2f80a8de51603d90478527"
+        ],
+        [
+            "move => step silent.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "rewrite /extensional /weak_fairness /cont_enabled /inf_occurred /=.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "move => s1 s2 H_eq H_s1 l' H_neq' H_en.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "have H_s1l := H_s1 l'.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "move: H_s1l.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "set s1i := inf_often (now (occurred _)) s1.",
+            "VernacExtend",
+            "69a61e99b234580f7b41fa5b9655c87ba9a76f70"
+        ],
+        [
+            "move => H_s1l.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "suff H_suff: s1i.",
+            "VernacExtend",
+            "d07fc8b2103f140554938023774bf3f75d04ba99"
+        ],
+        [
+            "move: H_suff.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "apply extensional_inf_often => //.",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "exact: extensional_now.",
+            "VernacExtend",
+            "ce637ff86bafca5d8359473e8c02af644dcbdc43"
+        ],
+        [
+            "apply: H_s1l => {s1i}; first by [].",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "move: H_en.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "apply: extensional_continuously; last exact: exteq_sym.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "exact: extensional_now.",
+            "VernacExtend",
+            "ce637ff86bafca5d8359473e8c02af644dcbdc43"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma strong_fairness_weak : forall step silent s, strong_fairness step silent s -> weak_fairness step silent s.",
+            "VernacStartTheoremProof",
+            "e85631ac116b29eb83d2b626e657022a952ad295"
+        ],
+        [
+            "move => step silent.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "case => e s.",
+            "VernacExtend",
+            "e00fff71ff314c991514fc71c41a3556702e444a"
+        ],
+        [
+            "rewrite /strong_fairness /weak_fairness /inf_enabled /cont_enabled.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "move => H_str l neq H_cont.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "apply: H_str; first by [].",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "exact: continuously_inf_often.",
+            "VernacExtend",
+            "ce637ff86bafca5d8359473e8c02af644dcbdc43"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "CoInductive lb_step_execution (step : lb_step_relation) : infseq event -> Prop := Cons_lb_step_exec : forall (e e' : event) (tr : list trace) (s : infseq event), step (evt_a e) (evt_l e) (evt_a e') tr -> evt_trace e' = evt_trace e ++ tr -> lb_step_execution step (Cons e' s) -> lb_step_execution step (Cons e (Cons e' s)).",
+            "VernacInductive",
+            "97bca2a1953f53a18e5bd4721a3fb2eb8caed93a"
+        ],
+        [
+            "Lemma lb_step_execution_invar : forall step x s, lb_step_execution step (Cons x s) -> lb_step_execution step s.",
+            "VernacStartTheoremProof",
+            "dfe6dc4d78cded450106f713850e2bad124ee4d1"
+        ],
+        [
+            "intros step x s e.",
+            "VernacExtend",
+            "e4b2455579446aa0a93b83b82c7544efc6afe208"
+        ],
+        [
+            "change (lb_step_execution step (tl (Cons x s))).",
+            "VernacExtend",
+            "bb3b00e0541aa3ad3925d58e9ee942eac3b33402"
+        ],
+        [
+            "destruct e; simpl.",
+            "VernacExtend",
+            "6ffc61466ff058b612edb5249160815869003a8b"
+        ],
+        [
+            "assumption.",
+            "VernacExtend",
+            "41f0308313ff87e6ab2782f90d6021ec4b55d932"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma lb_step_execution_extensional : forall step, extensional (lb_step_execution step).",
+            "VernacStartTheoremProof",
+            "645ec4e02e8cbd807b978ab953c5319f76cf5c2d"
+        ],
+        [
+            "move => step.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "rewrite /extensional /=.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "cofix c.",
+            "VernacExtend",
+            "84529034ffeb9fcb4ac6205081da4ea491c1fcf5"
+        ],
+        [
+            "case => e1; case => e1' s1.",
+            "VernacExtend",
+            "5887f8022a4f6389ac249140364feb69c4f18799"
+        ],
+        [
+            "case => e2; case => e2' s2 H_eq.",
+            "VernacExtend",
+            "5887f8022a4f6389ac249140364feb69c4f18799"
+        ],
+        [
+            "find_apply_lem_hyp exteq_inversion.",
+            "VernacExtend",
+            "ba6c2080828daac91865ab9401a13604d22206ee"
+        ],
+        [
+            "break_and.",
+            "VernacExtend",
+            "90a213dc7b4fc55cb8bc34300101c3eaa0ead551"
+        ],
+        [
+            "find_copy_apply_lem_hyp exteq_inversion.",
+            "VernacExtend",
+            "bd3eb431a27e4463ff9cbe335fec177904eaa0d7"
+        ],
+        [
+            "break_and.",
+            "VernacExtend",
+            "90a213dc7b4fc55cb8bc34300101c3eaa0ead551"
+        ],
+        [
+            "repeat find_rewrite.",
+            "VernacExtend",
+            "2e0f7af91fb6dc6a2928bc530dda4cfbd03d3e68"
+        ],
+        [
+            "move => H_exec.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "inversion H_exec; subst.",
+            "VernacExtend",
+            "350ea0e2473f8c2de47148a11bd47581aaec2fec"
+        ],
+        [
+            "apply (Cons_lb_step_exec _ tr) => //.",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "by apply: c; eauto.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition event_step_star (step : step_relation A trace) (init : A) (e : event) := refl_trans_1n_trace step init (evt_a e) (evt_trace e).",
+            "VernacDefinition",
+            "21e746778f309c69638ba69adf13083f4ea5b453"
+        ],
+        [
+            "Definition step_star_lb_step_reachable (lb_step : lb_step_relation) (step : step_relation A trace) (init : A) := forall a l a' tr tr', refl_trans_1n_trace step init a tr' -> lb_step a l a' tr -> refl_trans_1n_trace step init a' (tr' ++ tr).",
+            "VernacDefinition",
+            "8597abe9aa4f415d86691056ded92f0b2bdeb6a9"
+        ],
+        [
+            "Lemma step_star_lb_step_execution : forall lb_step step init, step_star_lb_step_reachable lb_step step init -> forall s, event_step_star step init (hd s) -> lb_step_execution lb_step s -> always (now (event_step_star step init)) s.",
+            "VernacStartTheoremProof",
+            "030a1d5c1255fb634353b70cc43822c07d37ca33"
+        ],
+        [
+            "move => lb_step step init H_r.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "case => e s H_star.",
+            "VernacExtend",
+            "e00fff71ff314c991514fc71c41a3556702e444a"
+        ],
+        [
+            "move: e s H_star.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "cofix cf.",
+            "VernacExtend",
+            "2223d6590abe75c4110c64eec6185c896db38177"
+        ],
+        [
+            "move => e.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "case => e' s H_star H_exec'.",
+            "VernacExtend",
+            "e00fff71ff314c991514fc71c41a3556702e444a"
+        ],
+        [
+            "constructor; first by [].",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "apply cf.",
+            "VernacExtend",
+            "854ae6f0755d8ae82882825b8b225848a6534503"
+        ],
+        [
+            "inversion H_exec'; subst_max.",
+            "VernacExtend",
+            "4175080eed06399c953ebdf824eabebd6d1f4977"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "rewrite /event_step_star /=.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "rewrite /event_step_star /= in H_star.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "rewrite /step_star_lb_step_reachable in H_r.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "have H_d := H_r _ _ _ _ _ H_star H2.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "rewrite H3.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "exact: H_r _ _ _ _ _ H_star H2.",
+            "VernacExtend",
+            "ce637ff86bafca5d8359473e8c02af644dcbdc43"
+        ],
+        [
+            "move: H_exec'.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "apply: lb_step_execution_invar.",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End LabeledStepExecution.",
+            "VernacEndSegment",
+            "36594ed6577d97ed344a5e20d7636af058f14e22"
+        ],
+        [
+            "Section LabeledStepAsync.",
+            "VernacBeginSection",
+            "a4bd5e80a63af7055a35a910cfda1aa8987e0284"
+        ],
+        [
+            "Context `{labeled_multi_params : LabeledMultiParams}.",
+            "VernacContext",
+            "15b97e9f9a85540dc7000bb4e851f7a80a733c39"
+        ],
+        [
+            "Inductive lb_step_async : lb_step_relation network label (name * (input + list output)) := | LabeledStepAsync_deliver : forall net net' p xs ys out d l lb, nwPackets net = xs ++ p :: ys -> lb_net_handlers (pDst p) (pSrc p) (pBody p) (nwState net (pDst p)) = (lb, out, d, l) -> net' = mkNetwork (send_packets (pDst p) l ++ xs ++ ys) (update name_eq_dec (nwState net) (pDst p) d) -> lb_step_async net lb net' [(pDst p, inr out)] | LabeledStepAsync_input : forall h net net' out inp d l lb, lb_input_handlers h inp (nwState net h) = (lb, out, d, l) -> net' = mkNetwork (send_packets h l ++ nwPackets net) (update name_eq_dec (nwState net) h d) -> lb_step_async net lb net' [(h, inl inp); (h, inr out)] | LabeledStepAsync_stutter : forall net, lb_step_async net label_silent net [].",
+            "VernacInductive",
+            "e51974b64427b0d82f0236e882e5e30effdc3f2b"
+        ],
+        [
+            "Lemma step_async_star_lb_step_reachable : step_star_lb_step_reachable lb_step_async step_async step_async_init.",
+            "VernacStartTheoremProof",
+            "0bb12ee836abc8eb97600cacae6ef63eecfc62f4"
+        ],
+        [
+            "rewrite /step_star_lb_step_reachable.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "move => net l.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "move => net' tr tr' H_star H_st.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "invcs H_st.",
+            "VernacExtend",
+            "451637dff5c31c291039fc1ab6fac4db00799237"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "set net' := {| nwPackets := _ ; nwState := _ |}.",
+            "VernacExtend",
+            "69a61e99b234580f7b41fa5b9655c87ba9a76f70"
+        ],
+        [
+            "apply (@refl_trans_1n_trace_trans _ _ _ _ net) => //.",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "have ->: [(pDst p, inr out)] = [(pDst p, inr out)] ++ [] by [].",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "apply: (@RT1nTStep _ _ _ _ net'); last exact: RT1nTBase.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "apply: (@StepAsync_deliver _ _ _ _ _ xs ys _ d l0) => //.",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "rewrite /net_handlers /= /unlabeled_net_handlers /=.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "repeat break_let.",
+            "VernacExtend",
+            "af4c4045b2a41d256b959f44ffccc9ee0df74742"
+        ],
+        [
+            "by tuple_inversion.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "set net' := {| nwPackets := _ ; nwState := _ |}.",
+            "VernacExtend",
+            "69a61e99b234580f7b41fa5b9655c87ba9a76f70"
+        ],
+        [
+            "apply (@refl_trans_1n_trace_trans _ _ _ _ net) => //.",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "have ->: [(h, inl inp); (h, inr out)] = [(h, inl inp); (h, inr out)] ++ [] by [].",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "apply: (@RT1nTStep _ _ _ _ net'); last exact: RT1nTBase.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "apply: StepAsync_input => //.",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "rewrite /input_handlers /= /unlabeled_input_handlers /=.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "repeat break_let.",
+            "VernacExtend",
+            "af4c4045b2a41d256b959f44ffccc9ee0df74742"
+        ],
+        [
+            "by tuple_inversion.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by have ->: tr' ++ [] = tr' by auto with datatypes.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma step_async_star_lb_step_execution : forall s, event_step_star step_async step_async_init (hd s) -> lb_step_execution lb_step_async s -> always (now (event_step_star step_async step_async_init)) s.",
+            "VernacStartTheoremProof",
+            "62d913aebb0234124f42917232402e1e06b9bcfa"
+        ],
+        [
+            "apply: step_star_lb_step_execution.",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "exact: step_async_star_lb_step_reachable.",
+            "VernacExtend",
+            "ce637ff86bafca5d8359473e8c02af644dcbdc43"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End LabeledStepAsync.",
+            "VernacEndSegment",
+            "34aa19b078ee33f98684b8724ebc1166a97c7fa3"
+        ],
+        [
+            "Section LabeledStepFailure.",
+            "VernacBeginSection",
+            "7bb308b8fe849a3678b1fa5039638df4725a9c62"
+        ],
+        [
+            "Context `{labeled_multi_params : LabeledMultiParams}.",
+            "VernacContext",
+            "15b97e9f9a85540dc7000bb4e851f7a80a733c39"
+        ],
+        [
+            "Inductive lb_step_failure : lb_step_relation (list name * network) label (name * (input + list output)) := | LabeledStepFailure_deliver : forall net net' failed p xs ys out d l lb, nwPackets net = xs ++ p :: ys -> ~ In (pDst p) failed -> lb_net_handlers (pDst p) (pSrc p) (pBody p) (nwState net (pDst p)) = (lb, out, d, l) -> net' = mkNetwork (send_packets (pDst p) l ++ xs ++ ys) (update name_eq_dec (nwState net) (pDst p) d) -> lb_step_failure (failed, net) lb (failed, net') [(pDst p, inr out)] | LabeledStepFailure_input : forall h net net' failed out inp d l lb, ~ In h failed -> lb_input_handlers h inp (nwState net h) = (lb, out, d, l) -> net' = mkNetwork (send_packets h l ++ nwPackets net) (update name_eq_dec (nwState net) h d) -> lb_step_failure (failed, net) lb (failed, net') [(h, inl inp); (h, inr out)] | LabeledStepFailure_stutter : forall net failed, lb_step_failure (failed, net) label_silent (failed, net) [].",
+            "VernacInductive",
+            "1a946c181b2a482c2645ce338ef8f4a2cdfb7428"
+        ],
+        [
+            "Context {failure_params : FailureParams unlabeled_multi_params}.",
+            "VernacContext",
+            "c5c3cffc04b7ae7df1ecc999136fd192573f74fb"
+        ],
+        [
+            "Lemma step_failure_star_lb_step_reachable : step_star_lb_step_reachable lb_step_failure step_failure step_failure_init.",
+            "VernacStartTheoremProof",
+            "be8c9404617b8d94767d1e5f9f0bb27b9bad1162"
+        ],
+        [
+            "rewrite /step_star_lb_step_reachable.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "case => failed net l.",
+            "VernacExtend",
+            "e00fff71ff314c991514fc71c41a3556702e444a"
+        ],
+        [
+            "case => failed' net' tr tr' H_star H_st.",
+            "VernacExtend",
+            "e00fff71ff314c991514fc71c41a3556702e444a"
+        ],
+        [
+            "invcs H_st.",
+            "VernacExtend",
+            "451637dff5c31c291039fc1ab6fac4db00799237"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "set net' := {| nwPackets := _ ; nwState := _ |}.",
+            "VernacExtend",
+            "69a61e99b234580f7b41fa5b9655c87ba9a76f70"
+        ],
+        [
+            "apply (@refl_trans_1n_trace_trans _ _ _ _ (failed', net)) => //.",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "have ->: [(pDst p, inr out)] = [(pDst p, inr out)] ++ [] by [].",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "apply: (@RT1nTStep _ _ _ _ (failed', net')); last exact: RT1nTBase.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "apply: (@StepFailure_deliver _ _ _ _ _ _ _ xs ys _ d l0) => //.",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "rewrite /net_handlers /= /unlabeled_net_handlers /=.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "repeat break_let.",
+            "VernacExtend",
+            "af4c4045b2a41d256b959f44ffccc9ee0df74742"
+        ],
+        [
+            "by tuple_inversion.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "set net' := {| nwPackets := _ ; nwState := _ |}.",
+            "VernacExtend",
+            "69a61e99b234580f7b41fa5b9655c87ba9a76f70"
+        ],
+        [
+            "apply (@refl_trans_1n_trace_trans _ _ _ _ (failed', net)) => //.",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "have ->: [(h, inl inp); (h, inr out)] = [(h, inl inp); (h, inr out)] ++ [] by [].",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "apply: (@RT1nTStep _ _ _ _ (failed', net')); last exact: RT1nTBase.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "apply: StepFailure_input => //.",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "rewrite /input_handlers /= /unlabeled_input_handlers /=.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "repeat break_let.",
+            "VernacExtend",
+            "af4c4045b2a41d256b959f44ffccc9ee0df74742"
+        ],
+        [
+            "by tuple_inversion.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by have ->: tr' ++ [] = tr' by auto with datatypes.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma step_failure_star_lb_step_execution : forall s, event_step_star step_failure step_failure_init (hd s) -> lb_step_execution lb_step_failure s -> always (now (event_step_star step_failure step_failure_init)) s.",
+            "VernacStartTheoremProof",
+            "7b39abc412a928e0b8d22140ba8f54a047f79dc8"
+        ],
+        [
+            "apply: step_star_lb_step_execution.",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "exact: step_failure_star_lb_step_reachable.",
+            "VernacExtend",
+            "ce637ff86bafca5d8359473e8c02af644dcbdc43"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End LabeledStepFailure.",
+            "VernacEndSegment",
+            "d11b3ec6f69af6a87d1e09ee949550cdffde1a9b"
+        ],
+        [
+            "Section LabeledStepOrderFailure.",
+            "VernacBeginSection",
+            "3b5e01e05b40a0e261d0efcc68aa160c6f33fa01"
+        ],
+        [
+            "Context `{labeled_multi_params : LabeledMultiParams}.",
+            "VernacContext",
+            "15b97e9f9a85540dc7000bb4e851f7a80a733c39"
+        ],
+        [
+            "Inductive lb_step_ordered_failure : lb_step_relation (list name * ordered_network) label (name * (input + output)) := | LabeledStepOrderedFailure_deliver : forall net net' failed tr m ms out d l from to lb, onwPackets net from to = m :: ms -> ~ In to failed -> lb_net_handlers to from m (onwState net to) = (lb, out, d, l) -> net' = mkONetwork (collate name_eq_dec to (update2 name_eq_dec (onwPackets net) from to ms) l) (update name_eq_dec (onwState net) to d) -> tr = map2fst to (map inr out) -> lb_step_ordered_failure (failed, net) lb (failed, net') tr | LabeledStepOrderedFailure_input : forall h net net' failed tr out inp d l lb, ~ In h failed -> lb_input_handlers h inp (onwState net h) = (lb, out, d, l) -> net' = mkONetwork (collate name_eq_dec h (onwPackets net) l) (update name_eq_dec (onwState net) h d) -> tr = (h, inl inp) :: map2fst h (map inr out) -> lb_step_ordered_failure (failed, net) lb (failed, net') tr | LabeledStepOrderedFailure_stutter : forall net failed, lb_step_ordered_failure (failed, net) label_silent (failed, net) [].",
+            "VernacInductive",
+            "645e176da530d229a45fdea133c922a1780b6ca6"
+        ],
+        [
+            "Context {overlay_params : NameOverlayParams unlabeled_multi_params}.",
+            "VernacContext",
+            "eedd3e5d3a861ec8ec34eb60266c6e3dd4ad955a"
+        ],
+        [
+            "Context {fail_msg_params : FailMsgParams unlabeled_multi_params}.",
+            "VernacContext",
+            "410a5a528b27264aefba16a08123c6693e4a806e"
+        ],
+        [
+            "Lemma step_ordered_failure_star_lb_step_reachable : step_star_lb_step_reachable lb_step_ordered_failure step_ordered_failure step_ordered_failure_init.",
+            "VernacStartTheoremProof",
+            "1a5651dd4c2e7d501f8780d653dcf9664453173e"
+        ],
+        [
+            "rewrite /step_star_lb_step_reachable.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "case => failed net l.",
+            "VernacExtend",
+            "e00fff71ff314c991514fc71c41a3556702e444a"
+        ],
+        [
+            "case => failed' net' tr tr' H_star H_st.",
+            "VernacExtend",
+            "e00fff71ff314c991514fc71c41a3556702e444a"
+        ],
+        [
+            "invcs H_st.",
+            "VernacExtend",
+            "451637dff5c31c291039fc1ab6fac4db00799237"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "set net' := {| onwPackets := _ ; onwState := _ |}.",
+            "VernacExtend",
+            "69a61e99b234580f7b41fa5b9655c87ba9a76f70"
+        ],
+        [
+            "apply (@refl_trans_1n_trace_trans _ _ _ _ (failed', net)) => //.",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "rewrite (app_nil_end (map2fst _ _)).",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "apply: (@RT1nTStep _ _ _ _ (failed', net')); last exact: RT1nTBase.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "apply: (StepOrderedFailure_deliver _ _ _ H3) => //.",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "rewrite /net_handlers /= /unlabeled_net_handlers /=.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "repeat break_let.",
+            "VernacExtend",
+            "af4c4045b2a41d256b959f44ffccc9ee0df74742"
+        ],
+        [
+            "by tuple_inversion.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "set net' := {| onwPackets := _ ; onwState := _ |}.",
+            "VernacExtend",
+            "69a61e99b234580f7b41fa5b9655c87ba9a76f70"
+        ],
+        [
+            "apply (@refl_trans_1n_trace_trans _ _ _ _ (failed', net)) => //.",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "rewrite (app_nil_end (_ :: _)).",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "apply: (@RT1nTStep _ _ _ _ (failed', net')); last exact: RT1nTBase.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "apply: StepOrderedFailure_input => //; first by [].",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "rewrite /input_handlers /= /unlabeled_input_handlers /=.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "repeat break_let.",
+            "VernacExtend",
+            "af4c4045b2a41d256b959f44ffccc9ee0df74742"
+        ],
+        [
+            "by tuple_inversion.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by have ->: tr' ++ [] = tr' by auto with datatypes.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma step_ordered_failure_star_lb_step_execution : forall s, event_step_star step_ordered_failure step_ordered_failure_init (hd s) -> lb_step_execution lb_step_ordered_failure s -> always (now (event_step_star step_ordered_failure step_ordered_failure_init)) s.",
+            "VernacStartTheoremProof",
+            "1905db3632486bc653d1d40260e383124f2a8671"
+        ],
+        [
+            "apply: step_star_lb_step_execution.",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "exact: step_ordered_failure_star_lb_step_reachable.",
+            "VernacExtend",
+            "ce637ff86bafca5d8359473e8c02af644dcbdc43"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End LabeledStepOrderFailure.",
+            "VernacEndSegment",
+            "d4a9556f24fed5c35e42de6ae8b7cac59b4aa85d"
+        ],
+        [
+            "Section LabeledStepOrderDynamic.",
+            "VernacBeginSection",
+            "23ecfb0a7928e8031065035ed8a97c50b0a3c13e"
+        ],
+        [
+            "Context `{labeled_multi_params : LabeledMultiParams}.",
+            "VernacContext",
+            "15b97e9f9a85540dc7000bb4e851f7a80a733c39"
+        ],
+        [
+            "Inductive lb_step_ordered_dynamic : lb_step_relation ordered_dynamic_network label (name * (input + output)) := | LabeledStepOrderedDynamic_deliver : forall net net' tr m ms out d d' l from to lb, In to (odnwNodes net) -> odnwState net to = Some d -> odnwPackets net from to = m :: ms -> lb_net_handlers to from m d = (lb, out, d', l) -> net' = {| odnwNodes := odnwNodes net; odnwPackets := collate name_eq_dec to (update2 name_eq_dec (odnwPackets net) from to ms) l; odnwState := update name_eq_dec (odnwState net) to (Some d') |} -> tr = map2fst to (map inr out) -> lb_step_ordered_dynamic net lb net' tr | LabeledStepOrderedDynamic_input : forall h net net' tr out inp d d' l lb, In h (odnwNodes net) -> odnwState net h = Some d -> lb_input_handlers h inp d = (lb, out, d', l) -> net' = {| odnwNodes := odnwNodes net; odnwPackets := collate name_eq_dec h (odnwPackets net) l; odnwState := update name_eq_dec (odnwState net) h (Some d') |} -> tr = (h, inl inp) :: map2fst h (map inr out) -> lb_step_ordered_dynamic net lb net' tr | LabeledStepOrderedDynamic_stutter : forall net, lb_step_ordered_dynamic net label_silent net [].",
+            "VernacInductive",
+            "9a67288bd21eec0fc0c7f1f0f00c0c72de0e2982"
+        ],
+        [
+            "Context {overlay_params : NameOverlayParams unlabeled_multi_params}.",
+            "VernacContext",
+            "eedd3e5d3a861ec8ec34eb60266c6e3dd4ad955a"
+        ],
+        [
+            "Context {new_msg_params : NewMsgParams unlabeled_multi_params}.",
+            "VernacContext",
+            "5a35e796ace6f5cfef4bdbfd0f78ebab33fb4af7"
+        ],
+        [
+            "Lemma step_ordered_dynamic_star_lb_step_reachable : step_star_lb_step_reachable lb_step_ordered_dynamic step_ordered_dynamic step_ordered_dynamic_init.",
+            "VernacStartTheoremProof",
+            "99388ad28e91c6d41ce0351bb7586da3e28522d3"
+        ],
+        [
+            "rewrite /step_star_lb_step_reachable.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "move => net l.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "move => net' tr tr' H_star H_st.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "invcs H_st.",
+            "VernacExtend",
+            "451637dff5c31c291039fc1ab6fac4db00799237"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "set net' := {| odnwNodes := _ ; odnwPackets := _ ; odnwState := _ |}.",
+            "VernacExtend",
+            "69a61e99b234580f7b41fa5b9655c87ba9a76f70"
+        ],
+        [
+            "apply (@refl_trans_1n_trace_trans _ _ _ _ net) => //.",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "rewrite (app_nil_end (map2fst _ _)).",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "apply: (@RT1nTStep _ _ _ _ net'); last exact: RT1nTBase.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "apply: (StepOrderedDynamic_deliver _ _ _ H0 H1) => //.",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "rewrite /net_handlers /= /unlabeled_net_handlers /=.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "repeat break_let.",
+            "VernacExtend",
+            "af4c4045b2a41d256b959f44ffccc9ee0df74742"
+        ],
+        [
+            "by tuple_inversion.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "set net' := {| odnwNodes := _ ; odnwPackets := _ ; odnwState := _ |}.",
+            "VernacExtend",
+            "69a61e99b234580f7b41fa5b9655c87ba9a76f70"
+        ],
+        [
+            "apply (@refl_trans_1n_trace_trans _ _ _ _ net) => //.",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "rewrite (app_nil_end (_ :: _)).",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "apply: (@RT1nTStep _ _ _ _ net'); last exact: RT1nTBase.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "apply: (StepOrderedDynamic_input _ _ H0) => //.",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "rewrite /input_handlers /= /unlabeled_input_handlers /=.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "repeat break_let.",
+            "VernacExtend",
+            "af4c4045b2a41d256b959f44ffccc9ee0df74742"
+        ],
+        [
+            "by tuple_inversion.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by have ->: tr' ++ [] = tr' by auto with datatypes.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma step_ordered_dynamic_star_lb_step_execution : forall s, event_step_star step_ordered_dynamic step_ordered_dynamic_init (hd s) -> lb_step_execution lb_step_ordered_dynamic s -> always (now (event_step_star step_ordered_dynamic step_ordered_dynamic_init)) s.",
+            "VernacStartTheoremProof",
+            "544ba7a50a19f16f717634173c28bcf5b571b9f6"
+        ],
+        [
+            "apply: step_star_lb_step_execution.",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "exact: step_ordered_dynamic_star_lb_step_reachable.",
+            "VernacExtend",
+            "ce637ff86bafca5d8359473e8c02af644dcbdc43"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End LabeledStepOrderDynamic.",
+            "VernacEndSegment",
+            "0dc45651a3ef1415ecbb91c9a02805d2abddd3ab"
+        ],
+        [
+            "Section LabeledStepOrderDynamicFailure.",
+            "VernacBeginSection",
+            "c5100696da76453155f63a773e78654f9a8ad2a7"
+        ],
+        [
+            "Context `{labeled_multi_params : LabeledMultiParams}.",
+            "VernacContext",
+            "15b97e9f9a85540dc7000bb4e851f7a80a733c39"
+        ],
+        [
+            "Inductive lb_step_ordered_dynamic_failure : lb_step_relation (list name * ordered_dynamic_network) label (name * (input + output)) := | LabeledStepOrderedDynamicFailure_deliver : forall net net' failed tr m ms out d d' l from to lb, ~ In to failed -> In to (odnwNodes net) -> odnwState net to = Some d -> odnwPackets net from to = m :: ms -> lb_net_handlers to from m d = (lb, out, d', l) -> net' = {| odnwNodes := odnwNodes net; odnwPackets := collate name_eq_dec to (update2 name_eq_dec (odnwPackets net) from to ms) l; odnwState := update name_eq_dec (odnwState net) to (Some d') |} -> tr = map2fst to (map inr out) -> lb_step_ordered_dynamic_failure (failed, net) lb (failed, net') tr | LabeledStepOrderedDynamicFailure_input : forall h net net' failed tr out inp d d' l lb, ~ In h failed -> In h (odnwNodes net) -> odnwState net h = Some d -> lb_input_handlers h inp d = (lb, out, d', l) -> net' = {| odnwNodes := odnwNodes net; odnwPackets := collate name_eq_dec h (odnwPackets net) l; odnwState := update name_eq_dec (odnwState net) h (Some d') |} -> tr = (h, inl inp) :: map2fst h (map inr out) -> lb_step_ordered_dynamic_failure (failed, net) lb (failed, net') tr | LabeledStepOrderedDynamicFailure_stutter : forall net failed, lb_step_ordered_dynamic_failure (failed, net) label_silent (failed, net) [].",
+            "VernacInductive",
+            "6512ca44bfeb1b3094c8e6e89de2743dadd01a07"
+        ],
+        [
+            "Context {overlay_params : NameOverlayParams unlabeled_multi_params}.",
+            "VernacContext",
+            "eedd3e5d3a861ec8ec34eb60266c6e3dd4ad955a"
+        ],
+        [
+            "Context {fail_msg_params : FailMsgParams unlabeled_multi_params}.",
+            "VernacContext",
+            "410a5a528b27264aefba16a08123c6693e4a806e"
+        ],
+        [
+            "Context {new_msg_params : NewMsgParams unlabeled_multi_params}.",
+            "VernacContext",
+            "5a35e796ace6f5cfef4bdbfd0f78ebab33fb4af7"
+        ],
+        [
+            "Lemma step_ordered_dynamic_failure_star_lb_step_reachable : step_star_lb_step_reachable lb_step_ordered_dynamic_failure step_ordered_dynamic_failure step_ordered_dynamic_failure_init.",
+            "VernacStartTheoremProof",
+            "9b76194a6ac9ca511f343094e1d88abff4bf4e51"
+        ],
+        [
+            "rewrite /step_star_lb_step_reachable.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "case => failed net l.",
+            "VernacExtend",
+            "e00fff71ff314c991514fc71c41a3556702e444a"
+        ],
+        [
+            "case => failed' net' tr tr' H_star H_st.",
+            "VernacExtend",
+            "e00fff71ff314c991514fc71c41a3556702e444a"
+        ],
+        [
+            "invcs H_st.",
+            "VernacExtend",
+            "451637dff5c31c291039fc1ab6fac4db00799237"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "set net' := {| odnwNodes := _ ; odnwPackets := _ ; odnwState := _ |}.",
+            "VernacExtend",
+            "69a61e99b234580f7b41fa5b9655c87ba9a76f70"
+        ],
+        [
+            "apply (@refl_trans_1n_trace_trans _ _ _ _ (failed', net)) => //.",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "rewrite (app_nil_end (map2fst _ _)).",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "apply: (@RT1nTStep _ _ _ _ (failed', net')); last exact: RT1nTBase.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "apply: (StepOrderedDynamicFailure_deliver _ _ _ _ _ H5 H6) => //.",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "rewrite /net_handlers /= /unlabeled_net_handlers /=.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "repeat break_let.",
+            "VernacExtend",
+            "af4c4045b2a41d256b959f44ffccc9ee0df74742"
+        ],
+        [
+            "by tuple_inversion.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "set net' := {| odnwNodes := _ ; odnwPackets := _ ; odnwState := _ |}.",
+            "VernacExtend",
+            "69a61e99b234580f7b41fa5b9655c87ba9a76f70"
+        ],
+        [
+            "apply (@refl_trans_1n_trace_trans _ _ _ _ (failed', net)) => //.",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "rewrite (app_nil_end (_ :: _)).",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "apply: (@RT1nTStep _ _ _ _ (failed', net')); last exact: RT1nTBase.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "apply: (StepOrderedDynamicFailure_input _ _ _ _ H5) => //.",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "rewrite /input_handlers /= /unlabeled_input_handlers /=.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "repeat break_let.",
+            "VernacExtend",
+            "af4c4045b2a41d256b959f44ffccc9ee0df74742"
+        ],
+        [
+            "by tuple_inversion.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by have ->: tr' ++ [] = tr' by auto with datatypes.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma step_ordered_dynamic_failure_star_lb_step_execution : forall s, event_step_star step_ordered_dynamic_failure step_ordered_dynamic_failure_init (hd s) -> lb_step_execution lb_step_ordered_dynamic_failure s -> always (now (event_step_star step_ordered_dynamic_failure step_ordered_dynamic_failure_init)) s.",
+            "VernacStartTheoremProof",
+            "bdbe12ced791dcb9d0de41a0ca31997eeee1c97d"
+        ],
+        [
+            "apply: step_star_lb_step_execution.",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "exact: step_ordered_dynamic_failure_star_lb_step_reachable.",
+            "VernacExtend",
+            "ce637ff86bafca5d8359473e8c02af644dcbdc43"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End LabeledStepOrderDynamicFailure.",
+            "VernacEndSegment",
+            "b78bd45eea0f3060d16214e79d831acf18e42c2e"
+        ],
+        [
+            "Hint Extern 4 (@LabeledMultiParams _) => apply unlabeled_multi_params : typeclass_instances.",
+            "VernacHints",
+            "2da3a78405883652e7cdbf70074c3750b9e4b5e3"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "strong_fairness_invar",
+            "line_nb": 27,
+            "steps": [
+                {
+                    "command": [
+                        "unfold strong_fairness.",
+                        "VernacExtend",
+                        "956f87a8e6170bfc566b4dff6370b803a25c0833"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold inf_enabled, inf_occurred, inf_often.",
+                        "VernacExtend",
+                        "c3275df37d7514e6eab99070babf651bea3582b8"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros step e silent s fair l neq alev.",
+                        "VernacExtend",
+                        "8d62cb95c5add88c3ec29a64e3509931f4b5af4d"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (alevt_es: always (eventually (now (enabled step l))) (Cons e s)).",
+                        "VernacExtend",
+                        "005fe98b5771d03ea73b843a2b0531f0f25f5f89"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor.",
+                        "VernacExtend",
+                        "3c77e6be855b5086df5e918bf2a0537e1010479a"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor 2.",
+                        "VernacExtend",
+                        "3bbfaccba5e1a5a8e417cf2575e634e4c10773fe"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct alev; assumption.",
+                        "VernacExtend",
+                        "3891deb8e0231438b3b52d1cea1d173f1a4107a4"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "assumption.",
+                        "VernacExtend",
+                        "41f0308313ff87e6ab2782f90d6021ec4b55d932"
+                    ]
+                },
+                {
+                    "command": [
+                        "clear alev.",
+                        "VernacExtend",
+                        "16b2fc8078f5e1ec8948d2d7427d0dbe387a9ae1"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize (fair l neq alevt_es); clear fair alevt_es.",
+                        "VernacExtend",
+                        "2f5d30409ae9e6609218c6f29947f0bad16d33bf"
+                    ]
+                },
+                {
+                    "command": [
+                        "intro fair; case (always_Cons fair); trivial.",
+                        "VernacExtend",
+                        "69952af5534456fcaaec6a20b00751d666ae9152"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "weak_fairness_invar",
+            "line_nb": 58,
+            "steps": [
+                {
+                    "command": [
+                        "unfold weak_fairness.",
+                        "VernacExtend",
+                        "d887a4ddf9df3d2e7d10c0d02691380f208368f8"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold cont_enabled, inf_occurred, continuously, inf_often.",
+                        "VernacExtend",
+                        "eb196c7158c9f1419f14d661687d08d0c854bec2"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros step e silent s fair a neq eval.",
+                        "VernacExtend",
+                        "3c6d06e5a121ab0c0436ebd835ebc2d8d52d785c"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (eval_es: eventually (always (now (enabled step a))) (Cons e s)).",
+                        "VernacExtend",
+                        "1418478b1b6c9800493f742b43109130d132d809"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply E_next.",
+                        "VernacExtend",
+                        "94ef81f1740a77599e7f9def4b266f10d437a7fb"
+                    ]
+                },
+                {
+                    "command": [
+                        "assumption.",
+                        "VernacExtend",
+                        "41f0308313ff87e6ab2782f90d6021ec4b55d932"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply fair in eval_es.",
+                        "VernacExtend",
+                        "683c6d840c9ebb89844e37799d0174e4d0fbfdc8"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply always_invar in eval_es.",
+                        "VernacExtend",
+                        "fee3f138e5c06cac45ca429448b35c78abf1518d"
+                    ]
+                },
+                {
+                    "command": [
+                        "assumption.",
+                        "VernacExtend",
+                        "41f0308313ff87e6ab2782f90d6021ec4b55d932"
+                    ]
+                },
+                {
+                    "command": [
+                        "assumption.",
+                        "VernacExtend",
+                        "41f0308313ff87e6ab2782f90d6021ec4b55d932"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "strong_fairness_weak",
+            "line_nb": 87,
+            "steps": [
+                {
+                    "command": [
+                        "move => step silent.",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "case => e s.",
+                        "VernacExtend",
+                        "e00fff71ff314c991514fc71c41a3556702e444a"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite /strong_fairness /weak_fairness /inf_enabled /cont_enabled.",
+                        "VernacExtend",
+                        "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+                    ]
+                },
+                {
+                    "command": [
+                        "move => H_str l neq H_cont.",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply: H_str; first by [].",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "exact: continuously_inf_often.",
+                        "VernacExtend",
+                        "ce637ff86bafca5d8359473e8c02af644dcbdc43"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "lb_step_execution_invar",
+            "line_nb": 96,
+            "steps": [
+                {
+                    "command": [
+                        "intros step x s e.",
+                        "VernacExtend",
+                        "e4b2455579446aa0a93b83b82c7544efc6afe208"
+                    ]
+                },
+                {
+                    "command": [
+                        "change (lb_step_execution step (tl (Cons x s))).",
+                        "VernacExtend",
+                        "bb3b00e0541aa3ad3925d58e9ee942eac3b33402"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct e; simpl.",
+                        "VernacExtend",
+                        "6ffc61466ff058b612edb5249160815869003a8b"
+                    ]
+                },
+                {
+                    "command": [
+                        "assumption.",
+                        "VernacExtend",
+                        "41f0308313ff87e6ab2782f90d6021ec4b55d932"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "lb_step_execution_extensional",
+            "line_nb": 102,
+            "steps": [
+                {
+                    "command": [
+                        "move => step.",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite /extensional /=.",
+                        "VernacExtend",
+                        "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+                    ]
+                },
+                {
+                    "command": [
+                        "cofix c.",
+                        "VernacExtend",
+                        "84529034ffeb9fcb4ac6205081da4ea491c1fcf5"
+                    ]
+                },
+                {
+                    "command": [
+                        "case => e1; case => e1' s1.",
+                        "VernacExtend",
+                        "5887f8022a4f6389ac249140364feb69c4f18799"
+                    ]
+                },
+                {
+                    "command": [
+                        "case => e2; case => e2' s2 H_eq.",
+                        "VernacExtend",
+                        "5887f8022a4f6389ac249140364feb69c4f18799"
+                    ]
+                },
+                {
+                    "command": [
+                        "find_apply_lem_hyp exteq_inversion.",
+                        "VernacExtend",
+                        "ba6c2080828daac91865ab9401a13604d22206ee"
+                    ]
+                },
+                {
+                    "command": [
+                        "break_and.",
+                        "VernacExtend",
+                        "90a213dc7b4fc55cb8bc34300101c3eaa0ead551"
+                    ]
+                },
+                {
+                    "command": [
+                        "find_copy_apply_lem_hyp exteq_inversion.",
+                        "VernacExtend",
+                        "bd3eb431a27e4463ff9cbe335fec177904eaa0d7"
+                    ]
+                },
+                {
+                    "command": [
+                        "break_and.",
+                        "VernacExtend",
+                        "90a213dc7b4fc55cb8bc34300101c3eaa0ead551"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat find_rewrite.",
+                        "VernacExtend",
+                        "2e0f7af91fb6dc6a2928bc530dda4cfbd03d3e68"
+                    ]
+                },
+                {
+                    "command": [
+                        "move => H_exec.",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion H_exec; subst.",
+                        "VernacExtend",
+                        "350ea0e2473f8c2de47148a11bd47581aaec2fec"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (Cons_lb_step_exec _ tr) => //.",
+                        "VernacExtend",
+                        "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply: c; eauto.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "step_star_lb_step_execution",
+            "line_nb": 120,
+            "steps": [
+                {
+                    "command": [
+                        "move => lb_step step init H_r.",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "case => e s H_star.",
+                        "VernacExtend",
+                        "e00fff71ff314c991514fc71c41a3556702e444a"
+                    ]
+                },
+                {
+                    "command": [
+                        "move: e s H_star.",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "cofix cf.",
+                        "VernacExtend",
+                        "2223d6590abe75c4110c64eec6185c896db38177"
+                    ]
+                },
+                {
+                    "command": [
+                        "move => e.",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "case => e' s H_star H_exec'.",
+                        "VernacExtend",
+                        "e00fff71ff314c991514fc71c41a3556702e444a"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; first by [].",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply cf.",
+                        "VernacExtend",
+                        "854ae6f0755d8ae82882825b8b225848a6534503"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion H_exec'; subst_max.",
+                        "VernacExtend",
+                        "4175080eed06399c953ebdf824eabebd6d1f4977"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite /event_step_star /=.",
+                        "VernacExtend",
+                        "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite /event_step_star /= in H_star.",
+                        "VernacExtend",
+                        "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite /step_star_lb_step_reachable in H_r.",
+                        "VernacExtend",
+                        "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+                    ]
+                },
+                {
+                    "command": [
+                        "have H_d := H_r _ _ _ _ _ H_star H2.",
+                        "VernacExtend",
+                        "406cde1174359c53bf162a2a18c4eede395555f9"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H3.",
+                        "VernacExtend",
+                        "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+                    ]
+                },
+                {
+                    "command": [
+                        "exact: H_r _ _ _ _ _ H_star H2.",
+                        "VernacExtend",
+                        "ce637ff86bafca5d8359473e8c02af644dcbdc43"
+                    ]
+                },
+                {
+                    "command": [
+                        "move: H_exec'.",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply: lb_step_execution_invar.",
+                        "VernacExtend",
+                        "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

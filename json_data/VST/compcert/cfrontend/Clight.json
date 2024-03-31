@@ -1,0 +1,638 @@
+{
+    "filename": "compcert/cfrontend/Clight.v",
+    "coq_project": "VST",
+    "vernac_cmds": [
+        [
+            "Require Import Coqlib.",
+            "VernacRequire",
+            "bbbe15041aca3a03300067f7acd445b462d537cc"
+        ],
+        [
+            "Require Import Errors.",
+            "VernacRequire",
+            "d249a1a104703c044f8b434934dd927cf8ab2709"
+        ],
+        [
+            "Require Import Maps.",
+            "VernacRequire",
+            "f9a27637102e60e06a3c1ceb5a01819e80b9f645"
+        ],
+        [
+            "Require Import Integers.",
+            "VernacRequire",
+            "688f068e3335df7950b569ef75a5e993414c9874"
+        ],
+        [
+            "Require Import Floats.",
+            "VernacRequire",
+            "b9c4a965f888465bf3445941d179c7194c314789"
+        ],
+        [
+            "Require Import Values.",
+            "VernacRequire",
+            "f69762569c40def2ecf819f8117763d2ee924d2a"
+        ],
+        [
+            "Require Import AST.",
+            "VernacRequire",
+            "d103ecb096c06f34167fba01dd861491b0d5e84e"
+        ],
+        [
+            "Require Import Memory.",
+            "VernacRequire",
+            "2705b33fd6d3e12818791c70e219eee6a06d5191"
+        ],
+        [
+            "Require Import Events.",
+            "VernacRequire",
+            "8d12cd63a382accc976f222cc44b7a14814a06b9"
+        ],
+        [
+            "Require Import Globalenvs.",
+            "VernacRequire",
+            "04fc9ef3af45317f021e6c5326bb64982be447d7"
+        ],
+        [
+            "Require Import Smallstep.",
+            "VernacRequire",
+            "84c69dcbdb1069c688ce977fea648ae7688f06a8"
+        ],
+        [
+            "Require Import Ctypes.",
+            "VernacRequire",
+            "faff04a71b411c7c14fffc3b7842917b771e9d84"
+        ],
+        [
+            "Require Import Cop.",
+            "VernacRequire",
+            "9be26e05a6d5ac2d3026bbd68199b72ca3abd06a"
+        ],
+        [
+            "Inductive expr : Type := | Econst_int: int -> type -> expr | Econst_float: float -> type -> expr | Econst_single: float32 -> type -> expr | Econst_long: int64 -> type -> expr | Evar: ident -> type -> expr | Etempvar: ident -> type -> expr | Ederef: expr -> type -> expr | Eaddrof: expr -> type -> expr | Eunop: unary_operation -> expr -> type -> expr | Ebinop: binary_operation -> expr -> expr -> type -> expr | Ecast: expr -> type -> expr | Efield: expr -> ident -> type -> expr | Esizeof: type -> type -> expr | Ealignof: type -> type -> expr.",
+            "VernacInductive",
+            "10440ca05fe03779252280f6464b5e7ca1163fce"
+        ],
+        [
+            "Definition typeof (e: expr) : type := match e with | Econst_int _ ty => ty | Econst_float _ ty => ty | Econst_single _ ty => ty | Econst_long _ ty => ty | Evar _ ty => ty | Etempvar _ ty => ty | Ederef _ ty => ty | Eaddrof _ ty => ty | Eunop _ _ ty => ty | Ebinop _ _ _ ty => ty | Ecast _ ty => ty | Efield _ _ ty => ty | Esizeof _ ty => ty | Ealignof _ ty => ty end.",
+            "VernacDefinition",
+            "c3e0f26e32f650415c11153d5175ec0a71867ac9"
+        ],
+        [
+            "Definition label := ident.",
+            "VernacDefinition",
+            "a8b53eef223b0fe9f19e1840eb3d0494fbc9a3b5"
+        ],
+        [
+            "Inductive statement : Type := | Sskip : statement | Sassign : expr -> expr -> statement | Sset : ident -> expr -> statement | Scall: option ident -> expr -> list expr -> statement | Sbuiltin: option ident -> external_function -> typelist -> list expr -> statement | Ssequence : statement -> statement -> statement | Sifthenelse : expr -> statement -> statement -> statement | Sloop: statement -> statement -> statement | Sbreak : statement | Scontinue : statement | Sreturn : option expr -> statement | Sswitch : expr -> labeled_statements -> statement | Slabel : label -> statement -> statement | Sgoto : label -> statement with labeled_statements : Type := | LSnil: labeled_statements | LScons: option Z -> statement -> labeled_statements -> labeled_statements.",
+            "VernacInductive",
+            "9f852e5b4b2e4f50d8d422bc9585d58a5c990bf0"
+        ],
+        [
+            "Definition Swhile (e: expr) (s: statement) := Sloop (Ssequence (Sifthenelse e Sskip Sbreak) s) Sskip.",
+            "VernacDefinition",
+            "3a8c3b6481bb35f59655b585e92cfa5d4e031d8d"
+        ],
+        [
+            "Definition Sdowhile (s: statement) (e: expr) := Sloop s (Sifthenelse e Sskip Sbreak).",
+            "VernacDefinition",
+            "bb6d59fdba00af9a0a783e752a2c452dafdaa624"
+        ],
+        [
+            "Definition Sfor (s1: statement) (e2: expr) (s3: statement) (s4: statement) := Ssequence s1 (Sloop (Ssequence (Sifthenelse e2 Sskip Sbreak) s3) s4).",
+            "VernacDefinition",
+            "c789132321b977dccadd9c85ab93304860993a5a"
+        ],
+        [
+            "Record function : Type := mkfunction { fn_return: type; fn_callconv: calling_convention; fn_params: list (ident * type); fn_vars: list (ident * type); fn_temps: list (ident * type); fn_body: statement }.",
+            "VernacInductive",
+            "4408f163bd1825519a13a9f6783e53e5a4e1c548"
+        ],
+        [
+            "Definition var_names (vars: list(ident * type)) : list ident := List.map (@fst ident type) vars.",
+            "VernacDefinition",
+            "769d31546d357e7fd9930bcb0298e7efc8a44a79"
+        ],
+        [
+            "Definition fundef := Ctypes.fundef function.",
+            "VernacDefinition",
+            "e3ad86275ec81ef6fa082bb2d694ec02a826039f"
+        ],
+        [
+            "Definition type_of_function (f: function) : type := Tfunction (type_of_params (fn_params f)) (fn_return f) (fn_callconv f).",
+            "VernacDefinition",
+            "59123214b89abcad965d560717669e14e33d7dc8"
+        ],
+        [
+            "Definition type_of_fundef (f: fundef) : type := match f with | Internal fd => type_of_function fd | External id args res cc => Tfunction args res cc end.",
+            "VernacDefinition",
+            "9479c61dfe23d2bc5d85718fea5bc0ccea347e26"
+        ],
+        [
+            "Definition program := Ctypes.program function.",
+            "VernacDefinition",
+            "f61cdd4a791be2c8fa62c8328f99e791493d67c5"
+        ],
+        [
+            "Record genv := { genv_genv :> Genv.t fundef type; genv_cenv :> composite_env }.",
+            "VernacInductive",
+            "413eaa61e2007a6dc419e66305653e35b01b5165"
+        ],
+        [
+            "Definition globalenv (p: program) := {| genv_genv := Genv.globalenv p; genv_cenv := p.(prog_comp_env) |}.",
+            "VernacDefinition",
+            "b01655f4a63862c7a69fef4d0626850206523d17"
+        ],
+        [
+            "Definition env := PTree.t (block * type).",
+            "VernacDefinition",
+            "d45ab49cbfc6a004a422da7e9a6f9848a0649820"
+        ],
+        [
+            "Definition empty_env: env := (PTree.empty (block * type)).",
+            "VernacDefinition",
+            "a21eecf9348f9f2a56594b4e2a44fa3b6faae77d"
+        ],
+        [
+            "Definition temp_env := PTree.t val.",
+            "VernacDefinition",
+            "8ee97f73ad121941b00dd33cc8dab59994a33aeb"
+        ],
+        [
+            "Inductive deref_loc (ty: type) (m: mem) (b: block) (ofs: ptrofs) : val -> Prop := | deref_loc_value: forall chunk v, access_mode ty = By_value chunk -> Mem.loadv chunk m (Vptr b ofs) = Some v -> deref_loc ty m b ofs v | deref_loc_reference: access_mode ty = By_reference -> deref_loc ty m b ofs (Vptr b ofs) | deref_loc_copy: access_mode ty = By_copy -> deref_loc ty m b ofs (Vptr b ofs).",
+            "VernacInductive",
+            "8bef6943c43e31fcaed306803f656b8d1286d1ab"
+        ],
+        [
+            "Inductive assign_loc (ce: composite_env) (ty: type) (m: mem) (b: block) (ofs: ptrofs): val -> mem -> Prop := | assign_loc_value: forall v chunk m', access_mode ty = By_value chunk -> Mem.storev chunk m (Vptr b ofs) v = Some m' -> assign_loc ce ty m b ofs v m' | assign_loc_copy: forall b' ofs' bytes m', access_mode ty = By_copy -> (sizeof ce ty > 0 -> (alignof_blockcopy ce ty | Ptrofs.unsigned ofs')) -> (sizeof ce ty > 0 -> (alignof_blockcopy ce ty | Ptrofs.unsigned ofs)) -> b' <> b \\/ Ptrofs.unsigned ofs' = Ptrofs.unsigned ofs \\/ Ptrofs.unsigned ofs' + sizeof ce ty <= Ptrofs.unsigned ofs \\/ Ptrofs.unsigned ofs + sizeof ce ty <= Ptrofs.unsigned ofs' -> Mem.loadbytes m b' (Ptrofs.unsigned ofs') (sizeof ce ty) = Some bytes -> Mem.storebytes m b (Ptrofs.unsigned ofs) bytes = Some m' -> assign_loc ce ty m b ofs (Vptr b' ofs') m'.",
+            "VernacInductive",
+            "6771608307eec7dd7e2d2ad18dbef81fa16d1dab"
+        ],
+        [
+            "Section SEMANTICS.",
+            "VernacBeginSection",
+            "6dbe3ce0ae0278bc13cc65357d29c5e9728606bc"
+        ],
+        [
+            "Variable ge: genv.",
+            "VernacAssumption",
+            "5dcbd76196753bb6e2da03561ae76151d62a94d8"
+        ],
+        [
+            "Inductive alloc_variables: env -> mem -> list (ident * type) -> env -> mem -> Prop := | alloc_variables_nil: forall e m, alloc_variables e m nil e m | alloc_variables_cons: forall e m id ty vars m1 b1 m2 e2, Mem.alloc m 0 (sizeof ge ty) = (m1, b1) -> alloc_variables (PTree.set id (b1, ty) e) m1 vars e2 m2 -> alloc_variables e m ((id, ty) :: vars) e2 m2.",
+            "VernacInductive",
+            "bb57fd698fc3d502273e5da632d1a1d3d38bc2ed"
+        ],
+        [
+            "Inductive bind_parameters (e: env): mem -> list (ident * type) -> list val -> mem -> Prop := | bind_parameters_nil: forall m, bind_parameters e m nil nil m | bind_parameters_cons: forall m id ty params v1 vl b m1 m2, PTree.get id e = Some(b, ty) -> assign_loc ge ty m b Ptrofs.zero v1 m1 -> bind_parameters e m1 params vl m2 -> bind_parameters e m ((id, ty) :: params) (v1 :: vl) m2.",
+            "VernacInductive",
+            "2b6d36651d3cf27bf3d1508062f7f98f63d585f9"
+        ],
+        [
+            "Fixpoint create_undef_temps (temps: list (ident * type)) : temp_env := match temps with | nil => PTree.empty val | (id, t) :: temps' => PTree.set id Vundef (create_undef_temps temps') end.",
+            "VernacFixpoint",
+            "7305e57a298ea44d2dc7633ae7e33c7a509ad5f6"
+        ],
+        [
+            "Fixpoint bind_parameter_temps (formals: list (ident * type)) (args: list val) (le: temp_env) : option temp_env := match formals, args with | nil, nil => Some le | (id, t) :: xl, v :: vl => bind_parameter_temps xl vl (PTree.set id v le) | _, _ => None end.",
+            "VernacFixpoint",
+            "6dfeee936fc852270f747b44a271442c05243df7"
+        ],
+        [
+            "Definition block_of_binding (id_b_ty: ident * (block * type)) := match id_b_ty with (id, (b, ty)) => (b, 0, sizeof ge ty) end.",
+            "VernacDefinition",
+            "f6b62ad7865a46cf72594e19035821572bcac14f"
+        ],
+        [
+            "Definition blocks_of_env (e: env) : list (block * Z * Z) := List.map block_of_binding (PTree.elements e).",
+            "VernacDefinition",
+            "3031107ecfbd72e29880fa9ec0b9cadc776b28eb"
+        ],
+        [
+            "Definition set_opttemp (optid: option ident) (v: val) (le: temp_env) := match optid with | None => le | Some id => PTree.set id v le end.",
+            "VernacDefinition",
+            "27ce0783b7e74adedce74138f9057331a2933eab"
+        ],
+        [
+            "Fixpoint select_switch_default (sl: labeled_statements): labeled_statements := match sl with | LSnil => sl | LScons None s sl' => sl | LScons (Some i) s sl' => select_switch_default sl' end.",
+            "VernacFixpoint",
+            "8ea279e25db13249f0d417e725609e4babc810c2"
+        ],
+        [
+            "Fixpoint select_switch_case (n: Z) (sl: labeled_statements): option labeled_statements := match sl with | LSnil => None | LScons None s sl' => select_switch_case n sl' | LScons (Some c) s sl' => if zeq c n then Some sl else select_switch_case n sl' end.",
+            "VernacFixpoint",
+            "0d23c6db0e17275f3bc6e28395db9fe725d7cb36"
+        ],
+        [
+            "Definition select_switch (n: Z) (sl: labeled_statements): labeled_statements := match select_switch_case n sl with | Some sl' => sl' | None => select_switch_default sl end.",
+            "VernacDefinition",
+            "7b7b2ac7b7615b68ddf803a65b5f6189712f16b0"
+        ],
+        [
+            "Fixpoint seq_of_labeled_statement (sl: labeled_statements) : statement := match sl with | LSnil => Sskip | LScons _ s sl' => Ssequence s (seq_of_labeled_statement sl') end.",
+            "VernacFixpoint",
+            "648b73df3071457ea01047f06b9ddb9339b9d36f"
+        ],
+        [
+            "Section EXPR.",
+            "VernacBeginSection",
+            "99ffeb43b98f03d8389e54b1a205858e9a1e73ec"
+        ],
+        [
+            "Variable e: env.",
+            "VernacAssumption",
+            "246a24d9eb5be930b928cc64176ad206a11440ce"
+        ],
+        [
+            "Variable le: temp_env.",
+            "VernacAssumption",
+            "55298db91d5953a0d60ef6e261f9593a31bf172e"
+        ],
+        [
+            "Variable m: mem.",
+            "VernacAssumption",
+            "253337f404928b0a16b3940626ec20c52cfd3aad"
+        ],
+        [
+            "Inductive eval_expr: expr -> val -> Prop := | eval_Econst_int: forall i ty, eval_expr (Econst_int i ty) (Vint i) | eval_Econst_float: forall f ty, eval_expr (Econst_float f ty) (Vfloat f) | eval_Econst_single: forall f ty, eval_expr (Econst_single f ty) (Vsingle f) | eval_Econst_long: forall i ty, eval_expr (Econst_long i ty) (Vlong i) | eval_Etempvar: forall id ty v, le!id = Some v -> eval_expr (Etempvar id ty) v | eval_Eaddrof: forall a ty loc ofs, eval_lvalue a loc ofs -> eval_expr (Eaddrof a ty) (Vptr loc ofs) | eval_Eunop: forall op a ty v1 v, eval_expr a v1 -> sem_unary_operation op v1 (typeof a) m = Some v -> eval_expr (Eunop op a ty) v | eval_Ebinop: forall op a1 a2 ty v1 v2 v, eval_expr a1 v1 -> eval_expr a2 v2 -> sem_binary_operation ge op v1 (typeof a1) v2 (typeof a2) m = Some v -> eval_expr (Ebinop op a1 a2 ty) v | eval_Ecast: forall a ty v1 v, eval_expr a v1 -> sem_cast v1 (typeof a) ty m = Some v -> eval_expr (Ecast a ty) v | eval_Esizeof: forall ty1 ty, eval_expr (Esizeof ty1 ty) (Vptrofs (Ptrofs.repr (sizeof ge ty1))) | eval_Ealignof: forall ty1 ty, eval_expr (Ealignof ty1 ty) (Vptrofs (Ptrofs.repr (alignof ge ty1))) | eval_Elvalue: forall a loc ofs v, eval_lvalue a loc ofs -> deref_loc (typeof a) m loc ofs v -> eval_expr a v with eval_lvalue: expr -> block -> ptrofs -> Prop := | eval_Evar_local: forall id l ty, e!id = Some(l, ty) -> eval_lvalue (Evar id ty) l Ptrofs.zero | eval_Evar_global: forall id l ty, e!id = None -> Genv.find_symbol ge id = Some l -> eval_lvalue (Evar id ty) l Ptrofs.zero | eval_Ederef: forall a ty l ofs, eval_expr a (Vptr l ofs) -> eval_lvalue (Ederef a ty) l ofs | eval_Efield_struct: forall a i ty l ofs id co att delta, eval_expr a (Vptr l ofs) -> typeof a = Tstruct id att -> ge.(genv_cenv)!id = Some co -> field_offset ge i (co_members co) = OK delta -> eval_lvalue (Efield a i ty) l (Ptrofs.add ofs (Ptrofs.repr delta)) | eval_Efield_union: forall a i ty l ofs id co att, eval_expr a (Vptr l ofs) -> typeof a = Tunion id att -> ge.(genv_cenv)!id = Some co -> eval_lvalue (Efield a i ty) l ofs.",
+            "VernacInductive",
+            "27a238d3331347d3c30ac5db18f50afee67a1937"
+        ],
+        [
+            "Scheme eval_expr_ind2 := Minimality for eval_expr Sort Prop with eval_lvalue_ind2 := Minimality for eval_lvalue Sort Prop.",
+            "VernacScheme",
+            "f9c7b4d61941767071af3f9c58db174fc6702f27"
+        ],
+        [
+            "Combined Scheme eval_expr_lvalue_ind from eval_expr_ind2, eval_lvalue_ind2.",
+            "VernacCombinedScheme",
+            "3db95a7277cdf4df8ee92001e88cc3b16a714b87"
+        ],
+        [
+            "Inductive eval_exprlist: list expr -> typelist -> list val -> Prop := | eval_Enil: eval_exprlist nil Tnil nil | eval_Econs: forall a bl ty tyl v1 v2 vl, eval_expr a v1 -> sem_cast v1 (typeof a) ty m = Some v2 -> eval_exprlist bl tyl vl -> eval_exprlist (a :: bl) (Tcons ty tyl) (v2 :: vl).",
+            "VernacInductive",
+            "4e8867e271383514efc85a8104d4b9697a2938c7"
+        ],
+        [
+            "End EXPR.",
+            "VernacEndSegment",
+            "3f346043a1d4b0545f89112a1a10ed8153912339"
+        ],
+        [
+            "Inductive cont: Type := | Kstop: cont | Kseq: statement -> cont -> cont | Kloop1: statement -> statement -> cont -> cont | Kloop2: statement -> statement -> cont -> cont | Kswitch: cont -> cont | Kcall: option ident -> function -> env -> temp_env -> cont -> cont.",
+            "VernacInductive",
+            "fa785becb551c2dc2c3253488623152abc8610f5"
+        ],
+        [
+            "Fixpoint call_cont (k: cont) : cont := match k with | Kseq s k => call_cont k | Kloop1 s1 s2 k => call_cont k | Kloop2 s1 s2 k => call_cont k | Kswitch k => call_cont k | _ => k end.",
+            "VernacFixpoint",
+            "e8852437de09f5f9afd589167d02690e8d5e42ed"
+        ],
+        [
+            "Definition is_call_cont (k: cont) : Prop := match k with | Kstop => True | Kcall _ _ _ _ _ => True | _ => False end.",
+            "VernacDefinition",
+            "01cf6b0b307893ab5b62adfd4fdfebafa0d295e7"
+        ],
+        [
+            "Inductive state: Type := | State (f: function) (s: statement) (k: cont) (e: env) (le: temp_env) (m: mem) : state | Callstate (fd: fundef) (args: list val) (k: cont) (m: mem) : state | Returnstate (res: val) (k: cont) (m: mem) : state.",
+            "VernacInductive",
+            "2afccc73fb13a4ac4c045fc7d8893216e58d604e"
+        ],
+        [
+            "Fixpoint find_label (lbl: label) (s: statement) (k: cont) {struct s}: option (statement * cont) := match s with | Ssequence s1 s2 => match find_label lbl s1 (Kseq s2 k) with | Some sk => Some sk | None => find_label lbl s2 k end | Sifthenelse a s1 s2 => match find_label lbl s1 k with | Some sk => Some sk | None => find_label lbl s2 k end | Sloop s1 s2 => match find_label lbl s1 (Kloop1 s1 s2 k) with | Some sk => Some sk | None => find_label lbl s2 (Kloop2 s1 s2 k) end | Sswitch e sl => find_label_ls lbl sl (Kswitch k) | Slabel lbl' s' => if ident_eq lbl lbl' then Some(s', k) else find_label lbl s' k | _ => None end with find_label_ls (lbl: label) (sl: labeled_statements) (k: cont) {struct sl}: option (statement * cont) := match sl with | LSnil => None | LScons _ s sl' => match find_label lbl s (Kseq (seq_of_labeled_statement sl') k) with | Some sk => Some sk | None => find_label_ls lbl sl' k end end.",
+            "VernacFixpoint",
+            "bf8616ace448d0ebecf8f99adbb2d57a1d037be7"
+        ],
+        [
+            "Variable function_entry: function -> list val -> mem -> env -> temp_env -> mem -> Prop.",
+            "VernacAssumption",
+            "a51583a34172aa8dda814e367f7b10a50a60e354"
+        ],
+        [
+            "Inductive step: state -> trace -> state -> Prop := | step_assign: forall f a1 a2 k e le m loc ofs v2 v m', eval_lvalue e le m a1 loc ofs -> eval_expr e le m a2 v2 -> sem_cast v2 (typeof a2) (typeof a1) m = Some v -> assign_loc ge (typeof a1) m loc ofs v m' -> step (State f (Sassign a1 a2) k e le m) E0 (State f Sskip k e le m') | step_set: forall f id a k e le m v, eval_expr e le m a v -> step (State f (Sset id a) k e le m) E0 (State f Sskip k e (PTree.set id v le) m) | step_call: forall f optid a al k e le m tyargs tyres cconv vf vargs fd, classify_fun (typeof a) = fun_case_f tyargs tyres cconv -> eval_expr e le m a vf -> eval_exprlist e le m al tyargs vargs -> Genv.find_funct ge vf = Some fd -> type_of_fundef fd = Tfunction tyargs tyres cconv -> step (State f (Scall optid a al) k e le m) E0 (Callstate fd vargs (Kcall optid f e le k) m) | step_builtin: forall f optid ef tyargs al k e le m vargs t vres m', eval_exprlist e le m al tyargs vargs -> external_call ef ge vargs m t vres m' -> step (State f (Sbuiltin optid ef tyargs al) k e le m) t (State f Sskip k e (set_opttemp optid vres le) m') | step_seq: forall f s1 s2 k e le m, step (State f (Ssequence s1 s2) k e le m) E0 (State f s1 (Kseq s2 k) e le m) | step_skip_seq: forall f s k e le m, step (State f Sskip (Kseq s k) e le m) E0 (State f s k e le m) | step_continue_seq: forall f s k e le m, step (State f Scontinue (Kseq s k) e le m) E0 (State f Scontinue k e le m) | step_break_seq: forall f s k e le m, step (State f Sbreak (Kseq s k) e le m) E0 (State f Sbreak k e le m) | step_ifthenelse: forall f a s1 s2 k e le m v1 b, eval_expr e le m a v1 -> bool_val v1 (typeof a) m = Some b -> step (State f (Sifthenelse a s1 s2) k e le m) E0 (State f (if b then s1 else s2) k e le m) | step_loop: forall f s1 s2 k e le m, step (State f (Sloop s1 s2) k e le m) E0 (State f s1 (Kloop1 s1 s2 k) e le m) | step_skip_or_continue_loop1: forall f s1 s2 k e le m x, x = Sskip \\/ x = Scontinue -> step (State f x (Kloop1 s1 s2 k) e le m) E0 (State f s2 (Kloop2 s1 s2 k) e le m) | step_break_loop1: forall f s1 s2 k e le m, step (State f Sbreak (Kloop1 s1 s2 k) e le m) E0 (State f Sskip k e le m) | step_skip_loop2: forall f s1 s2 k e le m, step (State f Sskip (Kloop2 s1 s2 k) e le m) E0 (State f (Sloop s1 s2) k e le m) | step_break_loop2: forall f s1 s2 k e le m, step (State f Sbreak (Kloop2 s1 s2 k) e le m) E0 (State f Sskip k e le m) | step_return_0: forall f k e le m m', Mem.free_list m (blocks_of_env e) = Some m' -> step (State f (Sreturn None) k e le m) E0 (Returnstate Vundef (call_cont k) m') | step_return_1: forall f a k e le m v v' m', eval_expr e le m a v -> sem_cast v (typeof a) f.(fn_return) m = Some v' -> Mem.free_list m (blocks_of_env e) = Some m' -> step (State f (Sreturn (Some a)) k e le m) E0 (Returnstate v' (call_cont k) m') | step_skip_call: forall f k e le m m', is_call_cont k -> Mem.free_list m (blocks_of_env e) = Some m' -> step (State f Sskip k e le m) E0 (Returnstate Vundef k m') | step_switch: forall f a sl k e le m v n, eval_expr e le m a v -> sem_switch_arg v (typeof a) = Some n -> step (State f (Sswitch a sl) k e le m) E0 (State f (seq_of_labeled_statement (select_switch n sl)) (Kswitch k) e le m) | step_skip_break_switch: forall f x k e le m, x = Sskip \\/ x = Sbreak -> step (State f x (Kswitch k) e le m) E0 (State f Sskip k e le m) | step_continue_switch: forall f k e le m, step (State f Scontinue (Kswitch k) e le m) E0 (State f Scontinue k e le m) | step_label: forall f lbl s k e le m, step (State f (Slabel lbl s) k e le m) E0 (State f s k e le m) | step_goto: forall f lbl k e le m s' k', find_label lbl f.(fn_body) (call_cont k) = Some (s', k') -> step (State f (Sgoto lbl) k e le m) E0 (State f s' k' e le m) | step_internal_function: forall f vargs k m e le m1, function_entry f vargs m e le m1 -> step (Callstate (Internal f) vargs k m) E0 (State f f.(fn_body) k e le m1) | step_external_function: forall ef targs tres cconv vargs k m vres t m', external_call ef ge vargs m t vres m' -> step (Callstate (External ef targs tres cconv) vargs k m) t (Returnstate vres k m') | step_returnstate: forall v optid f e le k m, step (Returnstate v (Kcall optid f e le k) m) E0 (State f Sskip k e (set_opttemp optid v le) m).",
+            "VernacInductive",
+            "e8ca3a3e2d02847180e9713baa111a8963826a64"
+        ],
+        [
+            "Inductive initial_state (p: program): state -> Prop := | initial_state_intro: forall b f m0, let ge := Genv.globalenv p in Genv.init_mem p = Some m0 -> Genv.find_symbol ge p.(prog_main) = Some b -> Genv.find_funct_ptr ge b = Some f -> type_of_fundef f = Tfunction Tnil type_int32s cc_default -> initial_state p (Callstate f nil Kstop m0).",
+            "VernacInductive",
+            "69d443c7229fb6ef9bc50e602c8b4a5e14683d62"
+        ],
+        [
+            "Inductive final_state: state -> int -> Prop := | final_state_intro: forall r m, final_state (Returnstate (Vint r) Kstop m) r.",
+            "VernacInductive",
+            "75fe23adc0c3ad2f7f029f008cf5f90d4e98c2dc"
+        ],
+        [
+            "End SEMANTICS.",
+            "VernacEndSegment",
+            "bcb55deafe713de16959698e7cc44b12cc6a0743"
+        ],
+        [
+            "Inductive function_entry1 (ge: genv) (f: function) (vargs: list val) (m: mem) (e: env) (le: temp_env) (m': mem) : Prop := | function_entry1_intro: forall m1, list_norepet (var_names f.(fn_params) ++ var_names f.(fn_vars)) -> alloc_variables ge empty_env m (f.(fn_params) ++ f.(fn_vars)) e m1 -> bind_parameters ge e m1 f.(fn_params) vargs m' -> le = create_undef_temps f.(fn_temps) -> function_entry1 ge f vargs m e le m'.",
+            "VernacInductive",
+            "241eb9fcea3718af4d501d4223bd80d200bb35f8"
+        ],
+        [
+            "Definition step1 (ge: genv) := step ge (function_entry1 ge).",
+            "VernacDefinition",
+            "021ca03dd4ceebba8478b909e7e83a9e7a9f6833"
+        ],
+        [
+            "Inductive function_entry2 (ge: genv) (f: function) (vargs: list val) (m: mem) (e: env) (le: temp_env) (m': mem) : Prop := | function_entry2_intro: list_norepet (var_names f.(fn_vars)) -> list_norepet (var_names f.(fn_params)) -> list_disjoint (var_names f.(fn_params)) (var_names f.(fn_temps)) -> alloc_variables ge empty_env m f.(fn_vars) e m' -> bind_parameter_temps f.(fn_params) vargs (create_undef_temps f.(fn_temps)) = Some le -> function_entry2 ge f vargs m e le m'.",
+            "VernacInductive",
+            "5f756a3c993675a42e79cbc3f72bb5da3475acc6"
+        ],
+        [
+            "Definition step2 (ge: genv) := step ge (function_entry2 ge).",
+            "VernacDefinition",
+            "ca781da6c28999bfc18ff63c49c2c52196b54f4f"
+        ],
+        [
+            "Definition semantics1 (p: program) := let ge := globalenv p in Semantics_gen step1 (initial_state p) final_state ge ge.",
+            "VernacDefinition",
+            "82f3310bc91c175d9a7ceca656db1e4ac77ea8e0"
+        ],
+        [
+            "Definition semantics2 (p: program) := let ge := globalenv p in Semantics_gen step2 (initial_state p) final_state ge ge.",
+            "VernacDefinition",
+            "ed02587dee2c1ec74ff86cc01913babff13591be"
+        ],
+        [
+            "Lemma semantics_receptive: forall (p: program), receptive (semantics1 p).",
+            "VernacStartTheoremProof",
+            "3ad9c5604b9b890c6431b1b00c042a21dfb74f39"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold semantics1.",
+            "VernacExtend",
+            "4e72eef40d44580617e760e5d422a9ce394fadd8"
+        ],
+        [
+            "set (ge := globalenv p).",
+            "VernacExtend",
+            "ebf733c05e08a26b75c3e93dffbc1392d3c9db1c"
+        ],
+        [
+            "constructor; simpl; intros.",
+            "VernacExtend",
+            "dcd76c351204acf8d4b7d76eea612fabf67729fc"
+        ],
+        [
+            "assert (t1 = E0 -> exists s2, step1 ge s t2 s2).",
+            "VernacExtend",
+            "06abebf678d39530c337b08cfc5206b312e7a959"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "inv H0.",
+            "VernacExtend",
+            "52c34ef20c88d5292e2350aff94f149a3968b772"
+        ],
+        [
+            "exists s1; auto.",
+            "VernacExtend",
+            "b635d662d92c9a6dd854d136739e1523825b06df"
+        ],
+        [
+            "inversion H; subst; auto.",
+            "VernacExtend",
+            "3ac5a8efa0f6861868f1bfc9ce7119d14816504c"
+        ],
+        [
+            "exploit external_call_receptive; eauto.",
+            "VernacExtend",
+            "42171c2cba80f4eaa15b793c138fdf9ec3791cb3"
+        ],
+        [
+            "intros [vres2 [m2 EC2]].",
+            "VernacExtend",
+            "ac3db512f72453ba4230bfb0223cb22b519318c5"
+        ],
+        [
+            "econstructor; econstructor; eauto.",
+            "VernacExtend",
+            "ad5f98cacd5dd16cb245b4e14bbd47d4882b502e"
+        ],
+        [
+            "exploit external_call_receptive; eauto.",
+            "VernacExtend",
+            "42171c2cba80f4eaa15b793c138fdf9ec3791cb3"
+        ],
+        [
+            "intros [vres2 [m2 EC2]].",
+            "VernacExtend",
+            "ac3db512f72453ba4230bfb0223cb22b519318c5"
+        ],
+        [
+            "exists (Returnstate vres2 k m2).",
+            "VernacExtend",
+            "8839a91b043f49abef52a7e3212b8a94ff5a73a2"
+        ],
+        [
+            "econstructor; eauto.",
+            "VernacExtend",
+            "faa93781fb8bbf289e651728c4588af1c4169d34"
+        ],
+        [
+            "red; simpl; intros.",
+            "VernacExtend",
+            "629095e96b1a8bc7172736d3dfde387c11fb3564"
+        ],
+        [
+            "inv H; simpl; try omega.",
+            "VernacExtend",
+            "7071067a015dcad688c747918b53e895d5adbce8"
+        ],
+        [
+            "eapply external_call_trace_length; eauto.",
+            "VernacExtend",
+            "fc64ba54b5a49450d119093603ca66dec9a15f8d"
+        ],
+        [
+            "eapply external_call_trace_length; eauto.",
+            "VernacExtend",
+            "fc64ba54b5a49450d119093603ca66dec9a15f8d"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "semantics_receptive",
+            "line_nb": 71,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold semantics1.",
+                        "VernacExtend",
+                        "4e72eef40d44580617e760e5d422a9ce394fadd8"
+                    ]
+                },
+                {
+                    "command": [
+                        "set (ge := globalenv p).",
+                        "VernacExtend",
+                        "ebf733c05e08a26b75c3e93dffbc1392d3c9db1c"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; simpl; intros.",
+                        "VernacExtend",
+                        "dcd76c351204acf8d4b7d76eea612fabf67729fc"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (t1 = E0 -> exists s2, step1 ge s t2 s2).",
+                        "VernacExtend",
+                        "06abebf678d39530c337b08cfc5206b312e7a959"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst.",
+                        "VernacExtend",
+                        "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H0.",
+                        "VernacExtend",
+                        "52c34ef20c88d5292e2350aff94f149a3968b772"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists s1; auto.",
+                        "VernacExtend",
+                        "b635d662d92c9a6dd854d136739e1523825b06df"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion H; subst; auto.",
+                        "VernacExtend",
+                        "3ac5a8efa0f6861868f1bfc9ce7119d14816504c"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit external_call_receptive; eauto.",
+                        "VernacExtend",
+                        "42171c2cba80f4eaa15b793c138fdf9ec3791cb3"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [vres2 [m2 EC2]].",
+                        "VernacExtend",
+                        "ac3db512f72453ba4230bfb0223cb22b519318c5"
+                    ]
+                },
+                {
+                    "command": [
+                        "econstructor; econstructor; eauto.",
+                        "VernacExtend",
+                        "ad5f98cacd5dd16cb245b4e14bbd47d4882b502e"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit external_call_receptive; eauto.",
+                        "VernacExtend",
+                        "42171c2cba80f4eaa15b793c138fdf9ec3791cb3"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [vres2 [m2 EC2]].",
+                        "VernacExtend",
+                        "ac3db512f72453ba4230bfb0223cb22b519318c5"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists (Returnstate vres2 k m2).",
+                        "VernacExtend",
+                        "8839a91b043f49abef52a7e3212b8a94ff5a73a2"
+                    ]
+                },
+                {
+                    "command": [
+                        "econstructor; eauto.",
+                        "VernacExtend",
+                        "faa93781fb8bbf289e651728c4588af1c4169d34"
+                    ]
+                },
+                {
+                    "command": [
+                        "red; simpl; intros.",
+                        "VernacExtend",
+                        "629095e96b1a8bc7172736d3dfde387c11fb3564"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H; simpl; try omega.",
+                        "VernacExtend",
+                        "7071067a015dcad688c747918b53e895d5adbce8"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply external_call_trace_length; eauto.",
+                        "VernacExtend",
+                        "fc64ba54b5a49450d119093603ca66dec9a15f8d"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply external_call_trace_length; eauto.",
+                        "VernacExtend",
+                        "fc64ba54b5a49450d119093603ca66dec9a15f8d"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

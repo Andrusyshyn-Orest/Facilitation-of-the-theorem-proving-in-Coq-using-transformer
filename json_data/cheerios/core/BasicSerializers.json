@@ -1,0 +1,1406 @@
+{
+    "filename": "core/BasicSerializers.v",
+    "coq_project": "cheerios",
+    "vernac_cmds": [
+        [
+            "Require Import List ZArith.",
+            "VernacRequire",
+            "9f639d1ceed3013bad8eb0c38a83b482b984a547"
+        ],
+        [
+            "Import ListNotations.",
+            "VernacImport",
+            "52647db2a3b752153a8cbd37039246f200bccdee"
+        ],
+        [
+            "From StructTact Require Import StructTactics Fin.",
+            "VernacRequire",
+            "dba3710472b45518d400e1e5174aebe0ead6b908"
+        ],
+        [
+            "Require Fin Ascii.",
+            "VernacRequire",
+            "68b3ccf04f3ae924d17730256ee9bee7dda8c582"
+        ],
+        [
+            "Require Import Cheerios.Core.",
+            "VernacRequire",
+            "715d681ca5c06ee97c90e568394388e7f22ebf08"
+        ],
+        [
+            "Require Import Cheerios.DeserializerMonad.",
+            "VernacRequire",
+            "046eafe41098b766b2b6966306025548fd2ae0d9"
+        ],
+        [
+            "Require Import Cheerios.Tactics.",
+            "VernacRequire",
+            "b7703a5c0a2d60ba85e204d8c70370395f22f2a3"
+        ],
+        [
+            "Require Import Cheerios.Types.",
+            "VernacRequire",
+            "46b2cecda127dda2359c33e53831c86a39bf3e81"
+        ],
+        [
+            "Import DeserializerNotations.",
+            "VernacImport",
+            "db3cf56ed051293d59d6bc7c090ab36d014c94e1"
+        ],
+        [
+            "Lemma byte_serialize_deserialize_id : serialize_deserialize_id_spec IOStreamWriter.putByte ByteListReader.getByte.",
+            "VernacStartTheoremProof",
+            "ef9c5bf5cd86cd78d279ab6e2f7bdfa26194d567"
+        ],
+        [
+            "cheerios_crush.",
+            "VernacExtend",
+            "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Instance byte_Serializer : Serializer byte := {| serialize := IOStreamWriter.putByte; deserialize := ByteListReader.getByte; serialize_deserialize_id := byte_serialize_deserialize_id |}.",
+            "VernacInstance",
+            "92e44899774ffb260376d4303b4c9bc388f55123"
+        ],
+        [
+            "Lemma byte_unwrap : forall b, IOStreamWriter.unwrap (serialize b) = [b].",
+            "VernacStartTheoremProof",
+            "43565f2dd441d6be9ed416fa67abdcb8693f1dcb"
+        ],
+        [
+            "cheerios_crush.",
+            "VernacExtend",
+            "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Hint Rewrite byte_unwrap : cheerios.",
+            "VernacExtend",
+            "d9e1291e6bd5cd2403c3d0e021e15a2a5c03c423"
+        ],
+        [
+            "Definition bool_serialize (b : bool) : IOStreamWriter.t := if b then serialize x01 else serialize x00.",
+            "VernacDefinition",
+            "fe8cb2cd6b51523ec074af7f76f8063cfb387c59"
+        ],
+        [
+            "Definition bool_deserialize := b <- deserialize ;; match b with | x00 => ByteListReader.ret false | x01 => ByteListReader.ret true | _ => ByteListReader.error end.",
+            "VernacDefinition",
+            "2844f928798064f5d6fc693e85c34a67dbb1253d"
+        ],
+        [
+            "Lemma bool_serialize_deserialize_id : serialize_deserialize_id_spec bool_serialize bool_deserialize.",
+            "VernacStartTheoremProof",
+            "cff8d9bc38197429e210538c3cfe6241f4fad6c7"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold bool_serialize, bool_deserialize.",
+            "VernacExtend",
+            "6eccf23a05129c6643eb82b03da804517541e192"
+        ],
+        [
+            "destruct a; cheerios_crush; simpl; cheerios_crush.",
+            "VernacExtend",
+            "a4c6a09dde9b870dedd4c723f673c443234ab480"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Instance bool_Serializer : Serializer bool.",
+            "VernacInstance",
+            "8e8c554d7f0a9cc80a19f01c40835c6e1ed638fa"
+        ],
+        [
+            "exact {| serialize := bool_serialize; deserialize := bool_deserialize; serialize_deserialize_id := bool_serialize_deserialize_id |}.",
+            "VernacExtend",
+            "78cf2234e768191c392781dee7d8a875cb9cc3db"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma fold_append_unwrap : forall {S A : Type} (f : byte -> S -> fold_state S A) (s : S) (b : byte) (tail : IOStreamWriter.t) (bin : list byte), ByteListReader.unwrap (ByteListReader.fold f s) (IOStreamWriter.unwrap (IOStreamWriter.append (fun _ => (serialize b)) (fun _ => tail)) ++ bin) = match f b s with | Done a => Some(a, IOStreamWriter.unwrap tail ++ bin) | More s => ByteListReader.unwrap (ByteListReader.fold f s) (IOStreamWriter.unwrap tail ++ bin) | Error => None end.",
+            "VernacStartTheoremProof",
+            "3e9de465f786e9b8e612bc5f4c4c4f4eff422332"
+        ],
+        [
+            "cheerios_crush.",
+            "VernacExtend",
+            "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma fold_append_unwrap' : forall {S A : Type} (f : byte -> S -> fold_state S A) (s : S) (b : byte) (tail : IOStreamWriter.t) (bin : list byte), ByteListReader.unwrap (ByteListReader.fold f s) (IOStreamWriter.unwrap (IOStreamWriter.append (fun _ => IOStreamWriter.putByte b) (fun _ => tail)) ++ bin) = match f b s with | Done a => Some(a, IOStreamWriter.unwrap tail ++ bin) | More s => ByteListReader.unwrap (ByteListReader.fold f s) (IOStreamWriter.unwrap tail ++ bin) | Error => None end.",
+            "VernacStartTheoremProof",
+            "e9cc2505bef76d2387aae3bf9f61367042546c03"
+        ],
+        [
+            "cheerios_crush.",
+            "VernacExtend",
+            "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Hint Rewrite @fold_append_unwrap @fold_append_unwrap' : cheerios.",
+            "VernacExtend",
+            "9b574b7467c42df863a547c0339940022134e00b"
+        ],
+        [
+            "Inductive le_pos (p : positive) : positive -> Prop := | le_p : le_pos p p | le_xI : forall p2, le_pos p p2 -> le_pos p (xI p2) | le_xO : forall p2, le_pos p p2 -> le_pos p (xO p2).",
+            "VernacInductive",
+            "2fdd72ade8f40fc4048b67092f3a7c65508ebdc8"
+        ],
+        [
+            "Section PositiveInductionPrinciple.",
+            "VernacBeginSection",
+            "f788788da3e329555f233129659c60a57f1decdc"
+        ],
+        [
+            "Variable P : positive -> Prop.",
+            "VernacAssumption",
+            "fb4853595ac7a2aeaec39a12bf898dc06c5cae32"
+        ],
+        [
+            "Lemma strongind_pos_aux : P xH -> (forall q, ((forall p, le_pos p q -> P p) -> P (xI q)) /\\ ((forall p, le_pos p q -> P p) -> P (xO q))) -> (forall q, (forall p, le_pos p q -> P p)).",
+            "VernacStartTheoremProof",
+            "bc5d8847b4668f6b7d506883aeda57934258b8fe"
+        ],
+        [
+            "induction q; intros; inversion H1; auto; apply H0; apply IHq.",
+            "VernacExtend",
+            "a7661d5f3fb7f4ceb8e3bf838a46c608992a495a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma weaken_pos : (forall q, (forall p, le_pos p q -> P p)) -> forall p, P p.",
+            "VernacStartTheoremProof",
+            "3922b42621f92bb601bab17de4f0c57fe44e7b7f"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply (H p p).",
+            "VernacExtend",
+            "ec2401813415e1494619bc78ab3db239d4cc7fa9"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem strongind_pos : P xH -> (forall q, ((forall p, le_pos p q -> P p) -> P (xI q)) /\\ ((forall p, le_pos p q -> P p) -> P (xO q))) -> forall p, P p.",
+            "VernacStartTheoremProof",
+            "b19eee64f2a0e6af553b51efeb8675cb271c6241"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply weaken_pos.",
+            "VernacExtend",
+            "8fa6cfcb0ad3d7e6b639ca452af9dd65c1a4b1fe"
+        ],
+        [
+            "now apply strongind_pos_aux.",
+            "VernacExtend",
+            "570a6dfc6d344f59b1c381d79e2a6979b3e60e32"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End PositiveInductionPrinciple.",
+            "VernacEndSegment",
+            "25d52687c36ab1b3a4a47a7090be3234b11d90a0"
+        ],
+        [
+            "Local Open Scope char_scope.",
+            "VernacOpenCloseScope",
+            "9476fc3f1948ab64d95376d888bfa721482fc1e5"
+        ],
+        [
+            "Fixpoint positive_serialize p := match p with | xI (xI (xI p)) => IOStreamWriter.append (fun _ => serialize x0e) (fun _ => positive_serialize p) | xI (xI (xO p)) => IOStreamWriter.append (fun _ => serialize x0d) (fun _ => positive_serialize p) | xI (xO (xI p)) => IOStreamWriter.append (fun _ => serialize x0c) (fun _ => positive_serialize p) | xI (xO (xO p)) => IOStreamWriter.append (fun _ => serialize x0b) (fun _ => positive_serialize p) | xO (xI (xI p)) => IOStreamWriter.append (fun _ => serialize x0a) (fun _ => positive_serialize p) | xO (xI (xO p)) => IOStreamWriter.append (fun _ => serialize x09) (fun _ => positive_serialize p) | xO (xO (xI p)) => IOStreamWriter.append (fun _ => serialize x08) (fun _ => positive_serialize p) | xO (xO (xO p)) => IOStreamWriter.append (fun _ => serialize x07) (fun _ => positive_serialize p) | xI (xI p) => IOStreamWriter.append (fun _ => serialize x06) (fun _ => positive_serialize p) | xI (xO p) => IOStreamWriter.append (fun _ => serialize x05) (fun _ => positive_serialize p) | xO (xI p) => IOStreamWriter.append (fun _ => serialize x04) (fun _ => positive_serialize p) | xO (xO p) => IOStreamWriter.append (fun _ => serialize x03) (fun _ => positive_serialize p) | xI p => IOStreamWriter.append (fun _ => serialize x02) (fun _ => positive_serialize p) | xO p => IOStreamWriter.append (fun _ => serialize x01) (fun _ => positive_serialize p) | XH => serialize x00 end.",
+            "VernacFixpoint",
+            "74494f33e0b9b4e21228c3a479208d895e25bcd6"
+        ],
+        [
+            "Definition positive_deserialize_step (b : byte) (s : positive -> positive) := match b with | x0e => More (fun p => s (xI (xI (xI p)))) | x0d => More (fun p => s (xI (xI (xO p)))) | x0c => More (fun p => s (xI (xO (xI p)))) | x0b => More (fun p => s (xI (xO (xO p)))) | x0a => More (fun p => s (xO (xI (xI p)))) | x09 => More (fun p => s (xO (xI (xO p)))) | x08 => More (fun p => s (xO (xO (xI p)))) | x07 => More (fun p => s (xO (xO (xO p)))) | x06 => More (fun p => s (xI (xI p))) | x05 => More (fun p => s (xI (xO p))) | x04 => More (fun p => s (xO (xI p))) | x03 => More (fun p => s (xO (xO p))) | x02 => More (fun p => s (xI p)) | x01 => More (fun p => s (xO p)) | x00 => Done (s xH) | _ => Error end.",
+            "VernacDefinition",
+            "12e318f9d74d319acbc27ddde21b2c4f64b8b983"
+        ],
+        [
+            "Definition positive_step_aux p := forall (k : positive -> positive) (bytes : list byte), ByteListReader.unwrap (ByteListReader.fold positive_deserialize_step k) (IOStreamWriter.unwrap (positive_serialize p) ++ bytes) = Some(k p, bytes).",
+            "VernacDefinition",
+            "cc5c0e5e59c62e44dd7948fa4144bc44655f5a7c"
+        ],
+        [
+            "Lemma positive_step : forall (p : positive), positive_step_aux p.",
+            "VernacStartTheoremProof",
+            "5d03cddc3eef3edb8af8a5363edf03bd02c7e144"
+        ],
+        [
+            "apply strongind_pos; unfold positive_step_aux.",
+            "VernacExtend",
+            "b171e5395161d50b7f1e4a2a5af070622f15a2b6"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "unfold positive_serialize.",
+            "VernacExtend",
+            "11085be5b7bdaf13d25f3e0894bd0b1acf518078"
+        ],
+        [
+            "cheerios_crush.",
+            "VernacExtend",
+            "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "split; intros; try destruct q; try destruct q; simpl; cheerios_crush; simpl; rewrite H || cheerios_crush; try reflexivity; repeat constructor.",
+            "VernacExtend",
+            "5aad4f9e942404680bebec0ec0f6593ec3ba0920"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition positive_deserialize := ByteListReader.fold positive_deserialize_step (fun p => p).",
+            "VernacDefinition",
+            "4ef02815b04731b6a8f6acc89941c6e9aa652d35"
+        ],
+        [
+            "Theorem positive_serialize_deserialize_id : serialize_deserialize_id_spec positive_serialize positive_deserialize.",
+            "VernacStartTheoremProof",
+            "948e1e4ac19f67127fbe09a26ac4a6c922c25474"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold positive_deserialize.",
+            "VernacExtend",
+            "f6739b0160f234965479ec312ef288655549dc69"
+        ],
+        [
+            "apply positive_step.",
+            "VernacExtend",
+            "ed718437a9e2c5d0d0d824cc812267219b75900d"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Instance positive_Serializer : Serializer positive.",
+            "VernacInstance",
+            "8886b313fc0509fcebd3fab0b9458d0b349905b7"
+        ],
+        [
+            "exact ({| serialize := positive_serialize; deserialize := positive_deserialize; serialize_deserialize_id := positive_serialize_deserialize_id |}).",
+            "VernacExtend",
+            "9a569a9f743be740b5d7239bf779c07be065c13e"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition Z_serialize (z : Z) : IOStreamWriter.t := match z with | Z0 => serialize x00 | Zpos p => IOStreamWriter.append (fun _ => serialize x01) (fun _ => serialize p) | Zneg p => IOStreamWriter.append (fun _ => serialize x02) (fun _ => serialize p) end.",
+            "VernacDefinition",
+            "c681f9b142b6e01e74193fb2a222e3babea5426a"
+        ],
+        [
+            "Definition Z_deserialize : ByteListReader.t Z := tag <- deserialize ;; match tag with | x02 => Zneg <$> deserialize | x01 => Zpos <$> deserialize | x00 => ByteListReader.ret Z0 | _ => ByteListReader.error end.",
+            "VernacDefinition",
+            "5f359dbb324990da1b5b1d8c3f39b69f987324d6"
+        ],
+        [
+            "Lemma Z_serialize_deserialize_id : serialize_deserialize_id_spec Z_serialize Z_deserialize.",
+            "VernacStartTheoremProof",
+            "5753827448493a586f5d4331b9e50776dac49f5c"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold Z_serialize, Z_deserialize.",
+            "VernacExtend",
+            "df0fbe1b3bf85529484a92a093b89d2135e3e3fa"
+        ],
+        [
+            "destruct a; repeat (cheerios_crush; simpl).",
+            "VernacExtend",
+            "9f5c06d0bffa469a786778708ad938c9e9f5032f"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Instance Z_Serializer : Serializer Z := {| serialize := Z_serialize; deserialize := Z_deserialize; serialize_deserialize_id := Z_serialize_deserialize_id |}.",
+            "VernacInstance",
+            "df4bbfabfc40734e7ef0d285093be8e353f67b0b"
+        ],
+        [
+            "Definition N_serialize n := match n with | N0 => serialize false | Npos p => IOStreamWriter.append (fun _ => serialize true) (fun _ => serialize p) end.",
+            "VernacDefinition",
+            "b9a1dc24f373a6e5e019f8a5f19b1a590f911800"
+        ],
+        [
+            "Definition N_deserialize : ByteListReader.t N := tag <- deserialize ;; match tag with | false => ByteListReader.ret N0 | true => Npos <$> deserialize end.",
+            "VernacDefinition",
+            "5c07ad2b305bd7629ef0e71848df319a152f26e6"
+        ],
+        [
+            "Lemma N_serialize_deserialize_id : serialize_deserialize_id_spec N_serialize N_deserialize.",
+            "VernacStartTheoremProof",
+            "82265b1739bfec8b534e04d1bdaba520fc46a66b"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold N_serialize, N_deserialize.",
+            "VernacExtend",
+            "4a689610849c1b0eb627d60941402f0df7eb91b4"
+        ],
+        [
+            "destruct a; repeat (cheerios_crush; simpl).",
+            "VernacExtend",
+            "9f5c06d0bffa469a786778708ad938c9e9f5032f"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Instance N_Serializer : Serializer N.",
+            "VernacInstance",
+            "2b9e085057b909f2a9eeb440f106a8486c354ab1"
+        ],
+        [
+            "exact {| serialize := N_serialize; deserialize := N_deserialize; serialize_deserialize_id := N_serialize_deserialize_id |}.",
+            "VernacExtend",
+            "5a5f6e1a9a474bd03ed42c6d919817ea0c031a85"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition nat_serialize n : IOStreamWriter.t := serialize (N.of_nat n).",
+            "VernacDefinition",
+            "20fc00b66cf6c1bc6beb2989469b449dd8b9d2ce"
+        ],
+        [
+            "Definition nat_deserialize : ByteListReader.t nat := N.to_nat <$> deserialize.",
+            "VernacDefinition",
+            "a6348fd81d249716d3a595c4c8047ba9437c6180"
+        ],
+        [
+            "Lemma nat_serialize_deserialize_id : serialize_deserialize_id_spec nat_serialize nat_deserialize.",
+            "VernacStartTheoremProof",
+            "7a20effefb21fde31ec16db803d59b96214bcae6"
+        ],
+        [
+            "unfold nat_serialize, nat_deserialize.",
+            "VernacExtend",
+            "7b60c208c3c19931b7b89181e4f0faa6aa54cd60"
+        ],
+        [
+            "cheerios_crush.",
+            "VernacExtend",
+            "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+        ],
+        [
+            "now rewrite Nnat.Nat2N.id.",
+            "VernacExtend",
+            "f958a2413cab5c87873d478a821f59e79f89b2bc"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Instance nat_Serializer : Serializer nat := {| serialize := nat_serialize; deserialize := nat_deserialize; serialize_deserialize_id := nat_serialize_deserialize_id |}.",
+            "VernacInstance",
+            "01537205fa9661974925f441973e4784d412c85e"
+        ],
+        [
+            "Definition Fin_serialize {n} (x : Fin.t n) : IOStreamWriter.t := serialize (proj1_sig (Fin.to_nat x)).",
+            "VernacDefinition",
+            "cd736528da7cc99c20ee3a442169adbb00f19002"
+        ],
+        [
+            "Definition Fin_deserialize {n} : ByteListReader.t (Fin.t n) := m <- deserialize ;; match Fin.of_nat m n with | inleft x => ByteListReader.ret x | inright _ => ByteListReader.error end.",
+            "VernacDefinition",
+            "0c9b450e344ee736946d1483e09c1df4a16d91d4"
+        ],
+        [
+            "Lemma Fin_of_nat_to_nat: forall (n : nat) (a : Fin.t n), Fin.of_nat (proj1_sig (Fin.to_nat a)) n = inleft a.",
+            "VernacStartTheoremProof",
+            "3292a5c5705d9a0e1fa924514b0046b9ed7105cd"
+        ],
+        [
+            "induction a.",
+            "VernacExtend",
+            "cd3414465e628a01405035e1db2372571dd4d2a6"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "break_let.",
+            "VernacExtend",
+            "0d8806c04d7bd574741dfa032ad14204e251f21e"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "now rewrite IHa.",
+            "VernacExtend",
+            "b8205ca3cf84fdb84b06d5c085bbe215869781f5"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma Fin_serialize_deserialize_id n : serialize_deserialize_id_spec Fin_serialize (@Fin_deserialize n).",
+            "VernacStartTheoremProof",
+            "6134c6c42e803b6cafdd9cd090e9dea540d39c78"
+        ],
+        [
+            "unfold Fin_serialize, Fin_deserialize.",
+            "VernacExtend",
+            "78fdebbed01d120c1fbc2c68843ca3b5cf9265f7"
+        ],
+        [
+            "cheerios_crush.",
+            "VernacExtend",
+            "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+        ],
+        [
+            "rewrite Fin_of_nat_to_nat.",
+            "VernacExtend",
+            "c6ee48137398d93d59f758a6ad304b41b6ac80ec"
+        ],
+        [
+            "cheerios_crush.",
+            "VernacExtend",
+            "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Instance Fin_Serializer n : Serializer (Fin.t n).",
+            "VernacInstance",
+            "579e01e465dd7d3f1b70008d1bd7915d4eab4a01"
+        ],
+        [
+            "exact {| serialize := Fin_serialize; deserialize := Fin_deserialize; serialize_deserialize_id := Fin_serialize_deserialize_id n |}.",
+            "VernacExtend",
+            "52ee947772bf0b9083e2de90185d0e52ce0c3fba"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition fin_serialize {n} (x : fin n) : IOStreamWriter.t := serialize (fin_to_nat x).",
+            "VernacDefinition",
+            "2fb5d3890fe183780efa92665990a0b7832f56e8"
+        ],
+        [
+            "Definition fin_deserialize {n} : ByteListReader.t (fin n) := m <- deserialize ;; match fin_of_nat m n with | inleft x => ByteListReader.ret x | inright _ => ByteListReader.error end.",
+            "VernacDefinition",
+            "598c25574c880b31f93101e8b32deb60fb9a3891"
+        ],
+        [
+            "Lemma fin_serialize_deserialize_id n : serialize_deserialize_id_spec fin_serialize (@fin_deserialize n).",
+            "VernacStartTheoremProof",
+            "cc45056e122e343f6d664cfe6dc40e7dbf63f028"
+        ],
+        [
+            "unfold fin_serialize, fin_deserialize.",
+            "VernacExtend",
+            "61cbd736793eb1a131aa97f7042cce5fc5334a1f"
+        ],
+        [
+            "cheerios_crush.",
+            "VernacExtend",
+            "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+        ],
+        [
+            "rewrite fin_of_nat_fin_to_nat.",
+            "VernacExtend",
+            "da3929e888d44376019beb4dcf3baefd9e5fece1"
+        ],
+        [
+            "cheerios_crush.",
+            "VernacExtend",
+            "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Instance fin_Serializer n : Serializer (fin n).",
+            "VernacInstance",
+            "325e77a195ddbf1084d61f2163e432b7ca1a65a3"
+        ],
+        [
+            "exact {| serialize := fin_serialize; deserialize := fin_deserialize; serialize_deserialize_id := fin_serialize_deserialize_id n |}.",
+            "VernacExtend",
+            "801a7710cc67b013d0894997cf94ae681b89b133"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition ascii_serialize (a : Ascii.ascii) : IOStreamWriter.t := serialize (Ascii.nat_of_ascii a).",
+            "VernacDefinition",
+            "275e2bbf8c07cbc2d4ca07313bd7821617de7d4a"
+        ],
+        [
+            "Definition ascii_deserialize : ByteListReader.t Ascii.ascii := Ascii.ascii_of_nat <$> deserialize.",
+            "VernacDefinition",
+            "3283b1922c5860b50af4a5a9635002151181f0d6"
+        ],
+        [
+            "Lemma ascii_serialize_deserialize_id : serialize_deserialize_id_spec ascii_serialize ascii_deserialize.",
+            "VernacStartTheoremProof",
+            "6e914061d1d09091500fc1934bd8a3116483b603"
+        ],
+        [
+            "unfold ascii_deserialize, ascii_serialize.",
+            "VernacExtend",
+            "d7f2b6ef35ab0ee75b34c702071939b5710a87c8"
+        ],
+        [
+            "cheerios_crush.",
+            "VernacExtend",
+            "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+        ],
+        [
+            "now rewrite Ascii.ascii_nat_embedding.",
+            "VernacExtend",
+            "a00e5ec069d30d3b288530c5e77caf43958b4e86"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Instance ascii_Serializer : Serializer Ascii.ascii.",
+            "VernacInstance",
+            "6f86659c4cad2adf4eeb696babbe02844f67f239"
+        ],
+        [
+            "exact {| serialize := ascii_serialize; deserialize := ascii_deserialize; serialize_deserialize_id := ascii_serialize_deserialize_id |}.",
+            "VernacExtend",
+            "a4994e4c049554f21e70d1043d0566de14d58a03"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "byte_serialize_deserialize_id",
+            "line_nb": 9,
+            "steps": [
+                {
+                    "command": [
+                        "cheerios_crush.",
+                        "VernacExtend",
+                        "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "byte_unwrap",
+            "line_nb": 13,
+            "steps": [
+                {
+                    "command": [
+                        "cheerios_crush.",
+                        "VernacExtend",
+                        "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "bool_serialize_deserialize_id",
+            "line_nb": 19,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold bool_serialize, bool_deserialize.",
+                        "VernacExtend",
+                        "6eccf23a05129c6643eb82b03da804517541e192"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a; cheerios_crush; simpl; cheerios_crush.",
+                        "VernacExtend",
+                        "a4c6a09dde9b870dedd4c723f673c443234ab480"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "bool_Serializer",
+            "line_nb": 24,
+            "steps": [
+                {
+                    "command": [
+                        "exact {| serialize := bool_serialize; deserialize := bool_deserialize; serialize_deserialize_id := bool_serialize_deserialize_id |}.",
+                        "VernacExtend",
+                        "78cf2234e768191c392781dee7d8a875cb9cc3db"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "fold_append_unwrap",
+            "line_nb": 27,
+            "steps": [
+                {
+                    "command": [
+                        "cheerios_crush.",
+                        "VernacExtend",
+                        "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "fold_append_unwrap'",
+            "line_nb": 30,
+            "steps": [
+                {
+                    "command": [
+                        "cheerios_crush.",
+                        "VernacExtend",
+                        "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "strongind_pos_aux",
+            "line_nb": 37,
+            "steps": [
+                {
+                    "command": [
+                        "induction q; intros; inversion H1; auto; apply H0; apply IHq.",
+                        "VernacExtend",
+                        "a7661d5f3fb7f4ceb8e3bf838a46c608992a495a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "weaken_pos",
+            "line_nb": 40,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (H p p).",
+                        "VernacExtend",
+                        "ec2401813415e1494619bc78ab3db239d4cc7fa9"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor.",
+                        "VernacExtend",
+                        "3c77e6be855b5086df5e918bf2a0537e1010479a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "strongind_pos",
+            "line_nb": 45,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply weaken_pos.",
+                        "VernacExtend",
+                        "8fa6cfcb0ad3d7e6b639ca452af9dd65c1a4b1fe"
+                    ]
+                },
+                {
+                    "command": [
+                        "now apply strongind_pos_aux.",
+                        "VernacExtend",
+                        "570a6dfc6d344f59b1c381d79e2a6979b3e60e32"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "positive_step",
+            "line_nb": 55,
+            "steps": [
+                {
+                    "command": [
+                        "apply strongind_pos; unfold positive_step_aux.",
+                        "VernacExtend",
+                        "b171e5395161d50b7f1e4a2a5af070622f15a2b6"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold positive_serialize.",
+                        "VernacExtend",
+                        "11085be5b7bdaf13d25f3e0894bd0b1acf518078"
+                    ]
+                },
+                {
+                    "command": [
+                        "cheerios_crush.",
+                        "VernacExtend",
+                        "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; intros; try destruct q; try destruct q; simpl; cheerios_crush; simpl; rewrite H || cheerios_crush; try reflexivity; repeat constructor.",
+                        "VernacExtend",
+                        "5aad4f9e942404680bebec0ec0f6593ec3ba0920"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "positive_serialize_deserialize_id",
+            "line_nb": 64,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold positive_deserialize.",
+                        "VernacExtend",
+                        "f6739b0160f234965479ec312ef288655549dc69"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply positive_step.",
+                        "VernacExtend",
+                        "ed718437a9e2c5d0d0d824cc812267219b75900d"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "positive_Serializer",
+            "line_nb": 69,
+            "steps": [
+                {
+                    "command": [
+                        "exact ({| serialize := positive_serialize; deserialize := positive_deserialize; serialize_deserialize_id := positive_serialize_deserialize_id |}).",
+                        "VernacExtend",
+                        "9a569a9f743be740b5d7239bf779c07be065c13e"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Z_serialize_deserialize_id",
+            "line_nb": 74,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold Z_serialize, Z_deserialize.",
+                        "VernacExtend",
+                        "df0fbe1b3bf85529484a92a093b89d2135e3e3fa"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a; repeat (cheerios_crush; simpl).",
+                        "VernacExtend",
+                        "9f5c06d0bffa469a786778708ad938c9e9f5032f"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "N_serialize_deserialize_id",
+            "line_nb": 82,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold N_serialize, N_deserialize.",
+                        "VernacExtend",
+                        "4a689610849c1b0eb627d60941402f0df7eb91b4"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a; repeat (cheerios_crush; simpl).",
+                        "VernacExtend",
+                        "9f5c06d0bffa469a786778708ad938c9e9f5032f"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "N_Serializer",
+            "line_nb": 87,
+            "steps": [
+                {
+                    "command": [
+                        "exact {| serialize := N_serialize; deserialize := N_deserialize; serialize_deserialize_id := N_serialize_deserialize_id |}.",
+                        "VernacExtend",
+                        "5a5f6e1a9a474bd03ed42c6d919817ea0c031a85"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "nat_serialize_deserialize_id",
+            "line_nb": 92,
+            "steps": [
+                {
+                    "command": [
+                        "unfold nat_serialize, nat_deserialize.",
+                        "VernacExtend",
+                        "7b60c208c3c19931b7b89181e4f0faa6aa54cd60"
+                    ]
+                },
+                {
+                    "command": [
+                        "cheerios_crush.",
+                        "VernacExtend",
+                        "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+                    ]
+                },
+                {
+                    "command": [
+                        "now rewrite Nnat.Nat2N.id.",
+                        "VernacExtend",
+                        "f958a2413cab5c87873d478a821f59e79f89b2bc"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Fin_of_nat_to_nat",
+            "line_nb": 100,
+            "steps": [
+                {
+                    "command": [
+                        "induction a.",
+                        "VernacExtend",
+                        "cd3414465e628a01405035e1db2372571dd4d2a6"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "break_let.",
+                        "VernacExtend",
+                        "0d8806c04d7bd574741dfa032ad14204e251f21e"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "now rewrite IHa.",
+                        "VernacExtend",
+                        "b8205ca3cf84fdb84b06d5c085bbe215869781f5"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Fin_serialize_deserialize_id",
+            "line_nb": 110,
+            "steps": [
+                {
+                    "command": [
+                        "unfold Fin_serialize, Fin_deserialize.",
+                        "VernacExtend",
+                        "78fdebbed01d120c1fbc2c68843ca3b5cf9265f7"
+                    ]
+                },
+                {
+                    "command": [
+                        "cheerios_crush.",
+                        "VernacExtend",
+                        "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Fin_of_nat_to_nat.",
+                        "VernacExtend",
+                        "c6ee48137398d93d59f758a6ad304b41b6ac80ec"
+                    ]
+                },
+                {
+                    "command": [
+                        "cheerios_crush.",
+                        "VernacExtend",
+                        "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Fin_Serializer",
+            "line_nb": 116,
+            "steps": [
+                {
+                    "command": [
+                        "exact {| serialize := Fin_serialize; deserialize := Fin_deserialize; serialize_deserialize_id := Fin_serialize_deserialize_id n |}.",
+                        "VernacExtend",
+                        "52ee947772bf0b9083e2de90185d0e52ce0c3fba"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "fin_serialize_deserialize_id",
+            "line_nb": 121,
+            "steps": [
+                {
+                    "command": [
+                        "unfold fin_serialize, fin_deserialize.",
+                        "VernacExtend",
+                        "61cbd736793eb1a131aa97f7042cce5fc5334a1f"
+                    ]
+                },
+                {
+                    "command": [
+                        "cheerios_crush.",
+                        "VernacExtend",
+                        "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite fin_of_nat_fin_to_nat.",
+                        "VernacExtend",
+                        "da3929e888d44376019beb4dcf3baefd9e5fece1"
+                    ]
+                },
+                {
+                    "command": [
+                        "cheerios_crush.",
+                        "VernacExtend",
+                        "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "fin_Serializer",
+            "line_nb": 127,
+            "steps": [
+                {
+                    "command": [
+                        "exact {| serialize := fin_serialize; deserialize := fin_deserialize; serialize_deserialize_id := fin_serialize_deserialize_id n |}.",
+                        "VernacExtend",
+                        "801a7710cc67b013d0894997cf94ae681b89b133"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ascii_serialize_deserialize_id",
+            "line_nb": 132,
+            "steps": [
+                {
+                    "command": [
+                        "unfold ascii_deserialize, ascii_serialize.",
+                        "VernacExtend",
+                        "d7f2b6ef35ab0ee75b34c702071939b5710a87c8"
+                    ]
+                },
+                {
+                    "command": [
+                        "cheerios_crush.",
+                        "VernacExtend",
+                        "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+                    ]
+                },
+                {
+                    "command": [
+                        "now rewrite Ascii.ascii_nat_embedding.",
+                        "VernacExtend",
+                        "a00e5ec069d30d3b288530c5e77caf43958b4e86"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ascii_Serializer",
+            "line_nb": 137,
+            "steps": [
+                {
+                    "command": [
+                        "exact {| serialize := ascii_serialize; deserialize := ascii_deserialize; serialize_deserialize_id := ascii_serialize_deserialize_id |}.",
+                        "VernacExtend",
+                        "a4994e4c049554f21e70d1043d0566de14d58a03"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

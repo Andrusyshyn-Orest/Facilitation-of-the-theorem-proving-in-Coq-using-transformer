@@ -1,0 +1,2116 @@
+{
+    "filename": "c_completeness.v",
+    "coq_project": "propcalc",
+    "vernac_cmds": [
+        [
+            "Require Export b_soundness.",
+            "VernacRequire",
+            "e51e1b0718507f530057dd3f3cd54d1f3f4ea2dc"
+        ],
+        [
+            "Require Export Decidable.",
+            "VernacRequire",
+            "4c94503513d99f337f4992e67f8224ac1de82c7b"
+        ],
+        [
+            "Set Implicit Arguments.",
+            "VernacSetOption",
+            "9e84ff8896f028601d8aded48c1d4aebe60aa584"
+        ],
+        [
+            "Module Type complete_mod (X: base_mod) (Y: sound_mod X).",
+            "VernacDeclareModuleType",
+            "2ec18e3b598107299daa5e51590d116471255106"
+        ],
+        [
+            "Import X Y.",
+            "VernacImport",
+            "f17d33d23152c6c23a2598aeb957016f18a47ad3"
+        ],
+        [
+            "Inductive NNF : Set := | NPos : PropVars -> NNF | NNeg : PropVars -> NNF | NBot : NNF | NTop : NNF | NConj : NNF -> NNF -> NNF | NDisj : NNF -> NNF -> NNF .",
+            "VernacInductive",
+            "284f71cdbd7c75d78a38b6f610d61e85279f6aa0"
+        ],
+        [
+            "Fixpoint MakeNNF (A:PropF) : NNF := match A with | # P => NPos P | \u22a5 => NBot | B \u2228 C => NDisj (MakeNNF B) (MakeNNF C) | B \u2227 C => NConj (MakeNNF B) (MakeNNF C) | B \u2192 C => NDisj (MakeNNFN B) (MakeNNF C) end with MakeNNFN (A:PropF) : NNF := match A with | # P => NNeg P | \u22a5 => NTop | B \u2228 C => NConj (MakeNNFN B) (MakeNNFN C) | B \u2227 C => NDisj (MakeNNFN B) (MakeNNFN C) | B \u2192 C => NConj (MakeNNF B) (MakeNNFN C) end.",
+            "VernacFixpoint",
+            "d0b8121a5148816f32b538bca62d63a4817bf5e0"
+        ],
+        [
+            "Fixpoint NNFtoPropF (A:NNF) : PropF := match A with | NPos P => #P | NNeg P => \u00ac #P | NBot => \u22a5 | NTop => \u00ac\u22a5 | NConj B C => NNFtoPropF B \u2227 NNFtoPropF C | NDisj B C => NNFtoPropF B \u2228 NNFtoPropF C end.",
+            "VernacFixpoint",
+            "c4831346e25a50d6909a4fbadbb71c9bdf8477bb"
+        ],
+        [
+            "Inductive Literal := | LPos : PropVars -> Literal | LNeg : PropVars -> Literal | LBot : Literal | LTop : Literal .",
+            "VernacInductive",
+            "c5a19f1fbe4eb82aa00c72a86bb6621baf37d046"
+        ],
+        [
+            "Fixpoint Bar P := match P with | LPos Q => LNeg Q | LNeg Q => LPos Q | LBot => LTop | LTop => LBot end.",
+            "VernacFixpoint",
+            "d3d7e3b4fa59ccd149bc1968438737034f8d8b5a"
+        ],
+        [
+            "Fixpoint LiteraltoPropF (P:Literal) : PropF := match P with | LPos Q => #Q | LNeg Q => \u00ac#Q | LBot => \u22a5 | LTop => \u00ac\u22a5 end.",
+            "VernacFixpoint",
+            "dc63143b86b047d7ef962483fe29abc47386eec7"
+        ],
+        [
+            "Definition Clause := list Literal.",
+            "VernacDefinition",
+            "3ed759b1ee5e6985c8ebc885a2fc5b895bece551"
+        ],
+        [
+            "Definition ClausetoPropF := map_fold_right LiteraltoPropF Disj \u22a5.",
+            "VernacDefinition",
+            "3080f04c6f511e24537edc45d8050d82c46193f7"
+        ],
+        [
+            "Definition CNF := list Clause.",
+            "VernacDefinition",
+            "d53991cd8ab880da545396b4dac8ac73ca7a5ee4"
+        ],
+        [
+            "Definition CNFtoPropF := map_fold_right ClausetoPropF Conj \u22a4.",
+            "VernacDefinition",
+            "b7393e31bda9b3072f25920bf354ae4b5beec328"
+        ],
+        [
+            "Definition AddClause (l:Clause) (ll:CNF) : CNF := map (fun l2 => l++l2) ll.",
+            "VernacDefinition",
+            "2b324fe6226dde495c06480d47ec98df950df8f9"
+        ],
+        [
+            "Definition Disjunct (ll ll2:CNF) : CNF := flat_map (fun l => AddClause l ll2) ll.",
+            "VernacDefinition",
+            "c65f71a5c83f1ac1b56e8bd03ec47314bf800c96"
+        ],
+        [
+            "Fixpoint MakeCNF (A:NNF) : CNF := match A with | NPos P => [[LPos P]] | NNeg P => [[LNeg P]] | NBot => [[LBot]] | NTop => [[LTop]] | NConj B C => MakeCNF B ++ MakeCNF C | NDisj B C => Disjunct (MakeCNF B) (MakeCNF C) end.",
+            "VernacFixpoint",
+            "7ddbe2adc3fb7e377fa8901036bd1e0814e3de5f"
+        ],
+        [
+            "Definition Valid_Clause (l:Clause) := In LTop l\\/exists A,(In (LPos A) l/\\In (LNeg A) l).",
+            "VernacDefinition",
+            "d5877b3044bb0fde798b4fd5b4d5c352a4a9e57f"
+        ],
+        [
+            "Definition Valid_CNF ll := forall l, In l ll->Valid_Clause l.",
+            "VernacDefinition",
+            "dc932ab51f1c5d9fca65646c6b781bb409013ef7"
+        ],
+        [
+            "Lemma Literal_eqdec : forall x y : Literal, {x = y} + {x <> y}.",
+            "VernacStartTheoremProof",
+            "8694ce2d9a4547c418ce3332f59e978d42dd1720"
+        ],
+        [
+            "intros;destruct x;destruct y;try (right;discriminate);try (left;reflexivity); destruct (Varseq_dec p p0); (left;f_equal;assumption)||(right;intro HH;injection HH;contradiction).",
+            "VernacExtend",
+            "d2fcc286ee9ee79a9d9d81158e7a12550f1edc91"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma NNF_equiv_valid : forall v A, TrueQ v (NNFtoPropF (MakeNNF A))=TrueQ v A /\\ TrueQ v (NNFtoPropF (MakeNNFN A))=TrueQ v \u00acA.",
+            "VernacStartTheoremProof",
+            "dd8f6b9f713c529516099a68b0ddd5b25c064229"
+        ],
+        [
+            "intros v A;induction A;try destruct IHA;try destruct IHA1;try destruct IHA2;split;simpl in *; try trivial;try rewrite H;try rewrite H0;try rewrite H1;try rewrite H2;try trivial; repeat rewrite orb_false_r;repeat rewrite orb_false_l; try rewrite negb_andb;try rewrite negb_orb;try rewrite negb_involutive;reflexivity.",
+            "VernacExtend",
+            "e7a3c432e4cb123a97d7ee1baa290f593ed3a5c4"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma CNF_and_valid : forall v ll1 ll2, TrueQ v (CNFtoPropF (ll1 ++ ll2)) = TrueQ v (CNFtoPropF ll1) && TrueQ v (CNFtoPropF ll2).",
+            "VernacStartTheoremProof",
+            "1ac69c4761fa05440c13040b8ff6acd716d314bf"
+        ],
+        [
+            "intros;induction ll1;simpl.",
+            "VernacExtend",
+            "dbce1262c5e7e9ee2c03d397295bc4089c1476cf"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "unfold CNFtoPropF in IHll1 at 1;rewrite IHll1.",
+            "VernacExtend",
+            "c0f48904996d6585913001b674318a2eede68bfb"
+        ],
+        [
+            "apply andb_assoc.",
+            "VernacExtend",
+            "09f63485e93daad4bdfe99b8f33da0af34797189"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma CNF_or_clause_valid : forall v l1 l2, TrueQ v (ClausetoPropF (l1++l2)) = TrueQ v (ClausetoPropF l1) || TrueQ v (ClausetoPropF l2).",
+            "VernacStartTheoremProof",
+            "6304b45bf2a34b7e9540f35942091d7093a3eceb"
+        ],
+        [
+            "intros;induction l1;simpl.",
+            "VernacExtend",
+            "7c2118b4745fe3a7d5273ddf1694e6ff769d7772"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "unfold ClausetoPropF in IHl1 at 1;rewrite IHl1.",
+            "VernacExtend",
+            "59b87bd300f490b7376bb9283f4292d846c08c4a"
+        ],
+        [
+            "apply orb_assoc.",
+            "VernacExtend",
+            "a463d957e0e02b3c87fb284bae02f84755a9e78d"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma CNF_add_clause_valid : forall v l ll, TrueQ v (CNFtoPropF (AddClause l ll)) = TrueQ v (ClausetoPropF l) || TrueQ v (CNFtoPropF ll).",
+            "VernacStartTheoremProof",
+            "294af191a0f52ce0cdcdd23ca6f925c6655eb291"
+        ],
+        [
+            "intros;induction ll;simpl.",
+            "VernacExtend",
+            "5b44c4c2272087749911fea1be89e3f4c1f29b9c"
+        ],
+        [
+            "rewrite orb_true_r;reflexivity.",
+            "VernacExtend",
+            "780b051ee1b25375cdb866447778bcc262732386"
+        ],
+        [
+            "unfold CNFtoPropF in IHll at 1;rewrite IHll.",
+            "VernacExtend",
+            "3da277a68cb9e55bfae0737d90f225e6745a21d4"
+        ],
+        [
+            "rewrite CNF_or_clause_valid.",
+            "VernacExtend",
+            "fb500fbfe1a543eaa8268c5dfd99a665146b7363"
+        ],
+        [
+            "rewrite orb_andb_distrib_r.",
+            "VernacExtend",
+            "1554f84215edfcaf7ebd1b9a8866ed104cfeedf2"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma CNF_or_valid : forall v ll1 ll2, TrueQ v (CNFtoPropF (Disjunct ll1 ll2)) = TrueQ v (CNFtoPropF ll1) || TrueQ v (CNFtoPropF ll2).",
+            "VernacStartTheoremProof",
+            "0a8ae6444d1dd69ccca20268a48cb31762659265"
+        ],
+        [
+            "intros;induction ll1;simpl.",
+            "VernacExtend",
+            "dbce1262c5e7e9ee2c03d397295bc4089c1476cf"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "rewrite CNF_and_valid;rewrite IHll1;rewrite CNF_add_clause_valid.",
+            "VernacExtend",
+            "c83d27671f17f968a3af598ab7206919b3293b54"
+        ],
+        [
+            "rewrite orb_andb_distrib_l;reflexivity.",
+            "VernacExtend",
+            "196c35fdbdf47f738317720f55e5506e302e120b"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem CNF_equiv_valid : forall v A, TrueQ v (CNFtoPropF (MakeCNF A)) = TrueQ v (NNFtoPropF A).",
+            "VernacStartTheoremProof",
+            "fe3461f6c0f93b853af5b60d5af4163f6be3fc70"
+        ],
+        [
+            "intros;induction A;simpl;try reflexivity;try (destruct (v p);simpl;reflexivity;fail); [rewrite CNF_and_valid|rewrite CNF_or_valid];rewrite IHA1;rewrite IHA2;reflexivity.",
+            "VernacExtend",
+            "2680dd493e3c8371ca0c7aa4abfbcb6ed5cea380"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition Countervaluation l P := if (in_dec Literal_eqdec (LNeg P) l) then true else false.",
+            "VernacDefinition",
+            "85edb57873d62b83674931f5852d7a3d2d1dc5c7"
+        ],
+        [
+            "Definition Validates v \u0394 := exists A, In A \u0394 /\\ Is_true (TrueQ v A).",
+            "VernacDefinition",
+            "3693934dde4ef3f7f09a602e468d58dbcca8ea1a"
+        ],
+        [
+            "Lemma TrueQ_impl_Validates : forall v m, Is_true (TrueQ v (ClausetoPropF m)) -> Validates v (map LiteraltoPropF m).",
+            "VernacStartTheoremProof",
+            "3b451f6a9ee14c612e2435489b70f6c2f00abb3d"
+        ],
+        [
+            "intros;induction m.",
+            "VernacExtend",
+            "68ca118743c1ffefa11f06a994b7d8f77b8f092a"
+        ],
+        [
+            "contradiction.",
+            "VernacExtend",
+            "9b6a5c45e1144cbbccd544effb2a97082518704a"
+        ],
+        [
+            "simpl in H;case_bool v (LiteraltoPropF a).",
+            "VernacExtend",
+            "1223e5bca769594be2df73d4a0cdc0b64c420159"
+        ],
+        [
+            "exists (LiteraltoPropF a);split;[in_solve|rewrite H0;trivial].",
+            "VernacExtend",
+            "ed174f72b286a0a0d8cca9b085059d9aae89b3a3"
+        ],
+        [
+            "destruct (IHm H) as (?&?&?);exists x;split;[in_solve|assumption].",
+            "VernacExtend",
+            "f921f016e51265c7d8f519a2ceae8a428107934d"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma Validated_valid : forall l, Validates (Countervaluation l) (map LiteraltoPropF l) -> Valid_Clause l.",
+            "VernacStartTheoremProof",
+            "fc51f887a962bb6daafdbce0e8adccb44ff97ece"
+        ],
+        [
+            "intros l (A&H&K).",
+            "VernacExtend",
+            "e5236918993a2b7f935bb8a63af87bf7c7f356be"
+        ],
+        [
+            "apply in_map_iff in H as (p&?&H);subst;destruct p;unfold Countervaluation in K;simpl in K.",
+            "VernacExtend",
+            "eecebc98e01366f114f0984390f5bf68600e7e33"
+        ],
+        [
+            "destruct (in_dec Literal_eqdec (LNeg p) l).",
+            "VernacExtend",
+            "2f8c621ecd3b2bcf7942bc6b9f9d58ec2d10f5e1"
+        ],
+        [
+            "right;eauto.",
+            "VernacExtend",
+            "0bc3d2bafb7d2cf650e86152df4ac6ee0e99bfc7"
+        ],
+        [
+            "contradiction.",
+            "VernacExtend",
+            "9b6a5c45e1144cbbccd544effb2a97082518704a"
+        ],
+        [
+            "destruct (in_dec Literal_eqdec (LNeg p) l);contradiction.",
+            "VernacExtend",
+            "195d5e47dfd75f5a239ca5fd1b4d65a234adb9af"
+        ],
+        [
+            "contradiction.",
+            "VernacExtend",
+            "9b6a5c45e1144cbbccd544effb2a97082518704a"
+        ],
+        [
+            "left;assumption.",
+            "VernacExtend",
+            "3caf0ae349d7f7f5e42b9e4faad0c11c70cd858a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem Clause_valid : forall l, Valid (ClausetoPropF l) -> Valid_Clause l.",
+            "VernacStartTheoremProof",
+            "179668bd61688064325a343b05021fe837470bed"
+        ],
+        [
+            "intros;apply Validated_valid;apply TrueQ_impl_Validates;apply H;intros ? Q;destruct Q.",
+            "VernacExtend",
+            "49ba3a7ed5e178e4fe0a06f2f54d617d4321c573"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem CNF_valid : forall ll, Valid (CNFtoPropF ll) -> Valid_CNF ll.",
+            "VernacStartTheoremProof",
+            "cf64735213cda85b5ee7e75159fc33815f0e88d9"
+        ],
+        [
+            "induction ll;intros ? ? H0;destruct H0;subst.",
+            "VernacExtend",
+            "5c7281528ce21c1947625161436081eafa65c0bc"
+        ],
+        [
+            "apply Clause_valid;intros v K;remember (H v K) as i eqn:x;clear x; simpl in i;case_bool v (ClausetoPropF l).",
+            "VernacExtend",
+            "702720f28aa0b34ad172697f19112cda8a44f1b4"
+        ],
+        [
+            "apply IHll.",
+            "VernacExtend",
+            "7ab1479dac5649b3684f545d6b46001c3f8b12a8"
+        ],
+        [
+            "intros v K.",
+            "VernacExtend",
+            "73b262acc0565bdc66f14ced71a77cea8180c8bb"
+        ],
+        [
+            "remember (H v K).",
+            "VernacExtend",
+            "3425cce5d3a9da37f816469c9ebb425f62b9e6ca"
+        ],
+        [
+            "eapply proj2.",
+            "VernacExtend",
+            "6655dc5781465eefffac4e558dab511e3acfc9d4"
+        ],
+        [
+            "apply andb_prop_elim.",
+            "VernacExtend",
+            "77037fbf267e3244461574cbf89fe9cdea94a52c"
+        ],
+        [
+            "rewrite <- CNF_and_valid.",
+            "VernacExtend",
+            "288ee5345a44cecf401422c1344c9ad1ccade0c3"
+        ],
+        [
+            "change (a::ll) with ([a]++ll) in H.",
+            "VernacExtend",
+            "2e7764071724876948fdf4fc4fb481705d60fa86"
+        ],
+        [
+            "eapply H;assumption.",
+            "VernacExtend",
+            "b05ca6e3e9468dc48352384d8cd7db13ca41847e"
+        ],
+        [
+            "assumption.",
+            "VernacExtend",
+            "41f0308313ff87e6ab2782f90d6021ec4b55d932"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma Clause_provable_3 : forall a l1 l2 \u0393, In (LiteraltoPropF a) \u0393 -> \u0393 \u22a2 ClausetoPropF (l1++a::l2).",
+            "VernacStartTheoremProof",
+            "46e6643adf4a8aae83e1651d721c95ad9578242e"
+        ],
+        [
+            "intros;induction l1.",
+            "VernacExtend",
+            "aea6774e722b155e019b511c4f0fa94e74358586"
+        ],
+        [
+            "apply OrI1;is_ass.",
+            "VernacExtend",
+            "fc55c983bdfdec1b57c743007f9a91e666cf868c"
+        ],
+        [
+            "apply OrI2;assumption.",
+            "VernacExtend",
+            "7e94896f02a862590beab64f194a3a5cf2cc57c9"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma Clause_provable_2 : forall a l1 l2 l3, Provable (ClausetoPropF (l1++(Bar a)::l2++a::l3)).",
+            "VernacStartTheoremProof",
+            "c014a2ffe1d017be92f0e15ce8df131cab292bbb"
+        ],
+        [
+            "intros;induction l1.",
+            "VernacExtend",
+            "aea6774e722b155e019b511c4f0fa94e74358586"
+        ],
+        [
+            "apply BotC;mp;[is_ass|destruct a;simpl;apply OrI1]; try (apply ImpI;mp;[is_ass|apply OrI2;apply Clause_provable_3;in_solve]); (apply BotC;mp;[constructor;constructor 2;in_solve|apply OrI2;apply Clause_provable_3;in_solve]).",
+            "VernacExtend",
+            "5cc69281ab83120ce757d771beff64ca1aecdaad"
+        ],
+        [
+            "apply OrI2;assumption.",
+            "VernacExtend",
+            "7e94896f02a862590beab64f194a3a5cf2cc57c9"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem Clause_provable : forall l, Valid_Clause l -> Provable (ClausetoPropF l).",
+            "VernacStartTheoremProof",
+            "63ec31411cf1ba81215dd70f316104bfec54ba1f"
+        ],
+        [
+            "intros ? [?|(?&?&?)];apply in_split in H as (?&?&?);subst.",
+            "VernacExtend",
+            "350151caf47275a648b3d34e79b818b08bde01a2"
+        ],
+        [
+            "induction x;simpl.",
+            "VernacExtend",
+            "032ca6881eec9f6ca6ad619919b16fb530146db9"
+        ],
+        [
+            "apply OrI1;simpl;apply ImpI;is_ass.",
+            "VernacExtend",
+            "600267b4d1550f2366bf4b12eeb2c8303633d020"
+        ],
+        [
+            "apply OrI2;apply IHx.",
+            "VernacExtend",
+            "af1c3cb95bc59b2b2227e74b3b2e9dd7207365a5"
+        ],
+        [
+            "apply in_app_or in H0 as [].",
+            "VernacExtend",
+            "5ebbb425adb8ca2a19118a4eb8049b5ae101591c"
+        ],
+        [
+            "apply in_split in H as (?&?&?);subst.",
+            "VernacExtend",
+            "fcc331354338f9024451f2991842e794fe5b0f45"
+        ],
+        [
+            "rewrite app_ass;apply (Clause_provable_2 (LPos x)).",
+            "VernacExtend",
+            "50b176951c3dc42af2be2f5abcffa23e614533b2"
+        ],
+        [
+            "inversion H;[discriminate|].",
+            "VernacExtend",
+            "e268e30510f93b9fd039bb694072b1e8283b816f"
+        ],
+        [
+            "apply in_split in H0 as (?&?&?);subst.",
+            "VernacExtend",
+            "2f6bdcf9bfcec52b781a00f4ce79d325d43a7d5f"
+        ],
+        [
+            "apply (Clause_provable_2 (LNeg x)).",
+            "VernacExtend",
+            "b0ffddc8c3abf409c64a4e2eec19e9ba8e8f9a86"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem CNF_provable : forall ll, Valid_CNF ll -> Provable (CNFtoPropF ll).",
+            "VernacStartTheoremProof",
+            "90826f1a183f965caca70abb074c59d616e1ac7b"
+        ],
+        [
+            "intros;induction ll;unfold CNFtoPropF;simpl.",
+            "VernacExtend",
+            "0bc943e6ab131a9df79b4b162584f5419d7c6bf5"
+        ],
+        [
+            "apply ImpI;is_ass.",
+            "VernacExtend",
+            "d3602219dde677c4e2a2e74eb268dd27c4418ca1"
+        ],
+        [
+            "eapply AndI.",
+            "VernacExtend",
+            "3bfb9b09cfc02b5402778319e06382b0f27315b1"
+        ],
+        [
+            "apply Clause_provable;apply H;constructor;reflexivity.",
+            "VernacExtend",
+            "29adeed4fc792eac42e7af09d2d999f11bba3f3b"
+        ],
+        [
+            "apply IHll;intro;intro;apply H;constructor 2;assumption.",
+            "VernacExtend",
+            "bb20438a32613703538e25d97b012f0aac143953"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma prov_or : forall A1 A2 B1 B2 \u0393, Provable (A1 \u2192 A2) -> Provable (B1 \u2192 B2) -> In (A1\u2228B1) \u0393 -> \u0393 \u22a2 A2\u2228B2.",
+            "VernacStartTheoremProof",
+            "fd6303cae30082dcd3118a365818370cf1cb794f"
+        ],
+        [
+            "intros; prov_impl_in H;prov_impl_in H0.",
+            "VernacExtend",
+            "9fdcaa5d0c0fc079e47bb5d339c1b60ecd2b0ea2"
+        ],
+        [
+            "eapply OrE.",
+            "VernacExtend",
+            "bbc73aa5967c977b1c3a926c0fc7460d5af8ea6f"
+        ],
+        [
+            "is_ass.",
+            "VernacExtend",
+            "cdfdb1788b91eab5b20bcf4175a7dbaff7c9310a"
+        ],
+        [
+            "apply OrI1;apply K;is_ass.",
+            "VernacExtend",
+            "53f5acdae0427cf5e427ef7f96da48f1218657f0"
+        ],
+        [
+            "apply OrI2;apply K0;is_ass.",
+            "VernacExtend",
+            "ef719820c1221224dd591bdfb700a4099cdd5613"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma CNF_and_prov : forall ll1 ll2, Provable (CNFtoPropF (ll1 ++ ll2) \u2192 CNFtoPropF ll1 \u2227 CNFtoPropF ll2).",
+            "VernacStartTheoremProof",
+            "5cc7c4c3ad258758a35e92fb1879f88ccac89ae8"
+        ],
+        [
+            "intros;induction ll1;simpl.",
+            "VernacExtend",
+            "dbce1262c5e7e9ee2c03d397295bc4089c1476cf"
+        ],
+        [
+            "unfold CNFtoPropF at 2;unfold ClausetoPropF;simpl.",
+            "VernacExtend",
+            "f2163b6a84a3b273b7c66106dec4d92f5923ddab"
+        ],
+        [
+            "apply ImpI;apply AndI.",
+            "VernacExtend",
+            "c2c9147116e15916e5635bbf823d59314950f8e8"
+        ],
+        [
+            "unfold Top;unfold Neg;apply ImpI;is_ass.",
+            "VernacExtend",
+            "c162ba56f7c61fcebf904b99305f0c51192852b2"
+        ],
+        [
+            "is_ass.",
+            "VernacExtend",
+            "cdfdb1788b91eab5b20bcf4175a7dbaff7c9310a"
+        ],
+        [
+            "prov_impl_in IHll1; apply ImpI;apply AndI.",
+            "VernacExtend",
+            "4b4d8113314d9e0929ed41e78564c68471dfe123"
+        ],
+        [
+            "unfold CNFtoPropF;simpl;apply AndI.",
+            "VernacExtend",
+            "73441fd8d1017f645e4a0118fb7e470766bf99dc"
+        ],
+        [
+            "eapply AndE1;is_ass.",
+            "VernacExtend",
+            "1c701e9f244afe1685da366df146a27974bc68f9"
+        ],
+        [
+            "eapply AndE1;apply K.",
+            "VernacExtend",
+            "d3d2002e804c3cd609f87796ce3be88e429b64a0"
+        ],
+        [
+            "eapply AndE2;is_ass.",
+            "VernacExtend",
+            "5eaed77d6fcfa024894392fae21cf0a67ec4b53d"
+        ],
+        [
+            "eapply AndE2;apply K;eapply AndE2;is_ass.",
+            "VernacExtend",
+            "9c2b2b55e3261217fba23cb9aa1b2535e84b6bc4"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma CNF_or_clause_prov : forall l1 l2, Provable (ClausetoPropF (l1++l2) \u2192 ClausetoPropF l1 \u2228 ClausetoPropF l2).",
+            "VernacStartTheoremProof",
+            "1b27888b1787399e53c69b4f47406692d7e334e4"
+        ],
+        [
+            "intros;induction l1;simpl;unfold ClausetoPropF;simpl.",
+            "VernacExtend",
+            "e7a790dd9a99ba7e6b47e2e10c59efde6a50ca60"
+        ],
+        [
+            "apply ImpI;eapply OrI2;is_ass.",
+            "VernacExtend",
+            "57202035b85dd71723e2f1ae74e156e439da026d"
+        ],
+        [
+            "prov_impl_in IHl1.",
+            "VernacExtend",
+            "5c0ea09e4fb290ed0355a3929d1cdbad4ab4fffb"
+        ],
+        [
+            "apply ImpI.",
+            "VernacExtend",
+            "6df04afb5921cfa39faab5e33ee28419c246446c"
+        ],
+        [
+            "eapply OrE.",
+            "VernacExtend",
+            "bbc73aa5967c977b1c3a926c0fc7460d5af8ea6f"
+        ],
+        [
+            "is_ass.",
+            "VernacExtend",
+            "cdfdb1788b91eab5b20bcf4175a7dbaff7c9310a"
+        ],
+        [
+            "do 2 eapply OrI1;is_ass.",
+            "VernacExtend",
+            "f42b794bf59761ffcf734d8999f0ae352c5ed822"
+        ],
+        [
+            "apply OrE with (ClausetoPropF l1) (ClausetoPropF l2).",
+            "VernacExtend",
+            "cde3476ce8df4527b02a32f3fdd608cfc286cf4d"
+        ],
+        [
+            "apply K;is_ass.",
+            "VernacExtend",
+            "fb55732a461a6b32487a48e602e50255f3dfd245"
+        ],
+        [
+            "apply OrI1;apply OrI2;is_ass.",
+            "VernacExtend",
+            "775c09ff71f19f86013fe8e38e0584c74f915d1e"
+        ],
+        [
+            "apply OrI2;is_ass.",
+            "VernacExtend",
+            "e4720ae1733043da9b70e7e48c8b905197fa7444"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma CNF_add_clause_prov : forall l ll, Provable (CNFtoPropF (AddClause l ll) \u2192 ClausetoPropF l \u2228 CNFtoPropF ll).",
+            "VernacStartTheoremProof",
+            "33f06083f5ce82e5bad9bcbda8821db5678c30a7"
+        ],
+        [
+            "intros;induction ll;simpl;unfold CNFtoPropF;simpl.",
+            "VernacExtend",
+            "8a7430ff46c123cb45a48d024c95b42bd401fa7e"
+        ],
+        [
+            "apply ImpI;eapply OrI2;is_ass.",
+            "VernacExtend",
+            "57202035b85dd71723e2f1ae74e156e439da026d"
+        ],
+        [
+            "prov_impl_in IHll;apply ImpI; apply OrE with (ClausetoPropF l) (ClausetoPropF a).",
+            "VernacExtend",
+            "988ac61a0b06b975c19414a79523d3ab1bb6bd8b"
+        ],
+        [
+            "eapply prov_impl.",
+            "VernacExtend",
+            "7d34ad723be7dd3bcfdedac79b33e81207ff802f"
+        ],
+        [
+            "apply CNF_or_clause_prov.",
+            "VernacExtend",
+            "74736207eac5c4dd95f7809acddf16a17c72ff09"
+        ],
+        [
+            "eapply AndE1;is_ass.",
+            "VernacExtend",
+            "1c701e9f244afe1685da366df146a27974bc68f9"
+        ],
+        [
+            "apply OrI1;is_ass.",
+            "VernacExtend",
+            "fc55c983bdfdec1b57c743007f9a91e666cf868c"
+        ],
+        [
+            "apply OrE with (ClausetoPropF l) (CNFtoPropF ll).",
+            "VernacExtend",
+            "80edc301f606a7624651410138f042a70872f7a0"
+        ],
+        [
+            "apply K;eapply AndE2;is_ass.",
+            "VernacExtend",
+            "62baeee8401bcf0582f5f829b9bdb6967aa780ae"
+        ],
+        [
+            "apply OrI1;is_ass.",
+            "VernacExtend",
+            "fc55c983bdfdec1b57c743007f9a91e666cf868c"
+        ],
+        [
+            "apply OrI2;apply AndI;is_ass.",
+            "VernacExtend",
+            "0f737be6e1d29e0ab92f9d9644df4acef143c34d"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma CNF_or_prov : forall ll1 ll2, Provable (CNFtoPropF (Disjunct ll1 ll2) \u2192 CNFtoPropF ll1 \u2228 CNFtoPropF ll2).",
+            "VernacStartTheoremProof",
+            "b975a1bf00d593f60bac635d94cffd1f17551c89"
+        ],
+        [
+            "intros;induction ll1;simpl;unfold CNFtoPropF;simpl.",
+            "VernacExtend",
+            "6416a51589709cfe916565065991b4990a29157b"
+        ],
+        [
+            "apply ImpI;eapply OrI1;is_ass.",
+            "VernacExtend",
+            "e3b13db39a7501ebe4bfae52da56811555e8ce02"
+        ],
+        [
+            "prov_impl_in IHll1;apply ImpI; apply OrE with (ClausetoPropF a) (CNFtoPropF ll2).",
+            "VernacExtend",
+            "dcf1a02983decc19c9eb6d33d6a088cb38e3497c"
+        ],
+        [
+            "eapply prov_impl;[apply CNF_add_clause_prov|].",
+            "VernacExtend",
+            "173a2c6db93c7328e4128a1123605c62ef94935a"
+        ],
+        [
+            "eapply AndE1;eapply prov_impl;[apply CNF_and_prov|is_ass].",
+            "VernacExtend",
+            "8b305a4b6220332ace100d9804ac44e2d119ba89"
+        ],
+        [
+            "apply OrE with (CNFtoPropF ll1) (CNFtoPropF ll2).",
+            "VernacExtend",
+            "0169d108c03497f7ec5a698fba1a07ff2227e60d"
+        ],
+        [
+            "apply K;eapply AndE2;eapply prov_impl;[apply CNF_and_prov|is_ass].",
+            "VernacExtend",
+            "8b13d82a84272a4a10d56cb690dfbf1133a8cf8b"
+        ],
+        [
+            "apply OrI1;apply AndI;is_ass.",
+            "VernacExtend",
+            "625b235e0b0afa95f97f6c0a74f60fbb920fdec4"
+        ],
+        [
+            "apply OrI2;is_ass.",
+            "VernacExtend",
+            "e4720ae1733043da9b70e7e48c8b905197fa7444"
+        ],
+        [
+            "apply OrI2;is_ass.",
+            "VernacExtend",
+            "e4720ae1733043da9b70e7e48c8b905197fa7444"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem CNF_impl_prov : forall A, Provable (CNFtoPropF (MakeCNF A) \u2192 NNFtoPropF A).",
+            "VernacStartTheoremProof",
+            "2cb6ef4b14e08ac658c3c09a536e52ec8cde8571"
+        ],
+        [
+            "induction A;simpl; try (unfold CNFtoPropF; unfold ClausetoPropF;simpl; apply ImpI;eapply OrE; [eapply AndE1;is_ass| is_ass| apply BotC;is_ass];fail).",
+            "VernacExtend",
+            "5810397bfcf2d40deda94edfaa38ca27df6b656b"
+        ],
+        [
+            "apply ImpI;apply AndI;(eapply prov_impl;[eassumption|]); [eapply AndE1|eapply AndE2];(eapply prov_impl;[apply CNF_and_prov|is_ass]).",
+            "VernacExtend",
+            "470a5b4db94d28bbf0112dcd073c77e38df1a6d7"
+        ],
+        [
+            "apply ImpI;eapply prov_impl.",
+            "VernacExtend",
+            "efaa6b9410cf03635320626cbde0dc9c8857e37a"
+        ],
+        [
+            "apply ImpI;eapply prov_or;try eassumption;in_solve.",
+            "VernacExtend",
+            "c4d84fcbe27298148a88d5141884c216dad8c8fe"
+        ],
+        [
+            "eapply prov_impl;[apply CNF_or_prov|is_ass].",
+            "VernacExtend",
+            "3b22acd2034562640a0ca92ee54167e5b2016521"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma prov_and : forall A1 A2 B1 B2 \u0393, Provable (A1 \u2192 A2) -> Provable (B1 \u2192 B2) -> In (A1\u2227B1) \u0393 -> \u0393 \u22a2 A2\u2227B2.",
+            "VernacStartTheoremProof",
+            "c8dcbbd2005ff68c8156fceb82827e72fb56aeb5"
+        ],
+        [
+            "intros; prov_impl_in H;prov_impl_in H0.",
+            "VernacExtend",
+            "9fdcaa5d0c0fc079e47bb5d339c1b60ecd2b0ea2"
+        ],
+        [
+            "apply AndI;[apply K;eapply AndE1|apply K0;eapply AndE2];is_ass.",
+            "VernacExtend",
+            "a05f280054868076ef0efdb3c8f7117a0c6c48bf"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma NNF_impl_prov : forall A, Provable (NNFtoPropF (MakeNNF A) \u2192 A) /\\ Provable (NNFtoPropF (MakeNNFN A) \u2192 \u00acA).",
+            "VernacStartTheoremProof",
+            "37315d4ae813a6f34d47bc965e9e86719779f48b"
+        ],
+        [
+            "induction A;simpl;split;try destruct IHA;try destruct IHA1;try destruct IHA2;apply ImpI;try (is_ass;fail).",
+            "VernacExtend",
+            "41c4632e631f7f3d14c1f264bfdcb8647ac12dd7"
+        ],
+        [
+            "eapply prov_and;try eassumption;in_solve.",
+            "VernacExtend",
+            "36b3e84db38d4f00a46d37486ccdecfd5505da9a"
+        ],
+        [
+            "apply ImpI.",
+            "VernacExtend",
+            "6df04afb5921cfa39faab5e33ee28419c246446c"
+        ],
+        [
+            "apply OrE with \u00acA1 \u00acA2.",
+            "VernacExtend",
+            "43045d1f50e27ac35354c1901521f71f3c730d4b"
+        ],
+        [
+            "eapply prov_or;try eassumption;in_solve.",
+            "VernacExtend",
+            "ab7d51daf9d54011e629fca7a18d44d9e4bb13dd"
+        ],
+        [
+            "mp;[|eapply AndE1];is_ass.",
+            "VernacExtend",
+            "f77996dce6b9f30454d65be0934f5b78dbd49455"
+        ],
+        [
+            "mp;[|eapply AndE2];is_ass.",
+            "VernacExtend",
+            "482363198a7a0879fafce3e2739f69190525d46c"
+        ],
+        [
+            "eapply prov_or;try eassumption;in_solve.",
+            "VernacExtend",
+            "ab7d51daf9d54011e629fca7a18d44d9e4bb13dd"
+        ],
+        [
+            "apply ImpI.",
+            "VernacExtend",
+            "6df04afb5921cfa39faab5e33ee28419c246446c"
+        ],
+        [
+            "eapply OrE;[is_ass|mp;[|is_ass];eapply prov_impl;try eassumption..].",
+            "VernacExtend",
+            "e561657432d1d26b60919f8f6fd9412edf9fcfe4"
+        ],
+        [
+            "eapply AndE1;is_ass.",
+            "VernacExtend",
+            "1c701e9f244afe1685da366df146a27974bc68f9"
+        ],
+        [
+            "eapply AndE2;is_ass.",
+            "VernacExtend",
+            "5eaed77d6fcfa024894392fae21cf0a67ec4b53d"
+        ],
+        [
+            "apply ImpI.",
+            "VernacExtend",
+            "6df04afb5921cfa39faab5e33ee28419c246446c"
+        ],
+        [
+            "apply OrE with \u00acA1 A2.",
+            "VernacExtend",
+            "c8bb6b0731a7e719bf7f34cc868b0af2ee0ac225"
+        ],
+        [
+            "eapply prov_or;try eassumption;in_solve.",
+            "VernacExtend",
+            "ab7d51daf9d54011e629fca7a18d44d9e4bb13dd"
+        ],
+        [
+            "apply BotC.",
+            "VernacExtend",
+            "f61c8fec50526f12405833138f45be9c949876d4"
+        ],
+        [
+            "eapply ImpE with A1;is_ass.",
+            "VernacExtend",
+            "d112011b1e5466ccdded16ca97f47854db7332e8"
+        ],
+        [
+            "is_ass.",
+            "VernacExtend",
+            "cdfdb1788b91eab5b20bcf4175a7dbaff7c9310a"
+        ],
+        [
+            "apply ImpI.",
+            "VernacExtend",
+            "6df04afb5921cfa39faab5e33ee28419c246446c"
+        ],
+        [
+            "apply ImpE with A2.",
+            "VernacExtend",
+            "645a817c4b6431c78567d86f8a2b2c767778ac9c"
+        ],
+        [
+            "eapply prov_impl;try eassumption.",
+            "VernacExtend",
+            "d763a2a2d7ae6b0d76f77b63fc598ef675b1c716"
+        ],
+        [
+            "eapply AndE2;is_ass.",
+            "VernacExtend",
+            "5eaed77d6fcfa024894392fae21cf0a67ec4b53d"
+        ],
+        [
+            "mp.",
+            "VernacExtend",
+            "2a1b5b04a9a1f20a40eeed23fcc52e57a2a2499e"
+        ],
+        [
+            "is_ass.",
+            "VernacExtend",
+            "cdfdb1788b91eab5b20bcf4175a7dbaff7c9310a"
+        ],
+        [
+            "eapply prov_impl;try eassumption.",
+            "VernacExtend",
+            "d763a2a2d7ae6b0d76f77b63fc598ef675b1c716"
+        ],
+        [
+            "eapply AndE1;is_ass.",
+            "VernacExtend",
+            "1c701e9f244afe1685da366df146a27974bc68f9"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem Completeness : Prop_Completeness.",
+            "VernacStartTheoremProof",
+            "e496c6fc3b5f79dd46a38603be478d86c3a3d27a"
+        ],
+        [
+            "do 2 intro.",
+            "VernacExtend",
+            "94cab4807bd907dc3f92e3b75fad36963d81fc73"
+        ],
+        [
+            "mp.",
+            "VernacExtend",
+            "2a1b5b04a9a1f20a40eeed23fcc52e57a2a2499e"
+        ],
+        [
+            "apply NNF_impl_prov.",
+            "VernacExtend",
+            "49f3e41133008e818f6f548f476bf48edc6eddbd"
+        ],
+        [
+            "mp.",
+            "VernacExtend",
+            "2a1b5b04a9a1f20a40eeed23fcc52e57a2a2499e"
+        ],
+        [
+            "apply CNF_impl_prov.",
+            "VernacExtend",
+            "9fdd9bebada094c71f99f77092894e24471c79ac"
+        ],
+        [
+            "apply CNF_provable.",
+            "VernacExtend",
+            "7436e4b037d8ee1decf886082abc3672943dff1b"
+        ],
+        [
+            "apply CNF_valid.",
+            "VernacExtend",
+            "30b0728cbd6a49f7b113ebfbe169351d06a56698"
+        ],
+        [
+            "intros ? ?.",
+            "VernacExtend",
+            "546ddfdd2482db9e439533251e7f222ee06f71aa"
+        ],
+        [
+            "rewrite CNF_equiv_valid.",
+            "VernacExtend",
+            "94e6fa81d90135eb260f3b0371759912bf9e0716"
+        ],
+        [
+            "rewrite ((and_ind (fun A _ => A)) (NNF_equiv_valid v A)).",
+            "VernacExtend",
+            "7e00c6e9cc3e16872b98e28987794de8ae45f6ae"
+        ],
+        [
+            "apply H;assumption.",
+            "VernacExtend",
+            "7904d623a02884c927ef4e8b66c90cb12eee7c7a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem prov_equiv_models : forall \u0393 A, \u0393 \u22a2 A <-> \u0393 \u22a8 A.",
+            "VernacStartTheoremProof",
+            "4c33d5516b3852eba917e3a0248dc7a08e090eac"
+        ],
+        [
+            "split;[apply Soundness_general|revert A;induction \u0393].",
+            "VernacExtend",
+            "07443427f379e76acf2d2844f666267fe7fe031e"
+        ],
+        [
+            "apply Completeness.",
+            "VernacExtend",
+            "040fbec63ff7f5afe021d2cf8badda2d8c75fc18"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply deduction.",
+            "VernacExtend",
+            "0891ecb4424145763bd362eb941645f73954bb4f"
+        ],
+        [
+            "apply IH\u0393.",
+            "VernacExtend",
+            "34d78631a8e07be523dbdd55bf9656c7d2bdf230"
+        ],
+        [
+            "intros ? ?.",
+            "VernacExtend",
+            "546ddfdd2482db9e439533251e7f222ee06f71aa"
+        ],
+        [
+            "case_bool v a;rewrite H1;simpl.",
+            "VernacExtend",
+            "2e3ca3ed857c8783bc25e6d737dd114a2a4c89ea"
+        ],
+        [
+            "apply H.",
+            "VernacExtend",
+            "4b47b71ad0f800d57cbdc591d68949e07decb540"
+        ],
+        [
+            "intros ? ?.",
+            "VernacExtend",
+            "546ddfdd2482db9e439533251e7f222ee06f71aa"
+        ],
+        [
+            "destruct H2;subst.",
+            "VernacExtend",
+            "3f93388156cd456385331def02db4a759430562b"
+        ],
+        [
+            "rewrite H1;exact I.",
+            "VernacExtend",
+            "d5a2d2d15aa349d68ea2e2936e60558c836ff6e5"
+        ],
+        [
+            "apply H0;in_solve.",
+            "VernacExtend",
+            "51f0d479f361c58cc49bf1cf2b6d23105f325f78"
+        ],
+        [
+            "exact I.",
+            "VernacExtend",
+            "2cf10cb6670c94bac111ace6912ec2b66fc73c6f"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Print Assumptions prov_equiv_models.",
+            "VernacPrint",
+            "8c77cf74de1f2cf5dc0ff611d8808d37617e33b6"
+        ],
+        [
+            "End complete_mod.",
+            "VernacEndSegment",
+            "529081fd57e0114b302b3870ebf16921c782c16b"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "Literal_eqdec",
+            "line_nb": 20,
+            "steps": [
+                {
+                    "command": [
+                        "intros;destruct x;destruct y;try (right;discriminate);try (left;reflexivity); destruct (Varseq_dec p p0); (left;f_equal;assumption)||(right;intro HH;injection HH;contradiction).",
+                        "VernacExtend",
+                        "d2fcc286ee9ee79a9d9d81158e7a12550f1edc91"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "NNF_equiv_valid",
+            "line_nb": 23,
+            "steps": [
+                {
+                    "command": [
+                        "intros v A;induction A;try destruct IHA;try destruct IHA1;try destruct IHA2;split;simpl in *; try trivial;try rewrite H;try rewrite H0;try rewrite H1;try rewrite H2;try trivial; repeat rewrite orb_false_r;repeat rewrite orb_false_l; try rewrite negb_andb;try rewrite negb_orb;try rewrite negb_involutive;reflexivity.",
+                        "VernacExtend",
+                        "e7a3c432e4cb123a97d7ee1baa290f593ed3a5c4"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CNF_and_valid",
+            "line_nb": 26,
+            "steps": [
+                {
+                    "command": [
+                        "intros;induction ll1;simpl.",
+                        "VernacExtend",
+                        "dbce1262c5e7e9ee2c03d397295bc4089c1476cf"
+                    ]
+                },
+                {
+                    "command": [
+                        "reflexivity.",
+                        "VernacExtend",
+                        "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold CNFtoPropF in IHll1 at 1;rewrite IHll1.",
+                        "VernacExtend",
+                        "c0f48904996d6585913001b674318a2eede68bfb"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply andb_assoc.",
+                        "VernacExtend",
+                        "09f63485e93daad4bdfe99b8f33da0af34797189"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CNF_or_clause_valid",
+            "line_nb": 32,
+            "steps": [
+                {
+                    "command": [
+                        "intros;induction l1;simpl.",
+                        "VernacExtend",
+                        "7c2118b4745fe3a7d5273ddf1694e6ff769d7772"
+                    ]
+                },
+                {
+                    "command": [
+                        "reflexivity.",
+                        "VernacExtend",
+                        "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold ClausetoPropF in IHl1 at 1;rewrite IHl1.",
+                        "VernacExtend",
+                        "59b87bd300f490b7376bb9283f4292d846c08c4a"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply orb_assoc.",
+                        "VernacExtend",
+                        "a463d957e0e02b3c87fb284bae02f84755a9e78d"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CNF_add_clause_valid",
+            "line_nb": 38,
+            "steps": [
+                {
+                    "command": [
+                        "intros;induction ll;simpl.",
+                        "VernacExtend",
+                        "5b44c4c2272087749911fea1be89e3f4c1f29b9c"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite orb_true_r;reflexivity.",
+                        "VernacExtend",
+                        "780b051ee1b25375cdb866447778bcc262732386"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold CNFtoPropF in IHll at 1;rewrite IHll.",
+                        "VernacExtend",
+                        "3da277a68cb9e55bfae0737d90f225e6745a21d4"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite CNF_or_clause_valid.",
+                        "VernacExtend",
+                        "fb500fbfe1a543eaa8268c5dfd99a665146b7363"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite orb_andb_distrib_r.",
+                        "VernacExtend",
+                        "1554f84215edfcaf7ebd1b9a8866ed104cfeedf2"
+                    ]
+                },
+                {
+                    "command": [
+                        "reflexivity.",
+                        "VernacExtend",
+                        "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CNF_or_valid",
+            "line_nb": 46,
+            "steps": [
+                {
+                    "command": [
+                        "intros;induction ll1;simpl.",
+                        "VernacExtend",
+                        "dbce1262c5e7e9ee2c03d397295bc4089c1476cf"
+                    ]
+                },
+                {
+                    "command": [
+                        "reflexivity.",
+                        "VernacExtend",
+                        "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite CNF_and_valid;rewrite IHll1;rewrite CNF_add_clause_valid.",
+                        "VernacExtend",
+                        "c83d27671f17f968a3af598ab7206919b3293b54"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite orb_andb_distrib_l;reflexivity.",
+                        "VernacExtend",
+                        "196c35fdbdf47f738317720f55e5506e302e120b"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CNF_equiv_valid",
+            "line_nb": 52,
+            "steps": [
+                {
+                    "command": [
+                        "intros;induction A;simpl;try reflexivity;try (destruct (v p);simpl;reflexivity;fail); [rewrite CNF_and_valid|rewrite CNF_or_valid];rewrite IHA1;rewrite IHA2;reflexivity.",
+                        "VernacExtend",
+                        "2680dd493e3c8371ca0c7aa4abfbcb6ed5cea380"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "TrueQ_impl_Validates",
+            "line_nb": 57,
+            "steps": [
+                {
+                    "command": [
+                        "intros;induction m.",
+                        "VernacExtend",
+                        "68ca118743c1ffefa11f06a994b7d8f77b8f092a"
+                    ]
+                },
+                {
+                    "command": [
+                        "contradiction.",
+                        "VernacExtend",
+                        "9b6a5c45e1144cbbccd544effb2a97082518704a"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H;case_bool v (LiteraltoPropF a).",
+                        "VernacExtend",
+                        "1223e5bca769594be2df73d4a0cdc0b64c420159"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists (LiteraltoPropF a);split;[in_solve|rewrite H0;trivial].",
+                        "VernacExtend",
+                        "ed174f72b286a0a0d8cca9b085059d9aae89b3a3"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (IHm H) as (?&?&?);exists x;split;[in_solve|assumption].",
+                        "VernacExtend",
+                        "f921f016e51265c7d8f519a2ceae8a428107934d"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Validated_valid",
+            "line_nb": 64,
+            "steps": [
+                {
+                    "command": [
+                        "intros l (A&H&K).",
+                        "VernacExtend",
+                        "e5236918993a2b7f935bb8a63af87bf7c7f356be"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply in_map_iff in H as (p&?&H);subst;destruct p;unfold Countervaluation in K;simpl in K.",
+                        "VernacExtend",
+                        "eecebc98e01366f114f0984390f5bf68600e7e33"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (in_dec Literal_eqdec (LNeg p) l).",
+                        "VernacExtend",
+                        "2f8c621ecd3b2bcf7942bc6b9f9d58ec2d10f5e1"
+                    ]
+                },
+                {
+                    "command": [
+                        "right;eauto.",
+                        "VernacExtend",
+                        "0bc3d2bafb7d2cf650e86152df4ac6ee0e99bfc7"
+                    ]
+                },
+                {
+                    "command": [
+                        "contradiction.",
+                        "VernacExtend",
+                        "9b6a5c45e1144cbbccd544effb2a97082518704a"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (in_dec Literal_eqdec (LNeg p) l);contradiction.",
+                        "VernacExtend",
+                        "195d5e47dfd75f5a239ca5fd1b4d65a234adb9af"
+                    ]
+                },
+                {
+                    "command": [
+                        "contradiction.",
+                        "VernacExtend",
+                        "9b6a5c45e1144cbbccd544effb2a97082518704a"
+                    ]
+                },
+                {
+                    "command": [
+                        "left;assumption.",
+                        "VernacExtend",
+                        "3caf0ae349d7f7f5e42b9e4faad0c11c70cd858a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Clause_valid",
+            "line_nb": 74,
+            "steps": [
+                {
+                    "command": [
+                        "intros;apply Validated_valid;apply TrueQ_impl_Validates;apply H;intros ? Q;destruct Q.",
+                        "VernacExtend",
+                        "49ba3a7ed5e178e4fe0a06f2f54d617d4321c573"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Clause_provable_3",
+            "line_nb": 90,
+            "steps": [
+                {
+                    "command": [
+                        "intros;induction l1.",
+                        "VernacExtend",
+                        "aea6774e722b155e019b511c4f0fa94e74358586"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply OrI1;is_ass.",
+                        "VernacExtend",
+                        "fc55c983bdfdec1b57c743007f9a91e666cf868c"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply OrI2;assumption.",
+                        "VernacExtend",
+                        "7e94896f02a862590beab64f194a3a5cf2cc57c9"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Clause_provable_2",
+            "line_nb": 95,
+            "steps": [
+                {
+                    "command": [
+                        "intros;induction l1.",
+                        "VernacExtend",
+                        "aea6774e722b155e019b511c4f0fa94e74358586"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply BotC;mp;[is_ass|destruct a;simpl;apply OrI1]; try (apply ImpI;mp;[is_ass|apply OrI2;apply Clause_provable_3;in_solve]); (apply BotC;mp;[constructor;constructor 2;in_solve|apply OrI2;apply Clause_provable_3;in_solve]).",
+                        "VernacExtend",
+                        "5cc69281ab83120ce757d771beff64ca1aecdaad"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply OrI2;assumption.",
+                        "VernacExtend",
+                        "7e94896f02a862590beab64f194a3a5cf2cc57c9"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Clause_provable",
+            "line_nb": 100,
+            "steps": [
+                {
+                    "command": [
+                        "intros ? [?|(?&?&?)];apply in_split in H as (?&?&?);subst.",
+                        "VernacExtend",
+                        "350151caf47275a648b3d34e79b818b08bde01a2"
+                    ]
+                },
+                {
+                    "command": [
+                        "induction x;simpl.",
+                        "VernacExtend",
+                        "032ca6881eec9f6ca6ad619919b16fb530146db9"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply OrI1;simpl;apply ImpI;is_ass.",
+                        "VernacExtend",
+                        "600267b4d1550f2366bf4b12eeb2c8303633d020"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply OrI2;apply IHx.",
+                        "VernacExtend",
+                        "af1c3cb95bc59b2b2227e74b3b2e9dd7207365a5"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply in_app_or in H0 as [].",
+                        "VernacExtend",
+                        "5ebbb425adb8ca2a19118a4eb8049b5ae101591c"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply in_split in H as (?&?&?);subst.",
+                        "VernacExtend",
+                        "fcc331354338f9024451f2991842e794fe5b0f45"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite app_ass;apply (Clause_provable_2 (LPos x)).",
+                        "VernacExtend",
+                        "50b176951c3dc42af2be2f5abcffa23e614533b2"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion H;[discriminate|].",
+                        "VernacExtend",
+                        "e268e30510f93b9fd039bb694072b1e8283b816f"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply in_split in H0 as (?&?&?);subst.",
+                        "VernacExtend",
+                        "2f6bdcf9bfcec52b781a00f4ce79d325d43a7d5f"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (Clause_provable_2 (LNeg x)).",
+                        "VernacExtend",
+                        "b0ffddc8c3abf409c64a4e2eec19e9ba8e8f9a86"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CNF_provable",
+            "line_nb": 112,
+            "steps": [
+                {
+                    "command": [
+                        "intros;induction ll;unfold CNFtoPropF;simpl.",
+                        "VernacExtend",
+                        "0bc943e6ab131a9df79b4b162584f5419d7c6bf5"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply ImpI;is_ass.",
+                        "VernacExtend",
+                        "d3602219dde677c4e2a2e74eb268dd27c4418ca1"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply AndI.",
+                        "VernacExtend",
+                        "3bfb9b09cfc02b5402778319e06382b0f27315b1"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Clause_provable;apply H;constructor;reflexivity.",
+                        "VernacExtend",
+                        "29adeed4fc792eac42e7af09d2d999f11bba3f3b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply IHll;intro;intro;apply H;constructor 2;assumption.",
+                        "VernacExtend",
+                        "bb20438a32613703538e25d97b012f0aac143953"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CNF_and_prov",
+            "line_nb": 126,
+            "steps": [
+                {
+                    "command": [
+                        "intros;induction ll1;simpl.",
+                        "VernacExtend",
+                        "dbce1262c5e7e9ee2c03d397295bc4089c1476cf"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold CNFtoPropF at 2;unfold ClausetoPropF;simpl.",
+                        "VernacExtend",
+                        "f2163b6a84a3b273b7c66106dec4d92f5923ddab"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply ImpI;apply AndI.",
+                        "VernacExtend",
+                        "c2c9147116e15916e5635bbf823d59314950f8e8"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold Top;unfold Neg;apply ImpI;is_ass.",
+                        "VernacExtend",
+                        "c162ba56f7c61fcebf904b99305f0c51192852b2"
+                    ]
+                },
+                {
+                    "command": [
+                        "is_ass.",
+                        "VernacExtend",
+                        "cdfdb1788b91eab5b20bcf4175a7dbaff7c9310a"
+                    ]
+                },
+                {
+                    "command": [
+                        "prov_impl_in IHll1; apply ImpI;apply AndI.",
+                        "VernacExtend",
+                        "4b4d8113314d9e0929ed41e78564c68471dfe123"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold CNFtoPropF;simpl;apply AndI.",
+                        "VernacExtend",
+                        "73441fd8d1017f645e4a0118fb7e470766bf99dc"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply AndE1;is_ass.",
+                        "VernacExtend",
+                        "1c701e9f244afe1685da366df146a27974bc68f9"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply AndE1;apply K.",
+                        "VernacExtend",
+                        "d3d2002e804c3cd609f87796ce3be88e429b64a0"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply AndE2;is_ass.",
+                        "VernacExtend",
+                        "5eaed77d6fcfa024894392fae21cf0a67ec4b53d"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply AndE2;apply K;eapply AndE2;is_ass.",
+                        "VernacExtend",
+                        "9c2b2b55e3261217fba23cb9aa1b2535e84b6bc4"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CNF_or_prov",
+            "line_nb": 165,
+            "steps": [
+                {
+                    "command": [
+                        "intros;induction ll1;simpl;unfold CNFtoPropF;simpl.",
+                        "VernacExtend",
+                        "6416a51589709cfe916565065991b4990a29157b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply ImpI;eapply OrI1;is_ass.",
+                        "VernacExtend",
+                        "e3b13db39a7501ebe4bfae52da56811555e8ce02"
+                    ]
+                },
+                {
+                    "command": [
+                        "prov_impl_in IHll1;apply ImpI; apply OrE with (ClausetoPropF a) (CNFtoPropF ll2).",
+                        "VernacExtend",
+                        "dcf1a02983decc19c9eb6d33d6a088cb38e3497c"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply prov_impl;[apply CNF_add_clause_prov|].",
+                        "VernacExtend",
+                        "173a2c6db93c7328e4128a1123605c62ef94935a"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply AndE1;eapply prov_impl;[apply CNF_and_prov|is_ass].",
+                        "VernacExtend",
+                        "8b305a4b6220332ace100d9804ac44e2d119ba89"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply OrE with (CNFtoPropF ll1) (CNFtoPropF ll2).",
+                        "VernacExtend",
+                        "0169d108c03497f7ec5a698fba1a07ff2227e60d"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply K;eapply AndE2;eapply prov_impl;[apply CNF_and_prov|is_ass].",
+                        "VernacExtend",
+                        "8b13d82a84272a4a10d56cb690dfbf1133a8cf8b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply OrI1;apply AndI;is_ass.",
+                        "VernacExtend",
+                        "625b235e0b0afa95f97f6c0a74f60fbb920fdec4"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply OrI2;is_ass.",
+                        "VernacExtend",
+                        "e4720ae1733043da9b70e7e48c8b905197fa7444"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply OrI2;is_ass.",
+                        "VernacExtend",
+                        "e4720ae1733043da9b70e7e48c8b905197fa7444"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "prov_and",
+            "line_nb": 184,
+            "steps": [
+                {
+                    "command": [
+                        "intros; prov_impl_in H;prov_impl_in H0.",
+                        "VernacExtend",
+                        "9fdcaa5d0c0fc079e47bb5d339c1b60ecd2b0ea2"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply AndI;[apply K;eapply AndE1|apply K0;eapply AndE2];is_ass.",
+                        "VernacExtend",
+                        "a05f280054868076ef0efdb3c8f7117a0c6c48bf"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "prov_equiv_models",
+            "line_nb": 229,
+            "steps": [
+                {
+                    "command": [
+                        "split;[apply Soundness_general|revert A;induction \u0393].",
+                        "VernacExtend",
+                        "07443427f379e76acf2d2844f666267fe7fe031e"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Completeness.",
+                        "VernacExtend",
+                        "040fbec63ff7f5afe021d2cf8badda2d8c75fc18"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply deduction.",
+                        "VernacExtend",
+                        "0891ecb4424145763bd362eb941645f73954bb4f"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply IH\u0393.",
+                        "VernacExtend",
+                        "34d78631a8e07be523dbdd55bf9656c7d2bdf230"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros ? ?.",
+                        "VernacExtend",
+                        "546ddfdd2482db9e439533251e7f222ee06f71aa"
+                    ]
+                },
+                {
+                    "command": [
+                        "case_bool v a;rewrite H1;simpl.",
+                        "VernacExtend",
+                        "2e3ca3ed857c8783bc25e6d737dd114a2a4c89ea"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply H.",
+                        "VernacExtend",
+                        "4b47b71ad0f800d57cbdc591d68949e07decb540"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros ? ?.",
+                        "VernacExtend",
+                        "546ddfdd2482db9e439533251e7f222ee06f71aa"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H2;subst.",
+                        "VernacExtend",
+                        "3f93388156cd456385331def02db4a759430562b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H1;exact I.",
+                        "VernacExtend",
+                        "d5a2d2d15aa349d68ea2e2936e60558c836ff6e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply H0;in_solve.",
+                        "VernacExtend",
+                        "51f0d479f361c58cc49bf1cf2b6d23105f325f78"
+                    ]
+                },
+                {
+                    "command": [
+                        "exact I.",
+                        "VernacExtend",
+                        "2cf10cb6670c94bac111ace6912ec2b66fc73c6f"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

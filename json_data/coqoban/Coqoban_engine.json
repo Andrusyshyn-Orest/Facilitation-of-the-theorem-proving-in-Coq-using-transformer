@@ -1,0 +1,848 @@
+{
+    "filename": "Coqoban_engine.v",
+    "coq_project": "coqoban",
+    "vernac_cmds": [
+        [
+            "Set Implicit Arguments.",
+            "VernacSetOption",
+            "9e84ff8896f028601d8aded48c1d4aebe60aa584"
+        ],
+        [
+            "Unset Strict Implicit.",
+            "VernacUnsetOption",
+            "2842adaf6959318f2042805935c46f513bdc0348"
+        ],
+        [
+            "Inductive fieldtype : Type := | Empty : fieldtype | Wall : fieldtype | Keeper : fieldtype | Box : fieldtype | Dest : fieldtype | Full : fieldtype | KeepOD : fieldtype.",
+            "VernacInductive",
+            "447ccbff4d5fd90f94b9aab6c21f2d1c367ff4d4"
+        ],
+        [
+            "Inductive Direction : Type := | No : Direction | Ea : Direction | So : Direction | We : Direction.",
+            "VernacInductive",
+            "1e73dce7c4c9a9dc35f34a90dd52d3b976360835"
+        ],
+        [
+            "Inductive Row : Type := | Nil : Row | C : fieldtype -> Row -> Row.",
+            "VernacInductive",
+            "67705d19f5bc858f7c858bf10d2a14adffda4c12"
+        ],
+        [
+            "Inductive Board : Type := | Nothing : Board | R : Row -> Board -> Board | K : Row -> Board -> Board.",
+            "VernacInductive",
+            "1f1355596da28a16d01b8e00e394454b3f1c58a6"
+        ],
+        [
+            "Definition fieldready (x : fieldtype) : Prop := match x with | Box => False | _ => True end.",
+            "VernacDefinition",
+            "5ca7d46fa9bf8c974b6769e1f67d7bbab9138c98"
+        ],
+        [
+            "Fixpoint rowready (r : Row) : Prop := match r with | Nil => True | C x xs => fieldready x /\\ rowready xs end.",
+            "VernacFixpoint",
+            "53eae834c41d0b5134b0c1f0926b4a5eff9a1d09"
+        ],
+        [
+            "Fixpoint ready (b : Board) : Prop := match b with | Nothing => True | R row b' => rowready row /\\ ready b' | K row b' => rowready row /\\ ready b' end.",
+            "VernacFixpoint",
+            "88cddb9e134b0847bc9509b6cb191ac4eedd9d6e"
+        ],
+        [
+            "Record triple : Type := tri {t1 : fieldtype; t2 : fieldtype; t3 : fieldtype}.",
+            "VernacInductive",
+            "a2d9dd8bcda4207e436efab4a6c07401c8053336"
+        ],
+        [
+            "Inductive Can : Type := | CAN : triple -> Can | CANT : Can.",
+            "VernacInductive",
+            "4041b0e38b40900865ed9fe5d867a7b085f31639"
+        ],
+        [
+            "Inductive Tri : Type := | TrS : Row -> Row -> Row -> Tri | TrF : Row -> Row -> Row -> Tri.",
+            "VernacInductive",
+            "99c192b43a44a9c99dbb68c6c9bb2c044c84c05c"
+        ],
+        [
+            "Definition move (tr : triple) : Can := match tr with | tri Keeper Empty x => CAN (tri Empty Keeper x) | tri Keeper Dest x => CAN (tri Empty KeepOD x) | tri Keeper Box Empty => CAN (tri Empty Keeper Box) | tri Keeper Box Dest => CAN (tri Empty Keeper Full) | tri Keeper Full Empty => CAN (tri Empty KeepOD Box) | tri Keeper Full Dest => CAN (tri Empty KeepOD Full) | tri KeepOD Empty x => CAN (tri Dest Keeper x) | tri KeepOD Dest x => CAN (tri Dest KeepOD x) | tri KeepOD Box Empty => CAN (tri Dest Keeper Box) | tri KeepOD Box Dest => CAN (tri Dest Keeper Full) | tri KeepOD Full Empty => CAN (tri Dest KeepOD Box) | tri KeepOD Full Dest => CAN (tri Dest KeepOD Full) | _ => CANT end.",
+            "VernacDefinition",
+            "9a4778c5e0d6b245a25eec1e766d5b96d443e705"
+        ],
+        [
+            "Fixpoint rowstepeast (r : Row) : Row := match r with | C x rs => match rs with | C y (C z rs') => match move (tri x y z) with | CAN (tri x' y' z') => C x' (C y' (C z' rs')) | CANT => C x (rowstepeast rs) end | _ => r end | Nil => Nil end.",
+            "VernacFixpoint",
+            "4936f3b624e940768a9ecccee1a0697e883b282c"
+        ],
+        [
+            "Fixpoint rowstepwest (r : Row) : Row := match r with | C x rs => match rs with | C y (C z rs') => match move (tri z y x) with | CAN (tri z' y' x') => C x' (C y' (C z' rs')) | CANT => C x (rowstepwest rs) end | _ => r end | Nil => Nil end.",
+            "VernacFixpoint",
+            "f1d3ee3abd9db672a22e08e22d0a3dbd1eb7cbe1"
+        ],
+        [
+            "Fixpoint Tristep' (r1 : Row) : Row -> Row -> Tri := fun r2 r3 => match r1 with | Nil => TrF r1 r2 r3 | C Keeper r1s => match r2, r3 with | C y r2s, C z r3s => match move (tri Keeper y z) with | CAN (tri x' y' z') => TrS (C x' r1s) (C y' r2s) (C z' r3s) | CANT => TrF r1 r2 r3 end | _, _ => TrF r1 r2 r3 end | C KeepOD r1s => match r2, r3 with | C y r2s, C z r3s => match move (tri KeepOD y z) with | CAN (tri x' y' z') => TrS (C x' r1s) (C y' r2s) (C z' r3s) | CANT => TrF r1 r2 r3 end | _, _ => TrF r1 r2 r3 end | C x r1s => match r2, r3 with | C y r2s, C z r3s => match Tristep' r1s r2s r3s with | TrS r1' r2' r3' => TrS (C x r1') (C y r2') (C z r3') | TrF r1' r2' r3' => TrF (C x r1') (C y r2') (C z r3') end | _, _ => TrF r1 r2 r3 end end.",
+            "VernacFixpoint",
+            "e362b0b5eb973357a166800276a2a7b6f2f82062"
+        ],
+        [
+            "Fixpoint stepnorth (b : Board) : Board := match b with | R l1 (R l2 (K l3 b')) => match Tristep' l3 l2 l1 with | TrS l3' l2' l1' => R l1' (K l2' (R l3' b')) | TrF l3' l2' l1' => R l1' (R l2' (K l3' b')) end | R r b' => R r (stepnorth b') | _ => b end.",
+            "VernacFixpoint",
+            "da50861405024e6ac47dc3a07038de9e1f1bbf53"
+        ],
+        [
+            "Fixpoint stepeast (b : Board) : Board := match b with | K r b' => K (rowstepeast r) b' | R r b' => R r (stepeast b') | Nothing => Nothing end.",
+            "VernacFixpoint",
+            "1e218a92f04d34be54e733179b841f0933a8cc35"
+        ],
+        [
+            "Fixpoint stepsouth (b : Board) : Board := match b with | R r b' => R r (stepsouth b') | K l1 (R l2 (R l3 b')) => match Tristep' l1 l2 l3 with | TrS l1' l2' l3' => R l1' (K l2' (R l3' b')) | TrF l1' l2' l3' => K l1' (R l2' (R l3' b')) end | _ => b end.",
+            "VernacFixpoint",
+            "a535fbb41f9b275d268e14e4797b5aa375845f86"
+        ],
+        [
+            "Fixpoint stepwest (b : Board) : Board := match b with | K r b' => K (rowstepwest r) b' | R r b' => R r (stepwest b') | Nothing => Nothing end.",
+            "VernacFixpoint",
+            "cb970d1fa0796d6f42735bb7cee58a057f2d31ca"
+        ],
+        [
+            "Definition dostep (r : Direction) (b : Board) : Board := match r with | No => stepnorth b | Ea => stepeast b | So => stepsouth b | We => stepwest b end.",
+            "VernacDefinition",
+            "fffb762f071245875936e5f6513619ff2373e1f9"
+        ],
+        [
+            "Inductive solvable : Board -> Prop := | OK : forall b : Board, ready b -> solvable b | STEP : forall (b : Board) (d : Direction), solvable (dostep d b) -> solvable b.",
+            "VernacInductive",
+            "a2db3363d635e28f5731f68800942f47a1221e77"
+        ],
+        [
+            "Ltac n := apply STEP with No; simpl in |- *; try (apply OK; simpl in |- *; tauto).",
+            "VernacExtend",
+            "4b7e012218f4a067bc6050c49f2ea9888909ed6f"
+        ],
+        [
+            "Ltac e := apply STEP with Ea; simpl in |- *; try (apply OK; simpl in |- *; tauto).",
+            "VernacExtend",
+            "4cd663464329f4bb14ebb86c740123bc58219463"
+        ],
+        [
+            "Ltac s := apply STEP with So; simpl in |- *; try (apply OK; simpl in |- *; tauto).",
+            "VernacExtend",
+            "a8c0fc7e1f3bd7eb55af47c38259081a0098a82e"
+        ],
+        [
+            "Ltac w := apply STEP with We; simpl in |- *; try (apply OK; simpl in |- *; tauto).",
+            "VernacExtend",
+            "07612a4ac8bf0a1137340dfdadc11ea064a7e70e"
+        ],
+        [
+            "Notation \"'_' a\" := (C Empty a) (at level 0, right associativity).",
+            "VernacNotation",
+            "4710f2749f9b3981bd63f908050b341c78dfa8ee"
+        ],
+        [
+            "Notation \"# a\" := (C Wall a) (at level 0, right associativity).",
+            "VernacNotation",
+            "4ea2f3079ff984cae4747e2e54ff83818bf1d2c1"
+        ],
+        [
+            "Notation \"+ a\" := (C Keeper a) (at level 0, right associativity).",
+            "VernacNotation",
+            "a7553d382758c599e41a7a84673cc9b288794923"
+        ],
+        [
+            "Notation \"'X' a\" := (C Box a) (at level 0, right associativity).",
+            "VernacNotation",
+            "95fe03862d050e9d3ef81254de7ec0447a704037"
+        ],
+        [
+            "Notation \"'O' a\" := (C Dest a) (at level 0, right associativity).",
+            "VernacNotation",
+            "318997065b1920babc55c5556d57252bc0807b48"
+        ],
+        [
+            "Notation \"* a\" := (C Full a) (at level 0, right associativity).",
+            "VernacNotation",
+            "68913def5d10042756cd8b9dff650782e397ce96"
+        ],
+        [
+            "Notation \"'o' a\" := (C KeepOD a) (at level 0, right associativity).",
+            "VernacNotation",
+            "6b3addf27d6f51c231f86a95e4ae060f486bd787"
+        ],
+        [
+            "Notation \"<|\" := Nil (at level 0).",
+            "VernacNotation",
+            "e80a1046425e36d00cc0527aafe3796b28c02e99"
+        ],
+        [
+            "Notation \"|> a b\" := (R a b) (format \"'[v' |> a '/' b ']'\", at level 0, a, b at level 0).",
+            "VernacNotation",
+            "839b3d1bd6460c18f611db67c991eca292756415"
+        ],
+        [
+            "Notation \"+> a b\" := (K a b) (format \"'[v' +> a '/' b ']'\", at level 0, a, b at level 0).",
+            "VernacNotation",
+            "ea6d56ebdc23824d4668599d316d6135fb144d97"
+        ],
+        [
+            "Notation \"|><|\" := Nothing (format \"|><| '//'\", at level 0).",
+            "VernacNotation",
+            "761bb8864238e2cb983d743aca14b0351b280106"
+        ],
+        [
+            "Definition b := |> # # # # # # # <| |> # _ _ _ _ _ # <| +> # _ + X _ _ # <| |> # _ _ _ _ _ # <| |> # _ _ _ _ O # <| |> # # # # # # # <| |><| .",
+            "VernacDefinition",
+            "c9a208421f076eca409a37516561d04c69dccfa9"
+        ],
+        [
+            "Goal solvable b.",
+            "VernacDefinition",
+            "aee527ae1c1f05b0e2b63ef6106126095937702c"
+        ],
+        [
+            "unfold b in |- *.",
+            "VernacExtend",
+            "c3ec7361748fdcda40e288cb2667a326ae9a249e"
+        ],
+        [
+            "apply STEP with Ea.",
+            "VernacExtend",
+            "6eed07afd4e0fe6a0dcb8dbfc3b080e97afb8f9d"
+        ],
+        [
+            "unfold dostep in |- *.",
+            "VernacExtend",
+            "2154dceb32f19acc660b6ef24e5920c13f0cd688"
+        ],
+        [
+            "unfold stepeast in |- *.",
+            "VernacExtend",
+            "c57d922185ef5a715580ffa509bd43cb5cdab126"
+        ],
+        [
+            "unfold rowstepeast in |- *.",
+            "VernacExtend",
+            "c27fa276d89bacc8dd172e8c2de23091316604ac"
+        ],
+        [
+            "unfold move in |- *.",
+            "VernacExtend",
+            "1a20ce57fab0bdc2a97bf53fa4b0d890d5e32c18"
+        ],
+        [
+            "apply STEP with Ea.",
+            "VernacExtend",
+            "6eed07afd4e0fe6a0dcb8dbfc3b080e97afb8f9d"
+        ],
+        [
+            "simpl in |- *.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "n.",
+            "VernacExtend",
+            "0c2ba845caaa0dd175a64cd8419343fa98a75161"
+        ],
+        [
+            "n.",
+            "VernacExtend",
+            "0c2ba845caaa0dd175a64cd8419343fa98a75161"
+        ],
+        [
+            "e.",
+            "VernacExtend",
+            "0184083f5ed80d93a459d53ca28878a08e2a1197"
+        ],
+        [
+            "s.",
+            "VernacExtend",
+            "0b78d2706ed7595d4b718c144fc33cbec5debd22"
+        ],
+        [
+            "s.",
+            "VernacExtend",
+            "0b78d2706ed7595d4b718c144fc33cbec5debd22"
+        ],
+        [
+            "Save solution'_b.",
+            "VernacEndProof",
+            "766d17d82240f0ace64fa25cf9d6f97ae1309511"
+        ],
+        [
+            "Print solution'_b.",
+            "VernacPrint",
+            "e1ee99a0f02e931068e99fa3eb7c952afba0a29d"
+        ],
+        [
+            "Definition microban_1 := |> # # # # <| |> # _ O # <| |> # _ _ # # # <| +> # * + _ _ # <| |> # _ _ X _ # <| |> # _ _ # # # <| |> # # # # <| |><| .",
+            "VernacDefinition",
+            "8d1f7c3824dfcea6d6a6af58fe806350ee02844f"
+        ],
+        [
+            "Goal solvable microban_1.",
+            "VernacDefinition",
+            "16dbeed554999f5d7ba0b9239ad43cc4800c1b0b"
+        ],
+        [
+            "unfold microban_1 in |- *.",
+            "VernacExtend",
+            "7d65c57e9d5a8eff175dbe78a7216d7b6859a114"
+        ],
+        [
+            "s.",
+            "VernacExtend",
+            "0b78d2706ed7595d4b718c144fc33cbec5debd22"
+        ],
+        [
+            "w.",
+            "VernacExtend",
+            "e4a6ca996be96b4cf62ae353584319c5322d836f"
+        ],
+        [
+            "n.",
+            "VernacExtend",
+            "0c2ba845caaa0dd175a64cd8419343fa98a75161"
+        ],
+        [
+            "e.",
+            "VernacExtend",
+            "0184083f5ed80d93a459d53ca28878a08e2a1197"
+        ],
+        [
+            "e.",
+            "VernacExtend",
+            "0184083f5ed80d93a459d53ca28878a08e2a1197"
+        ],
+        [
+            "e.",
+            "VernacExtend",
+            "0184083f5ed80d93a459d53ca28878a08e2a1197"
+        ],
+        [
+            "s.",
+            "VernacExtend",
+            "0b78d2706ed7595d4b718c144fc33cbec5debd22"
+        ],
+        [
+            "w.",
+            "VernacExtend",
+            "e4a6ca996be96b4cf62ae353584319c5322d836f"
+        ],
+        [
+            "n.",
+            "VernacExtend",
+            "0c2ba845caaa0dd175a64cd8419343fa98a75161"
+        ],
+        [
+            "w.",
+            "VernacExtend",
+            "e4a6ca996be96b4cf62ae353584319c5322d836f"
+        ],
+        [
+            "w.",
+            "VernacExtend",
+            "e4a6ca996be96b4cf62ae353584319c5322d836f"
+        ],
+        [
+            "s.",
+            "VernacExtend",
+            "0b78d2706ed7595d4b718c144fc33cbec5debd22"
+        ],
+        [
+            "s.",
+            "VernacExtend",
+            "0b78d2706ed7595d4b718c144fc33cbec5debd22"
+        ],
+        [
+            "e.",
+            "VernacExtend",
+            "0184083f5ed80d93a459d53ca28878a08e2a1197"
+        ],
+        [
+            "n.",
+            "VernacExtend",
+            "0c2ba845caaa0dd175a64cd8419343fa98a75161"
+        ],
+        [
+            "w.",
+            "VernacExtend",
+            "e4a6ca996be96b4cf62ae353584319c5322d836f"
+        ],
+        [
+            "n.",
+            "VernacExtend",
+            "0c2ba845caaa0dd175a64cd8419343fa98a75161"
+        ],
+        [
+            "e.",
+            "VernacExtend",
+            "0184083f5ed80d93a459d53ca28878a08e2a1197"
+        ],
+        [
+            "n.",
+            "VernacExtend",
+            "0c2ba845caaa0dd175a64cd8419343fa98a75161"
+        ],
+        [
+            "n.",
+            "VernacExtend",
+            "0c2ba845caaa0dd175a64cd8419343fa98a75161"
+        ],
+        [
+            "w.",
+            "VernacExtend",
+            "e4a6ca996be96b4cf62ae353584319c5322d836f"
+        ],
+        [
+            "s.",
+            "VernacExtend",
+            "0b78d2706ed7595d4b718c144fc33cbec5debd22"
+        ],
+        [
+            "e.",
+            "VernacExtend",
+            "0184083f5ed80d93a459d53ca28878a08e2a1197"
+        ],
+        [
+            "s.",
+            "VernacExtend",
+            "0b78d2706ed7595d4b718c144fc33cbec5debd22"
+        ],
+        [
+            "s.",
+            "VernacExtend",
+            "0b78d2706ed7595d4b718c144fc33cbec5debd22"
+        ],
+        [
+            "e.",
+            "VernacExtend",
+            "0184083f5ed80d93a459d53ca28878a08e2a1197"
+        ],
+        [
+            "e.",
+            "VernacExtend",
+            "0184083f5ed80d93a459d53ca28878a08e2a1197"
+        ],
+        [
+            "n.",
+            "VernacExtend",
+            "0c2ba845caaa0dd175a64cd8419343fa98a75161"
+        ],
+        [
+            "w.",
+            "VernacExtend",
+            "e4a6ca996be96b4cf62ae353584319c5322d836f"
+        ],
+        [
+            "s.",
+            "VernacExtend",
+            "0b78d2706ed7595d4b718c144fc33cbec5debd22"
+        ],
+        [
+            "w.",
+            "VernacExtend",
+            "e4a6ca996be96b4cf62ae353584319c5322d836f"
+        ],
+        [
+            "n.",
+            "VernacExtend",
+            "0c2ba845caaa0dd175a64cd8419343fa98a75161"
+        ],
+        [
+            "n.",
+            "VernacExtend",
+            "0c2ba845caaa0dd175a64cd8419343fa98a75161"
+        ],
+        [
+            "Save microban_1_solution.",
+            "VernacEndProof",
+            "b19a40291376832f019410ddaef036a2e3ebbdb5"
+        ],
+        [
+            "Print microban_1_solution.",
+            "VernacPrint",
+            "c4fecab169f81e647a82ff00e84cdc27a43887b9"
+        ],
+        [
+            "Definition microban_2 := |> # # # # # # <| |> # _ _ _ _ # <| +> # _ # + _ # <| |> # _ X * _ # <| |> # _ O * _ # <| |> # _ _ _ _ # <| |> # # # # # # <| |><| .",
+            "VernacDefinition",
+            "c1a7e2fd05a029059abaa127db19f7f748e1735d"
+        ],
+        [
+            "Print microban_2.",
+            "VernacPrint",
+            "96c54b4583d001428db6ca70c5cfb3859c0e06a5"
+        ],
+        [
+            "Goal solvable microban_2.",
+            "VernacDefinition",
+            "3b0ac583a0d0e631c3c5020dbb5cc5fea65cc9e4"
+        ],
+        [
+            "unfold microban_2 in |- *.",
+            "VernacExtend",
+            "47de0830b96b477b1076f07cf7d8d55dbcba3ad9"
+        ],
+        [
+            "Abort.",
+            "VernacAbort",
+            "c7c176802253f03c8ef9f27e1c3c9d26e4650d85"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "solution'_b",
+            "line_nb": 38,
+            "steps": [
+                {
+                    "command": [
+                        "unfold b in |- *.",
+                        "VernacExtend",
+                        "c3ec7361748fdcda40e288cb2667a326ae9a249e"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply STEP with Ea.",
+                        "VernacExtend",
+                        "6eed07afd4e0fe6a0dcb8dbfc3b080e97afb8f9d"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold dostep in |- *.",
+                        "VernacExtend",
+                        "2154dceb32f19acc660b6ef24e5920c13f0cd688"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold stepeast in |- *.",
+                        "VernacExtend",
+                        "c57d922185ef5a715580ffa509bd43cb5cdab126"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold rowstepeast in |- *.",
+                        "VernacExtend",
+                        "c27fa276d89bacc8dd172e8c2de23091316604ac"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold move in |- *.",
+                        "VernacExtend",
+                        "1a20ce57fab0bdc2a97bf53fa4b0d890d5e32c18"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply STEP with Ea.",
+                        "VernacExtend",
+                        "6eed07afd4e0fe6a0dcb8dbfc3b080e97afb8f9d"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in |- *.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "n.",
+                        "VernacExtend",
+                        "0c2ba845caaa0dd175a64cd8419343fa98a75161"
+                    ]
+                },
+                {
+                    "command": [
+                        "n.",
+                        "VernacExtend",
+                        "0c2ba845caaa0dd175a64cd8419343fa98a75161"
+                    ]
+                },
+                {
+                    "command": [
+                        "e.",
+                        "VernacExtend",
+                        "0184083f5ed80d93a459d53ca28878a08e2a1197"
+                    ]
+                },
+                {
+                    "command": [
+                        "s.",
+                        "VernacExtend",
+                        "0b78d2706ed7595d4b718c144fc33cbec5debd22"
+                    ]
+                },
+                {
+                    "command": [
+                        "s.",
+                        "VernacExtend",
+                        "0b78d2706ed7595d4b718c144fc33cbec5debd22"
+                    ]
+                },
+                {
+                    "command": [
+                        "Save solution'_b.",
+                        "VernacEndProof",
+                        "766d17d82240f0ace64fa25cf9d6f97ae1309511"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "microban_1_solution",
+            "line_nb": 55,
+            "steps": [
+                {
+                    "command": [
+                        "unfold microban_1 in |- *.",
+                        "VernacExtend",
+                        "7d65c57e9d5a8eff175dbe78a7216d7b6859a114"
+                    ]
+                },
+                {
+                    "command": [
+                        "s.",
+                        "VernacExtend",
+                        "0b78d2706ed7595d4b718c144fc33cbec5debd22"
+                    ]
+                },
+                {
+                    "command": [
+                        "w.",
+                        "VernacExtend",
+                        "e4a6ca996be96b4cf62ae353584319c5322d836f"
+                    ]
+                },
+                {
+                    "command": [
+                        "n.",
+                        "VernacExtend",
+                        "0c2ba845caaa0dd175a64cd8419343fa98a75161"
+                    ]
+                },
+                {
+                    "command": [
+                        "e.",
+                        "VernacExtend",
+                        "0184083f5ed80d93a459d53ca28878a08e2a1197"
+                    ]
+                },
+                {
+                    "command": [
+                        "e.",
+                        "VernacExtend",
+                        "0184083f5ed80d93a459d53ca28878a08e2a1197"
+                    ]
+                },
+                {
+                    "command": [
+                        "e.",
+                        "VernacExtend",
+                        "0184083f5ed80d93a459d53ca28878a08e2a1197"
+                    ]
+                },
+                {
+                    "command": [
+                        "s.",
+                        "VernacExtend",
+                        "0b78d2706ed7595d4b718c144fc33cbec5debd22"
+                    ]
+                },
+                {
+                    "command": [
+                        "w.",
+                        "VernacExtend",
+                        "e4a6ca996be96b4cf62ae353584319c5322d836f"
+                    ]
+                },
+                {
+                    "command": [
+                        "n.",
+                        "VernacExtend",
+                        "0c2ba845caaa0dd175a64cd8419343fa98a75161"
+                    ]
+                },
+                {
+                    "command": [
+                        "w.",
+                        "VernacExtend",
+                        "e4a6ca996be96b4cf62ae353584319c5322d836f"
+                    ]
+                },
+                {
+                    "command": [
+                        "w.",
+                        "VernacExtend",
+                        "e4a6ca996be96b4cf62ae353584319c5322d836f"
+                    ]
+                },
+                {
+                    "command": [
+                        "s.",
+                        "VernacExtend",
+                        "0b78d2706ed7595d4b718c144fc33cbec5debd22"
+                    ]
+                },
+                {
+                    "command": [
+                        "s.",
+                        "VernacExtend",
+                        "0b78d2706ed7595d4b718c144fc33cbec5debd22"
+                    ]
+                },
+                {
+                    "command": [
+                        "e.",
+                        "VernacExtend",
+                        "0184083f5ed80d93a459d53ca28878a08e2a1197"
+                    ]
+                },
+                {
+                    "command": [
+                        "n.",
+                        "VernacExtend",
+                        "0c2ba845caaa0dd175a64cd8419343fa98a75161"
+                    ]
+                },
+                {
+                    "command": [
+                        "w.",
+                        "VernacExtend",
+                        "e4a6ca996be96b4cf62ae353584319c5322d836f"
+                    ]
+                },
+                {
+                    "command": [
+                        "n.",
+                        "VernacExtend",
+                        "0c2ba845caaa0dd175a64cd8419343fa98a75161"
+                    ]
+                },
+                {
+                    "command": [
+                        "e.",
+                        "VernacExtend",
+                        "0184083f5ed80d93a459d53ca28878a08e2a1197"
+                    ]
+                },
+                {
+                    "command": [
+                        "n.",
+                        "VernacExtend",
+                        "0c2ba845caaa0dd175a64cd8419343fa98a75161"
+                    ]
+                },
+                {
+                    "command": [
+                        "n.",
+                        "VernacExtend",
+                        "0c2ba845caaa0dd175a64cd8419343fa98a75161"
+                    ]
+                },
+                {
+                    "command": [
+                        "w.",
+                        "VernacExtend",
+                        "e4a6ca996be96b4cf62ae353584319c5322d836f"
+                    ]
+                },
+                {
+                    "command": [
+                        "s.",
+                        "VernacExtend",
+                        "0b78d2706ed7595d4b718c144fc33cbec5debd22"
+                    ]
+                },
+                {
+                    "command": [
+                        "e.",
+                        "VernacExtend",
+                        "0184083f5ed80d93a459d53ca28878a08e2a1197"
+                    ]
+                },
+                {
+                    "command": [
+                        "s.",
+                        "VernacExtend",
+                        "0b78d2706ed7595d4b718c144fc33cbec5debd22"
+                    ]
+                },
+                {
+                    "command": [
+                        "s.",
+                        "VernacExtend",
+                        "0b78d2706ed7595d4b718c144fc33cbec5debd22"
+                    ]
+                },
+                {
+                    "command": [
+                        "e.",
+                        "VernacExtend",
+                        "0184083f5ed80d93a459d53ca28878a08e2a1197"
+                    ]
+                },
+                {
+                    "command": [
+                        "e.",
+                        "VernacExtend",
+                        "0184083f5ed80d93a459d53ca28878a08e2a1197"
+                    ]
+                },
+                {
+                    "command": [
+                        "n.",
+                        "VernacExtend",
+                        "0c2ba845caaa0dd175a64cd8419343fa98a75161"
+                    ]
+                },
+                {
+                    "command": [
+                        "w.",
+                        "VernacExtend",
+                        "e4a6ca996be96b4cf62ae353584319c5322d836f"
+                    ]
+                },
+                {
+                    "command": [
+                        "s.",
+                        "VernacExtend",
+                        "0b78d2706ed7595d4b718c144fc33cbec5debd22"
+                    ]
+                },
+                {
+                    "command": [
+                        "w.",
+                        "VernacExtend",
+                        "e4a6ca996be96b4cf62ae353584319c5322d836f"
+                    ]
+                },
+                {
+                    "command": [
+                        "n.",
+                        "VernacExtend",
+                        "0c2ba845caaa0dd175a64cd8419343fa98a75161"
+                    ]
+                },
+                {
+                    "command": [
+                        "n.",
+                        "VernacExtend",
+                        "0c2ba845caaa0dd175a64cd8419343fa98a75161"
+                    ]
+                },
+                {
+                    "command": [
+                        "Save microban_1_solution.",
+                        "VernacEndProof",
+                        "b19a40291376832f019410ddaef036a2e3ebbdb5"
+                    ]
+                }
+            ]
+        }
+    ]
+}

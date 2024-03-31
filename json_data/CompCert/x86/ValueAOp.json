@@ -1,0 +1,602 @@
+{
+    "filename": "x86/ValueAOp.v",
+    "coq_project": "CompCert",
+    "vernac_cmds": [
+        [
+            "Require Import Coqlib Compopts.",
+            "VernacRequire",
+            "cd9664fdf96a1c435a5afb65ae2c58bda34b397a"
+        ],
+        [
+            "Require Import AST Integers Floats Values Memory Globalenvs.",
+            "VernacRequire",
+            "3f78d8bda743ee0004f3459dc922ad72301c9647"
+        ],
+        [
+            "Require Import Op RTL ValueDomain.",
+            "VernacRequire",
+            "b9488dda738346b2ba16d5c1ec2bbf51011a05ed"
+        ],
+        [
+            "Definition eval_static_condition (cond: condition) (vl: list aval): abool := match cond, vl with | Ccomp c, v1 :: v2 :: nil => cmp_bool c v1 v2 | Ccompu c, v1 :: v2 :: nil => cmpu_bool c v1 v2 | Ccompimm c n, v1 :: nil => cmp_bool c v1 (I n) | Ccompuimm c n, v1 :: nil => cmpu_bool c v1 (I n) | Ccompl c, v1 :: v2 :: nil => cmpl_bool c v1 v2 | Ccomplu c, v1 :: v2 :: nil => cmplu_bool c v1 v2 | Ccomplimm c n, v1 :: nil => cmpl_bool c v1 (L n) | Ccompluimm c n, v1 :: nil => cmplu_bool c v1 (L n) | Ccompf c, v1 :: v2 :: nil => cmpf_bool c v1 v2 | Cnotcompf c, v1 :: v2 :: nil => cnot (cmpf_bool c v1 v2) | Ccompfs c, v1 :: v2 :: nil => cmpfs_bool c v1 v2 | Cnotcompfs c, v1 :: v2 :: nil => cnot (cmpfs_bool c v1 v2) | Cmaskzero n, v1 :: nil => maskzero v1 n | Cmasknotzero n, v1 :: nil => cnot (maskzero v1 n) | _, _ => Bnone end.",
+            "VernacDefinition",
+            "1ddaf8c14bf60ff799edac2ab5fa1351ad0bd77f"
+        ],
+        [
+            "Definition eval_static_addressing_32 (addr: addressing) (vl: list aval): aval := match addr, vl with | Aindexed n, v1::nil => add v1 (I (Int.repr n)) | Aindexed2 n, v1::v2::nil => add (add v1 v2) (I (Int.repr n)) | Ascaled sc ofs, v1::nil => add (mul v1 (I (Int.repr sc))) (I (Int.repr ofs)) | Aindexed2scaled sc ofs, v1::v2::nil => add v1 (add (mul v2 (I (Int.repr sc))) (I (Int.repr ofs))) | Aglobal s ofs, nil => Ptr (Gl s ofs) | Abased s ofs, v1::nil => add (Ptr (Gl s ofs)) v1 | Abasedscaled sc s ofs, v1::nil => add (Ptr (Gl s ofs)) (mul v1 (I (Int.repr sc))) | Ainstack ofs, nil => Ptr(Stk ofs) | _, _ => Vbot end.",
+            "VernacDefinition",
+            "d29a13539dcc777cdb5db3e13fd62c8bb06a2e0d"
+        ],
+        [
+            "Definition eval_static_addressing_64 (addr: addressing) (vl: list aval): aval := match addr, vl with | Aindexed n, v1::nil => addl v1 (L (Int64.repr n)) | Aindexed2 n, v1::v2::nil => addl (addl v1 v2) (L (Int64.repr n)) | Ascaled sc ofs, v1::nil => addl (mull v1 (L (Int64.repr sc))) (L (Int64.repr ofs)) | Aindexed2scaled sc ofs, v1::v2::nil => addl v1 (addl (mull v2 (L (Int64.repr sc))) (L (Int64.repr ofs))) | Aglobal s ofs, nil => Ptr (Gl s ofs) | Abased s ofs, v1::nil => addl (Ptr (Gl s ofs)) v1 | Abasedscaled sc s ofs, v1::nil => addl (Ptr (Gl s ofs)) (mull v1 (L (Int64.repr sc))) | Ainstack ofs, nil => Ptr(Stk ofs) | _, _ => Vbot end.",
+            "VernacDefinition",
+            "9446bcbb351c2a08a39b24299e3f7bc4e603faee"
+        ],
+        [
+            "Definition eval_static_addressing (addr: addressing) (vl: list aval): aval := if Archi.ptr64 then eval_static_addressing_64 addr vl else eval_static_addressing_32 addr vl.",
+            "VernacDefinition",
+            "32f5547318e5efcb5974d1b62f28dd38d09a5ac2"
+        ],
+        [
+            "Definition eval_static_operation (op: operation) (vl: list aval): aval := match op, vl with | Omove, v1::nil => v1 | Ointconst n, nil => I n | Olongconst n, nil => L n | Ofloatconst n, nil => if propagate_float_constants tt then F n else ntop | Osingleconst n, nil => if propagate_float_constants tt then FS n else ntop | Oindirectsymbol id, nil => Ifptr (Gl id Ptrofs.zero) | Ocast8signed, v1 :: nil => sign_ext 8 v1 | Ocast8unsigned, v1 :: nil => zero_ext 8 v1 | Ocast16signed, v1 :: nil => sign_ext 16 v1 | Ocast16unsigned, v1 :: nil => zero_ext 16 v1 | Oneg, v1::nil => neg v1 | Osub, v1::v2::nil => sub v1 v2 | Omul, v1::v2::nil => mul v1 v2 | Omulimm n, v1::nil => mul v1 (I n) | Omulhs, v1::v2::nil => mulhs v1 v2 | Omulhu, v1::v2::nil => mulhu v1 v2 | Odiv, v1::v2::nil => divs v1 v2 | Odivu, v1::v2::nil => divu v1 v2 | Omod, v1::v2::nil => mods v1 v2 | Omodu, v1::v2::nil => modu v1 v2 | Oand, v1::v2::nil => and v1 v2 | Oandimm n, v1::nil => and v1 (I n) | Oor, v1::v2::nil => or v1 v2 | Oorimm n, v1::nil => or v1 (I n) | Oxor, v1::v2::nil => xor v1 v2 | Oxorimm n, v1::nil => xor v1 (I n) | Onot, v1::nil => notint v1 | Oshl, v1::v2::nil => shl v1 v2 | Oshlimm n, v1::nil => shl v1 (I n) | Oshr, v1::v2::nil => shr v1 v2 | Oshrimm n, v1::nil => shr v1 (I n) | Oshrximm n, v1::nil => shrx v1 (I n) | Oshru, v1::v2::nil => shru v1 v2 | Oshruimm n, v1::nil => shru v1 (I n) | Ororimm n, v1::nil => ror v1 (I n) | Oshldimm n, v1::v2::nil => or (shl v1 (I n)) (shru v2 (I (Int.sub Int.iwordsize n))) | Olea addr, _ => eval_static_addressing_32 addr vl | Omakelong, v1::v2::nil => longofwords v1 v2 | Olowlong, v1::nil => loword v1 | Ohighlong, v1::nil => hiword v1 | Ocast32signed, v1::nil => longofint v1 | Ocast32unsigned, v1::nil => longofintu v1 | Onegl, v1::nil => negl v1 | Oaddlimm n, v1::nil => addl v1 (L n) | Osubl, v1::v2::nil => subl v1 v2 | Omull, v1::v2::nil => mull v1 v2 | Omullimm n, v1::nil => mull v1 (L n) | Omullhs, v1::v2::nil => mullhs v1 v2 | Omullhu, v1::v2::nil => mullhu v1 v2 | Odivl, v1::v2::nil => divls v1 v2 | Odivlu, v1::v2::nil => divlu v1 v2 | Omodl, v1::v2::nil => modls v1 v2 | Omodlu, v1::v2::nil => modlu v1 v2 | Oandl, v1::v2::nil => andl v1 v2 | Oandlimm n, v1::nil => andl v1 (L n) | Oorl, v1::v2::nil => orl v1 v2 | Oorlimm n, v1::nil => orl v1 (L n) | Oxorl, v1::v2::nil => xorl v1 v2 | Oxorlimm n, v1::nil => xorl v1 (L n) | Onotl, v1::nil => notl v1 | Oshll, v1::v2::nil => shll v1 v2 | Oshllimm n, v1::nil => shll v1 (I n) | Oshrl, v1::v2::nil => shrl v1 v2 | Oshrlimm n, v1::nil => shrl v1 (I n) | Oshrxlimm n, v1::nil => shrxl v1 (I n) | Oshrlu, v1::v2::nil => shrlu v1 v2 | Oshrluimm n, v1::nil => shrlu v1 (I n) | Ororlimm n, v1::nil => rorl v1 (I n) | Oleal addr, _ => eval_static_addressing_64 addr vl | Onegf, v1::nil => negf v1 | Oabsf, v1::nil => absf v1 | Oaddf, v1::v2::nil => addf v1 v2 | Osubf, v1::v2::nil => subf v1 v2 | Omulf, v1::v2::nil => mulf v1 v2 | Odivf, v1::v2::nil => divf v1 v2 | Onegfs, v1::nil => negfs v1 | Oabsfs, v1::nil => absfs v1 | Oaddfs, v1::v2::nil => addfs v1 v2 | Osubfs, v1::v2::nil => subfs v1 v2 | Omulfs, v1::v2::nil => mulfs v1 v2 | Odivfs, v1::v2::nil => divfs v1 v2 | Osingleoffloat, v1::nil => singleoffloat v1 | Ofloatofsingle, v1::nil => floatofsingle v1 | Ointoffloat, v1::nil => intoffloat v1 | Ofloatofint, v1::nil => floatofint v1 | Ointofsingle, v1::nil => intofsingle v1 | Osingleofint, v1::nil => singleofint v1 | Olongoffloat, v1::nil => longoffloat v1 | Ofloatoflong, v1::nil => floatoflong v1 | Olongofsingle, v1::nil => longofsingle v1 | Osingleoflong, v1::nil => singleoflong v1 | Ocmp c, _ => of_optbool (eval_static_condition c vl) | _, _ => Vbot end.",
+            "VernacDefinition",
+            "9f7f1bfa8e910ba8b355a0e9b559cc6332e26a1a"
+        ],
+        [
+            "Section SOUNDNESS.",
+            "VernacBeginSection",
+            "e6bbdd6134d7e98db7d2ebb5be46b84296dd8af8"
+        ],
+        [
+            "Variable bc: block_classification.",
+            "VernacAssumption",
+            "8683381453bea83eaf6637cf8af4d2b81eb2843c"
+        ],
+        [
+            "Variable ge: genv.",
+            "VernacAssumption",
+            "5dcbd76196753bb6e2da03561ae76151d62a94d8"
+        ],
+        [
+            "Hypothesis GENV: genv_match bc ge.",
+            "VernacAssumption",
+            "64b966f02574ae9d3ce1a4d78485de1a3cac1922"
+        ],
+        [
+            "Variable sp: block.",
+            "VernacAssumption",
+            "a3dde6ef32946049a345907e86bc5cb3ddf56534"
+        ],
+        [
+            "Hypothesis STACK: bc sp = BCstack.",
+            "VernacAssumption",
+            "301df0f72b206087b627a5e41b5091cf9e8e457c"
+        ],
+        [
+            "Theorem eval_static_condition_sound: forall cond vargs m aargs, list_forall2 (vmatch bc) vargs aargs -> cmatch (eval_condition cond vargs m) (eval_static_condition cond aargs).",
+            "VernacStartTheoremProof",
+            "c711a69174cb7dd68d440982ace5066e3674b113"
+        ],
+        [
+            "intros until aargs; intros VM.",
+            "VernacExtend",
+            "8785d818e0025df65c9b3a324e8b0d9d685807df"
+        ],
+        [
+            "inv VM.",
+            "VernacExtend",
+            "4c2ea15008de4e5929f17ff44f6c231d09d8974c"
+        ],
+        [
+            "destruct cond; auto with va.",
+            "VernacExtend",
+            "82ca0ac5cc564644c5a33de592a027363a80d701"
+        ],
+        [
+            "inv H0.",
+            "VernacExtend",
+            "52c34ef20c88d5292e2350aff94f149a3968b772"
+        ],
+        [
+            "destruct cond; simpl; eauto with va.",
+            "VernacExtend",
+            "c1f8c7fe1e1dbc47cc27b8ddd81f029533c8378e"
+        ],
+        [
+            "inv H2.",
+            "VernacExtend",
+            "6144021562e950304ba8e947fdc2423691182458"
+        ],
+        [
+            "destruct cond; simpl; eauto with va.",
+            "VernacExtend",
+            "c1f8c7fe1e1dbc47cc27b8ddd81f029533c8378e"
+        ],
+        [
+            "destruct cond; auto with va.",
+            "VernacExtend",
+            "82ca0ac5cc564644c5a33de592a027363a80d701"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma symbol_address_sound: forall id ofs, vmatch bc (Genv.symbol_address ge id ofs) (Ptr (Gl id ofs)).",
+            "VernacStartTheoremProof",
+            "a88e3f7e1f702dc384ad62446c11dd0548bb0991"
+        ],
+        [
+            "intros; apply symbol_address_sound; apply GENV.",
+            "VernacExtend",
+            "451749f3896eabdd148390d538d55c0dff32c855"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma symbol_address_sound_2: forall id ofs, vmatch bc (Genv.symbol_address ge id ofs) (Ifptr (Gl id ofs)).",
+            "VernacStartTheoremProof",
+            "5af183ce3954f06a80e378588d80214825838746"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold Genv.symbol_address.",
+            "VernacExtend",
+            "c6218f47a613882d057e358243c0e4c2406589ab"
+        ],
+        [
+            "destruct (Genv.find_symbol ge id) as [b|] eqn:F.",
+            "VernacExtend",
+            "d307a76b3ce2f4b7a91d9d99d10d4d3e2742aa8e"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "apply GENV; auto.",
+            "VernacExtend",
+            "5dab6173a2c4eb1a36aaf154e13fa78dc74046cd"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Hint Resolve symbol_address_sound symbol_address_sound_2: va.",
+            "VernacHints",
+            "8a471746a533791859ad1d9dbaa7c844782687e3"
+        ],
+        [
+            "Ltac InvHyps := match goal with | [H: None = Some _ |- _ ] => discriminate | [H: Some _ = Some _ |- _] => inv H | [H1: match ?vl with nil => _ | _ :: _ => _ end = Some _ , H2: list_forall2 _ ?vl _ |- _ ] => inv H2; InvHyps | [H: (if Archi.ptr64 then _ else _) = Some _ |- _] => destruct Archi.ptr64 eqn:?; InvHyps | _ => idtac end.",
+            "VernacExtend",
+            "813dcf19a9846efede83b987979304ced64b9a3e"
+        ],
+        [
+            "Theorem eval_static_addressing_32_sound: forall addr vargs vres aargs, eval_addressing32 ge (Vptr sp Ptrofs.zero) addr vargs = Some vres -> list_forall2 (vmatch bc) vargs aargs -> vmatch bc vres (eval_static_addressing_32 addr aargs).",
+            "VernacStartTheoremProof",
+            "5fa9521a545403a4bf86288c4277039003b05144"
+        ],
+        [
+            "unfold eval_addressing32, eval_static_addressing_32; intros; destruct addr; InvHyps; eauto with va.",
+            "VernacExtend",
+            "79dbf63432422bc192dc40d7619c6c48d2be0c80"
+        ],
+        [
+            "rewrite Ptrofs.add_zero_l; eauto with va.",
+            "VernacExtend",
+            "b0e77e86e183019c8a6ee750766ca3734706146d"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem eval_static_addressing_64_sound: forall addr vargs vres aargs, eval_addressing64 ge (Vptr sp Ptrofs.zero) addr vargs = Some vres -> list_forall2 (vmatch bc) vargs aargs -> vmatch bc vres (eval_static_addressing_64 addr aargs).",
+            "VernacStartTheoremProof",
+            "bae9f174d870e9528a7ecfdad0d2ac8f55ac1d9b"
+        ],
+        [
+            "unfold eval_addressing64, eval_static_addressing_64; intros; destruct addr; InvHyps; eauto with va.",
+            "VernacExtend",
+            "97ef6258de6a22aba999369b1d6b995a665c522f"
+        ],
+        [
+            "rewrite Ptrofs.add_zero_l; eauto with va.",
+            "VernacExtend",
+            "b0e77e86e183019c8a6ee750766ca3734706146d"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem eval_static_addressing_sound: forall addr vargs vres aargs, eval_addressing ge (Vptr sp Ptrofs.zero) addr vargs = Some vres -> list_forall2 (vmatch bc) vargs aargs -> vmatch bc vres (eval_static_addressing addr aargs).",
+            "VernacStartTheoremProof",
+            "1d561fb6c55b47897e69fa7ef2c508d57704890f"
+        ],
+        [
+            "unfold eval_addressing, eval_static_addressing; intros.",
+            "VernacExtend",
+            "aeabd7b94d8a25f57f90e80482f3a9498606858f"
+        ],
+        [
+            "destruct Archi.ptr64; eauto using eval_static_addressing_32_sound, eval_static_addressing_64_sound.",
+            "VernacExtend",
+            "67b390ae39edeba7e7e4d7fc4cb00c678143bdf0"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem eval_static_operation_sound: forall op vargs m vres aargs, eval_operation ge (Vptr sp Ptrofs.zero) op vargs m = Some vres -> list_forall2 (vmatch bc) vargs aargs -> vmatch bc vres (eval_static_operation op aargs).",
+            "VernacStartTheoremProof",
+            "6dae6556ed8b427d4b70853919727b16cb0b2eb5"
+        ],
+        [
+            "unfold eval_operation, eval_static_operation; intros; destruct op; InvHyps; eauto with va.",
+            "VernacExtend",
+            "38b5131c4c5889271bff44e7b4108896a0ed4f37"
+        ],
+        [
+            "destruct (propagate_float_constants tt); constructor.",
+            "VernacExtend",
+            "05cc1f83b0a321d7a4aac3d02a39c5625eacf1fb"
+        ],
+        [
+            "destruct (propagate_float_constants tt); constructor.",
+            "VernacExtend",
+            "05cc1f83b0a321d7a4aac3d02a39c5625eacf1fb"
+        ],
+        [
+            "eapply eval_static_addressing_32_sound; eauto.",
+            "VernacExtend",
+            "a2d41e16f897b3deaeb533210f3872edf1bbcae6"
+        ],
+        [
+            "eapply eval_static_addressing_64_sound; eauto.",
+            "VernacExtend",
+            "0e18ca7d2487fbc14f7ec7d5991efe4be171b7d2"
+        ],
+        [
+            "apply of_optbool_sound.",
+            "VernacExtend",
+            "f9e7efc55a48db2ccec02c2fc7f247664a136d20"
+        ],
+        [
+            "eapply eval_static_condition_sound; eauto.",
+            "VernacExtend",
+            "f2e4f7d4c4bbb397b8888d3cc1a57fa4b9f1ba7c"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End SOUNDNESS.",
+            "VernacEndSegment",
+            "439afe52c0215156c65a775d7ff784e814b001bc"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "eval_static_condition_sound",
+            "line_nb": 14,
+            "steps": [
+                {
+                    "command": [
+                        "intros until aargs; intros VM.",
+                        "VernacExtend",
+                        "8785d818e0025df65c9b3a324e8b0d9d685807df"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv VM.",
+                        "VernacExtend",
+                        "4c2ea15008de4e5929f17ff44f6c231d09d8974c"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct cond; auto with va.",
+                        "VernacExtend",
+                        "82ca0ac5cc564644c5a33de592a027363a80d701"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H0.",
+                        "VernacExtend",
+                        "52c34ef20c88d5292e2350aff94f149a3968b772"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct cond; simpl; eauto with va.",
+                        "VernacExtend",
+                        "c1f8c7fe1e1dbc47cc27b8ddd81f029533c8378e"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H2.",
+                        "VernacExtend",
+                        "6144021562e950304ba8e947fdc2423691182458"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct cond; simpl; eauto with va.",
+                        "VernacExtend",
+                        "c1f8c7fe1e1dbc47cc27b8ddd81f029533c8378e"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct cond; auto with va.",
+                        "VernacExtend",
+                        "82ca0ac5cc564644c5a33de592a027363a80d701"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "symbol_address_sound",
+            "line_nb": 24,
+            "steps": [
+                {
+                    "command": [
+                        "intros; apply symbol_address_sound; apply GENV.",
+                        "VernacExtend",
+                        "451749f3896eabdd148390d538d55c0dff32c855"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "symbol_address_sound_2",
+            "line_nb": 27,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold Genv.symbol_address.",
+                        "VernacExtend",
+                        "c6218f47a613882d057e358243c0e4c2406589ab"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (Genv.find_symbol ge id) as [b|] eqn:F.",
+                        "VernacExtend",
+                        "d307a76b3ce2f4b7a91d9d99d10d4d3e2742aa8e"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor.",
+                        "VernacExtend",
+                        "3c77e6be855b5086df5e918bf2a0537e1010479a"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor.",
+                        "VernacExtend",
+                        "3c77e6be855b5086df5e918bf2a0537e1010479a"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply GENV; auto.",
+                        "VernacExtend",
+                        "5dab6173a2c4eb1a36aaf154e13fa78dc74046cd"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor.",
+                        "VernacExtend",
+                        "3c77e6be855b5086df5e918bf2a0537e1010479a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "eval_static_addressing_32_sound",
+            "line_nb": 38,
+            "steps": [
+                {
+                    "command": [
+                        "unfold eval_addressing32, eval_static_addressing_32; intros; destruct addr; InvHyps; eauto with va.",
+                        "VernacExtend",
+                        "79dbf63432422bc192dc40d7619c6c48d2be0c80"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Ptrofs.add_zero_l; eauto with va.",
+                        "VernacExtend",
+                        "b0e77e86e183019c8a6ee750766ca3734706146d"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "eval_static_addressing_64_sound",
+            "line_nb": 42,
+            "steps": [
+                {
+                    "command": [
+                        "unfold eval_addressing64, eval_static_addressing_64; intros; destruct addr; InvHyps; eauto with va.",
+                        "VernacExtend",
+                        "97ef6258de6a22aba999369b1d6b995a665c522f"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Ptrofs.add_zero_l; eauto with va.",
+                        "VernacExtend",
+                        "b0e77e86e183019c8a6ee750766ca3734706146d"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "eval_static_addressing_sound",
+            "line_nb": 46,
+            "steps": [
+                {
+                    "command": [
+                        "unfold eval_addressing, eval_static_addressing; intros.",
+                        "VernacExtend",
+                        "aeabd7b94d8a25f57f90e80482f3a9498606858f"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct Archi.ptr64; eauto using eval_static_addressing_32_sound, eval_static_addressing_64_sound.",
+                        "VernacExtend",
+                        "67b390ae39edeba7e7e4d7fc4cb00c678143bdf0"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "eval_static_operation_sound",
+            "line_nb": 50,
+            "steps": [
+                {
+                    "command": [
+                        "unfold eval_operation, eval_static_operation; intros; destruct op; InvHyps; eauto with va.",
+                        "VernacExtend",
+                        "38b5131c4c5889271bff44e7b4108896a0ed4f37"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (propagate_float_constants tt); constructor.",
+                        "VernacExtend",
+                        "05cc1f83b0a321d7a4aac3d02a39c5625eacf1fb"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (propagate_float_constants tt); constructor.",
+                        "VernacExtend",
+                        "05cc1f83b0a321d7a4aac3d02a39c5625eacf1fb"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply eval_static_addressing_32_sound; eauto.",
+                        "VernacExtend",
+                        "a2d41e16f897b3deaeb533210f3872edf1bbcae6"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply eval_static_addressing_64_sound; eauto.",
+                        "VernacExtend",
+                        "0e18ca7d2487fbc14f7ec7d5991efe4be171b7d2"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply of_optbool_sound.",
+                        "VernacExtend",
+                        "f9e7efc55a48db2ccec02c2fc7f247664a136d20"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply eval_static_condition_sound; eauto.",
+                        "VernacExtend",
+                        "f2e4f7d4c4bbb397b8888d3cc1a57fa4b9f1ba7c"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,1056 @@
+{
+    "filename": "progs/verif_incr.v",
+    "coq_project": "VST",
+    "vernac_cmds": [
+        [
+            "Require Import VST.progs.conclib.",
+            "VernacRequire",
+            "0bd1958c28a2e2e811eaaf594fa102beb41a1004"
+        ],
+        [
+            "Require Import VST.progs.ghosts.",
+            "VernacRequire",
+            "523a6022b6c1be10aa6be7664362f3ac8f7a050b"
+        ],
+        [
+            "Require Import VST.progs.incr.",
+            "VernacRequire",
+            "433edcfc3800c1acfb791006669c3caa7881cbc9"
+        ],
+        [
+            "Instance CompSpecs : compspecs.",
+            "VernacInstance",
+            "154eee01c656800e0ca79db421bf2abcdf325f7f"
+        ],
+        [
+            "make_compspecs prog.",
+            "VernacExtend",
+            "36220761a2e554d38938361d97a6a7824a7eb4eb"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Definition Vprog : varspecs.",
+            "VernacDefinition",
+            "071102901c915338608cbb3742cc92eff26260b2"
+        ],
+        [
+            "mk_varspecs prog.",
+            "VernacExtend",
+            "3d71166af717afdd6c2d6e7673cef893ac1c6afc"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Definition acquire_spec := DECLARE _acquire acquire_spec.",
+            "VernacDefinition",
+            "e16135726db46bb1ee3f1c7843e0c7f4b3628a36"
+        ],
+        [
+            "Definition release_spec := DECLARE _release release_spec.",
+            "VernacDefinition",
+            "2308e68e14c6b053461385d355397e5569611018"
+        ],
+        [
+            "Definition makelock_spec := DECLARE _makelock (makelock_spec _).",
+            "VernacDefinition",
+            "f43b9e9ec67e5792ee9459a37e77de66290064d0"
+        ],
+        [
+            "Definition freelock_spec := DECLARE _freelock (freelock_spec _).",
+            "VernacDefinition",
+            "f29850daf8be11017826f5ed60b0e8935befad1f"
+        ],
+        [
+            "Definition spawn_spec := DECLARE _spawn spawn_spec.",
+            "VernacDefinition",
+            "c260fbc870811ca1323c653af3d876050dfe4fea"
+        ],
+        [
+            "Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).",
+            "VernacDefinition",
+            "3603d39e0aa435afd9453f23bfd2356fe0b7cb8c"
+        ],
+        [
+            "Definition release2_spec := DECLARE _release2 release2_spec.",
+            "VernacDefinition",
+            "3d44217e638227792138150aad6be186686d3a8d"
+        ],
+        [
+            "Definition cptr_lock_inv g1 g2 ctr := EX z : Z, data_at Ews tuint (Vint (Int.repr z)) ctr * EX x : Z, EX y : Z, !!(z = x + y) && ghost_var gsh1 x g1 * ghost_var gsh1 y g2.",
+            "VernacDefinition",
+            "70eab5e88ae834b3e3b95f22e7193063627a604d"
+        ],
+        [
+            "Definition incr_spec := DECLARE _incr WITH sh : share, g1 : gname, g2 : gname, left : bool, n : Z, gv: globals PRE [ ] PROP (readable_share sh) LOCAL (gvars gv) SEP (lock_inv sh (gv _ctr_lock) (cptr_lock_inv g1 g2 (gv _ctr)); ghost_var gsh2 n (if left then g1 else g2)) POST [ tvoid ] PROP () LOCAL () SEP (lock_inv sh (gv _ctr_lock) (cptr_lock_inv g1 g2 (gv _ctr)); ghost_var gsh2 (n+1) (if left then g1 else g2)).",
+            "VernacDefinition",
+            "abb04297e822e910b35a227c4b9823ba141c7f37"
+        ],
+        [
+            "Definition read_spec := DECLARE _read WITH sh : share, g1 : gname, g2 : gname, n1 : Z, n2 : Z, gv: globals PRE [ ] PROP (readable_share sh) LOCAL (gvars gv) SEP (lock_inv sh (gv _ctr_lock) (cptr_lock_inv g1 g2 (gv _ctr)); ghost_var gsh2 n1 g1; ghost_var gsh2 n2 g2) POST [ tuint ] PROP () LOCAL (temp ret_temp (Vint (Int.repr (n1 + n2)))) SEP (lock_inv sh (gv _ctr_lock) (cptr_lock_inv g1 g2 (gv _ctr)); ghost_var gsh2 n1 g1; ghost_var gsh2 n2 g2).",
+            "VernacDefinition",
+            "d260eff6e79e723cce56ac55952c9e2568896218"
+        ],
+        [
+            "Definition thread_lock_R sh g1 g2 ctr lockc := lock_inv sh lockc (cptr_lock_inv g1 g2 ctr) * ghost_var gsh2 1 g1.",
+            "VernacDefinition",
+            "85634b13bbedcb9d7ee0bd7b93bae458c8778782"
+        ],
+        [
+            "Definition thread_lock_inv sh g1 g2 ctr lockc lockt := selflock (thread_lock_R sh g1 g2 ctr lockc) sh lockt.",
+            "VernacDefinition",
+            "788f4996ee219627871b7e49af363cffc7cfae0d"
+        ],
+        [
+            "Definition thread_func_spec := DECLARE _thread_func WITH y : val, x : share * gname * gname * globals PRE [ _args OF (tptr tvoid) ] let '(sh, g1, g2, gv) := x in PROP (readable_share sh) LOCAL (temp _args y; gvars gv) SEP (lock_inv sh (gv _ctr_lock) (cptr_lock_inv g1 g2 (gv _ctr)); ghost_var gsh2 0 g1; lock_inv sh (gv _thread_lock) (thread_lock_inv sh g1 g2 (gv _ctr) (gv _ctr_lock) (gv _thread_lock))) POST [ tptr tvoid ] PROP () LOCAL () SEP ().",
+            "VernacDefinition",
+            "7f9c6557b00b803bb2ad73795db1381925c1879c"
+        ],
+        [
+            "Definition main_spec := DECLARE _main WITH gv : globals PRE [] main_pre prog nil gv POST [ tint ] main_post prog nil gv.",
+            "VernacDefinition",
+            "0f22012860c727e5ebb861bb6a9befc1e472bedc"
+        ],
+        [
+            "Definition Gprog : funspecs := ltac:(with_library prog [acquire_spec; release_spec; release2_spec; makelock_spec; freelock_spec; freelock2_spec; spawn_spec; incr_spec; read_spec; thread_func_spec; main_spec]).",
+            "VernacDefinition",
+            "507634e03538b8160f3b1b956f33247295840ea7"
+        ],
+        [
+            "Lemma ctr_inv_exclusive : forall g1 g2 p, exclusive_mpred (cptr_lock_inv g1 g2 p).",
+            "VernacStartTheoremProof",
+            "ee7d75b4cab5665c569497c43d361d5bf4337c27"
+        ],
+        [
+            "intros; unfold cptr_lock_inv.",
+            "VernacExtend",
+            "1c290bdd9188cfc08fc97dedec2c695cf804529c"
+        ],
+        [
+            "eapply derives_exclusive, exclusive_sepcon1 with (Q := EX x : Z, EX y : Z, _), data_at__exclusive with (sh := Ews)(t := tuint); auto; simpl; try omega.",
+            "VernacExtend",
+            "9ee0d357a4185128d0af3d6ef0193af14a75c340"
+        ],
+        [
+            "Intro z; apply sepcon_derives; [cancel|].",
+            "VernacExtend",
+            "cc6c3d0e766fb6f6c08277a80afacab26f404ded"
+        ],
+        [
+            "Intros x y; Exists x y; apply derives_refl.",
+            "VernacExtend",
+            "de73a9aac8d1c5b87a128f6b375c197709f9c9d8"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Hint Resolve ctr_inv_exclusive.",
+            "VernacHints",
+            "f460f2380204362e3a096a3c393b74580c4870ec"
+        ],
+        [
+            "Lemma thread_inv_exclusive : forall sh g1 g2 ctr lock lockt, exclusive_mpred (thread_lock_inv sh g1 g2 ctr lock lockt).",
+            "VernacStartTheoremProof",
+            "dbe4e9edbb58e9bc70f99e72ea8bf193374087f2"
+        ],
+        [
+            "intros; apply selflock_exclusive.",
+            "VernacExtend",
+            "9dda4543d58af165aa558478e3c207fbe78dccd7"
+        ],
+        [
+            "unfold thread_lock_R.",
+            "VernacExtend",
+            "1a8a3bb9de001a2ee79eb6b0a500c7c896e96e25"
+        ],
+        [
+            "apply exclusive_sepcon1; auto.",
+            "VernacExtend",
+            "0e9799f4471bee50d623e30263d10d34bee3e5fd"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Hint Resolve thread_inv_exclusive.",
+            "VernacHints",
+            "a788385bae68fde1e253fb332a9f881ee8186cab"
+        ],
+        [
+            "Lemma body_incr: semax_body Vprog Gprog f_incr incr_spec.",
+            "VernacStartTheoremProof",
+            "b248372ed11347016f07b75f771073b59e418903"
+        ],
+        [
+            "start_function.",
+            "VernacExtend",
+            "c9d31eecaa0cff79fee4b43862828db880600e1a"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "forward_call (gv _ctr_lock, sh, cptr_lock_inv g1 g2 (gv _ctr)).",
+            "VernacExtend",
+            "ee0f1c651237a6f604e46b03476062a5e4b108f2"
+        ],
+        [
+            "unfold cptr_lock_inv at 2; simpl.",
+            "VernacExtend",
+            "bbd610f600b0bc0e240d7ce9adac8c3e0eca057d"
+        ],
+        [
+            "Intros z x y.",
+            "VernacExtend",
+            "f3d6f68ceed5d24b28ec8a20f475568d253df1ed"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "gather_SEP 2 3 4.",
+            "VernacExtend",
+            "d7b49ea08e45d2d24f762e9f5cd502cdc4fcdea0"
+        ],
+        [
+            "viewshift_SEP 0 (!!((if left then x else y) = n) && ghost_var Tsh (n+1) (if left then g1 else g2) * ghost_var gsh1 (if left then y else x) (if left then g2 else g1)).",
+            "VernacExtend",
+            "0d8ff4e2e882ea70a3063f3fd3ad004490be1ec7"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "go_lower.",
+            "VernacExtend",
+            "d6b54aba72ec5a53fa2099a2f5052802a64b0840"
+        ],
+        [
+            "destruct left.",
+            "VernacExtend",
+            "f4bdf7503f49420ffccf5a91de99470acb3edcf0"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite (sepcon_comm _ (ghost_var _ _ _)), <- sepcon_assoc.",
+            "VernacExtend",
+            "b7e85f3215e1d268e00a721b4772122cb9dcb453"
+        ],
+        [
+            "erewrite ghost_var_share_join' by eauto.",
+            "VernacExtend",
+            "c1774535d1c9d4823bbd95c37941b495aad32fd5"
+        ],
+        [
+            "Intros; rewrite prop_true_andp by auto; eapply derives_trans, bupd_frame_r; cancel.",
+            "VernacExtend",
+            "7e264b1d76873b6b9e5979176213b503856d756f"
+        ],
+        [
+            "apply ghost_var_update.",
+            "VernacExtend",
+            "83ec52c3a4796204c4bbe6f1dcb4514ba44da3ca"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "erewrite ghost_var_share_join' by eauto.",
+            "VernacExtend",
+            "c1774535d1c9d4823bbd95c37941b495aad32fd5"
+        ],
+        [
+            "Intros; rewrite prop_true_andp by auto; eapply derives_trans, bupd_frame_r; cancel.",
+            "VernacExtend",
+            "7e264b1d76873b6b9e5979176213b503856d756f"
+        ],
+        [
+            "apply ghost_var_update.",
+            "VernacExtend",
+            "83ec52c3a4796204c4bbe6f1dcb4514ba44da3ca"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "Intros; forward_call (gv _ctr_lock, sh, cptr_lock_inv g1 g2 (gv _ctr)).",
+            "VernacExtend",
+            "678a3a7449b89255364252b130aea31e1b51b8d3"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "lock_props.",
+            "VernacExtend",
+            "b6118e7c976db642b13cbc7dbf357fb59a49cf8b"
+        ],
+        [
+            "unfold cptr_lock_inv; Exists (z + 1).",
+            "VernacExtend",
+            "4b81e9d02b0805702ca0ca0515e2754b2697596d"
+        ],
+        [
+            "erewrite <- ghost_var_share_join by eauto.",
+            "VernacExtend",
+            "6e49dc07bce72619a4c1191fab074e375901ddd6"
+        ],
+        [
+            "unfold Frame; instantiate (1 := [ghost_var gsh2 (n+1) (if left then g1 else g2)]); simpl.",
+            "VernacExtend",
+            "84a2e471c34928917bb44a487d21ecd9410d5148"
+        ],
+        [
+            "destruct left.",
+            "VernacExtend",
+            "f4bdf7503f49420ffccf5a91de99470acb3edcf0"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "Exists (n+1) y; entailer!.",
+            "VernacExtend",
+            "ba16e64cc9378813c2f34693b091e81978873943"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "Exists x (n+1); entailer!.",
+            "VernacExtend",
+            "2e012d2e8e7765e27b096438fce9b34ee402ddb2"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma body_read : semax_body Vprog Gprog f_read read_spec.",
+            "VernacStartTheoremProof",
+            "dcd92626cd8a7504f16f00032ee5b7b597583827"
+        ],
+        [
+            "start_function.",
+            "VernacExtend",
+            "c9d31eecaa0cff79fee4b43862828db880600e1a"
+        ],
+        [
+            "forward_call (gv _ctr_lock, sh, cptr_lock_inv g1 g2 (gv _ctr)).",
+            "VernacExtend",
+            "ee0f1c651237a6f604e46b03476062a5e4b108f2"
+        ],
+        [
+            "unfold cptr_lock_inv at 2; simpl.",
+            "VernacExtend",
+            "bbd610f600b0bc0e240d7ce9adac8c3e0eca057d"
+        ],
+        [
+            "Intros z x y.",
+            "VernacExtend",
+            "f3d6f68ceed5d24b28ec8a20f475568d253df1ed"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "assert_PROP (x = n1 /\\ y = n2) as Heq.",
+            "VernacExtend",
+            "1427d2103bdd52945e8950c8618cf25204bc2b49"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "gather_SEP 2 4.",
+            "VernacExtend",
+            "d3c2982839e0a0c078389aea8eb1a8aa21add607"
+        ],
+        [
+            "erewrite ghost_var_share_join' by eauto.",
+            "VernacExtend",
+            "c1774535d1c9d4823bbd95c37941b495aad32fd5"
+        ],
+        [
+            "gather_SEP 3 4.",
+            "VernacExtend",
+            "1b99b361b7b49f1bb2e9cc6125e5e5d48fea6288"
+        ],
+        [
+            "erewrite ghost_var_share_join' by eauto.",
+            "VernacExtend",
+            "c1774535d1c9d4823bbd95c37941b495aad32fd5"
+        ],
+        [
+            "entailer!.",
+            "VernacExtend",
+            "e9311eb469ece63c985af7872ea148a97277818d"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "forward_call (gv _ctr_lock, sh, cptr_lock_inv g1 g2 (gv _ctr)).",
+            "VernacExtend",
+            "ee0f1c651237a6f604e46b03476062a5e4b108f2"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "lock_props.",
+            "VernacExtend",
+            "b6118e7c976db642b13cbc7dbf357fb59a49cf8b"
+        ],
+        [
+            "unfold cptr_lock_inv; Exists z x y; entailer!.",
+            "VernacExtend",
+            "b11b08b2eddb16b5ce1eac6645f2f71199bdb29a"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "destruct Heq; forward.",
+            "VernacExtend",
+            "2b772646d8da5dc264230352f095b20217f90993"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma body_thread_func : semax_body Vprog Gprog f_thread_func thread_func_spec.",
+            "VernacStartTheoremProof",
+            "96511eb04f2484be74ee1f897796a8ab30c4a2da"
+        ],
+        [
+            "start_function.",
+            "VernacExtend",
+            "c9d31eecaa0cff79fee4b43862828db880600e1a"
+        ],
+        [
+            "Intros.",
+            "VernacExtend",
+            "58784a78af6fa36ccbd531d2a460b187e88b99db"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "forward_call (sh, g1, g2, true, 0, gv).",
+            "VernacExtend",
+            "010254351f4421759b64d815f7d29c49cc81ccb6"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "forward_call ((gv _thread_lock), sh, thread_lock_R sh g1 g2 (gv _ctr) (gv _ctr_lock), thread_lock_inv sh g1 g2 (gv _ctr) (gv _ctr_lock) (gv _thread_lock)).",
+            "VernacExtend",
+            "b5f435eb23cfb9766a66f115bd2a35ab4f719523"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "lock_props.",
+            "VernacExtend",
+            "b6118e7c976db642b13cbc7dbf357fb59a49cf8b"
+        ],
+        [
+            "unfold thread_lock_inv, thread_lock_R.",
+            "VernacExtend",
+            "bf5e4cf094c9302d19191f136e4b20491c66ccb6"
+        ],
+        [
+            "rewrite selflock_eq at 2; cancel.",
+            "VernacExtend",
+            "04d0e8765046ab8c5aa181abb495919b6823fef0"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Ltac cancel_for_forward_call ::= match goal with | gv: globals |- _ => repeat match goal with | x := gv ?i |- context [gv ?i] => change (gv i) with x end | _ => idtac end; cancel_for_evar_frame.",
+            "VernacExtend",
+            "5ff767d69f331fc1f81bcc01d37802eab8cc95a2"
+        ],
+        [
+            "Lemma body_main: semax_body Vprog Gprog f_main main_spec.",
+            "VernacStartTheoremProof",
+            "85a708d624631a1347a8e25eb25f081de372da3b"
+        ],
+        [
+            "start_function.",
+            "VernacExtend",
+            "c9d31eecaa0cff79fee4b43862828db880600e1a"
+        ],
+        [
+            "set (ctr := gv _ctr); set (lockt := gv _thread_lock); set (lock := gv _ctr_lock).",
+            "VernacExtend",
+            "84bc3348116d1ff958113da7db78650c3d99fc79"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "ghost_alloc (ghost_var Tsh 0).",
+            "VernacExtend",
+            "85cc962fa13ca85d6c7da68b28187119f97cb4cf"
+        ],
+        [
+            "Intro g1.",
+            "VernacExtend",
+            "0e36c12404042703654e8f8a739444a5a29a0655"
+        ],
+        [
+            "ghost_alloc (ghost_var Tsh 0).",
+            "VernacExtend",
+            "85cc962fa13ca85d6c7da68b28187119f97cb4cf"
+        ],
+        [
+            "Intro g2.",
+            "VernacExtend",
+            "907ceb8c3aa9f95104f505e5d692798eb39b6715"
+        ],
+        [
+            "forward_call (lock, Ews, cptr_lock_inv g1 g2 ctr).",
+            "VernacExtend",
+            "7c7ff86b7e0c7687a5e1ddd3fe5902793cebff7e"
+        ],
+        [
+            "forward_call (lock, Ews, cptr_lock_inv g1 g2 ctr).",
+            "VernacExtend",
+            "7c7ff86b7e0c7687a5e1ddd3fe5902793cebff7e"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "lock_props.",
+            "VernacExtend",
+            "b6118e7c976db642b13cbc7dbf357fb59a49cf8b"
+        ],
+        [
+            "rewrite <- !(ghost_var_share_join gsh1 gsh2 Tsh) by auto.",
+            "VernacExtend",
+            "eef74809460bd9861c3894ee85ff13dc2b5c591a"
+        ],
+        [
+            "unfold cptr_lock_inv; Exists 0 0 0; entailer!.",
+            "VernacExtend",
+            "5cf3d4fd42513806e111913961bdc550a68c345f"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).",
+            "VernacExtend",
+            "5e474c889cc7a8fa66cf850f1b82e5b9ffe37ac9"
+        ],
+        [
+            "forward_call (lockt, Ews, thread_lock_inv sh1 g1 g2 ctr lock lockt).",
+            "VernacExtend",
+            "cb9720da5490557213a51d7082513d2a5add3309"
+        ],
+        [
+            "forward_spawn _thread_func nullval (sh1, g1, g2, gv).",
+            "VernacExtend",
+            "689f4be399e0319ffcabd35058dda950c6648a26"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "erewrite <- lock_inv_share_join; try apply Hsh; auto.",
+            "VernacExtend",
+            "a9aef36489377a8d11123bb874e1b0ffe13dfc69"
+        ],
+        [
+            "erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto.",
+            "VernacExtend",
+            "d86955178ced4a247e2adc48e557a59373e04c96"
+        ],
+        [
+            "entailer!.",
+            "VernacExtend",
+            "e9311eb469ece63c985af7872ea148a97277818d"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "forward_call (sh2, g1, g2, false, 0, gv).",
+            "VernacExtend",
+            "8a8d01ce71ec73d4cbc8314d48d74c3a03f0a98e"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "forward_call (lockt, sh2, thread_lock_inv sh1 g1 g2 ctr lock lockt).",
+            "VernacExtend",
+            "1bc756eff4c093a72c59c1ad656c74d3014dea1c"
+        ],
+        [
+            "unfold thread_lock_inv at 2; unfold thread_lock_R.",
+            "VernacExtend",
+            "752afebc8580e7589b743720a5ec91fa9bca5e63"
+        ],
+        [
+            "rewrite selflock_eq.",
+            "VernacExtend",
+            "d7e90abe08cc883824d979e8731983c59ce5d6e3"
+        ],
+        [
+            "Intros.",
+            "VernacExtend",
+            "58784a78af6fa36ccbd531d2a460b187e88b99db"
+        ],
+        [
+            "forward_call (sh2, g1, g2, 1, 1, gv).",
+            "VernacExtend",
+            "1b553f03d024a2275a45efc84dd8fc5badb4da45"
+        ],
+        [
+            "forward_call (lock, sh2, cptr_lock_inv g1 g2 ctr).",
+            "VernacExtend",
+            "8c864536ce958c0813b6f2716b78b018012ea2f2"
+        ],
+        [
+            "forward_call (lockt, Ews, sh1, thread_lock_R sh1 g1 g2 ctr lock, thread_lock_inv sh1 g1 g2 ctr lock lockt).",
+            "VernacExtend",
+            "7a03ab98c2c806d1d0904208dbe3e3e30517db5b"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "lock_props.",
+            "VernacExtend",
+            "b6118e7c976db642b13cbc7dbf357fb59a49cf8b"
+        ],
+        [
+            "unfold thread_lock_inv, thread_lock_R.",
+            "VernacExtend",
+            "bf5e4cf094c9302d19191f136e4b20491c66ccb6"
+        ],
+        [
+            "erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel.",
+            "VernacExtend",
+            "9380ee6e580488068031c22e7cd0d428175d3497"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "forward_call (lock, Ews, cptr_lock_inv g1 g2 ctr).",
+            "VernacExtend",
+            "7c7ff86b7e0c7687a5e1ddd3fe5902793cebff7e"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "lock_props.",
+            "VernacExtend",
+            "b6118e7c976db642b13cbc7dbf357fb59a49cf8b"
+        ],
+        [
+            "erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel.",
+            "VernacExtend",
+            "9380ee6e580488068031c22e7cd0d428175d3497"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition extlink := ext_link_prog prog.",
+            "VernacDefinition",
+            "ca1a51eec9d0dc648eb06feeee6e219253a7b626"
+        ],
+        [
+            "Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.",
+            "VernacDefinition",
+            "a2247b6b93f5016f5f0481043621748a0ff70836"
+        ],
+        [
+            "Existing Instance Espec.",
+            "VernacDeclareInstances",
+            "91111fc99c043c6966794e0cdfc73ab2378dfd37"
+        ],
+        [
+            "Lemma prog_correct: semax_prog prog Vprog Gprog.",
+            "VernacStartTheoremProof",
+            "c25859d2311f9b5cf6f4e0294f44c9072a4e49ec"
+        ],
+        [
+            "prove_semax_prog.",
+            "VernacExtend",
+            "e712159a341b36ef78a2c42df02bfd4c0041448b"
+        ],
+        [
+            "repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).",
+            "VernacExtend",
+            "4f2446d1ee389286cb0fe333e89d1214b9a0665a"
+        ],
+        [
+            "semax_func_cons_ext.",
+            "VernacExtend",
+            "7aa683fc73cf7d3bdc1981befcbe1c1fe0b5eb69"
+        ],
+        [
+            "semax_func_cons_ext.",
+            "VernacExtend",
+            "7aa683fc73cf7d3bdc1981befcbe1c1fe0b5eb69"
+        ],
+        [
+            "semax_func_cons_ext.",
+            "VernacExtend",
+            "7aa683fc73cf7d3bdc1981befcbe1c1fe0b5eb69"
+        ],
+        [
+            "semax_func_cons_ext.",
+            "VernacExtend",
+            "7aa683fc73cf7d3bdc1981befcbe1c1fe0b5eb69"
+        ],
+        [
+            "semax_func_cons_ext.",
+            "VernacExtend",
+            "7aa683fc73cf7d3bdc1981befcbe1c1fe0b5eb69"
+        ],
+        [
+            "semax_func_cons_ext.",
+            "VernacExtend",
+            "7aa683fc73cf7d3bdc1981befcbe1c1fe0b5eb69"
+        ],
+        [
+            "semax_func_cons_ext.",
+            "VernacExtend",
+            "7aa683fc73cf7d3bdc1981befcbe1c1fe0b5eb69"
+        ],
+        [
+            "semax_func_cons body_incr.",
+            "VernacExtend",
+            "3c299ee470cec77e74eedec388a177f5025f1c4a"
+        ],
+        [
+            "semax_func_cons body_read.",
+            "VernacExtend",
+            "fce4f073c926dab9cf89dff4ff2fd7e49d85c5d4"
+        ],
+        [
+            "semax_func_cons body_thread_func.",
+            "VernacExtend",
+            "c31d23e8666a62cdd0c2c3db8aa49ef7c52cb528"
+        ],
+        [
+            "semax_func_cons body_main.",
+            "VernacExtend",
+            "5762243e67ed09e007ac449ea2a947c5029be3be"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "CompSpecs",
+            "line_nb": 3,
+            "steps": [
+                {
+                    "command": [
+                        "make_compspecs prog.",
+                        "VernacExtend",
+                        "36220761a2e554d38938361d97a6a7824a7eb4eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Vprog",
+            "line_nb": 6,
+            "steps": [
+                {
+                    "command": [
+                        "mk_varspecs prog.",
+                        "VernacExtend",
+                        "3d71166af717afdd6c2d6e7673cef893ac1c6afc"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "thread_inv_exclusive",
+            "line_nb": 31,
+            "steps": [
+                {
+                    "command": [
+                        "intros; apply selflock_exclusive.",
+                        "VernacExtend",
+                        "9dda4543d58af165aa558478e3c207fbe78dccd7"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold thread_lock_R.",
+                        "VernacExtend",
+                        "1a8a3bb9de001a2ee79eb6b0a500c7c896e96e25"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply exclusive_sepcon1; auto.",
+                        "VernacExtend",
+                        "0e9799f4471bee50d623e30263d10d34bee3e5fd"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "prog_correct",
+            "line_nb": 159,
+            "steps": [
+                {
+                    "command": [
+                        "prove_semax_prog.",
+                        "VernacExtend",
+                        "e712159a341b36ef78a2c42df02bfd4c0041448b"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).",
+                        "VernacExtend",
+                        "4f2446d1ee389286cb0fe333e89d1214b9a0665a"
+                    ]
+                },
+                {
+                    "command": [
+                        "semax_func_cons_ext.",
+                        "VernacExtend",
+                        "7aa683fc73cf7d3bdc1981befcbe1c1fe0b5eb69"
+                    ]
+                },
+                {
+                    "command": [
+                        "semax_func_cons_ext.",
+                        "VernacExtend",
+                        "7aa683fc73cf7d3bdc1981befcbe1c1fe0b5eb69"
+                    ]
+                },
+                {
+                    "command": [
+                        "semax_func_cons_ext.",
+                        "VernacExtend",
+                        "7aa683fc73cf7d3bdc1981befcbe1c1fe0b5eb69"
+                    ]
+                },
+                {
+                    "command": [
+                        "semax_func_cons_ext.",
+                        "VernacExtend",
+                        "7aa683fc73cf7d3bdc1981befcbe1c1fe0b5eb69"
+                    ]
+                },
+                {
+                    "command": [
+                        "semax_func_cons_ext.",
+                        "VernacExtend",
+                        "7aa683fc73cf7d3bdc1981befcbe1c1fe0b5eb69"
+                    ]
+                },
+                {
+                    "command": [
+                        "semax_func_cons_ext.",
+                        "VernacExtend",
+                        "7aa683fc73cf7d3bdc1981befcbe1c1fe0b5eb69"
+                    ]
+                },
+                {
+                    "command": [
+                        "semax_func_cons_ext.",
+                        "VernacExtend",
+                        "7aa683fc73cf7d3bdc1981befcbe1c1fe0b5eb69"
+                    ]
+                },
+                {
+                    "command": [
+                        "semax_func_cons body_incr.",
+                        "VernacExtend",
+                        "3c299ee470cec77e74eedec388a177f5025f1c4a"
+                    ]
+                },
+                {
+                    "command": [
+                        "semax_func_cons body_read.",
+                        "VernacExtend",
+                        "fce4f073c926dab9cf89dff4ff2fd7e49d85c5d4"
+                    ]
+                },
+                {
+                    "command": [
+                        "semax_func_cons body_thread_func.",
+                        "VernacExtend",
+                        "c31d23e8666a62cdd0c2c3db8aa49ef7c52cb528"
+                    ]
+                },
+                {
+                    "command": [
+                        "semax_func_cons body_main.",
+                        "VernacExtend",
+                        "5762243e67ed09e007ac449ea2a947c5029be3be"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

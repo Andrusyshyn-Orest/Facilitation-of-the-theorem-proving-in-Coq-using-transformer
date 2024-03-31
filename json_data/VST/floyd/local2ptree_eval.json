@@ -1,0 +1,1835 @@
+{
+    "filename": "floyd/local2ptree_eval.v",
+    "coq_project": "VST",
+    "vernac_cmds": [
+        [
+            "Require Import VST.floyd.base2.",
+            "VernacRequire",
+            "c9732b06b9c2316526989f551596fbf382fa6641"
+        ],
+        [
+            "Require Import VST.floyd.client_lemmas.",
+            "VernacRequire",
+            "449c8140a2f7afa12f07d13833b2a4f672db98f1"
+        ],
+        [
+            "Require Import VST.floyd.closed_lemmas.",
+            "VernacRequire",
+            "bdf37b0c22e35685c35e40eead36bd536eafda98"
+        ],
+        [
+            "Require Import VST.floyd.local2ptree_denote.",
+            "VernacRequire",
+            "7b2a6fd2646a0af15a2f968f47cdf7e71d5416cd"
+        ],
+        [
+            "Local Open Scope logic.",
+            "VernacOpenCloseScope",
+            "5937723d189e5aa98ad78e1018bed51ea2c1b0cd"
+        ],
+        [
+            "Definition eval_vardesc (id: ident) (ty: type) (Delta: tycontext) (T2: PTree.t (type * val)) (GV: option globals) : option val := match (var_types Delta) ! id with | Some _ => match T2 ! id with | Some (ty', v) => if eqb_type ty ty' then Some v else None | None => None end | None => match GV with | Some gv => Some (gv id) | None => None end end.",
+            "VernacDefinition",
+            "ba6fbbfb4c1d99d87139fdd6fefd2dcbd1c44f74"
+        ],
+        [
+            "Definition eval_lvardesc (id: ident) (ty: type) (Delta: tycontext) (T2: PTree.t (type * val)) : option val := match (var_types Delta) ! id with | Some _ => match T2 ! id with | Some (ty', v) => if eqb_type ty ty' then Some v else None | None => None end | None => None end.",
+            "VernacDefinition",
+            "4f3448458ced5ded874c4f414db51e3c0851ba5d"
+        ],
+        [
+            "Fixpoint msubst_eval_expr {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) (e: Clight.expr) : option val := match e with | Econst_int i ty => Some (Vint i) | Econst_long i ty => Some (Vlong i) | Econst_float f ty => Some (Vfloat f) | Econst_single f ty => Some (Vsingle f) | Etempvar id ty => PTree.get id T1 | Eaddrof a ty => msubst_eval_lvalue Delta T1 T2 GV a | Eunop op a ty => option_map (eval_unop op (typeof a)) (msubst_eval_expr Delta T1 T2 GV a) | Ebinop op a1 a2 ty => match (msubst_eval_expr Delta T1 T2 GV a1), (msubst_eval_expr Delta T1 T2 GV a2) with | Some v1, Some v2 => Some (eval_binop op (typeof a1) (typeof a2) v1 v2) | _, _ => None end | Ecast a ty => option_map (eval_cast (typeof a) ty) (msubst_eval_expr Delta T1 T2 GV a) | Evar id ty => eval_vardesc id ty Delta T2 GV | Ederef a ty => msubst_eval_expr Delta T1 T2 GV a | Efield a i ty => option_map (eval_field (typeof a) i) (msubst_eval_lvalue Delta T1 T2 GV a) | Esizeof t _ => Some (Vptrofs (Ptrofs.repr (sizeof t))) | Ealignof t _ => Some (Vptrofs (Ptrofs.repr (alignof t))) end with msubst_eval_lvalue {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) (e: Clight.expr) : option val := match e with | Evar id ty => eval_vardesc id ty Delta T2 GV | Ederef a ty => msubst_eval_expr Delta T1 T2 GV a | Efield a i ty => option_map (eval_field (typeof a) i) (msubst_eval_lvalue Delta T1 T2 GV a) | _ => Some Vundef end.",
+            "VernacFixpoint",
+            "cc8d7996b589029d35269615bf204252b2bcfe9e"
+        ],
+        [
+            "Definition msubst_eval_LR {cs: compspecs} Delta T1 T2 GV e (lr: LLRR) := match lr with | LLLL => msubst_eval_lvalue Delta T1 T2 GV e | RRRR => msubst_eval_expr Delta T1 T2 GV e end.",
+            "VernacDefinition",
+            "205551035f0fff724f90a382cd6f8dad30fc37d5"
+        ],
+        [
+            "Definition msubst_eval_lvar {cs: compspecs} Delta T2 i t := eval_lvardesc i t Delta T2.",
+            "VernacDefinition",
+            "edbbad29cc344a537ac2dc28c330909c3213bec2"
+        ],
+        [
+            "Lemma msubst_eval_expr_eq_aux: forall {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) e rho v, (forall i v, T1 ! i = Some v -> eval_id i rho = v) -> (forall i t v, eval_vardesc i t Delta T2 GV = Some v -> eval_var i t rho = v) -> msubst_eval_expr Delta T1 T2 GV e = Some v -> eval_expr e rho = v with msubst_eval_lvalue_eq_aux: forall {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) e rho v, (forall i v, T1 ! i = Some v -> eval_id i rho = v) -> (forall i t v, eval_vardesc i t Delta T2 GV = Some v -> eval_var i t rho = v) -> msubst_eval_lvalue Delta T1 T2 GV e = Some v -> eval_lvalue e rho = v.",
+            "VernacStartTheoremProof",
+            "368fcafc5ec7e67263bb043d0639b71fce2384d4"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "clear msubst_eval_expr_eq_aux.",
+            "VernacExtend",
+            "b7fd1262b4269ad4b3dcb0cc0b2d902f0557efe1"
+        ],
+        [
+            "induction e; intros; simpl in H1 |- *; try solve [inversion H1; auto].",
+            "VernacExtend",
+            "94bd9b77538baaf9716c7fba0557797d6f622504"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "erewrite msubst_eval_lvalue_eq_aux; eauto.",
+            "VernacExtend",
+            "7d36cd513f683dc2e449be7773103245a84301bd"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "unfold_lift; simpl.",
+            "VernacExtend",
+            "77a365dc84c1a6bf123c867340c6041ef54dd698"
+        ],
+        [
+            "destruct (msubst_eval_expr Delta T1 T2 GV e) eqn:?; [| inversion H1].",
+            "VernacExtend",
+            "b6808a498ebfdd16dd850d96c5f97b7e97fc327b"
+        ],
+        [
+            "inversion H1.",
+            "VernacExtend",
+            "58dee2cce9b13b50b065ba894c1b533413715754"
+        ],
+        [
+            "rewrite IHe with (v := v0) by auto.",
+            "VernacExtend",
+            "b48582b47c9da638643735bdcddfbd233725fac0"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "unfold_lift; simpl.",
+            "VernacExtend",
+            "77a365dc84c1a6bf123c867340c6041ef54dd698"
+        ],
+        [
+            "destruct (msubst_eval_expr Delta T1 T2 GV e1) eqn:?; [| inversion H1].",
+            "VernacExtend",
+            "de34a67f9844d15e3be6b5d57b3d0bf2e989ce1a"
+        ],
+        [
+            "destruct (msubst_eval_expr Delta T1 T2 GV e2) eqn:?; [| inversion H1].",
+            "VernacExtend",
+            "79a950381ea6d99576e9e3adb7823fe17ebe5896"
+        ],
+        [
+            "inversion H1.",
+            "VernacExtend",
+            "58dee2cce9b13b50b065ba894c1b533413715754"
+        ],
+        [
+            "rewrite IHe1 with (v := v0) by auto.",
+            "VernacExtend",
+            "165e493080439044236a77796c80e153e6562d31"
+        ],
+        [
+            "rewrite IHe2 with (v := v1) by auto.",
+            "VernacExtend",
+            "c4ea2d32b953195cb17afdcfbef80d5fcaac02a0"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "unfold_lift; simpl.",
+            "VernacExtend",
+            "77a365dc84c1a6bf123c867340c6041ef54dd698"
+        ],
+        [
+            "destruct (msubst_eval_expr Delta T1 T2 GV e) eqn:?; [| inversion H1].",
+            "VernacExtend",
+            "b6808a498ebfdd16dd850d96c5f97b7e97fc327b"
+        ],
+        [
+            "inversion H1.",
+            "VernacExtend",
+            "58dee2cce9b13b50b065ba894c1b533413715754"
+        ],
+        [
+            "rewrite IHe with (v := v0) by auto.",
+            "VernacExtend",
+            "b48582b47c9da638643735bdcddfbd233725fac0"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "unfold_lift; simpl.",
+            "VernacExtend",
+            "77a365dc84c1a6bf123c867340c6041ef54dd698"
+        ],
+        [
+            "destruct (msubst_eval_lvalue Delta T1 T2 GV e) eqn:?; [| inversion H1].",
+            "VernacExtend",
+            "02d0c50b32541990145ced26f6069d95d09d09b3"
+        ],
+        [
+            "inversion H1.",
+            "VernacExtend",
+            "58dee2cce9b13b50b065ba894c1b533413715754"
+        ],
+        [
+            "erewrite msubst_eval_lvalue_eq_aux by eauto.",
+            "VernacExtend",
+            "79253ff673c845befcdbf3e91cb9747800fd4927"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "clear msubst_eval_lvalue_eq_aux.",
+            "VernacExtend",
+            "9add17aa062392f51f977ab407c32c7fcc56e1dc"
+        ],
+        [
+            "induction e; intros; simpl in H1 |- *; try solve [inversion H1; auto].",
+            "VernacExtend",
+            "94bd9b77538baaf9716c7fba0557797d6f622504"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "unfold_lift; simpl.",
+            "VernacExtend",
+            "77a365dc84c1a6bf123c867340c6041ef54dd698"
+        ],
+        [
+            "destruct (msubst_eval_expr Delta T1 T2 GV e) eqn:?; [| inversion H1].",
+            "VernacExtend",
+            "b6808a498ebfdd16dd850d96c5f97b7e97fc327b"
+        ],
+        [
+            "inversion H1.",
+            "VernacExtend",
+            "58dee2cce9b13b50b065ba894c1b533413715754"
+        ],
+        [
+            "erewrite msubst_eval_expr_eq_aux by eauto; auto.",
+            "VernacExtend",
+            "e4951e629b3a5a853c078816316c5999ec40eb55"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "unfold_lift; simpl.",
+            "VernacExtend",
+            "77a365dc84c1a6bf123c867340c6041ef54dd698"
+        ],
+        [
+            "destruct (msubst_eval_lvalue Delta T1 T2 GV e) eqn:?; [| inversion H1].",
+            "VernacExtend",
+            "02d0c50b32541990145ced26f6069d95d09d09b3"
+        ],
+        [
+            "inversion H1.",
+            "VernacExtend",
+            "58dee2cce9b13b50b065ba894c1b533413715754"
+        ],
+        [
+            "rewrite IHe with (v := v0) by auto.",
+            "VernacExtend",
+            "b48582b47c9da638643735bdcddfbd233725fac0"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Require Import VST.veric.expr_lemmas2.",
+            "VernacRequire",
+            "7669c391f5a6237aea1b7f2f0ee2b20c39894cc6"
+        ],
+        [
+            "Lemma msubst_eval_eq_aux {cs: compspecs}: forall Delta T1 T2 GV rho, tc_environ Delta rho -> fold_right `(and) `(True) (map locald_denote (LocalD T1 T2 GV)) rho -> (forall i v, T1 ! i = Some v -> eval_id i rho = v) /\\ (forall i t v, eval_vardesc i t Delta T2 GV = Some v -> eval_var i t rho = v).",
+            "VernacStartTheoremProof",
+            "90e25cb5f6d8dd52b66fa4b3083b8a9a1488a9e9"
+        ],
+        [
+            "intros; split; intros.",
+            "VernacExtend",
+            "c2ba330b9c2c5e22fd554cd9ccb5c9ade0d6123e"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "assert (In (locald_denote (temp i v)) (map locald_denote (LocalD T1 T2 GV))).",
+            "VernacExtend",
+            "2fecd0678fea539ccd16dbef0632bebc93207aa7"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "apply in_map.",
+            "VernacExtend",
+            "8b1d6650eff402b483dc29bd25bb3e04ea7f525b"
+        ],
+        [
+            "apply LocalD_sound.",
+            "VernacExtend",
+            "0adc753362e7feb642bbff19cdc2e1ff9194c425"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "pose proof local_ext _ _ _ H2 H0.",
+            "VernacExtend",
+            "20c63c9058dcdd13b9c82580b7a1c70cdc2cda0c"
+        ],
+        [
+            "destruct H3; auto.",
+            "VernacExtend",
+            "57dab39c66c72bbc853f1d5f6975eff45f97c160"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold eval_vardesc in H1.",
+            "VernacExtend",
+            "6fafb7054bbd907479b1be1940956bd4167d8173"
+        ],
+        [
+            "unfold eval_var.",
+            "VernacExtend",
+            "1e690e54e703a1c8703ee5cdc3dbd30ce547d7e8"
+        ],
+        [
+            "destruct_var_types i; rewrite ?Heqo, ?Heqo0 in *.",
+            "VernacExtend",
+            "7007630fa186e8ae1b8252f3e7574be2760fc94f"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct (T2 ! i) as [[? ?]|] eqn:?; [| inv H1].",
+            "VernacExtend",
+            "370dd2586bf2c1077ff814cca4429cf253301cbb"
+        ],
+        [
+            "destruct (eqb_type t t1) eqn:?; inv H1.",
+            "VernacExtend",
+            "16fd2bdb45a02966c02d8f6be9236c610bef1090"
+        ],
+        [
+            "apply eqb_type_true in Heqb0.",
+            "VernacExtend",
+            "04117fdd0e7314d07ae391a322cd1311a38fd363"
+        ],
+        [
+            "subst t1.",
+            "VernacExtend",
+            "3954cecd51dc422596e30a78d9d89dcde2482861"
+        ],
+        [
+            "assert (In (locald_denote (lvar i t v)) (map locald_denote (LocalD T1 T2 GV))) by (apply in_map; apply LocalD_sound; eauto 50).",
+            "VernacExtend",
+            "dbc321c2f3d33ee176ac2a43c1242de02f3141ce"
+        ],
+        [
+            "assert (H3 := local_ext _ _ _ H1 H0).",
+            "VernacExtend",
+            "5be67ea02891f810fa0b1a4cff6afbf7bd905217"
+        ],
+        [
+            "clear - H3 Heqo Heqo0.",
+            "VernacExtend",
+            "47ce9fc1a9a834884b24da9c09380e748b895584"
+        ],
+        [
+            "hnf in H3.",
+            "VernacExtend",
+            "1e4a450afa3bb7d1d579c390a8c7e0705823aa0d"
+        ],
+        [
+            "rewrite Heqo0 in H3.",
+            "VernacExtend",
+            "6e0ef704c7858dc30bbf99bd27cf0d6a1b57042e"
+        ],
+        [
+            "destruct H3; subst.",
+            "VernacExtend",
+            "58d2fbffc2890f422dc602b64d09665043533c9a"
+        ],
+        [
+            "rewrite eqb_type_refl.",
+            "VernacExtend",
+            "ccdab3d98ef556debd0df1191e8f1dfbe3b6f6b0"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct GV as [?gv |]; inv H1.",
+            "VernacExtend",
+            "4c0340b7aaf69b3fde0f021139020bb1e4e939c2"
+        ],
+        [
+            "assert (In (locald_denote (gvars gv)) (map locald_denote (LocalD T1 T2 (Some gv)))) by (apply in_map; apply LocalD_sound; eauto 50).",
+            "VernacExtend",
+            "0e0817ea2746d91769aca3941232f3fd0d9d242c"
+        ],
+        [
+            "assert (H3 := local_ext _ _ _ H1 H0).",
+            "VernacExtend",
+            "5be67ea02891f810fa0b1a4cff6afbf7bd905217"
+        ],
+        [
+            "clear - H3.",
+            "VernacExtend",
+            "1ca535424183962a58658c6a9f78c07e3db56ca5"
+        ],
+        [
+            "unfold eval_var in *.",
+            "VernacExtend",
+            "97f4d391da79ea6db90e08282c8fee6dc6c6dab5"
+        ],
+        [
+            "hnf in H3.",
+            "VernacExtend",
+            "1e4a450afa3bb7d1d579c390a8c7e0705823aa0d"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma msubst_eval_lvar_eq_aux {cs: compspecs}: forall Delta T1 T2 GV rho, tc_environ Delta rho -> fold_right `(and) `(True) (map locald_denote (LocalD T1 T2 GV)) rho -> (forall i t v, eval_lvardesc i t Delta T2 = Some v -> eval_lvar i t rho = v).",
+            "VernacStartTheoremProof",
+            "312206a20a385335e80a05baceadd130c265e642"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold eval_lvar.",
+            "VernacExtend",
+            "4c0bcb9b23d1826d919ef53c55ad2f3028ccda93"
+        ],
+        [
+            "unfold eval_lvardesc in H1.",
+            "VernacExtend",
+            "64c7c15df55f635abce2769dda375b10d11cccd3"
+        ],
+        [
+            "destruct_var_types i; rewrite ?Heqo, ?Heqo0 in *; [| inv H1].",
+            "VernacExtend",
+            "75d48c0077654f0ad62281d21b709024df61d280"
+        ],
+        [
+            "destruct (T2 ! i) as [[? ?]|] eqn:?; [| inv H1].",
+            "VernacExtend",
+            "370dd2586bf2c1077ff814cca4429cf253301cbb"
+        ],
+        [
+            "destruct (eqb_type t t1) eqn:?; inv H1.",
+            "VernacExtend",
+            "16fd2bdb45a02966c02d8f6be9236c610bef1090"
+        ],
+        [
+            "apply eqb_type_true in Heqb0; subst t1.",
+            "VernacExtend",
+            "a614d07033861a075d4e9a34759668597def817c"
+        ],
+        [
+            "assert (In (locald_denote (lvar i t v)) (map locald_denote (LocalD T1 T2 GV))) by ( apply in_map; apply LocalD_sound; eauto 50).",
+            "VernacExtend",
+            "dbc321c2f3d33ee176ac2a43c1242de02f3141ce"
+        ],
+        [
+            "assert (H3 := local_ext _ _ _ H1 H0).",
+            "VernacExtend",
+            "5be67ea02891f810fa0b1a4cff6afbf7bd905217"
+        ],
+        [
+            "clear - H3 Heqo Heqo0.",
+            "VernacExtend",
+            "47ce9fc1a9a834884b24da9c09380e748b895584"
+        ],
+        [
+            "hnf in H3.",
+            "VernacExtend",
+            "1e4a450afa3bb7d1d579c390a8c7e0705823aa0d"
+        ],
+        [
+            "rewrite Heqo0 in H3.",
+            "VernacExtend",
+            "6e0ef704c7858dc30bbf99bd27cf0d6a1b57042e"
+        ],
+        [
+            "destruct H3; subst.",
+            "VernacExtend",
+            "58d2fbffc2890f422dc602b64d09665043533c9a"
+        ],
+        [
+            "rewrite eqb_type_refl.",
+            "VernacExtend",
+            "ccdab3d98ef556debd0df1191e8f1dfbe3b6f6b0"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma msubst_eval_expr_eq: forall {cs: compspecs} Delta P T1 T2 GV R e v, msubst_eval_expr Delta T1 T2 GV e = Some v -> ENTAIL Delta, PROPx P (LOCALx (LocalD T1 T2 GV) (SEPx R)) |-- local (`(eq v) (eval_expr e)).",
+            "VernacStartTheoremProof",
+            "156fb1629fb7fdbaed9e49e026273526856fb665"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold PROPx, LOCALx.",
+            "VernacExtend",
+            "11d29d6bd68c7a87d70cf0942bbb9bbf72f5ce23"
+        ],
+        [
+            "apply derives_trans with (local (tc_environ Delta) && local (fold_right (` and) (` True) (map locald_denote (LocalD T1 T2 GV)))); [solve_andp |].",
+            "VernacExtend",
+            "5e84ca58d4779c671ce34959eb33e0aed358ba38"
+        ],
+        [
+            "unfold local, lift, lift1.",
+            "VernacExtend",
+            "172b0d121264e0d0513108c0c5364b2547a86299"
+        ],
+        [
+            "simpl; intro rho.",
+            "VernacExtend",
+            "93e48823b7d58a9a58af2df7b09cb800679a8ac6"
+        ],
+        [
+            "normalize; intros.",
+            "VernacExtend",
+            "3a075c645685fc040166d29e744bb0e0706635cc"
+        ],
+        [
+            "autorewrite with subst norm1 norm2; normalize.",
+            "VernacExtend",
+            "48cb35be8e33440ab4cb3a63ac4669687e892c68"
+        ],
+        [
+            "destruct (msubst_eval_eq_aux _ _ _ _ _ H0 H1).",
+            "VernacExtend",
+            "efad7f753750eb0152d49ff0cef80138c4d67994"
+        ],
+        [
+            "apply eq_sym, (msubst_eval_expr_eq_aux Delta T1 T2 GV); auto.",
+            "VernacExtend",
+            "8fb4f02a9cc64040d0efeaaff29ada737d62816c"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma msubst_eval_lvalue_eq: forall {cs: compspecs} Delta P T1 T2 GV R e v, msubst_eval_lvalue Delta T1 T2 GV e = Some v -> ENTAIL Delta, PROPx P (LOCALx (LocalD T1 T2 GV) (SEPx R)) |-- local (`(eq v) (eval_lvalue e)).",
+            "VernacStartTheoremProof",
+            "3918f0e072e7aa0ff7654a5ddafc430424590c65"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold PROPx, LOCALx.",
+            "VernacExtend",
+            "11d29d6bd68c7a87d70cf0942bbb9bbf72f5ce23"
+        ],
+        [
+            "apply derives_trans with (local (tc_environ Delta) && local (fold_right (` and) (` True) (map locald_denote (LocalD T1 T2 GV)))); [solve_andp |].",
+            "VernacExtend",
+            "5e84ca58d4779c671ce34959eb33e0aed358ba38"
+        ],
+        [
+            "unfold local, lift, lift1.",
+            "VernacExtend",
+            "172b0d121264e0d0513108c0c5364b2547a86299"
+        ],
+        [
+            "simpl; intro rho.",
+            "VernacExtend",
+            "93e48823b7d58a9a58af2df7b09cb800679a8ac6"
+        ],
+        [
+            "normalize; intros.",
+            "VernacExtend",
+            "3a075c645685fc040166d29e744bb0e0706635cc"
+        ],
+        [
+            "autorewrite with subst norm1 norm2; normalize.",
+            "VernacExtend",
+            "48cb35be8e33440ab4cb3a63ac4669687e892c68"
+        ],
+        [
+            "destruct (msubst_eval_eq_aux _ _ _ _ _ H0 H1).",
+            "VernacExtend",
+            "efad7f753750eb0152d49ff0cef80138c4d67994"
+        ],
+        [
+            "apply eq_sym, (msubst_eval_lvalue_eq_aux Delta T1 T2 GV); auto.",
+            "VernacExtend",
+            "e31dbdd653e166ed30419a8605623716f51be75f"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma msubst_eval_LR_eq: forall {cs: compspecs} Delta P T1 T2 GV R e v lr, msubst_eval_LR Delta T1 T2 GV e lr = Some v -> ENTAIL Delta, PROPx P (LOCALx (LocalD T1 T2 GV) (SEPx R)) |-- local (`(eq v) (eval_LR e lr)).",
+            "VernacStartTheoremProof",
+            "6b3ef5853c493fe44a4a30e454d4d5f2459f9cde"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct lr.",
+            "VernacExtend",
+            "ef9968d7482c6727ed98af0bcd9cf086ead186b6"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply msubst_eval_lvalue_eq; auto.",
+            "VernacExtend",
+            "5b3fe0aa8c3d6a5f2dc2d8cc9a2fdbed35b970ac"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply msubst_eval_expr_eq; auto.",
+            "VernacExtend",
+            "1d01cb11214ec491cad8252d4b989d878d5a734f"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma msubst_eval_exprlist_eq: forall {cs: compspecs} Delta P T1 T2 GV R tys el vl, force_list (map (msubst_eval_expr Delta T1 T2 GV) (explicit_cast_exprlist tys el)) = Some vl -> ENTAIL Delta, PROPx P (LOCALx (LocalD T1 T2 GV) (SEPx R)) |-- local (`(eq vl) (eval_exprlist tys el)).",
+            "VernacStartTheoremProof",
+            "bec5e6ed0cdb494c8e629bcfbc4e91e01fc15201"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "revert tys vl H; induction el; destruct tys, vl; intros; try solve [inv H]; try solve [go_lowerx; apply prop_right; reflexivity].",
+            "VernacExtend",
+            "a8eb01cbe0c7e1215838a90cff6e62f62ae4a6c7"
+        ],
+        [
+            "simpl map in H.",
+            "VernacExtend",
+            "4f6d6af08e3f7738bb90259d8a4637754f1c0da1"
+        ],
+        [
+            "unfold force_list in H; fold (@force_list val) in H.",
+            "VernacExtend",
+            "e7f08b4b108eab248bba8a59c4c148c868762c45"
+        ],
+        [
+            "destruct (msubst_eval_expr Delta T1 T2 GV a) eqn:?.",
+            "VernacExtend",
+            "d592b6c9451322f73c5676633a8260b5676109e4"
+        ],
+        [
+            "simpl in H.",
+            "VernacExtend",
+            "78dad51b2bb1130f71851d1e55489020824f59f6"
+        ],
+        [
+            "destruct (force_list (map (msubst_eval_expr Delta T1 T2 GV) (explicit_cast_exprlist tys el))); inv H.",
+            "VernacExtend",
+            "18a35831b65814e169b69827e54e87a65ed19934"
+        ],
+        [
+            "simpl in H.",
+            "VernacExtend",
+            "78dad51b2bb1130f71851d1e55489020824f59f6"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "simpl in H.",
+            "VernacExtend",
+            "78dad51b2bb1130f71851d1e55489020824f59f6"
+        ],
+        [
+            "destruct (option_map (force_val1 (sem_cast (typeof a) t)) (msubst_eval_expr Delta T1 T2 GV a)) eqn:?; inv H.",
+            "VernacExtend",
+            "90f1906c9d9167e1df8f00ba67d0c7961b3b2d23"
+        ],
+        [
+            "destruct ( force_list (map (msubst_eval_expr Delta T1 T2 GV) (explicit_cast_exprlist tys el))) eqn:?; inv H1.",
+            "VernacExtend",
+            "e39165372a7d6cb9b9a9f871fa2be57830d41d9b"
+        ],
+        [
+            "specialize (IHel _ _ Heqo0).",
+            "VernacExtend",
+            "44965c4280c464771808da1f8f05c571d648766d"
+        ],
+        [
+            "simpl eval_exprlist.",
+            "VernacExtend",
+            "1f2fdb483791c24668f7e9a7f3e8be83efe58f83"
+        ],
+        [
+            "destruct (msubst_eval_expr Delta T1 T2 GV a) eqn:?; inv Heqo.",
+            "VernacExtend",
+            "e3b36aee5da57fc29640f6f5519b534467e62c63"
+        ],
+        [
+            "apply msubst_eval_expr_eq with (P0:=P)(GV0:=GV)(R0:=R) in Heqo1.",
+            "VernacExtend",
+            "9e0a68bf8e28b6e60d271cd8e5b689e9cee583a7"
+        ],
+        [
+            "apply derives_trans with (local (`(eq v0) (eval_expr a)) && local (`(eq vl) (eval_exprlist tys el))).",
+            "VernacExtend",
+            "773d30449bf6ca0bf77f71ff302d43d05bf520e0"
+        ],
+        [
+            "apply andp_right; auto.",
+            "VernacExtend",
+            "01f8426ca1b47d5761359bf895b36d1c0819cd3d"
+        ],
+        [
+            "go_lowerx.",
+            "VernacExtend",
+            "b779c117d7d09a3200f3f548bb905f7d0a7246f6"
+        ],
+        [
+            "unfold_lift.",
+            "VernacExtend",
+            "49cc678292f20068718dd6f7d6f838fc96506b4c"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply prop_right.",
+            "VernacExtend",
+            "951daa52f148695942d4aefc563d5e92d8ec02ff"
+        ],
+        [
+            "rewrite <- H.",
+            "VernacExtend",
+            "95b84807b4afb2ef79b7cc04a1c91a4e3a502e47"
+        ],
+        [
+            "rewrite <- H0.",
+            "VernacExtend",
+            "f6718c09e494e327328e3c2003dd236939e231f9"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma msubst_eval_lvar_eq: forall {cs: compspecs} Delta P T1 T2 GV R i t v, msubst_eval_lvar Delta T2 i t = Some v -> ENTAIL Delta, PROPx P (LOCALx (LocalD T1 T2 GV) (SEPx R)) |-- local (`(eq v) (eval_lvar i t)).",
+            "VernacStartTheoremProof",
+            "32b6bd11bb8bc1ebb9b10decf54c6b742fa5f482"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold PROPx, LOCALx.",
+            "VernacExtend",
+            "11d29d6bd68c7a87d70cf0942bbb9bbf72f5ce23"
+        ],
+        [
+            "apply derives_trans with (local (tc_environ Delta) && local (fold_right (` and) (` True) (map locald_denote (LocalD T1 T2 GV)))); [solve_andp |].",
+            "VernacExtend",
+            "5e84ca58d4779c671ce34959eb33e0aed358ba38"
+        ],
+        [
+            "unfold local, lift, lift1.",
+            "VernacExtend",
+            "172b0d121264e0d0513108c0c5364b2547a86299"
+        ],
+        [
+            "simpl; intro rho.",
+            "VernacExtend",
+            "93e48823b7d58a9a58af2df7b09cb800679a8ac6"
+        ],
+        [
+            "normalize; intros.",
+            "VernacExtend",
+            "3a075c645685fc040166d29e744bb0e0706635cc"
+        ],
+        [
+            "autorewrite with subst norm1 norm2; normalize.",
+            "VernacExtend",
+            "48cb35be8e33440ab4cb3a63ac4669687e892c68"
+        ],
+        [
+            "pose proof (msubst_eval_lvar_eq_aux _ _ _ _ _ H0 H1).",
+            "VernacExtend",
+            "4ca2c14aceaa365c9f14d9c0e2b4d78892f57351"
+        ],
+        [
+            "apply eq_sym.",
+            "VernacExtend",
+            "313410cb7bcb68dc243125f00e91764f51d94be6"
+        ],
+        [
+            "apply H2; auto.",
+            "VernacExtend",
+            "30acbf5144f9dcdba4f738b81d251d83daba847e"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Ltac solve_msubst_eval_lvalue := simpl; cbv beta iota zeta delta [force_val2 force_val1]; rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto; reflexivity.",
+            "VernacExtend",
+            "b12b90c48bd3a5314a687375bb184392806cefd4"
+        ],
+        [
+            "Ltac solve_msubst_eval_expr := simpl; cbv beta iota zeta delta [force_val2 force_val1]; rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto; reflexivity.",
+            "VernacExtend",
+            "939c9a5e2d894c41fcad72055794c1f25229565a"
+        ],
+        [
+            "Ltac solve_msubst_eval_LR := unfold msubst_eval_LR; simpl; cbv beta iota zeta delta [force_val2 force_val1]; rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto; reflexivity.",
+            "VernacExtend",
+            "3da4127bf739ec99b9d31d78911fcc066867a1bb"
+        ],
+        [
+            "Ltac solve_msubst_eval_lvar := unfold msubst_eval_lvar; reflexivity.",
+            "VernacExtend",
+            "d22a48c424a8b2efa7f1a5d0448a5ca48ebb5649"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "msubst_eval_eq_aux",
+            "line_nb": 58,
+            "steps": [
+                {
+                    "command": [
+                        "intros; split; intros.",
+                        "VernacExtend",
+                        "c2ba330b9c2c5e22fd554cd9ccb5c9ade0d6123e"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (In (locald_denote (temp i v)) (map locald_denote (LocalD T1 T2 GV))).",
+                        "VernacExtend",
+                        "2fecd0678fea539ccd16dbef0632bebc93207aa7"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply in_map.",
+                        "VernacExtend",
+                        "8b1d6650eff402b483dc29bd25bb3e04ea7f525b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply LocalD_sound.",
+                        "VernacExtend",
+                        "0adc753362e7feb642bbff19cdc2e1ff9194c425"
+                    ]
+                },
+                {
+                    "command": [
+                        "left.",
+                        "VernacExtend",
+                        "06dad9fc5698018f3f1213205145fec906c612b1"
+                    ]
+                },
+                {
+                    "command": [
+                        "eauto.",
+                        "VernacExtend",
+                        "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "pose proof local_ext _ _ _ H2 H0.",
+                        "VernacExtend",
+                        "20c63c9058dcdd13b9c82580b7a1c70cdc2cda0c"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H3; auto.",
+                        "VernacExtend",
+                        "57dab39c66c72bbc853f1d5f6975eff45f97c160"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold eval_vardesc in H1.",
+                        "VernacExtend",
+                        "6fafb7054bbd907479b1be1940956bd4167d8173"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold eval_var.",
+                        "VernacExtend",
+                        "1e690e54e703a1c8703ee5cdc3dbd30ce547d7e8"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct_var_types i; rewrite ?Heqo, ?Heqo0 in *.",
+                        "VernacExtend",
+                        "7007630fa186e8ae1b8252f3e7574be2760fc94f"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (T2 ! i) as [[? ?]|] eqn:?; [| inv H1].",
+                        "VernacExtend",
+                        "370dd2586bf2c1077ff814cca4429cf253301cbb"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (eqb_type t t1) eqn:?; inv H1.",
+                        "VernacExtend",
+                        "16fd2bdb45a02966c02d8f6be9236c610bef1090"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply eqb_type_true in Heqb0.",
+                        "VernacExtend",
+                        "04117fdd0e7314d07ae391a322cd1311a38fd363"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst t1.",
+                        "VernacExtend",
+                        "3954cecd51dc422596e30a78d9d89dcde2482861"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (In (locald_denote (lvar i t v)) (map locald_denote (LocalD T1 T2 GV))) by (apply in_map; apply LocalD_sound; eauto 50).",
+                        "VernacExtend",
+                        "dbc321c2f3d33ee176ac2a43c1242de02f3141ce"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (H3 := local_ext _ _ _ H1 H0).",
+                        "VernacExtend",
+                        "5be67ea02891f810fa0b1a4cff6afbf7bd905217"
+                    ]
+                },
+                {
+                    "command": [
+                        "clear - H3 Heqo Heqo0.",
+                        "VernacExtend",
+                        "47ce9fc1a9a834884b24da9c09380e748b895584"
+                    ]
+                },
+                {
+                    "command": [
+                        "hnf in H3.",
+                        "VernacExtend",
+                        "1e4a450afa3bb7d1d579c390a8c7e0705823aa0d"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Heqo0 in H3.",
+                        "VernacExtend",
+                        "6e0ef704c7858dc30bbf99bd27cf0d6a1b57042e"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H3; subst.",
+                        "VernacExtend",
+                        "58d2fbffc2890f422dc602b64d09665043533c9a"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite eqb_type_refl.",
+                        "VernacExtend",
+                        "ccdab3d98ef556debd0df1191e8f1dfbe3b6f6b0"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct GV as [?gv |]; inv H1.",
+                        "VernacExtend",
+                        "4c0340b7aaf69b3fde0f021139020bb1e4e939c2"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (In (locald_denote (gvars gv)) (map locald_denote (LocalD T1 T2 (Some gv)))) by (apply in_map; apply LocalD_sound; eauto 50).",
+                        "VernacExtend",
+                        "0e0817ea2746d91769aca3941232f3fd0d9d242c"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (H3 := local_ext _ _ _ H1 H0).",
+                        "VernacExtend",
+                        "5be67ea02891f810fa0b1a4cff6afbf7bd905217"
+                    ]
+                },
+                {
+                    "command": [
+                        "clear - H3.",
+                        "VernacExtend",
+                        "1ca535424183962a58658c6a9f78c07e3db56ca5"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold eval_var in *.",
+                        "VernacExtend",
+                        "97f4d391da79ea6db90e08282c8fee6dc6c6dab5"
+                    ]
+                },
+                {
+                    "command": [
+                        "hnf in H3.",
+                        "VernacExtend",
+                        "1e4a450afa3bb7d1d579c390a8c7e0705823aa0d"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst.",
+                        "VernacExtend",
+                        "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "msubst_eval_lvar_eq_aux",
+            "line_nb": 99,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold eval_lvar.",
+                        "VernacExtend",
+                        "4c0bcb9b23d1826d919ef53c55ad2f3028ccda93"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold eval_lvardesc in H1.",
+                        "VernacExtend",
+                        "64c7c15df55f635abce2769dda375b10d11cccd3"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct_var_types i; rewrite ?Heqo, ?Heqo0 in *; [| inv H1].",
+                        "VernacExtend",
+                        "75d48c0077654f0ad62281d21b709024df61d280"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (T2 ! i) as [[? ?]|] eqn:?; [| inv H1].",
+                        "VernacExtend",
+                        "370dd2586bf2c1077ff814cca4429cf253301cbb"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (eqb_type t t1) eqn:?; inv H1.",
+                        "VernacExtend",
+                        "16fd2bdb45a02966c02d8f6be9236c610bef1090"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply eqb_type_true in Heqb0; subst t1.",
+                        "VernacExtend",
+                        "a614d07033861a075d4e9a34759668597def817c"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (In (locald_denote (lvar i t v)) (map locald_denote (LocalD T1 T2 GV))) by ( apply in_map; apply LocalD_sound; eauto 50).",
+                        "VernacExtend",
+                        "dbc321c2f3d33ee176ac2a43c1242de02f3141ce"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (H3 := local_ext _ _ _ H1 H0).",
+                        "VernacExtend",
+                        "5be67ea02891f810fa0b1a4cff6afbf7bd905217"
+                    ]
+                },
+                {
+                    "command": [
+                        "clear - H3 Heqo Heqo0.",
+                        "VernacExtend",
+                        "47ce9fc1a9a834884b24da9c09380e748b895584"
+                    ]
+                },
+                {
+                    "command": [
+                        "hnf in H3.",
+                        "VernacExtend",
+                        "1e4a450afa3bb7d1d579c390a8c7e0705823aa0d"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Heqo0 in H3.",
+                        "VernacExtend",
+                        "6e0ef704c7858dc30bbf99bd27cf0d6a1b57042e"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H3; subst.",
+                        "VernacExtend",
+                        "58d2fbffc2890f422dc602b64d09665043533c9a"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite eqb_type_refl.",
+                        "VernacExtend",
+                        "ccdab3d98ef556debd0df1191e8f1dfbe3b6f6b0"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "msubst_eval_expr_eq",
+            "line_nb": 116,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold PROPx, LOCALx.",
+                        "VernacExtend",
+                        "11d29d6bd68c7a87d70cf0942bbb9bbf72f5ce23"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply derives_trans with (local (tc_environ Delta) && local (fold_right (` and) (` True) (map locald_denote (LocalD T1 T2 GV)))); [solve_andp |].",
+                        "VernacExtend",
+                        "5e84ca58d4779c671ce34959eb33e0aed358ba38"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold local, lift, lift1.",
+                        "VernacExtend",
+                        "172b0d121264e0d0513108c0c5364b2547a86299"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl; intro rho.",
+                        "VernacExtend",
+                        "93e48823b7d58a9a58af2df7b09cb800679a8ac6"
+                    ]
+                },
+                {
+                    "command": [
+                        "normalize; intros.",
+                        "VernacExtend",
+                        "3a075c645685fc040166d29e744bb0e0706635cc"
+                    ]
+                },
+                {
+                    "command": [
+                        "autorewrite with subst norm1 norm2; normalize.",
+                        "VernacExtend",
+                        "48cb35be8e33440ab4cb3a63ac4669687e892c68"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (msubst_eval_eq_aux _ _ _ _ _ H0 H1).",
+                        "VernacExtend",
+                        "efad7f753750eb0152d49ff0cef80138c4d67994"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply eq_sym, (msubst_eval_expr_eq_aux Delta T1 T2 GV); auto.",
+                        "VernacExtend",
+                        "8fb4f02a9cc64040d0efeaaff29ada737d62816c"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "msubst_eval_lvalue_eq",
+            "line_nb": 127,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold PROPx, LOCALx.",
+                        "VernacExtend",
+                        "11d29d6bd68c7a87d70cf0942bbb9bbf72f5ce23"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply derives_trans with (local (tc_environ Delta) && local (fold_right (` and) (` True) (map locald_denote (LocalD T1 T2 GV)))); [solve_andp |].",
+                        "VernacExtend",
+                        "5e84ca58d4779c671ce34959eb33e0aed358ba38"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold local, lift, lift1.",
+                        "VernacExtend",
+                        "172b0d121264e0d0513108c0c5364b2547a86299"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl; intro rho.",
+                        "VernacExtend",
+                        "93e48823b7d58a9a58af2df7b09cb800679a8ac6"
+                    ]
+                },
+                {
+                    "command": [
+                        "normalize; intros.",
+                        "VernacExtend",
+                        "3a075c645685fc040166d29e744bb0e0706635cc"
+                    ]
+                },
+                {
+                    "command": [
+                        "autorewrite with subst norm1 norm2; normalize.",
+                        "VernacExtend",
+                        "48cb35be8e33440ab4cb3a63ac4669687e892c68"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (msubst_eval_eq_aux _ _ _ _ _ H0 H1).",
+                        "VernacExtend",
+                        "efad7f753750eb0152d49ff0cef80138c4d67994"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply eq_sym, (msubst_eval_lvalue_eq_aux Delta T1 T2 GV); auto.",
+                        "VernacExtend",
+                        "e31dbdd653e166ed30419a8605623716f51be75f"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "msubst_eval_LR_eq",
+            "line_nb": 138,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct lr.",
+                        "VernacExtend",
+                        "ef9968d7482c6727ed98af0bcd9cf086ead186b6"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply msubst_eval_lvalue_eq; auto.",
+                        "VernacExtend",
+                        "5b3fe0aa8c3d6a5f2dc2d8cc9a2fdbed35b970ac"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply msubst_eval_expr_eq; auto.",
+                        "VernacExtend",
+                        "1d01cb11214ec491cad8252d4b989d878d5a734f"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "msubst_eval_exprlist_eq",
+            "line_nb": 146,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "revert tys vl H; induction el; destruct tys, vl; intros; try solve [inv H]; try solve [go_lowerx; apply prop_right; reflexivity].",
+                        "VernacExtend",
+                        "a8eb01cbe0c7e1215838a90cff6e62f62ae4a6c7"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl map in H.",
+                        "VernacExtend",
+                        "4f6d6af08e3f7738bb90259d8a4637754f1c0da1"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold force_list in H; fold (@force_list val) in H.",
+                        "VernacExtend",
+                        "e7f08b4b108eab248bba8a59c4c148c868762c45"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (msubst_eval_expr Delta T1 T2 GV a) eqn:?.",
+                        "VernacExtend",
+                        "d592b6c9451322f73c5676633a8260b5676109e4"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H.",
+                        "VernacExtend",
+                        "78dad51b2bb1130f71851d1e55489020824f59f6"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (force_list (map (msubst_eval_expr Delta T1 T2 GV) (explicit_cast_exprlist tys el))); inv H.",
+                        "VernacExtend",
+                        "18a35831b65814e169b69827e54e87a65ed19934"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H.",
+                        "VernacExtend",
+                        "78dad51b2bb1130f71851d1e55489020824f59f6"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H.",
+                        "VernacExtend",
+                        "78dad51b2bb1130f71851d1e55489020824f59f6"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (option_map (force_val1 (sem_cast (typeof a) t)) (msubst_eval_expr Delta T1 T2 GV a)) eqn:?; inv H.",
+                        "VernacExtend",
+                        "90f1906c9d9167e1df8f00ba67d0c7961b3b2d23"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct ( force_list (map (msubst_eval_expr Delta T1 T2 GV) (explicit_cast_exprlist tys el))) eqn:?; inv H1.",
+                        "VernacExtend",
+                        "e39165372a7d6cb9b9a9f871fa2be57830d41d9b"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (IHel _ _ Heqo0).",
+                        "VernacExtend",
+                        "44965c4280c464771808da1f8f05c571d648766d"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl eval_exprlist.",
+                        "VernacExtend",
+                        "1f2fdb483791c24668f7e9a7f3e8be83efe58f83"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (msubst_eval_expr Delta T1 T2 GV a) eqn:?; inv Heqo.",
+                        "VernacExtend",
+                        "e3b36aee5da57fc29640f6f5519b534467e62c63"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply msubst_eval_expr_eq with (P0:=P)(GV0:=GV)(R0:=R) in Heqo1.",
+                        "VernacExtend",
+                        "9e0a68bf8e28b6e60d271cd8e5b689e9cee583a7"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply derives_trans with (local (`(eq v0) (eval_expr a)) && local (`(eq vl) (eval_exprlist tys el))).",
+                        "VernacExtend",
+                        "773d30449bf6ca0bf77f71ff302d43d05bf520e0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply andp_right; auto.",
+                        "VernacExtend",
+                        "01f8426ca1b47d5761359bf895b36d1c0819cd3d"
+                    ]
+                },
+                {
+                    "command": [
+                        "go_lowerx.",
+                        "VernacExtend",
+                        "b779c117d7d09a3200f3f548bb905f7d0a7246f6"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold_lift.",
+                        "VernacExtend",
+                        "49cc678292f20068718dd6f7d6f838fc96506b4c"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply prop_right.",
+                        "VernacExtend",
+                        "951daa52f148695942d4aefc563d5e92d8ec02ff"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- H.",
+                        "VernacExtend",
+                        "95b84807b4afb2ef79b7cc04a1c91a4e3a502e47"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- H0.",
+                        "VernacExtend",
+                        "f6718c09e494e327328e3c2003dd236939e231f9"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "msubst_eval_lvar_eq",
+            "line_nb": 173,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold PROPx, LOCALx.",
+                        "VernacExtend",
+                        "11d29d6bd68c7a87d70cf0942bbb9bbf72f5ce23"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply derives_trans with (local (tc_environ Delta) && local (fold_right (` and) (` True) (map locald_denote (LocalD T1 T2 GV)))); [solve_andp |].",
+                        "VernacExtend",
+                        "5e84ca58d4779c671ce34959eb33e0aed358ba38"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold local, lift, lift1.",
+                        "VernacExtend",
+                        "172b0d121264e0d0513108c0c5364b2547a86299"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl; intro rho.",
+                        "VernacExtend",
+                        "93e48823b7d58a9a58af2df7b09cb800679a8ac6"
+                    ]
+                },
+                {
+                    "command": [
+                        "normalize; intros.",
+                        "VernacExtend",
+                        "3a075c645685fc040166d29e744bb0e0706635cc"
+                    ]
+                },
+                {
+                    "command": [
+                        "autorewrite with subst norm1 norm2; normalize.",
+                        "VernacExtend",
+                        "48cb35be8e33440ab4cb3a63ac4669687e892c68"
+                    ]
+                },
+                {
+                    "command": [
+                        "pose proof (msubst_eval_lvar_eq_aux _ _ _ _ _ H0 H1).",
+                        "VernacExtend",
+                        "4ca2c14aceaa365c9f14d9c0e2b4d78892f57351"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply eq_sym.",
+                        "VernacExtend",
+                        "313410cb7bcb68dc243125f00e91764f51d94be6"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply H2; auto.",
+                        "VernacExtend",
+                        "30acbf5144f9dcdba4f738b81d251d83daba847e"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

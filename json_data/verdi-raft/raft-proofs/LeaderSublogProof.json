@@ -1,0 +1,3671 @@
+{
+    "filename": "raft-proofs/LeaderSublogProof.v",
+    "coq_project": "verdi-raft",
+    "vernac_cmds": [
+        [
+            "Require Import Verdi.GhostSimulations.",
+            "VernacRequire",
+            "891dab67151e6ddfd50d6b357dfdba6cdf4a4361"
+        ],
+        [
+            "Require Import VerdiRaft.Raft.",
+            "VernacRequire",
+            "36b0b9afd1c52050ce42daf3c5fa4abb91993f25"
+        ],
+        [
+            "Require Import VerdiRaft.CommonTheorems.",
+            "VernacRequire",
+            "7741fdc8f1b779bdc4f3d3ad167d1a5d2532d984"
+        ],
+        [
+            "Require Import VerdiRaft.OneLeaderPerTermInterface.",
+            "VernacRequire",
+            "444eea47fd370138eff83a5c457a142435c5f84f"
+        ],
+        [
+            "Require Import VerdiRaft.CandidateEntriesInterface.",
+            "VernacRequire",
+            "02544720386829897f1e96e62139a54768f336bb"
+        ],
+        [
+            "Require Import VerdiRaft.RaftRefinementInterface.",
+            "VernacRequire",
+            "927926da3b5a03c3f12be5b77cf55cd407b249d6"
+        ],
+        [
+            "Require Import VerdiRaft.VotesCorrectInterface.",
+            "VernacRequire",
+            "befa4505210d0f227e4bbc88edce0f4c683a6a19"
+        ],
+        [
+            "Require Import VerdiRaft.CroniesCorrectInterface.",
+            "VernacRequire",
+            "ebd83359cccf83564c7844e74cbb331e6f25b45e"
+        ],
+        [
+            "Require Import VerdiRaft.RefinementCommonTheorems.",
+            "VernacRequire",
+            "f447a3743f2d76fcd6232a772b1da6f7993bdbc3"
+        ],
+        [
+            "Require Import VerdiRaft.LeaderSublogInterface.",
+            "VernacRequire",
+            "86a2d033e1536370f495f2eba1462625d39d9712"
+        ],
+        [
+            "Hint Extern 4 (@BaseParams) => apply base_params : typeclass_instances.",
+            "VernacHints",
+            "3886756b56637f3efd10fbe78997bb1d91d17980"
+        ],
+        [
+            "Hint Extern 4 (@MultiParams _) => apply multi_params : typeclass_instances.",
+            "VernacHints",
+            "6110657ab4096fe60cf58dc6d62a558f3df0918e"
+        ],
+        [
+            "Hint Extern 4 (@FailureParams _ _) => apply failure_params : typeclass_instances.",
+            "VernacHints",
+            "e8a041454a60fed392e037e79c5356c9a49d61ab"
+        ],
+        [
+            "Section LeaderSublogProof.",
+            "VernacBeginSection",
+            "daedcf92d80f1b20d763b0d136d318b9a30b4650"
+        ],
+        [
+            "Context {orig_base_params : BaseParams}.",
+            "VernacContext",
+            "69028e681894580fbc36a6124a9136decfafb159"
+        ],
+        [
+            "Context {one_node_params : OneNodeParams orig_base_params}.",
+            "VernacContext",
+            "013ed31ca1bcacb0528fc416f1059cfa49b9df65"
+        ],
+        [
+            "Context {raft_params : RaftParams orig_base_params}.",
+            "VernacContext",
+            "f5c24333154da8ee6ae37600b526f95496c92448"
+        ],
+        [
+            "Context {rri : raft_refinement_interface}.",
+            "VernacContext",
+            "34acb9bc0df96db7775fdb1297478e309d48058c"
+        ],
+        [
+            "Context {cei : candidate_entries_interface}.",
+            "VernacContext",
+            "173196e8830e4cdc3584b6e0ec447297d34db612"
+        ],
+        [
+            "Context {vci : votes_correct_interface}.",
+            "VernacContext",
+            "7503cb768a723c0a10450ec484b48daf5aaf8df7"
+        ],
+        [
+            "Context {cci : cronies_correct_interface}.",
+            "VernacContext",
+            "145e3f71ba43ad249ec8fb7ad2d9c3191e66d510"
+        ],
+        [
+            "Context {olpti : one_leader_per_term_interface}.",
+            "VernacContext",
+            "9503b284f0f3daf73ae7563fb9e8273432d84917"
+        ],
+        [
+            "Ltac prove_in := match goal with | [ _ : nwPackets ?net = _, _ : In (?p : packet) _ |- _] => assert (In p (nwPackets net)) by (repeat find_rewrite; do_in_app; intuition) | [ _ : nwPackets ?net = _, _ : pBody ?p = _ |- _] => assert (In p (nwPackets net)) by (repeat find_rewrite; intuition) end.",
+            "VernacExtend",
+            "d982c992d5893cfd1f59a7d70a7c2abe03fc650c"
+        ],
+        [
+            "Notation is_append_entries m := (exists t n prevT prevI entries c, m = AppendEntries t n prevT prevI entries c).",
+            "VernacSyntacticDefinition",
+            "d9fdb8b7b3d62ed69fe5a4d6ea521a86e6e0de7d"
+        ],
+        [
+            "Lemma leader_sublog_invariant_same_state : forall net net', leader_sublog_host_invariant net -> (forall h, log (nwState net h) = log (nwState net' h)) -> (forall h, type (nwState net' h) = Leader -> type (nwState net h) = Leader /\\ currentTerm (nwState net h) = currentTerm (nwState net' h)) -> leader_sublog_host_invariant net'.",
+            "VernacStartTheoremProof",
+            "b09579eec7302497b61e9eed6b322efdfe319d6c"
+        ],
+        [
+            "unfold leader_sublog_host_invariant in *.",
+            "VernacExtend",
+            "644618d79c812daeb1ddf08de654f23902d7f3b5"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "specialize (H leader e h).",
+            "VernacExtend",
+            "658e0f165d32f927a80ea278275793c4afb75730"
+        ],
+        [
+            "forward H; [apply H1; auto|].",
+            "VernacExtend",
+            "f913cf7dd3fe05d1946c4e2230482b19a3881242"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "rewrite H0 in *.",
+            "VernacExtend",
+            "af83a584973699e6385aaceb6dfa23390deb3419"
+        ],
+        [
+            "specialize (H1 leader).",
+            "VernacExtend",
+            "ccec6cab38b3d16e31cbc44c07dc84bc8bede401"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "rewrite H7 in *; auto.",
+            "VernacExtend",
+            "876e884d4c60e5dd76b1ccc403136c648fd6b032"
+        ],
+        [
+            "rewrite H0 in *.",
+            "VernacExtend",
+            "af83a584973699e6385aaceb6dfa23390deb3419"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma leader_sublog_invariant_subset : forall net net', leader_sublog_invariant net -> (forall p, is_append_entries (pBody p) -> In p (nwPackets net') -> In p (nwPackets net)) -> (forall h, log (nwState net h) = log (nwState net' h)) -> (forall h, type (nwState net' h) = Leader -> type (nwState net h) = Leader /\\ currentTerm (nwState net h) = currentTerm (nwState net' h)) -> leader_sublog_invariant net'.",
+            "VernacStartTheoremProof",
+            "ac74aa9b8a09a88fd79f468c922cc2f663598ed9"
+        ],
+        [
+            "unfold leader_sublog_invariant in *.",
+            "VernacExtend",
+            "9cadfee77bb1f4b03c68124c2548eee5cf078a61"
+        ],
+        [
+            "intros; intuition.",
+            "VernacExtend",
+            "a3a2f16741f98e9ea7379aabbbb836b12cae069c"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "eauto using leader_sublog_invariant_same_state.",
+            "VernacExtend",
+            "3bc03430714a5f87821a80ee96413d3bf113bb40"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "unfold leader_sublog_nw_invariant in *.",
+            "VernacExtend",
+            "de9525816aca747ee57510e63f7c3d71abb55cd3"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "pose proof H1 leader.",
+            "VernacExtend",
+            "a0ad7604873711eaea742306c21bad48a5c1ce3e"
+        ],
+        [
+            "pose proof H2 leader; concludes.",
+            "VernacExtend",
+            "853a7821b6466a49dc2da9b1a4e4b3e096d2ceca"
+        ],
+        [
+            "pose proof H3 leader.",
+            "VernacExtend",
+            "8d45394e38ecc7a77f875e310d82a1a56a81d54c"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "symmetry in H13.",
+            "VernacExtend",
+            "016fc190c503069f1b154ae0f957b2c502bbfb96"
+        ],
+        [
+            "repeat find_rewrite.",
+            "VernacExtend",
+            "2e0f7af91fb6dc6a2928bc530dda4cfbd03d3e68"
+        ],
+        [
+            "eapply H11; simpl in *; repeat find_rewrite; eauto.",
+            "VernacExtend",
+            "5db67d584c43f95e64bc329472dcfca3dc6499e3"
+        ],
+        [
+            "assert (is_append_entries (pBody p)) by (repeat eexists; eauto).",
+            "VernacExtend",
+            "ff786e9c6935fa398cfcccfcad8e8a04a6174b95"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem leader_sublog_do_leader : raft_net_invariant_do_leader leader_sublog_invariant.",
+            "VernacStartTheoremProof",
+            "c601adae9a91a6fe797923dd1f5ce0527b2cce7e"
+        ],
+        [
+            "unfold raft_net_invariant_do_leader.",
+            "VernacExtend",
+            "0c84ba977b093587cee8b45656743e281171333a"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold doLeader in *.",
+            "VernacExtend",
+            "0adf37b5cf82a80d85840635a23808ea53d55f18"
+        ],
+        [
+            "break_match; try solve [ find_inversion; simpl in *; eapply leader_sublog_invariant_subset; eauto; intuition; simpl in *; repeat find_apply_hyp_hyp; intuition; repeat find_higher_order_rewrite; repeat break_if; subst; intuition].",
+            "VernacExtend",
+            "5f17c4cd64bee950c7ebd5ae8c0d0d7e4bd7d344"
+        ],
+        [
+            "break_if.",
+            "VernacExtend",
+            "c247550e3c86ef9b38eaa4d1de30a9b2a63ba8cb"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "unfold replicaMessage in *.",
+            "VernacExtend",
+            "7a175db18e0d0a641257a3febae2b6ac61bb5254"
+        ],
+        [
+            "find_inversion.",
+            "VernacExtend",
+            "f1dd355c7c2f63f8f275fc6f55ac72ee2c39f687"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "unfold leader_sublog_invariant in *; intuition.",
+            "VernacExtend",
+            "9acda6851cd3826780ef4d340d940087c5a979a7"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "unfold leader_sublog_host_invariant in *.",
+            "VernacExtend",
+            "644618d79c812daeb1ddf08de654f23902d7f3b5"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "repeat find_higher_order_rewrite.",
+            "VernacExtend",
+            "f69dd976e7be9fe652f13ef2002e26a8b500e05e"
+        ],
+        [
+            "repeat break_if; simpl in *; intuition eauto.",
+            "VernacExtend",
+            "4ab326b15bbc7e94ddfeea36a9567ae99ea58dc3"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "unfold leader_sublog_nw_invariant in *.",
+            "VernacExtend",
+            "de9525816aca747ee57510e63f7c3d71abb55cd3"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "repeat find_higher_order_rewrite.",
+            "VernacExtend",
+            "f69dd976e7be9fe652f13ef2002e26a8b500e05e"
+        ],
+        [
+            "find_apply_hyp_hyp.",
+            "VernacExtend",
+            "5383dcfa01573f561f26c2e7f308613c889a9c8b"
+        ],
+        [
+            "break_if; intuition idtac; simpl in *; subst; intuition eauto; simpl in *; repeat do_in_map; subst; simpl in *; find_inversion; eauto using findGtIndex_in.",
+            "VernacExtend",
+            "6b53d2677ec55528af4c2b64f8e14dd239f5706a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "find_inversion.",
+            "VernacExtend",
+            "f1dd355c7c2f63f8f275fc6f55ac72ee2c39f687"
+        ],
+        [
+            "unfold leader_sublog_invariant, leader_sublog_nw_invariant, leader_sublog_host_invariant, advanceCommitIndex in *.",
+            "VernacExtend",
+            "f1d44e1090e00cca70105bbfda6ce616ad129869"
+        ],
+        [
+            "intuition; find_higher_order_rewrite; repeat break_if; simpl in *; subst; repeat break_if; simpl in *; eauto; find_apply_hyp_hyp; intuition; eauto.",
+            "VernacExtend",
+            "08675b88e1f8f7a07605fcb13141902ad801f2bd"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma leader_sublog_client_request : raft_net_invariant_client_request leader_sublog_invariant.",
+            "VernacStartTheoremProof",
+            "b15f3c3b473f4a2bcf95bc2cb45ea9694de923b8"
+        ],
+        [
+            "unfold raft_net_invariant_client_request.",
+            "VernacExtend",
+            "94a982b5907189dacadd56288cb2c1319bd0b292"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold leader_sublog_invariant, leader_sublog_nw_invariant, leader_sublog_host_invariant, handleClientRequest in *.",
+            "VernacExtend",
+            "0f7b9ed86854597c648fa11ae75dd4a6fba36a66"
+        ],
+        [
+            "intuition idtac.",
+            "VernacExtend",
+            "dde510db220ae39ba84736f2aea8089bb8e04fe4"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "break_match; find_inversion; simpl in *; repeat find_higher_order_rewrite; repeat break_if; subst; simpl in *; intuition eauto; simpl in *; in_crush_finish; intuition eauto.",
+            "VernacExtend",
+            "b1723f78a320f5def9dca41a74bd8ab698e55c51"
+        ],
+        [
+            "in_crush; eauto.",
+            "VernacExtend",
+            "af6e8b7ec989c5cfb668dfbdd8a390aa54a29745"
+        ],
+        [
+            "exfalso.",
+            "VernacExtend",
+            "f6514338e7c49f3c5a647bc69b7154700a8e57f1"
+        ],
+        [
+            "match goal with | H : raft_intermediate_reachable _ |- _ => eapply one_leader_per_term_invariant in H end.",
+            "VernacExtend",
+            "977605501a162b85b5f6d578b47f8d4d55a04966"
+        ],
+        [
+            "assert (leader = h) by (eapply_prop one_leader_per_term; eauto).",
+            "VernacExtend",
+            "a5480d9bd2d8375c6a71036e8f7fcd9a81a90acb"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "break_match; find_inversion; simpl in *; repeat find_higher_order_rewrite; repeat break_if; find_apply_hyp_hyp; intuition eauto; subst.",
+            "VernacExtend",
+            "9e29d7dd6526e2b516c1893deecea10a9defb9d9"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "in_crush; eauto.",
+            "VernacExtend",
+            "af6e8b7ec989c5cfb668dfbdd8a390aa54a29745"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma leader_sublog_timeout : raft_net_invariant_timeout leader_sublog_invariant.",
+            "VernacStartTheoremProof",
+            "d37c2e3822f6e9f93650cd83212990d45cedac93"
+        ],
+        [
+            "unfold raft_net_invariant_timeout.",
+            "VernacExtend",
+            "192ec37fe84915663d084360c9d899c6eb12d744"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold leader_sublog_invariant, leader_sublog_nw_invariant, leader_sublog_host_invariant, handleTimeout, tryToBecomeLeader in *.",
+            "VernacExtend",
+            "54b059ce7354d3b8ee55220daae60d51425e0bd9"
+        ],
+        [
+            "intuition idtac; simpl in *.",
+            "VernacExtend",
+            "215728c0f2fede224a16007b712cc13ac84f7938"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "repeat find_higher_order_rewrite; repeat break_match; repeat find_inversion; subst; simpl in *; intuition eauto; solve_by_inversion.",
+            "VernacExtend",
+            "10284781eefc5b2b895cb2e92f295b23a6fd9055"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "repeat find_higher_order_rewrite; repeat break_match; repeat find_inversion; subst; simpl in *; intuition eauto; find_apply_hyp_hyp; intuition eauto; try solve_by_inversion; in_crush; repeat find_inversion; discriminate.",
+            "VernacExtend",
+            "b384754ba273cbeffc0bfa680b2ab2eb4c181f2e"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma leader_sublog_append_entries : raft_net_invariant_append_entries leader_sublog_invariant.",
+            "VernacStartTheoremProof",
+            "ef410b12f0453e11290979827587248cf392b3ca"
+        ],
+        [
+            "unfold raft_net_invariant_append_entries.",
+            "VernacExtend",
+            "82079dd33a18617b93a5c2180d3d81dfb0f38bdf"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold leader_sublog_invariant, leader_sublog_nw_invariant, leader_sublog_host_invariant, handleAppendEntries, advanceCurrentTerm in *.",
+            "VernacExtend",
+            "0e5a02759143097e1ba3f65ede5e3bfb6c39bb73"
+        ],
+        [
+            "intuition idtac; simpl in *.",
+            "VernacExtend",
+            "215728c0f2fede224a16007b712cc13ac84f7938"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "repeat find_higher_order_rewrite; repeat break_match; repeat find_inversion; subst; simpl in *; intuition eauto; try solve_by_inversion; do_in_app; intuition; eauto using removeAfterIndex_in.",
+            "VernacExtend",
+            "d3e201435ae477e38d63e9cfa6ad503758fbfbc0"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "repeat find_higher_order_rewrite; repeat break_match; repeat find_inversion; subst; simpl in *; intuition eauto; find_apply_hyp_hyp; intuition eauto; subst; try discriminate.",
+            "VernacExtend",
+            "1ac3288da3045d06c91ddf20d36c67676da50720"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma leader_sublog_append_entries_reply : raft_net_invariant_append_entries_reply leader_sublog_invariant.",
+            "VernacStartTheoremProof",
+            "29a9bf788abd14ce2f41988b780aaee4729410c0"
+        ],
+        [
+            "unfold raft_net_invariant_append_entries_reply.",
+            "VernacExtend",
+            "e922444efaf7bc1b116c2f202a811ef89981e2f8"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold leader_sublog_invariant, leader_sublog_nw_invariant, leader_sublog_host_invariant, handleAppendEntriesReply, advanceCurrentTerm in *.",
+            "VernacExtend",
+            "0c6efe45081840b71052c346be10bfa54a5f09c3"
+        ],
+        [
+            "intuition idtac; simpl in *.",
+            "VernacExtend",
+            "215728c0f2fede224a16007b712cc13ac84f7938"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "repeat find_higher_order_rewrite; repeat break_match; repeat find_inversion; subst; simpl in *; intuition eauto; try solve_by_inversion.",
+            "VernacExtend",
+            "bf01d64daf611f868d29664fcf781a4f667efb54"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "repeat find_higher_order_rewrite; repeat break_match; repeat find_inversion; subst; simpl in *; intuition eauto; find_apply_hyp_hyp; intuition eauto; try discriminate.",
+            "VernacExtend",
+            "b0ffc6e99ab62a463f092111449f65b3b3a56a46"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma leader_sublog_request_vote : raft_net_invariant_request_vote leader_sublog_invariant.",
+            "VernacStartTheoremProof",
+            "2fa937439953ceeec4979a8c2a8c233714b2e188"
+        ],
+        [
+            "unfold raft_net_invariant_request_vote.",
+            "VernacExtend",
+            "c4336ea373d0a78c61c99a6fe10a20fd9521b051"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold leader_sublog_invariant, leader_sublog_nw_invariant, leader_sublog_host_invariant, handleRequestVote, advanceCurrentTerm in *.",
+            "VernacExtend",
+            "01e860b1e9e21ca106db8192180a611d33bf3529"
+        ],
+        [
+            "intuition idtac; simpl in *.",
+            "VernacExtend",
+            "215728c0f2fede224a16007b712cc13ac84f7938"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "repeat find_higher_order_rewrite; repeat break_match; repeat find_inversion; subst; simpl in *; intuition eauto; try solve_by_inversion.",
+            "VernacExtend",
+            "bf01d64daf611f868d29664fcf781a4f667efb54"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "repeat find_higher_order_rewrite; repeat break_match; repeat find_inversion; subst; simpl in *; intuition eauto; find_apply_hyp_hyp; intuition eauto; subst; try discriminate.",
+            "VernacExtend",
+            "1ac3288da3045d06c91ddf20d36c67676da50720"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition CandidateEntriesLowered net e h := currentTerm (nwState net h) = eTerm e -> wonElection (dedup name_eq_dec (votesReceived (nwState net h))) = true -> type (nwState net h) <> Candidate.",
+            "VernacDefinition",
+            "73f4ca1cb65470ff65e305b5d37ed4d5e8ac8f03"
+        ],
+        [
+            "Lemma candidate_entries_lowered' : forall net, CandidateEntries net -> votes_correct net -> cronies_correct net -> forall h h' e, In e (log (snd (nwState net h'))) -> CandidateEntriesLowered (deghost net) e h.",
+            "VernacStartTheoremProof",
+            "325eb1841cea346d270c2352c3531259458e2a6d"
+        ],
+        [
+            "unfold CandidateEntriesLowered, CandidateEntries, votes_correct, cronies_correct.",
+            "VernacExtend",
+            "b22ec58816063d05f8c6d335be881cd92ef9fec7"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "break_and.",
+            "VernacExtend",
+            "90a213dc7b4fc55cb8bc34300101c3eaa0ead551"
+        ],
+        [
+            "rewrite deghost_spec.",
+            "VernacExtend",
+            "a1f143410519c454eba985f2797ba142a3dd5378"
+        ],
+        [
+            "apply_prop_hyp candidateEntries_host_invariant In.",
+            "VernacExtend",
+            "c457b03fb5a84855abdc64cc59996c9f5880ec1f"
+        ],
+        [
+            "eapply candidateEntries_wonElection; auto; repeat find_rewrite_lem deghost_spec; eauto.",
+            "VernacExtend",
+            "7791e56d22175e9067513d48ce24731d07cdc2be"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma candidate_entries_lowered : forall net, raft_intermediate_reachable net -> forall h h' e, In e (log (nwState net h')) -> CandidateEntriesLowered net e h.",
+            "VernacStartTheoremProof",
+            "ee64c58b5e60efb2d09f38dcfa072ba471746762"
+        ],
+        [
+            "intros net H.",
+            "VernacExtend",
+            "306653c35d0e2ef7fe08c126d7488906d505c39b"
+        ],
+        [
+            "pattern net.",
+            "VernacExtend",
+            "ab1a8777193b68940aee805a961b322c7f655a7a"
+        ],
+        [
+            "apply lower_prop; auto.",
+            "VernacExtend",
+            "84e85498cca6e97b2f47bcafc9ef63c5c3769969"
+        ],
+        [
+            "clear H net.",
+            "VernacExtend",
+            "25922051be5a2710baf62c5a8c7bce58bb3a2213"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "repeat match goal with | [ H : _ |- _ ] => rewrite deghost_spec in H end.",
+            "VernacExtend",
+            "ea045fdf3141e6c8f11cf251f6caceea37f526ee"
+        ],
+        [
+            "eapply candidate_entries_lowered'; eauto using candidate_entries_invariant, votes_correct_invariant, cronies_correct_invariant.",
+            "VernacExtend",
+            "86218077229942f6154f1bba9d62c28bb952e486"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition CandidateEntriesLowered_rvr net e p := In p (nwPackets net) -> pBody p = RequestVoteReply (eTerm e) true -> currentTerm (nwState net (pDst p)) = eTerm e -> wonElection (dedup name_eq_dec (pSrc p :: votesReceived (nwState net (pDst p)))) = true -> type (nwState net (pDst p)) <> Candidate.",
+            "VernacDefinition",
+            "dd23f069db39452a08f6a13d359decfdbf7fbdc9"
+        ],
+        [
+            "Lemma deghost_packet_exists : forall net p, In p (nwPackets (deghost net)) -> exists (q : packet (params := raft_refined_multi_params (raft_params := raft_params))), In q (nwPackets net) /\\ p = deghost_packet q.",
+            "VernacStartTheoremProof",
+            "3e8493cec6c4fb3c350a27b5ec4e052313165017"
+        ],
+        [
+            "unfold deghost.",
+            "VernacExtend",
+            "b055a9e1838377f61bedc8f8d590095e4b0903de"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "do_in_map.",
+            "VernacExtend",
+            "fa0be9321c6684e706bb9aefb585d66dc4eaa336"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma candidate_entries_lowered_rvr' : forall net, CandidateEntries net -> votes_correct net -> cronies_correct net -> forall p h e, In e (log (snd (nwState net h))) -> CandidateEntriesLowered_rvr (deghost net) e p.",
+            "VernacStartTheoremProof",
+            "cd7e5846588e938837ccf81f2aa3dcb5ee3e85fd"
+        ],
+        [
+            "unfold CandidateEntriesLowered_rvr, CandidateEntries.",
+            "VernacExtend",
+            "c841dd1bc78c6d2e5d6f7670c51e28c5910de1f0"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "break_and.",
+            "VernacExtend",
+            "90a213dc7b4fc55cb8bc34300101c3eaa0ead551"
+        ],
+        [
+            "rewrite deghost_spec.",
+            "VernacExtend",
+            "a1f143410519c454eba985f2797ba142a3dd5378"
+        ],
+        [
+            "find_apply_lem_hyp deghost_packet_exists.",
+            "VernacExtend",
+            "66d767dfcd94c1f99dfd35e33fae351526141137"
+        ],
+        [
+            "break_exists.",
+            "VernacExtend",
+            "7914403b406cb602431a8c9ec3a15a70b4d83870"
+        ],
+        [
+            "break_and.",
+            "VernacExtend",
+            "90a213dc7b4fc55cb8bc34300101c3eaa0ead551"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "apply_prop_hyp candidateEntries_host_invariant In.",
+            "VernacExtend",
+            "c457b03fb5a84855abdc64cc59996c9f5880ec1f"
+        ],
+        [
+            "eapply wonElection_candidateEntries_rvr; auto; repeat find_rewrite_lem deghost_spec; eauto.",
+            "VernacExtend",
+            "8a6b860b3ef8d11e67170d5b6b0a8711a8a27080"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma candidate_entries_lowered_rvr : forall net, raft_intermediate_reachable net -> forall p h e, In e (log (nwState net h)) -> CandidateEntriesLowered_rvr net e p.",
+            "VernacStartTheoremProof",
+            "ea167b006567216035b255d378e9973ca95dedd1"
+        ],
+        [
+            "intros net H.",
+            "VernacExtend",
+            "306653c35d0e2ef7fe08c126d7488906d505c39b"
+        ],
+        [
+            "pattern net.",
+            "VernacExtend",
+            "ab1a8777193b68940aee805a961b322c7f655a7a"
+        ],
+        [
+            "apply lower_prop; auto.",
+            "VernacExtend",
+            "84e85498cca6e97b2f47bcafc9ef63c5c3769969"
+        ],
+        [
+            "clear H net.",
+            "VernacExtend",
+            "25922051be5a2710baf62c5a8c7bce58bb3a2213"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "repeat match goal with | [ H : _ |- _ ] => rewrite deghost_spec in H end.",
+            "VernacExtend",
+            "ea045fdf3141e6c8f11cf251f6caceea37f526ee"
+        ],
+        [
+            "eapply candidate_entries_lowered_rvr'; eauto using candidate_entries_invariant, votes_correct_invariant, cronies_correct_invariant.",
+            "VernacExtend",
+            "400d9da5730025eb613bd048429c6cd38226b945"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma candidate_entries_lowered_nw' : forall net, CandidateEntries net -> votes_correct net -> cronies_correct net -> forall h p e t li pli plt es lc, pBody p = AppendEntries t li pli plt es lc -> In p (nwPackets (deghost net)) -> In e es -> CandidateEntriesLowered (deghost net) e h.",
+            "VernacStartTheoremProof",
+            "766c3953449c85a69043a71c989546d0f92afa4d"
+        ],
+        [
+            "unfold CandidateEntriesLowered, CandidateEntries, votes_correct, cronies_correct.",
+            "VernacExtend",
+            "b22ec58816063d05f8c6d335be881cd92ef9fec7"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "break_and.",
+            "VernacExtend",
+            "90a213dc7b4fc55cb8bc34300101c3eaa0ead551"
+        ],
+        [
+            "rewrite deghost_spec.",
+            "VernacExtend",
+            "a1f143410519c454eba985f2797ba142a3dd5378"
+        ],
+        [
+            "find_apply_lem_hyp deghost_packet_exists.",
+            "VernacExtend",
+            "66d767dfcd94c1f99dfd35e33fae351526141137"
+        ],
+        [
+            "break_exists.",
+            "VernacExtend",
+            "7914403b406cb602431a8c9ec3a15a70b4d83870"
+        ],
+        [
+            "break_and.",
+            "VernacExtend",
+            "90a213dc7b4fc55cb8bc34300101c3eaa0ead551"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "eapply_prop_hyp candidateEntries_nw_invariant In; eauto.",
+            "VernacExtend",
+            "aa93f296195d470c68ffa53cd785a553dfc0646f"
+        ],
+        [
+            "unfold candidateEntries in *.",
+            "VernacExtend",
+            "caa80147103c84ab525abf8f16849db0f0c361a9"
+        ],
+        [
+            "break_exists.",
+            "VernacExtend",
+            "7914403b406cb602431a8c9ec3a15a70b4d83870"
+        ],
+        [
+            "break_and.",
+            "VernacExtend",
+            "90a213dc7b4fc55cb8bc34300101c3eaa0ead551"
+        ],
+        [
+            "match goal with | H : wonElection _ = _ |- _ => eapply wonElection_one_in_common in H; [|clear H; eauto] end.",
+            "VernacExtend",
+            "25238a3b9599398e5e9c8987ed1dd0eb5ee24bb2"
+        ],
+        [
+            "break_exists.",
+            "VernacExtend",
+            "7914403b406cb602431a8c9ec3a15a70b4d83870"
+        ],
+        [
+            "break_and.",
+            "VernacExtend",
+            "90a213dc7b4fc55cb8bc34300101c3eaa0ead551"
+        ],
+        [
+            "repeat match goal with | [ H : _ |- _ ] => rewrite deghost_spec in H end.",
+            "VernacExtend",
+            "ea045fdf3141e6c8f11cf251f6caceea37f526ee"
+        ],
+        [
+            "intro.",
+            "VernacExtend",
+            "3999be354c758ba0d1866e0fcc78a7288779a224"
+        ],
+        [
+            "assert (h = x0).",
+            "VernacExtend",
+            "0f99901b99f1ea8b8a22e0a70a1878fec146db04"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "eapply_prop one_vote_per_term; eapply_prop cronies_votes.",
+            "VernacExtend",
+            "9bbd6b7e25fe3b0216ecfcb6058b4a94216a4c08"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "eapply_prop votes_received_cronies; eauto.",
+            "VernacExtend",
+            "c899c4e5339e80cbfdc24f2add8b3d688fe8f3ea"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "find_reverse_rewrite.",
+            "VernacExtend",
+            "510474e8d8ea761a7e72152331e182a4c085d677"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "concludes.",
+            "VernacExtend",
+            "3697d2f68611e2ea2e021baaf4e64cd81f6b62ed"
+        ],
+        [
+            "contradiction.",
+            "VernacExtend",
+            "9b6a5c45e1144cbbccd544effb2a97082518704a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma candidate_entries_lowered_nw : forall net, raft_intermediate_reachable net -> forall h p e t li pli plt es lc, pBody p = AppendEntries t li pli plt es lc -> In p (nwPackets net) -> In e es -> CandidateEntriesLowered net e h.",
+            "VernacStartTheoremProof",
+            "b98055b0bd625e094ff2feeaedd0a2145cc8a369"
+        ],
+        [
+            "intros net H.",
+            "VernacExtend",
+            "306653c35d0e2ef7fe08c126d7488906d505c39b"
+        ],
+        [
+            "pattern net.",
+            "VernacExtend",
+            "ab1a8777193b68940aee805a961b322c7f655a7a"
+        ],
+        [
+            "apply lower_prop; auto.",
+            "VernacExtend",
+            "84e85498cca6e97b2f47bcafc9ef63c5c3769969"
+        ],
+        [
+            "clear H net.",
+            "VernacExtend",
+            "25922051be5a2710baf62c5a8c7bce58bb3a2213"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "repeat match goal with | [ H : _ |- _ ] => rewrite deghost_spec in H end.",
+            "VernacExtend",
+            "ea045fdf3141e6c8f11cf251f6caceea37f526ee"
+        ],
+        [
+            "eapply candidate_entries_lowered_nw'; eauto using candidate_entries_invariant, votes_correct_invariant, cronies_correct_invariant.",
+            "VernacExtend",
+            "c5e1b5e4e20c3d203dd8a94756b4558b8d386775"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma candidate_entries_lowered_nw_rvr' : forall net, CandidateEntries net -> votes_correct net -> cronies_correct net -> forall p' p e t li pli plt es lc, pBody p = AppendEntries t li pli plt es lc -> In p (nwPackets (deghost net)) -> In e es -> CandidateEntriesLowered_rvr (deghost net) e p'.",
+            "VernacStartTheoremProof",
+            "1a8323bf8713d2b40caaeefa3b25177360cb3726"
+        ],
+        [
+            "unfold CandidateEntriesLowered_rvr, CandidateEntries, votes_correct, cronies_correct.",
+            "VernacExtend",
+            "f13d8ae6906263e4b9fbae0c877d45a0c984bfcb"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "break_and.",
+            "VernacExtend",
+            "90a213dc7b4fc55cb8bc34300101c3eaa0ead551"
+        ],
+        [
+            "rewrite deghost_spec.",
+            "VernacExtend",
+            "a1f143410519c454eba985f2797ba142a3dd5378"
+        ],
+        [
+            "find_apply_lem_hyp deghost_packet_exists.",
+            "VernacExtend",
+            "66d767dfcd94c1f99dfd35e33fae351526141137"
+        ],
+        [
+            "find_apply_lem_hyp deghost_packet_exists.",
+            "VernacExtend",
+            "66d767dfcd94c1f99dfd35e33fae351526141137"
+        ],
+        [
+            "break_exists.",
+            "VernacExtend",
+            "7914403b406cb602431a8c9ec3a15a70b4d83870"
+        ],
+        [
+            "break_and.",
+            "VernacExtend",
+            "90a213dc7b4fc55cb8bc34300101c3eaa0ead551"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "eapply_prop_hyp votes_nw pBody.",
+            "VernacExtend",
+            "2fcd6016a018d21d6044f5adc5d8015d6872b863"
+        ],
+        [
+            "concludes.",
+            "VernacExtend",
+            "3697d2f68611e2ea2e021baaf4e64cd81f6b62ed"
+        ],
+        [
+            "eapply_prop_hyp candidateEntries_nw_invariant pBody; auto.",
+            "VernacExtend",
+            "37deedfb25fbb988bf872d8a969118de8f627649"
+        ],
+        [
+            "find_insterU.",
+            "VernacExtend",
+            "6ca0746835268766fb0820cb40b08242267de6ae"
+        ],
+        [
+            "conclude_using eauto.",
+            "VernacExtend",
+            "484033c221f8c05ef8a18ca87dd6110341b96b77"
+        ],
+        [
+            "unfold candidateEntries in *.",
+            "VernacExtend",
+            "caa80147103c84ab525abf8f16849db0f0c361a9"
+        ],
+        [
+            "break_exists.",
+            "VernacExtend",
+            "7914403b406cb602431a8c9ec3a15a70b4d83870"
+        ],
+        [
+            "break_and.",
+            "VernacExtend",
+            "90a213dc7b4fc55cb8bc34300101c3eaa0ead551"
+        ],
+        [
+            "match goal with | H : wonElection _ = _ |- _ => eapply wonElection_one_in_common in H; [|clear H; eauto] end.",
+            "VernacExtend",
+            "25238a3b9599398e5e9c8987ed1dd0eb5ee24bb2"
+        ],
+        [
+            "break_exists.",
+            "VernacExtend",
+            "7914403b406cb602431a8c9ec3a15a70b4d83870"
+        ],
+        [
+            "break_and.",
+            "VernacExtend",
+            "90a213dc7b4fc55cb8bc34300101c3eaa0ead551"
+        ],
+        [
+            "repeat match goal with | [ H : _ |- _ ] => rewrite deghost_spec in H end.",
+            "VernacExtend",
+            "ea045fdf3141e6c8f11cf251f6caceea37f526ee"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "break_or_hyp.",
+            "VernacExtend",
+            "a7c34cd75b882cc63618c1319b50ac735e08690b"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply_prop_hyp cronies_votes In.",
+            "VernacExtend",
+            "1385295f91edd243411ec72147bc234c8b2272e7"
+        ],
+        [
+            "assert (pDst x = x1) by (eapply_prop one_vote_per_term; eauto).",
+            "VernacExtend",
+            "76a52836583af8eb36d62ac2e138710a9d98302e"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "intro.",
+            "VernacExtend",
+            "3999be354c758ba0d1866e0fcc78a7288779a224"
+        ],
+        [
+            "assert (pDst x = x1).",
+            "VernacExtend",
+            "0dfbd08fad1d00f479f33dd88923d40cfdf3622e"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "eapply_prop one_vote_per_term; eapply_prop cronies_votes.",
+            "VernacExtend",
+            "9bbd6b7e25fe3b0216ecfcb6058b4a94216a4c08"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "eapply_prop votes_received_cronies; eauto.",
+            "VernacExtend",
+            "c899c4e5339e80cbfdc24f2add8b3d688fe8f3ea"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "repeat find_reverse_rewrite.",
+            "VernacExtend",
+            "da1070398b46835e4e5a3998f02155d9d7a1e47c"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "concludes.",
+            "VernacExtend",
+            "3697d2f68611e2ea2e021baaf4e64cd81f6b62ed"
+        ],
+        [
+            "contradiction.",
+            "VernacExtend",
+            "9b6a5c45e1144cbbccd544effb2a97082518704a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma candidate_entries_lowered_nw_rvr : forall net, raft_intermediate_reachable net -> forall p' p e t li pli plt es lc, pBody p = AppendEntries t li pli plt es lc -> In p (nwPackets net) -> In e es -> CandidateEntriesLowered_rvr net e p'.",
+            "VernacStartTheoremProof",
+            "e79e5471ccd4d43b4be4c5cb1a757dc4298929dc"
+        ],
+        [
+            "intros net H.",
+            "VernacExtend",
+            "306653c35d0e2ef7fe08c126d7488906d505c39b"
+        ],
+        [
+            "pattern net.",
+            "VernacExtend",
+            "ab1a8777193b68940aee805a961b322c7f655a7a"
+        ],
+        [
+            "apply lower_prop; auto.",
+            "VernacExtend",
+            "84e85498cca6e97b2f47bcafc9ef63c5c3769969"
+        ],
+        [
+            "clear H net.",
+            "VernacExtend",
+            "25922051be5a2710baf62c5a8c7bce58bb3a2213"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "repeat match goal with | [ H : _ |- _ ] => rewrite deghost_spec in H end.",
+            "VernacExtend",
+            "ea045fdf3141e6c8f11cf251f6caceea37f526ee"
+        ],
+        [
+            "eapply candidate_entries_lowered_nw_rvr'; eauto using candidate_entries_invariant, votes_correct_invariant, cronies_correct_invariant.",
+            "VernacExtend",
+            "3bddbbd6cbabddd2480eb24a532a99b7a20503c0"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma leader_sublog_request_vote_reply : raft_net_invariant_request_vote_reply leader_sublog_invariant.",
+            "VernacStartTheoremProof",
+            "ff718dbad4d80188c9fa5f4f070d0a98c2dc7859"
+        ],
+        [
+            "unfold raft_net_invariant_request_vote_reply.",
+            "VernacExtend",
+            "f241be955d2187ba3703a75e7a3b6228dc34bfc4"
+        ],
+        [
+            "unfold leader_sublog_invariant, leader_sublog_nw_invariant, leader_sublog_host_invariant, handleRequestVoteReply, advanceCurrentTerm.",
+            "VernacExtend",
+            "b495150fcdf2401ed12d957c8c5f47075c602f74"
+        ],
+        [
+            "intuition idtac; simpl in *.",
+            "VernacExtend",
+            "215728c0f2fede224a16007b712cc13ac84f7938"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "repeat find_higher_order_rewrite; repeat break_match; repeat find_inversion; subst; simpl in *; intuition eauto; try discriminate.",
+            "VernacExtend",
+            "d9e167dc062b42c1779ac302d6eb956f63190a79"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "exfalso.",
+            "VernacExtend",
+            "f6514338e7c49f3c5a647bc69b7154700a8e57f1"
+        ],
+        [
+            "eapply candidate_entries_lowered; eauto.",
+            "VernacExtend",
+            "df8097b932f542e033de42fa7ce25440f9d2dccf"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite dedup_not_in_cons in * by auto.",
+            "VernacExtend",
+            "ffaf8c3156abc4734382480f01ef933624b22a35"
+        ],
+        [
+            "exfalso.",
+            "VernacExtend",
+            "f6514338e7c49f3c5a647bc69b7154700a8e57f1"
+        ],
+        [
+            "eapply candidate_entries_lowered_rvr; eauto.",
+            "VernacExtend",
+            "536fbe5c4ba1512712643a9f94fa42c3b1add778"
+        ],
+        [
+            "do_bool.",
+            "VernacExtend",
+            "d118a15e0fdc019b84bfe1183a76e968b591dc36"
+        ],
+        [
+            "find_rewrite.",
+            "VernacExtend",
+            "7a65e4f552b93330a384f7173c61cfa61058bef5"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "repeat find_higher_order_rewrite; repeat break_match; repeat find_inversion; subst; simpl in *; intuition eauto; find_apply_hyp_hyp; intuition eauto; subst; try discriminate.",
+            "VernacExtend",
+            "1ac3288da3045d06c91ddf20d36c67676da50720"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "exfalso.",
+            "VernacExtend",
+            "f6514338e7c49f3c5a647bc69b7154700a8e57f1"
+        ],
+        [
+            "eapply candidate_entries_lowered_nw; eauto.",
+            "VernacExtend",
+            "d703aa0b170ba14001cdbbcb52da2f98d1358d88"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite dedup_not_in_cons in * by auto.",
+            "VernacExtend",
+            "ffaf8c3156abc4734382480f01ef933624b22a35"
+        ],
+        [
+            "exfalso.",
+            "VernacExtend",
+            "f6514338e7c49f3c5a647bc69b7154700a8e57f1"
+        ],
+        [
+            "eapply candidate_entries_lowered_nw_rvr; eauto.",
+            "VernacExtend",
+            "87026893139f9ab2ab0b6e5516e807b2f855413b"
+        ],
+        [
+            "do_bool.",
+            "VernacExtend",
+            "d118a15e0fdc019b84bfe1183a76e968b591dc36"
+        ],
+        [
+            "find_rewrite.",
+            "VernacExtend",
+            "7a65e4f552b93330a384f7173c61cfa61058bef5"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma leader_sublog_do_generic_server : raft_net_invariant_do_generic_server leader_sublog_invariant.",
+            "VernacStartTheoremProof",
+            "ba550fa0b84fc21f0ad8978ec4e3e5b6c24aca30"
+        ],
+        [
+            "unfold raft_net_invariant_do_generic_server.",
+            "VernacExtend",
+            "55b41470e9e2a5ec3482bca48f3cbf71c4494ee2"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold leader_sublog_invariant, leader_sublog_nw_invariant, leader_sublog_host_invariant, doGenericServer in *.",
+            "VernacExtend",
+            "98b685cf6308d870aa39cfebc136a3614d6cefac"
+        ],
+        [
+            "intuition idtac; simpl in *.",
+            "VernacExtend",
+            "215728c0f2fede224a16007b712cc13ac84f7938"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "repeat find_higher_order_rewrite; repeat break_match; repeat find_inversion; use_applyEntries_spec; subst; simpl in *; intuition eauto; try solve_by_inversion.",
+            "VernacExtend",
+            "c7a00a36803b3d1ff0b7bf5cee2e34aa09f2fc56"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "repeat find_higher_order_rewrite; repeat break_match; repeat find_inversion; use_applyEntries_spec; subst; simpl in *; intuition eauto; find_apply_hyp_hyp; intuition eauto; subst; try discriminate.",
+            "VernacExtend",
+            "9e624a5156630bea9d014e05f16b6e0b421ecd11"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma leader_sublog_state_same_packet_subset : raft_net_invariant_state_same_packet_subset leader_sublog_invariant.",
+            "VernacStartTheoremProof",
+            "aee5a622d0db663438a2511d32189b91feda48c4"
+        ],
+        [
+            "unfold raft_net_invariant_state_same_packet_subset.",
+            "VernacExtend",
+            "cf47c8fe9ccc51ecc2c9f6a97d114f6c2b5e6082"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold leader_sublog_invariant, leader_sublog_nw_invariant, leader_sublog_host_invariant in *.",
+            "VernacExtend",
+            "0592f3f91965370bcd164d5537a1598c91175b9f"
+        ],
+        [
+            "intuition idtac; repeat find_reverse_higher_order_rewrite; intuition eauto.",
+            "VernacExtend",
+            "2c145e4aea2689ee0567e7be83158f4b81676ebb"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma leader_sublog_reboot : raft_net_invariant_reboot leader_sublog_invariant.",
+            "VernacStartTheoremProof",
+            "3b3ad5ff17d7361bcd9e1f71f3503b5da317ddb7"
+        ],
+        [
+            "unfold raft_net_invariant_reboot.",
+            "VernacExtend",
+            "179b43a22b8778c232146d01972ebb565db02023"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold leader_sublog_invariant, leader_sublog_nw_invariant, leader_sublog_host_invariant, reboot in *.",
+            "VernacExtend",
+            "0ef2d21337b0339f5c71fc8b8b878c309abb5563"
+        ],
+        [
+            "intuition idtac.",
+            "VernacExtend",
+            "dde510db220ae39ba84736f2aea8089bb8e04fe4"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "repeat find_higher_order_rewrite.",
+            "VernacExtend",
+            "f69dd976e7be9fe652f13ef2002e26a8b500e05e"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "repeat break_match; subst; simpl in *; intuition eauto; discriminate.",
+            "VernacExtend",
+            "98b6bdc7638f4c149172f1e14ec4d693761354ee"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "repeat find_higher_order_rewrite.",
+            "VernacExtend",
+            "f69dd976e7be9fe652f13ef2002e26a8b500e05e"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "repeat find_rewrite.",
+            "VernacExtend",
+            "2e0f7af91fb6dc6a2928bc530dda4cfbd03d3e68"
+        ],
+        [
+            "repeat break_match; subst; simpl in *; intuition eauto; try discriminate.",
+            "VernacExtend",
+            "6a8967eb2deb6837aed5aeded458a148b530174d"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem leader_sublog_init : raft_net_invariant_init leader_sublog_invariant.",
+            "VernacStartTheoremProof",
+            "337ec62bff2dcf1409e41aa3deb0e1ff7fdcae15"
+        ],
+        [
+            "unfold raft_net_invariant_init, leader_sublog_invariant, leader_sublog_host_invariant, leader_sublog_nw_invariant; intuition.",
+            "VernacExtend",
+            "f504974f8bb845e28f1f5dd0d2388eaa25a71319"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem leader_sublog_invariant_invariant : forall net, raft_intermediate_reachable net -> leader_sublog_invariant net.",
+            "VernacStartTheoremProof",
+            "6275feae11f2a67ae6affa196dd1122959233914"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "eapply raft_net_invariant; eauto.",
+            "VernacExtend",
+            "669dc3e248e5679731769b2fee105527180e7611"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply leader_sublog_init.",
+            "VernacExtend",
+            "7de530a6feb9b2b17273b0c7caba94d67c0ff5a4"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply leader_sublog_client_request.",
+            "VernacExtend",
+            "25732d4df69fb4333ad490b11bbc81462ddee77c"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply leader_sublog_timeout.",
+            "VernacExtend",
+            "a75ab08fb45f01fde8c498864b2f6e61ce7b315d"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply leader_sublog_append_entries.",
+            "VernacExtend",
+            "1088c64454780471d33e39575060850fb412c925"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply leader_sublog_append_entries_reply.",
+            "VernacExtend",
+            "932c15154aa57bf173e0d6eb54dfb282687ada96"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply leader_sublog_request_vote.",
+            "VernacExtend",
+            "2c72c32c11d8386ce794627de61d6e4ceb2398d8"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply leader_sublog_request_vote_reply.",
+            "VernacExtend",
+            "f985799589dab8452a3320b3fb5a5bfe33bcd3aa"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply leader_sublog_do_leader.",
+            "VernacExtend",
+            "f055bcdbda7fc0b3a9f7f20579f0bb86109594ea"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply leader_sublog_do_generic_server.",
+            "VernacExtend",
+            "1ade8e49fe9dae747b8a23675c690daf8fb3eef5"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply leader_sublog_state_same_packet_subset.",
+            "VernacExtend",
+            "557ed11c7e83d210b3f382f398fbc542bdf59252"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply leader_sublog_reboot.",
+            "VernacExtend",
+            "a9c6181dafe2b361191adb778e440e8841aa5cd4"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Instance lsi : leader_sublog_interface.",
+            "VernacInstance",
+            "f4d2e69866c9382e392a5f0f0836a6513f0e4f86"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "auto using leader_sublog_invariant_invariant.",
+            "VernacExtend",
+            "258e8100524e69a076d5301ff9ec58a2c5940635"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End LeaderSublogProof.",
+            "VernacEndSegment",
+            "a845bd8bb34f306d086fd6650a1e16734d304bb2"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "leader_sublog_invariant_same_state",
+            "line_nb": 24,
+            "steps": [
+                {
+                    "command": [
+                        "unfold leader_sublog_host_invariant in *.",
+                        "VernacExtend",
+                        "644618d79c812daeb1ddf08de654f23902d7f3b5"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (H leader e h).",
+                        "VernacExtend",
+                        "658e0f165d32f927a80ea278275793c4afb75730"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward H; [apply H1; auto|].",
+                        "VernacExtend",
+                        "f913cf7dd3fe05d1946c4e2230482b19a3881242"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition.",
+                        "VernacExtend",
+                        "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H0 in *.",
+                        "VernacExtend",
+                        "af83a584973699e6385aaceb6dfa23390deb3419"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (H1 leader).",
+                        "VernacExtend",
+                        "ccec6cab38b3d16e31cbc44c07dc84bc8bede401"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition.",
+                        "VernacExtend",
+                        "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H7 in *; auto.",
+                        "VernacExtend",
+                        "876e884d4c60e5dd76b1ccc403136c648fd6b032"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H0 in *.",
+                        "VernacExtend",
+                        "af83a584973699e6385aaceb6dfa23390deb3419"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "leader_sublog_do_leader",
+            "line_nb": 55,
+            "steps": [
+                {
+                    "command": [
+                        "unfold raft_net_invariant_do_leader.",
+                        "VernacExtend",
+                        "0c84ba977b093587cee8b45656743e281171333a"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold doLeader in *.",
+                        "VernacExtend",
+                        "0adf37b5cf82a80d85840635a23808ea53d55f18"
+                    ]
+                },
+                {
+                    "command": [
+                        "break_match; try solve [ find_inversion; simpl in *; eapply leader_sublog_invariant_subset; eauto; intuition; simpl in *; repeat find_apply_hyp_hyp; intuition; repeat find_higher_order_rewrite; repeat break_if; subst; intuition].",
+                        "VernacExtend",
+                        "5f17c4cd64bee950c7ebd5ae8c0d0d7e4bd7d344"
+                    ]
+                },
+                {
+                    "command": [
+                        "break_if.",
+                        "VernacExtend",
+                        "c247550e3c86ef9b38eaa4d1de30a9b2a63ba8cb"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold replicaMessage in *.",
+                        "VernacExtend",
+                        "7a175db18e0d0a641257a3febae2b6ac61bb5254"
+                    ]
+                },
+                {
+                    "command": [
+                        "find_inversion.",
+                        "VernacExtend",
+                        "f1dd355c7c2f63f8f275fc6f55ac72ee2c39f687"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold leader_sublog_invariant in *; intuition.",
+                        "VernacExtend",
+                        "9acda6851cd3826780ef4d340d940087c5a979a7"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold leader_sublog_host_invariant in *.",
+                        "VernacExtend",
+                        "644618d79c812daeb1ddf08de654f23902d7f3b5"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat find_higher_order_rewrite.",
+                        "VernacExtend",
+                        "f69dd976e7be9fe652f13ef2002e26a8b500e05e"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat break_if; simpl in *; intuition eauto.",
+                        "VernacExtend",
+                        "4ab326b15bbc7e94ddfeea36a9567ae99ea58dc3"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold leader_sublog_nw_invariant in *.",
+                        "VernacExtend",
+                        "de9525816aca747ee57510e63f7c3d71abb55cd3"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat find_higher_order_rewrite.",
+                        "VernacExtend",
+                        "f69dd976e7be9fe652f13ef2002e26a8b500e05e"
+                    ]
+                },
+                {
+                    "command": [
+                        "find_apply_hyp_hyp.",
+                        "VernacExtend",
+                        "5383dcfa01573f561f26c2e7f308613c889a9c8b"
+                    ]
+                },
+                {
+                    "command": [
+                        "break_if; intuition idtac; simpl in *; subst; intuition eauto; simpl in *; repeat do_in_map; subst; simpl in *; find_inversion; eauto using findGtIndex_in.",
+                        "VernacExtend",
+                        "6b53d2677ec55528af4c2b64f8e14dd239f5706a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "find_inversion.",
+                        "VernacExtend",
+                        "f1dd355c7c2f63f8f275fc6f55ac72ee2c39f687"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold leader_sublog_invariant, leader_sublog_nw_invariant, leader_sublog_host_invariant, advanceCommitIndex in *.",
+                        "VernacExtend",
+                        "f1d44e1090e00cca70105bbfda6ce616ad129869"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition; find_higher_order_rewrite; repeat break_if; simpl in *; subst; repeat break_if; simpl in *; eauto; find_apply_hyp_hyp; intuition; eauto.",
+                        "VernacExtend",
+                        "08675b88e1f8f7a07605fcb13141902ad801f2bd"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "leader_sublog_client_request",
+            "line_nb": 84,
+            "steps": [
+                {
+                    "command": [
+                        "unfold raft_net_invariant_client_request.",
+                        "VernacExtend",
+                        "94a982b5907189dacadd56288cb2c1319bd0b292"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold leader_sublog_invariant, leader_sublog_nw_invariant, leader_sublog_host_invariant, handleClientRequest in *.",
+                        "VernacExtend",
+                        "0f7b9ed86854597c648fa11ae75dd4a6fba36a66"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition idtac.",
+                        "VernacExtend",
+                        "dde510db220ae39ba84736f2aea8089bb8e04fe4"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "break_match; find_inversion; simpl in *; repeat find_higher_order_rewrite; repeat break_if; subst; simpl in *; intuition eauto; simpl in *; in_crush_finish; intuition eauto.",
+                        "VernacExtend",
+                        "b1723f78a320f5def9dca41a74bd8ab698e55c51"
+                    ]
+                },
+                {
+                    "command": [
+                        "in_crush; eauto.",
+                        "VernacExtend",
+                        "af6e8b7ec989c5cfb668dfbdd8a390aa54a29745"
+                    ]
+                },
+                {
+                    "command": [
+                        "exfalso.",
+                        "VernacExtend",
+                        "f6514338e7c49f3c5a647bc69b7154700a8e57f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "match goal with | H : raft_intermediate_reachable _ |- _ => eapply one_leader_per_term_invariant in H end.",
+                        "VernacExtend",
+                        "977605501a162b85b5f6d578b47f8d4d55a04966"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (leader = h) by (eapply_prop one_leader_per_term; eauto).",
+                        "VernacExtend",
+                        "a5480d9bd2d8375c6a71036e8f7fcd9a81a90acb"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition.",
+                        "VernacExtend",
+                        "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "break_match; find_inversion; simpl in *; repeat find_higher_order_rewrite; repeat break_if; find_apply_hyp_hyp; intuition eauto; subst.",
+                        "VernacExtend",
+                        "9e29d7dd6526e2b516c1893deecea10a9defb9d9"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "in_crush; eauto.",
+                        "VernacExtend",
+                        "af6e8b7ec989c5cfb668dfbdd8a390aa54a29745"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "leader_sublog_timeout",
+            "line_nb": 101,
+            "steps": [
+                {
+                    "command": [
+                        "unfold raft_net_invariant_timeout.",
+                        "VernacExtend",
+                        "192ec37fe84915663d084360c9d899c6eb12d744"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold leader_sublog_invariant, leader_sublog_nw_invariant, leader_sublog_host_invariant, handleTimeout, tryToBecomeLeader in *.",
+                        "VernacExtend",
+                        "54b059ce7354d3b8ee55220daae60d51425e0bd9"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition idtac; simpl in *.",
+                        "VernacExtend",
+                        "215728c0f2fede224a16007b712cc13ac84f7938"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat find_higher_order_rewrite; repeat break_match; repeat find_inversion; subst; simpl in *; intuition eauto; solve_by_inversion.",
+                        "VernacExtend",
+                        "10284781eefc5b2b895cb2e92f295b23a6fd9055"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat find_higher_order_rewrite; repeat break_match; repeat find_inversion; subst; simpl in *; intuition eauto; find_apply_hyp_hyp; intuition eauto; try solve_by_inversion; in_crush; repeat find_inversion; discriminate.",
+                        "VernacExtend",
+                        "b384754ba273cbeffc0bfa680b2ab2eb4c181f2e"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "leader_sublog_append_entries",
+            "line_nb": 111,
+            "steps": [
+                {
+                    "command": [
+                        "unfold raft_net_invariant_append_entries.",
+                        "VernacExtend",
+                        "82079dd33a18617b93a5c2180d3d81dfb0f38bdf"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold leader_sublog_invariant, leader_sublog_nw_invariant, leader_sublog_host_invariant, handleAppendEntries, advanceCurrentTerm in *.",
+                        "VernacExtend",
+                        "0e5a02759143097e1ba3f65ede5e3bfb6c39bb73"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition idtac; simpl in *.",
+                        "VernacExtend",
+                        "215728c0f2fede224a16007b712cc13ac84f7938"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat find_higher_order_rewrite; repeat break_match; repeat find_inversion; subst; simpl in *; intuition eauto; try solve_by_inversion; do_in_app; intuition; eauto using removeAfterIndex_in.",
+                        "VernacExtend",
+                        "d3e201435ae477e38d63e9cfa6ad503758fbfbc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat find_higher_order_rewrite; repeat break_match; repeat find_inversion; subst; simpl in *; intuition eauto; find_apply_hyp_hyp; intuition eauto; subst; try discriminate.",
+                        "VernacExtend",
+                        "1ac3288da3045d06c91ddf20d36c67676da50720"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "leader_sublog_append_entries_reply",
+            "line_nb": 121,
+            "steps": [
+                {
+                    "command": [
+                        "unfold raft_net_invariant_append_entries_reply.",
+                        "VernacExtend",
+                        "e922444efaf7bc1b116c2f202a811ef89981e2f8"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold leader_sublog_invariant, leader_sublog_nw_invariant, leader_sublog_host_invariant, handleAppendEntriesReply, advanceCurrentTerm in *.",
+                        "VernacExtend",
+                        "0c6efe45081840b71052c346be10bfa54a5f09c3"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition idtac; simpl in *.",
+                        "VernacExtend",
+                        "215728c0f2fede224a16007b712cc13ac84f7938"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat find_higher_order_rewrite; repeat break_match; repeat find_inversion; subst; simpl in *; intuition eauto; try solve_by_inversion.",
+                        "VernacExtend",
+                        "bf01d64daf611f868d29664fcf781a4f667efb54"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat find_higher_order_rewrite; repeat break_match; repeat find_inversion; subst; simpl in *; intuition eauto; find_apply_hyp_hyp; intuition eauto; try discriminate.",
+                        "VernacExtend",
+                        "b0ffc6e99ab62a463f092111449f65b3b3a56a46"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "leader_sublog_request_vote",
+            "line_nb": 131,
+            "steps": [
+                {
+                    "command": [
+                        "unfold raft_net_invariant_request_vote.",
+                        "VernacExtend",
+                        "c4336ea373d0a78c61c99a6fe10a20fd9521b051"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold leader_sublog_invariant, leader_sublog_nw_invariant, leader_sublog_host_invariant, handleRequestVote, advanceCurrentTerm in *.",
+                        "VernacExtend",
+                        "01e860b1e9e21ca106db8192180a611d33bf3529"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition idtac; simpl in *.",
+                        "VernacExtend",
+                        "215728c0f2fede224a16007b712cc13ac84f7938"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat find_higher_order_rewrite; repeat break_match; repeat find_inversion; subst; simpl in *; intuition eauto; try solve_by_inversion.",
+                        "VernacExtend",
+                        "bf01d64daf611f868d29664fcf781a4f667efb54"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat find_higher_order_rewrite; repeat break_match; repeat find_inversion; subst; simpl in *; intuition eauto; find_apply_hyp_hyp; intuition eauto; subst; try discriminate.",
+                        "VernacExtend",
+                        "1ac3288da3045d06c91ddf20d36c67676da50720"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "candidate_entries_lowered'",
+            "line_nb": 142,
+            "steps": [
+                {
+                    "command": [
+                        "unfold CandidateEntriesLowered, CandidateEntries, votes_correct, cronies_correct.",
+                        "VernacExtend",
+                        "b22ec58816063d05f8c6d335be881cd92ef9fec7"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "break_and.",
+                        "VernacExtend",
+                        "90a213dc7b4fc55cb8bc34300101c3eaa0ead551"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite deghost_spec.",
+                        "VernacExtend",
+                        "a1f143410519c454eba985f2797ba142a3dd5378"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply_prop_hyp candidateEntries_host_invariant In.",
+                        "VernacExtend",
+                        "c457b03fb5a84855abdc64cc59996c9f5880ec1f"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply candidateEntries_wonElection; auto; repeat find_rewrite_lem deghost_spec; eauto.",
+                        "VernacExtend",
+                        "7791e56d22175e9067513d48ce24731d07cdc2be"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "candidate_entries_lowered",
+            "line_nb": 150,
+            "steps": [
+                {
+                    "command": [
+                        "intros net H.",
+                        "VernacExtend",
+                        "306653c35d0e2ef7fe08c126d7488906d505c39b"
+                    ]
+                },
+                {
+                    "command": [
+                        "pattern net.",
+                        "VernacExtend",
+                        "ab1a8777193b68940aee805a961b322c7f655a7a"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply lower_prop; auto.",
+                        "VernacExtend",
+                        "84e85498cca6e97b2f47bcafc9ef63c5c3769969"
+                    ]
+                },
+                {
+                    "command": [
+                        "clear H net.",
+                        "VernacExtend",
+                        "25922051be5a2710baf62c5a8c7bce58bb3a2213"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat match goal with | [ H : _ |- _ ] => rewrite deghost_spec in H end.",
+                        "VernacExtend",
+                        "ea045fdf3141e6c8f11cf251f6caceea37f526ee"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply candidate_entries_lowered'; eauto using candidate_entries_invariant, votes_correct_invariant, cronies_correct_invariant.",
+                        "VernacExtend",
+                        "86218077229942f6154f1bba9d62c28bb952e486"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "deghost_packet_exists",
+            "line_nb": 160,
+            "steps": [
+                {
+                    "command": [
+                        "unfold deghost.",
+                        "VernacExtend",
+                        "b055a9e1838377f61bedc8f8d590095e4b0903de"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "do_in_map.",
+                        "VernacExtend",
+                        "fa0be9321c6684e706bb9aefb585d66dc4eaa336"
+                    ]
+                },
+                {
+                    "command": [
+                        "eauto.",
+                        "VernacExtend",
+                        "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "candidate_entries_lowered_rvr'",
+            "line_nb": 167,
+            "steps": [
+                {
+                    "command": [
+                        "unfold CandidateEntriesLowered_rvr, CandidateEntries.",
+                        "VernacExtend",
+                        "c841dd1bc78c6d2e5d6f7670c51e28c5910de1f0"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "break_and.",
+                        "VernacExtend",
+                        "90a213dc7b4fc55cb8bc34300101c3eaa0ead551"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite deghost_spec.",
+                        "VernacExtend",
+                        "a1f143410519c454eba985f2797ba142a3dd5378"
+                    ]
+                },
+                {
+                    "command": [
+                        "find_apply_lem_hyp deghost_packet_exists.",
+                        "VernacExtend",
+                        "66d767dfcd94c1f99dfd35e33fae351526141137"
+                    ]
+                },
+                {
+                    "command": [
+                        "break_exists.",
+                        "VernacExtend",
+                        "7914403b406cb602431a8c9ec3a15a70b4d83870"
+                    ]
+                },
+                {
+                    "command": [
+                        "break_and.",
+                        "VernacExtend",
+                        "90a213dc7b4fc55cb8bc34300101c3eaa0ead551"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst.",
+                        "VernacExtend",
+                        "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply_prop_hyp candidateEntries_host_invariant In.",
+                        "VernacExtend",
+                        "c457b03fb5a84855abdc64cc59996c9f5880ec1f"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply wonElection_candidateEntries_rvr; auto; repeat find_rewrite_lem deghost_spec; eauto.",
+                        "VernacExtend",
+                        "8a6b860b3ef8d11e67170d5b6b0a8711a8a27080"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "candidate_entries_lowered_rvr",
+            "line_nb": 179,
+            "steps": [
+                {
+                    "command": [
+                        "intros net H.",
+                        "VernacExtend",
+                        "306653c35d0e2ef7fe08c126d7488906d505c39b"
+                    ]
+                },
+                {
+                    "command": [
+                        "pattern net.",
+                        "VernacExtend",
+                        "ab1a8777193b68940aee805a961b322c7f655a7a"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply lower_prop; auto.",
+                        "VernacExtend",
+                        "84e85498cca6e97b2f47bcafc9ef63c5c3769969"
+                    ]
+                },
+                {
+                    "command": [
+                        "clear H net.",
+                        "VernacExtend",
+                        "25922051be5a2710baf62c5a8c7bce58bb3a2213"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat match goal with | [ H : _ |- _ ] => rewrite deghost_spec in H end.",
+                        "VernacExtend",
+                        "ea045fdf3141e6c8f11cf251f6caceea37f526ee"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply candidate_entries_lowered_rvr'; eauto using candidate_entries_invariant, votes_correct_invariant, cronies_correct_invariant.",
+                        "VernacExtend",
+                        "400d9da5730025eb613bd048429c6cd38226b945"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "candidate_entries_lowered_nw",
+            "line_nb": 219,
+            "steps": [
+                {
+                    "command": [
+                        "intros net H.",
+                        "VernacExtend",
+                        "306653c35d0e2ef7fe08c126d7488906d505c39b"
+                    ]
+                },
+                {
+                    "command": [
+                        "pattern net.",
+                        "VernacExtend",
+                        "ab1a8777193b68940aee805a961b322c7f655a7a"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply lower_prop; auto.",
+                        "VernacExtend",
+                        "84e85498cca6e97b2f47bcafc9ef63c5c3769969"
+                    ]
+                },
+                {
+                    "command": [
+                        "clear H net.",
+                        "VernacExtend",
+                        "25922051be5a2710baf62c5a8c7bce58bb3a2213"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat match goal with | [ H : _ |- _ ] => rewrite deghost_spec in H end.",
+                        "VernacExtend",
+                        "ea045fdf3141e6c8f11cf251f6caceea37f526ee"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply candidate_entries_lowered_nw'; eauto using candidate_entries_invariant, votes_correct_invariant, cronies_correct_invariant.",
+                        "VernacExtend",
+                        "c5e1b5e4e20c3d203dd8a94756b4558b8d386775"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "candidate_entries_lowered_nw_rvr",
+            "line_nb": 272,
+            "steps": [
+                {
+                    "command": [
+                        "intros net H.",
+                        "VernacExtend",
+                        "306653c35d0e2ef7fe08c126d7488906d505c39b"
+                    ]
+                },
+                {
+                    "command": [
+                        "pattern net.",
+                        "VernacExtend",
+                        "ab1a8777193b68940aee805a961b322c7f655a7a"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply lower_prop; auto.",
+                        "VernacExtend",
+                        "84e85498cca6e97b2f47bcafc9ef63c5c3769969"
+                    ]
+                },
+                {
+                    "command": [
+                        "clear H net.",
+                        "VernacExtend",
+                        "25922051be5a2710baf62c5a8c7bce58bb3a2213"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat match goal with | [ H : _ |- _ ] => rewrite deghost_spec in H end.",
+                        "VernacExtend",
+                        "ea045fdf3141e6c8f11cf251f6caceea37f526ee"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply candidate_entries_lowered_nw_rvr'; eauto using candidate_entries_invariant, votes_correct_invariant, cronies_correct_invariant.",
+                        "VernacExtend",
+                        "3bddbbd6cbabddd2480eb24a532a99b7a20503c0"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "leader_sublog_request_vote_reply",
+            "line_nb": 281,
+            "steps": [
+                {
+                    "command": [
+                        "unfold raft_net_invariant_request_vote_reply.",
+                        "VernacExtend",
+                        "f241be955d2187ba3703a75e7a3b6228dc34bfc4"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold leader_sublog_invariant, leader_sublog_nw_invariant, leader_sublog_host_invariant, handleRequestVoteReply, advanceCurrentTerm.",
+                        "VernacExtend",
+                        "b495150fcdf2401ed12d957c8c5f47075c602f74"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition idtac; simpl in *.",
+                        "VernacExtend",
+                        "215728c0f2fede224a16007b712cc13ac84f7938"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat find_higher_order_rewrite; repeat break_match; repeat find_inversion; subst; simpl in *; intuition eauto; try discriminate.",
+                        "VernacExtend",
+                        "d9e167dc062b42c1779ac302d6eb956f63190a79"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "exfalso.",
+                        "VernacExtend",
+                        "f6514338e7c49f3c5a647bc69b7154700a8e57f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply candidate_entries_lowered; eauto.",
+                        "VernacExtend",
+                        "df8097b932f542e033de42fa7ce25440f9d2dccf"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite dedup_not_in_cons in * by auto.",
+                        "VernacExtend",
+                        "ffaf8c3156abc4734382480f01ef933624b22a35"
+                    ]
+                },
+                {
+                    "command": [
+                        "exfalso.",
+                        "VernacExtend",
+                        "f6514338e7c49f3c5a647bc69b7154700a8e57f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply candidate_entries_lowered_rvr; eauto.",
+                        "VernacExtend",
+                        "536fbe5c4ba1512712643a9f94fa42c3b1add778"
+                    ]
+                },
+                {
+                    "command": [
+                        "do_bool.",
+                        "VernacExtend",
+                        "d118a15e0fdc019b84bfe1183a76e968b591dc36"
+                    ]
+                },
+                {
+                    "command": [
+                        "find_rewrite.",
+                        "VernacExtend",
+                        "7a65e4f552b93330a384f7173c61cfa61058bef5"
+                    ]
+                },
+                {
+                    "command": [
+                        "f_equal.",
+                        "VernacExtend",
+                        "dfce814d1efcef60f8330516ad88155a3a5ec317"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat find_higher_order_rewrite; repeat break_match; repeat find_inversion; subst; simpl in *; intuition eauto; find_apply_hyp_hyp; intuition eauto; subst; try discriminate.",
+                        "VernacExtend",
+                        "1ac3288da3045d06c91ddf20d36c67676da50720"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "exfalso.",
+                        "VernacExtend",
+                        "f6514338e7c49f3c5a647bc69b7154700a8e57f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply candidate_entries_lowered_nw; eauto.",
+                        "VernacExtend",
+                        "d703aa0b170ba14001cdbbcb52da2f98d1358d88"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite dedup_not_in_cons in * by auto.",
+                        "VernacExtend",
+                        "ffaf8c3156abc4734382480f01ef933624b22a35"
+                    ]
+                },
+                {
+                    "command": [
+                        "exfalso.",
+                        "VernacExtend",
+                        "f6514338e7c49f3c5a647bc69b7154700a8e57f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply candidate_entries_lowered_nw_rvr; eauto.",
+                        "VernacExtend",
+                        "87026893139f9ab2ab0b6e5516e807b2f855413b"
+                    ]
+                },
+                {
+                    "command": [
+                        "do_bool.",
+                        "VernacExtend",
+                        "d118a15e0fdc019b84bfe1183a76e968b591dc36"
+                    ]
+                },
+                {
+                    "command": [
+                        "find_rewrite.",
+                        "VernacExtend",
+                        "7a65e4f552b93330a384f7173c61cfa61058bef5"
+                    ]
+                },
+                {
+                    "command": [
+                        "f_equal.",
+                        "VernacExtend",
+                        "dfce814d1efcef60f8330516ad88155a3a5ec317"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "leader_sublog_do_generic_server",
+            "line_nb": 312,
+            "steps": [
+                {
+                    "command": [
+                        "unfold raft_net_invariant_do_generic_server.",
+                        "VernacExtend",
+                        "55b41470e9e2a5ec3482bca48f3cbf71c4494ee2"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold leader_sublog_invariant, leader_sublog_nw_invariant, leader_sublog_host_invariant, doGenericServer in *.",
+                        "VernacExtend",
+                        "98b685cf6308d870aa39cfebc136a3614d6cefac"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition idtac; simpl in *.",
+                        "VernacExtend",
+                        "215728c0f2fede224a16007b712cc13ac84f7938"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat find_higher_order_rewrite; repeat break_match; repeat find_inversion; use_applyEntries_spec; subst; simpl in *; intuition eauto; try solve_by_inversion.",
+                        "VernacExtend",
+                        "c7a00a36803b3d1ff0b7bf5cee2e34aa09f2fc56"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat find_higher_order_rewrite; repeat break_match; repeat find_inversion; use_applyEntries_spec; subst; simpl in *; intuition eauto; find_apply_hyp_hyp; intuition eauto; subst; try discriminate.",
+                        "VernacExtend",
+                        "9e624a5156630bea9d014e05f16b6e0b421ecd11"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "leader_sublog_state_same_packet_subset",
+            "line_nb": 322,
+            "steps": [
+                {
+                    "command": [
+                        "unfold raft_net_invariant_state_same_packet_subset.",
+                        "VernacExtend",
+                        "cf47c8fe9ccc51ecc2c9f6a97d114f6c2b5e6082"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold leader_sublog_invariant, leader_sublog_nw_invariant, leader_sublog_host_invariant in *.",
+                        "VernacExtend",
+                        "0592f3f91965370bcd164d5537a1598c91175b9f"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition idtac; repeat find_reverse_higher_order_rewrite; intuition eauto.",
+                        "VernacExtend",
+                        "2c145e4aea2689ee0567e7be83158f4b81676ebb"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "leader_sublog_reboot",
+            "line_nb": 328,
+            "steps": [
+                {
+                    "command": [
+                        "unfold raft_net_invariant_reboot.",
+                        "VernacExtend",
+                        "179b43a22b8778c232146d01972ebb565db02023"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold leader_sublog_invariant, leader_sublog_nw_invariant, leader_sublog_host_invariant, reboot in *.",
+                        "VernacExtend",
+                        "0ef2d21337b0339f5c71fc8b8b878c309abb5563"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition idtac.",
+                        "VernacExtend",
+                        "dde510db220ae39ba84736f2aea8089bb8e04fe4"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat find_higher_order_rewrite.",
+                        "VernacExtend",
+                        "f69dd976e7be9fe652f13ef2002e26a8b500e05e"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat break_match; subst; simpl in *; intuition eauto; discriminate.",
+                        "VernacExtend",
+                        "98b6bdc7638f4c149172f1e14ec4d693761354ee"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat find_higher_order_rewrite.",
+                        "VernacExtend",
+                        "f69dd976e7be9fe652f13ef2002e26a8b500e05e"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat find_rewrite.",
+                        "VernacExtend",
+                        "2e0f7af91fb6dc6a2928bc530dda4cfbd03d3e68"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat break_match; subst; simpl in *; intuition eauto; try discriminate.",
+                        "VernacExtend",
+                        "6a8967eb2deb6837aed5aeded458a148b530174d"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "leader_sublog_init",
+            "line_nb": 343,
+            "steps": [
+                {
+                    "command": [
+                        "unfold raft_net_invariant_init, leader_sublog_invariant, leader_sublog_host_invariant, leader_sublog_nw_invariant; intuition.",
+                        "VernacExtend",
+                        "f504974f8bb845e28f1f5dd0d2388eaa25a71319"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "leader_sublog_invariant_invariant",
+            "line_nb": 346,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply raft_net_invariant; eauto.",
+                        "VernacExtend",
+                        "669dc3e248e5679731769b2fee105527180e7611"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply leader_sublog_init.",
+                        "VernacExtend",
+                        "7de530a6feb9b2b17273b0c7caba94d67c0ff5a4"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply leader_sublog_client_request.",
+                        "VernacExtend",
+                        "25732d4df69fb4333ad490b11bbc81462ddee77c"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply leader_sublog_timeout.",
+                        "VernacExtend",
+                        "a75ab08fb45f01fde8c498864b2f6e61ce7b315d"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply leader_sublog_append_entries.",
+                        "VernacExtend",
+                        "1088c64454780471d33e39575060850fb412c925"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply leader_sublog_append_entries_reply.",
+                        "VernacExtend",
+                        "932c15154aa57bf173e0d6eb54dfb282687ada96"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply leader_sublog_request_vote.",
+                        "VernacExtend",
+                        "2c72c32c11d8386ce794627de61d6e4ceb2398d8"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply leader_sublog_request_vote_reply.",
+                        "VernacExtend",
+                        "f985799589dab8452a3320b3fb5a5bfe33bcd3aa"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply leader_sublog_do_leader.",
+                        "VernacExtend",
+                        "f055bcdbda7fc0b3a9f7f20579f0bb86109594ea"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply leader_sublog_do_generic_server.",
+                        "VernacExtend",
+                        "1ade8e49fe9dae747b8a23675c690daf8fb3eef5"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply leader_sublog_state_same_packet_subset.",
+                        "VernacExtend",
+                        "557ed11c7e83d210b3f382f398fbc542bdf59252"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply leader_sublog_reboot.",
+                        "VernacExtend",
+                        "a9c6181dafe2b361191adb778e440e8841aa5cd4"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "lsi",
+            "line_nb": 372,
+            "steps": [
+                {
+                    "command": [
+                        "split.",
+                        "VernacExtend",
+                        "55abc140132bd88981001ac656020469a8d503eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto using leader_sublog_invariant_invariant.",
+                        "VernacExtend",
+                        "258e8100524e69a076d5301ff9ec58a2c5940635"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

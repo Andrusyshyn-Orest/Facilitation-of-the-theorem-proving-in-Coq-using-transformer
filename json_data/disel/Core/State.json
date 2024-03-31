@@ -1,0 +1,705 @@
+{
+    "filename": "Core/State.v",
+    "coq_project": "disel",
+    "vernac_cmds": [
+        [
+            "From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq.",
+            "VernacRequire",
+            "037d2ffdc90053d89d1b918c36daaeab721d2d83"
+        ],
+        [
+            "From mathcomp Require Import path.",
+            "VernacRequire",
+            "7c70f445c754a2a74114416d587d02e512c693e2"
+        ],
+        [
+            "Require Import Eqdep.",
+            "VernacRequire",
+            "a499933d0898d4c0e235af789d9252f633426d20"
+        ],
+        [
+            "Require Import Relation_Operators.",
+            "VernacRequire",
+            "5c09f52be79db9d019c350cc3153659920102fbb"
+        ],
+        [
+            "From fcsl Require Import pred prelude ordtype finmap pcm unionmap heap.",
+            "VernacRequire",
+            "41347af8188b8bd95ca7fa1d9e375300903274c8"
+        ],
+        [
+            "From DiSeL Require Import Freshness DepMaps EqTypeX.",
+            "VernacRequire",
+            "8ecadc793ff8e0083729a1f8b8c2709ebe7c919d"
+        ],
+        [
+            "Set Implicit Arguments.",
+            "VernacSetOption",
+            "9e84ff8896f028601d8aded48c1d4aebe60aa584"
+        ],
+        [
+            "Unset Strict Implicit.",
+            "VernacUnsetOption",
+            "2842adaf6959318f2042805935c46f513bdc0348"
+        ],
+        [
+            "Unset Printing Implicit Defensive.",
+            "VernacUnsetOption",
+            "444e5f0be4b25d9b1fd556943a447ec10046d151"
+        ],
+        [
+            "Section TaggedMessages.",
+            "VernacBeginSection",
+            "459939b8979979e4c9343b2d275af20bf4b84a49"
+        ],
+        [
+            "Structure TaggedMessage := TMsg { tag: nat; tms_cont :> seq nat }.",
+            "VernacInductive",
+            "4be0fef631268bf6acca4255246afbd904e7edf1"
+        ],
+        [
+            "End TaggedMessages.",
+            "VernacEndSegment",
+            "56895eace3ca961858a48e6ce8c83039c8626bd2"
+        ],
+        [
+            "Section Shared.",
+            "VernacBeginSection",
+            "70b9e6ecbfabc8522463aa9775da18f62192e2be"
+        ],
+        [
+            "Definition Label := [ordType of nat].",
+            "VernacDefinition",
+            "bf708c5e751d5a461871ad7aea17aa0f9833a06b"
+        ],
+        [
+            "Structure msg (mtype : Type) := Msg {content : mtype; from : nat; to : nat; active : bool }.",
+            "VernacInductive",
+            "f6664d1b9015a9a7e9f537989b05b526ba1f4612"
+        ],
+        [
+            "Definition mid := [ordType of nat].",
+            "VernacDefinition",
+            "d68581c4d9c546599706fc9eb5ea602feea839e2"
+        ],
+        [
+            "Definition soup : Type := union_map mid (msg (TaggedMessage)).",
+            "VernacDefinition",
+            "3dab7e6ffb5361014655d8054ae593764c3b1404"
+        ],
+        [
+            "Variables (s: soup) (V: valid s).",
+            "VernacAssumption",
+            "673e68a46550755e14b685c6faa025345b2abfd0"
+        ],
+        [
+            "Definition post_msg m : soup * mid := let: f := fresh s in (s \\+ f \\\\-> m, f).",
+            "VernacDefinition",
+            "9775a99bca0b1197b00f40e59783107dcc62ba20"
+        ],
+        [
+            "Lemma post_valid m : valid (post_msg m).1.",
+            "VernacStartTheoremProof",
+            "3fc82de40f1a9fbdf953218dfdae35332d1c2b9f"
+        ],
+        [
+            "by rewrite ?valid_fresh.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma post_fresh m : (post_msg m).2 \\notin dom s.",
+            "VernacStartTheoremProof",
+            "7ddd630bd27e3e4ae60068321f765ce395d3e249"
+        ],
+        [
+            "by rewrite ?dom_fresh.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition mark_msg T (m : msg T) : msg T := Msg (content m) (from m) (to m) false.",
+            "VernacDefinition",
+            "1b1a3da7dc85fa06e7b7f22eae6367a234a76482"
+        ],
+        [
+            "Definition consume_msg (s : soup) (id : mid) : soup := let: mr := find id s in if mr is Some m then upd id (mark_msg m) s else s.",
+            "VernacDefinition",
+            "08f921a7e39a0a4f2e0d7a3074b7e85f5952e693"
+        ],
+        [
+            "Definition is_active (id : mid) := exists m, find id s = Some m /\\ active m.",
+            "VernacDefinition",
+            "5f4e54bf21fc628a71716d9340c0a6a100fe56e4"
+        ],
+        [
+            "Definition is_consumed (id : mid) := exists m, find id s = Some m /\\ ~~ active m.",
+            "VernacDefinition",
+            "40830c7d351e10df1900b9fffc3d8d2949e96dcf"
+        ],
+        [
+            "Lemma find_consume s' (id: mid) m: valid s' -> find id s' = Some m -> find id (consume_msg s' id) = Some (mark_msg m).",
+            "VernacStartTheoremProof",
+            "a97a827d8264b79067cbbf16bd8c05a05c7be95a"
+        ],
+        [
+            "by move=>V' E; rewrite/consume_msg E findU eqxx V'/=.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma find_mark m s' msg : valid s' -> find m (consume_msg s' m) = Some msg -> exists msg', find m s' = Some msg' /\\ msg = mark_msg msg'.",
+            "VernacStartTheoremProof",
+            "7ad3b91653129de8a36f38c682ba1d357715e55a"
+        ],
+        [
+            "move=>V'; rewrite /consume_msg; case D: (m \\in dom s').",
+            "VernacExtend",
+            "d7214ac8fd48f4d1cd143edd9d16f6d28386a302"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "move/um_eta: D=>[msg'][->]_; rewrite findU eqxx/= V'.",
+            "VernacExtend",
+            "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+        ],
+        [
+            "by case=><-; eexists _.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "by case: dom_find (D)=>//->_; move/find_some=>Z; rewrite Z in D.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma mark_other m m' s' : valid s' -> m' == m = false -> find m' (consume_msg s' m) = find m' s'.",
+            "VernacStartTheoremProof",
+            "603f9c57b6af2c6a1a7fde86250ef1ef541dceff"
+        ],
+        [
+            "move=>V' N; rewrite /consume_msg; case D: (m \\in dom s').",
+            "VernacExtend",
+            "d7214ac8fd48f4d1cd143edd9d16f6d28386a302"
+        ],
+        [
+            "by case: dom_find (D)=>//v->_ _; rewrite findU N.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "by case: dom_find (D)=>//->_.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma consume_valid s' m : valid s' -> valid (consume_msg s' m).",
+            "VernacStartTheoremProof",
+            "8d9558f92c1ee12c97262b64ddf88f1b63abb5fd"
+        ],
+        [
+            "move=>V'; rewrite /consume_msg; case (find m s')=>//v.",
+            "VernacExtend",
+            "9a27d4cdb663815a1a2248bb21e31e19d3d61cb9"
+        ],
+        [
+            "by rewrite /mark_msg validU.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma consumeUn (s': soup) (i : mid) mm (j : mid) : valid (s' \\+ i \\\\-> mm) -> consume_msg (s' \\+ i \\\\-> mm) j = if i == j then s' \\+ i \\\\-> mark_msg mm else (consume_msg s' j) \\+ (i \\\\-> mm).",
+            "VernacStartTheoremProof",
+            "0916278e6db0b64e3d599362ed4189570cf09e6a"
+        ],
+        [
+            "rewrite ![_ \\+ i \\\\-> _]joinC; rewrite eq_sym.",
+            "VernacExtend",
+            "2194fcb4d6d52cbae24a29f7ff14a3997f1912fd"
+        ],
+        [
+            "move=>V'; case B: (j==i); rewrite /consume_msg findPtUn2// B.",
+            "VernacExtend",
+            "9c3f4e82a1696e467f5acd1f5c747a8b7b11bee4"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by move/eqP: B=>?; subst j; rewrite updPtUn.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "by case X: (find j s')=>//; rewrite updUnL domPt inE eq_sym B.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Notation \"'{{' m 'in' s 'at' id '}}'\" := (find id s = Some m).",
+            "VernacNotation",
+            "ab177f89959372513f8cc6ef92df9b14f31765d3"
+        ],
+        [
+            "Notation \"'{{' m 'in' s '}}'\" := (exists id, {{m in s at id}}).",
+            "VernacNotation",
+            "7a51048df176f178b0f12530db21ff79bfe71103"
+        ],
+        [
+            "End Shared.",
+            "VernacEndSegment",
+            "3d4f5b09c4c9163bd37f25f2e83fc7000ff1d532"
+        ],
+        [
+            "Section Local.",
+            "VernacBeginSection",
+            "43a3738abf76963cdbfee0555c9d07ecbfaddb4c"
+        ],
+        [
+            "Variable U : Type.",
+            "VernacAssumption",
+            "eb05258af3da16894daf420a97be779934a15d7e"
+        ],
+        [
+            "Definition nid := nat.",
+            "VernacDefinition",
+            "4d2370ad7722cfb39fd46f721b99c60e7c0735b5"
+        ],
+        [
+            "Definition lstate_type := union_map [ordType of nid] U.",
+            "VernacDefinition",
+            "bdc74642fb40ff324b9e9e0f5b3981783c0ff1cc"
+        ],
+        [
+            "End Local.",
+            "VernacEndSegment",
+            "53378e80dfba1b221c44a294fc9e90cec3b45236"
+        ],
+        [
+            "Section Statelets.",
+            "VernacBeginSection",
+            "39ff2a4e375c0b5d6a72f554583b908e6ea389da"
+        ],
+        [
+            "Structure dstatelet := DStatelet { dstate : lstate_type heap; dsoup : soup }.",
+            "VernacInductive",
+            "b1c7251eca871524568bf91b7fcb46652923aec9"
+        ],
+        [
+            "Fixpoint empty_lstate (ns : seq nid) := if ns is n :: ns' then n \\\\-> Heap.empty \\+ (empty_lstate ns') else Unit.",
+            "VernacFixpoint",
+            "87e3533a3d9786bae760ed1e4b34ed841f3bd89e"
+        ],
+        [
+            "Definition empty_dstatelet : dstatelet := @DStatelet (empty_lstate [::]) Unit.",
+            "VernacDefinition",
+            "ecdaee28dc7e01b91a76708bf98688aaa60dcad2"
+        ],
+        [
+            "Lemma valid_mt_soup : valid (dsoup empty_dstatelet).",
+            "VernacStartTheoremProof",
+            "6df3ef8bebee4eef82ebd85fb97ba38328220dd4"
+        ],
+        [
+            "by rewrite /= valid_unit.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma valid_mt_state : valid (dstate empty_dstatelet).",
+            "VernacStartTheoremProof",
+            "98da2e27458ba3e5f7222b26110da206b96f8152"
+        ],
+        [
+            "by rewrite valid_unit.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma mt_nodes : dom (dstate empty_dstatelet) =i [::].",
+            "VernacStartTheoremProof",
+            "9f21abdded904982b1b2ece922729523ee063e6f"
+        ],
+        [
+            "by rewrite dom0.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End Statelets.",
+            "VernacEndSegment",
+            "d0aa989d6a5f6974f3850a0e6aee9e433d44412d"
+        ],
+        [
+            "Module StateGetters.",
+            "VernacDefineModule",
+            "272c94e2892ded3935c00a3d8203a6b80f0655b9"
+        ],
+        [
+            "Section StateGetters.",
+            "VernacBeginSection",
+            "1f29c2e86e6cd6ea5e2076846cc06097f0a1c372"
+        ],
+        [
+            "Definition state := union_map Label dstatelet.",
+            "VernacDefinition",
+            "b98251daae68ee69e93b7a4fba46dd061b3d575a"
+        ],
+        [
+            "Definition getStatelet (s: state) (i : Label) : dstatelet := match find i s with | Some d => d | None => empty_dstatelet end.",
+            "VernacDefinition",
+            "d98524480d87145f027dff67725bd89413c9c9bc"
+        ],
+        [
+            "End StateGetters.",
+            "VernacEndSegment",
+            "8905041404a2247e2205dafd62edd6f0f447a491"
+        ],
+        [
+            "End StateGetters.",
+            "VernacEndSegment",
+            "8905041404a2247e2205dafd62edd6f0f447a491"
+        ],
+        [
+            "Export StateGetters.",
+            "VernacImport",
+            "6331980b4238cb1ec0b6cb680d2b4eb307895e1d"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "post_valid",
+            "line_nb": 19,
+            "steps": [
+                {
+                    "command": [
+                        "by rewrite ?valid_fresh.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "post_fresh",
+            "line_nb": 22,
+            "steps": [
+                {
+                    "command": [
+                        "by rewrite ?dom_fresh.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "find_consume",
+            "line_nb": 29,
+            "steps": [
+                {
+                    "command": [
+                        "by move=>V' E; rewrite/consume_msg E findU eqxx V'/=.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "find_mark",
+            "line_nb": 32,
+            "steps": [
+                {
+                    "command": [
+                        "move=>V'; rewrite /consume_msg; case D: (m \\in dom s').",
+                        "VernacExtend",
+                        "d7214ac8fd48f4d1cd143edd9d16f6d28386a302"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "move/um_eta: D=>[msg'][->]_; rewrite findU eqxx/= V'.",
+                        "VernacExtend",
+                        "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+                    ]
+                },
+                {
+                    "command": [
+                        "by case=><-; eexists _.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "by case: dom_find (D)=>//->_; move/find_some=>Z; rewrite Z in D.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "mark_other",
+            "line_nb": 39,
+            "steps": [
+                {
+                    "command": [
+                        "move=>V' N; rewrite /consume_msg; case D: (m \\in dom s').",
+                        "VernacExtend",
+                        "d7214ac8fd48f4d1cd143edd9d16f6d28386a302"
+                    ]
+                },
+                {
+                    "command": [
+                        "by case: dom_find (D)=>//v->_ _; rewrite findU N.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "by case: dom_find (D)=>//->_.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "consume_valid",
+            "line_nb": 44,
+            "steps": [
+                {
+                    "command": [
+                        "move=>V'; rewrite /consume_msg; case (find m s')=>//v.",
+                        "VernacExtend",
+                        "9a27d4cdb663815a1a2248bb21e31e19d3d61cb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite /mark_msg validU.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "consumeUn",
+            "line_nb": 48,
+            "steps": [
+                {
+                    "command": [
+                        "rewrite ![_ \\+ i \\\\-> _]joinC; rewrite eq_sym.",
+                        "VernacExtend",
+                        "2194fcb4d6d52cbae24a29f7ff14a3997f1912fd"
+                    ]
+                },
+                {
+                    "command": [
+                        "move=>V'; case B: (j==i); rewrite /consume_msg findPtUn2// B.",
+                        "VernacExtend",
+                        "9c3f4e82a1696e467f5acd1f5c747a8b7b11bee4"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "by move/eqP: B=>?; subst j; rewrite updPtUn.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "by case X: (find j s')=>//; rewrite updUnL domPt inE eq_sym B.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "valid_mt_soup",
+            "line_nb": 67,
+            "steps": [
+                {
+                    "command": [
+                        "by rewrite /= valid_unit.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "valid_mt_state",
+            "line_nb": 70,
+            "steps": [
+                {
+                    "command": [
+                        "by rewrite valid_unit.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "mt_nodes",
+            "line_nb": 73,
+            "steps": [
+                {
+                    "command": [
+                        "by rewrite dom0.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,3645 @@
+{
+    "filename": "Examples/TwoPhaseCommit/TwoPhaseProtocol.v",
+    "coq_project": "disel",
+    "vernac_cmds": [
+        [
+            "From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq.",
+            "VernacRequire",
+            "037d2ffdc90053d89d1b918c36daaeab721d2d83"
+        ],
+        [
+            "From mathcomp Require Import path.",
+            "VernacRequire",
+            "7c70f445c754a2a74114416d587d02e512c693e2"
+        ],
+        [
+            "Require Import Eqdep.",
+            "VernacRequire",
+            "a499933d0898d4c0e235af789d9252f633426d20"
+        ],
+        [
+            "Require Import Relation_Operators.",
+            "VernacRequire",
+            "5c09f52be79db9d019c350cc3153659920102fbb"
+        ],
+        [
+            "From fcsl Require Import axioms pred prelude ordtype finmap pcm unionmap heap.",
+            "VernacRequire",
+            "576c96e5dbde92d8f1878b78d95e36aa980a0403"
+        ],
+        [
+            "From DiSeL Require Import Freshness State EqTypeX DepMaps Protocols Worlds NetworkSem Rely.",
+            "VernacRequire",
+            "6c33e6a9f60f6493eef47870959de533dbb9d6c8"
+        ],
+        [
+            "From DiSeL Require Import Actions Injection Process Always HoareTriples InferenceRules.",
+            "VernacRequire",
+            "7ad4d509680a53857edde447eef7d606efef38a6"
+        ],
+        [
+            "Set Implicit Arguments.",
+            "VernacSetOption",
+            "9e84ff8896f028601d8aded48c1d4aebe60aa584"
+        ],
+        [
+            "Unset Strict Implicit.",
+            "VernacUnsetOption",
+            "2842adaf6959318f2042805935c46f513bdc0348"
+        ],
+        [
+            "Import Prenex Implicits.",
+            "VernacUnsetOption",
+            "444e5f0be4b25d9b1fd556943a447ec10046d151"
+        ],
+        [
+            "Module TPCProtocol.",
+            "VernacDefineModule",
+            "a704b8db75ebb426fbec759c49b217f5b09f5e6e"
+        ],
+        [
+            "Module States.",
+            "VernacDefineModule",
+            "3591b740608b8b410fd2f1f8dfd548e121fde613"
+        ],
+        [
+            "Definition data := seq nid.",
+            "VernacDefinition",
+            "087e07238eda00512c3d74214e038b6a10c965ae"
+        ],
+        [
+            "Inductive CState := | CInit | CSentPrep of data & seq nid | CWaitPrepResponse of data & seq (nid * bool) | CSentCommit of data & seq nid | CSentAbort of data & seq nid | CWaitAckCommit of data & seq nid | CWaitAckAbort of data & seq nid.",
+            "VernacInductive",
+            "af843da0ad136ef0fa0214239a414c0a16c629ce"
+        ],
+        [
+            "Inductive PState := | PInit | PGotRequest of data | PRespondedYes of data | PRespondedNo of data | PCommitted of data | PAborted of data.",
+            "VernacInductive",
+            "1c149d32197947f090901c030c864b50f6cafba6"
+        ],
+        [
+            "Definition st := ptr_nat 1.",
+            "VernacDefinition",
+            "b14ba6b685a37e0333cb749673d4f4b0fb950659"
+        ],
+        [
+            "Definition log := ptr_nat 2.",
+            "VernacDefinition",
+            "37298dd5f530721bc83adcb67f1ceae5678f2e10"
+        ],
+        [
+            "Definition Log := seq (bool * (seq nat)).",
+            "VernacDefinition",
+            "c15475e0a6af7a84f584ff79d0ec55ca4b1e1bce"
+        ],
+        [
+            "Definition CStateT := (nat * CState)%type.",
+            "VernacDefinition",
+            "c7bdfb56853b96043c17bedb62d59f33e5dbbef4"
+        ],
+        [
+            "Definition PStateT := (nat * PState)%type.",
+            "VernacDefinition",
+            "95b74cdadf3befe3d53165ef88af477fc0312162"
+        ],
+        [
+            "End States.",
+            "VernacEndSegment",
+            "1c4ce15072c506c57bc6364f68a4c429eb52e2e0"
+        ],
+        [
+            "Import States.",
+            "VernacImport",
+            "77dee28c946e4abf1995a33fe294fee158e3d198"
+        ],
+        [
+            "Section TPCProtocol.",
+            "VernacBeginSection",
+            "ee296d91c6feb041f6e4e3a27c789a5afe5327ab"
+        ],
+        [
+            "Variable cn : nid.",
+            "VernacAssumption",
+            "f39bb08de90ce0ad0fdf2967b7de2fc841aebb9f"
+        ],
+        [
+            "Variable pts : seq nid.",
+            "VernacAssumption",
+            "4148b5072ffdc9af91dfe51a96f5a440a231455b"
+        ],
+        [
+            "Variable others : seq nid.",
+            "VernacAssumption",
+            "df0721a141338983b2016a22742ee80f2e78065f"
+        ],
+        [
+            "Hypothesis Hnin : cn \\notin pts.",
+            "VernacAssumption",
+            "2fb5a2919f5d9b9af133204d367fb9b8271fb0a6"
+        ],
+        [
+            "Hypothesis Puniq : uniq pts.",
+            "VernacAssumption",
+            "1bbddb9cd7b991469153e26d76f0f566b32746ba"
+        ],
+        [
+            "Definition localCoh (n : nid) : Pred heap := [Pred h | valid h /\\ if n == cn then exists (s : CStateT) (l : Log), h = st :-> s \\+ log :-> l else if n \\in pts then exists (s : PStateT) (l : Log), h = st :-> s \\+ log :-> l else log \\notin dom h].",
+            "VernacDefinition",
+            "25c3aef37561ab4a0aa21e68b8d66dfba84233e1"
+        ],
+        [
+            "Definition nodes := [:: cn] ++ pts ++ others.",
+            "VernacDefinition",
+            "1da5c3d5a3a7a7ebefa19c953837dedbdc37be26"
+        ],
+        [
+            "Definition prep_req : nat := 0.",
+            "VernacDefinition",
+            "7ca1a48452016114c844b41818946d0bae77418a"
+        ],
+        [
+            "Definition prep_yes : nat := 1.",
+            "VernacDefinition",
+            "3d15c0cc6f3c44d5524911f28541812488341299"
+        ],
+        [
+            "Definition prep_no : nat := 2.",
+            "VernacDefinition",
+            "49223fc8535b6bdf1830dd3f2c014201ad0a716d"
+        ],
+        [
+            "Definition commit_req : nat := 3.",
+            "VernacDefinition",
+            "b49d34dca5d100f6c49ee347c81e46c29f21484d"
+        ],
+        [
+            "Definition abort_req : nat := 4.",
+            "VernacDefinition",
+            "3a70dc093669bbb9fddc5ec060742791858eef4f"
+        ],
+        [
+            "Definition commit_ack : nat := 5.",
+            "VernacDefinition",
+            "0de5e3bf93e1216b21b15d4cfca20d6b346fbe5d"
+        ],
+        [
+            "Definition abort_ack : nat := 6.",
+            "VernacDefinition",
+            "e5f044273103aea6b6b9444fb08db0705026772e"
+        ],
+        [
+            "Definition eval_req : nat := 7.",
+            "VernacDefinition",
+            "5c820320c278bf551b7f749ba05b64fc2e13d861"
+        ],
+        [
+            "Definition eval_resp : nat := 8.",
+            "VernacDefinition",
+            "fcbe8630c5267bf0b2729cd16111a186b0d66a10"
+        ],
+        [
+            "Definition ttag := nat.",
+            "VernacDefinition",
+            "47bcdedd6fe70d1a458b59ba5b55a3632790843a"
+        ],
+        [
+            "Definition payload := seq nat.",
+            "VernacDefinition",
+            "0fabfcd4d5f31db4b8a9b734d0a3fcf83b073101"
+        ],
+        [
+            "Definition tags : seq ttag := [:: prep_req; prep_yes; prep_no; commit_req; abort_req; commit_ack; abort_ack; eval_req; eval_resp].",
+            "VernacDefinition",
+            "c92e48b6e37597560dd813da8bb2ea71e03df013"
+        ],
+        [
+            "Definition tagFromParticipant (t : nat) : bool := (t \\in [:: prep_yes; prep_no; commit_ack; abort_ack]).",
+            "VernacDefinition",
+            "f70574d56cf2e0db3c4cd440c9ff418cb1174ac4"
+        ],
+        [
+            "Definition msgFromParticipant (tms : TaggedMessage) (y : nat) : bool := tagFromParticipant (tag tms) && (tms_cont tms == [:: y]).",
+            "VernacDefinition",
+            "41d9334142c2f9436f64a034e7b3d0ba5ed6b606"
+        ],
+        [
+            "Definition tagFromCoordinator (t : nat) : bool := (t \\in [:: prep_req; commit_req; abort_req]).",
+            "VernacDefinition",
+            "ff7db82c62ef72a1c151e827eb841cdff6dd2f1e"
+        ],
+        [
+            "Definition msgFromCoordinator (tms : TaggedMessage) (y : nat) : Prop := let: body := tms_cont tms in if tag tms == prep_req then exists data, body = y :: data else if tag tms == commit_req then body = [:: y] else if tag tms == abort_req then body = [:: y] else False.",
+            "VernacDefinition",
+            "9d8df477877f2ffce8a1bafde584470fa2055819"
+        ],
+        [
+            "Definition cohMsg (ms: msg TaggedMessage) (y : nat) : Prop := if from ms == cn then to ms \\in pts /\\ msgFromCoordinator (content ms) y else if from ms \\in pts then to ms == cn /\\ msgFromParticipant (content ms) y else True.",
+            "VernacDefinition",
+            "5a70337d1f09f3444c06c5d1df4dbe0447df7932"
+        ],
+        [
+            "Definition soupCoh : Pred soup := [Pred s | valid s /\\ forall m ms, find m s = Some ms -> exists y, cohMsg ms y].",
+            "VernacDefinition",
+            "451d8ecdd9018e799b34750e02e91d9f2389ad1e"
+        ],
+        [
+            "Definition tpc_coh d : Prop := let: dl := dstate d in let: ds := dsoup d in [/\\ soupCoh ds, dom dl =i nodes, valid dl & forall n, n \\in nodes -> localCoh n (getLocal n d)].",
+            "VernacDefinition",
+            "b922277f9a25eff7d558d8caf2c06a55f40ed12f"
+        ],
+        [
+            "Lemma l1 d: tpc_coh d -> valid (dstate d).",
+            "VernacStartTheoremProof",
+            "29317b6dbb925de22ec28f6a1f109ceaba1e6220"
+        ],
+        [
+            "by case.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma l2 d: tpc_coh d -> valid (dsoup d).",
+            "VernacStartTheoremProof",
+            "294eec3e1d65f2f57b23ef9227df5aa81a83c018"
+        ],
+        [
+            "by case; case.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma l3 d: tpc_coh d -> dom (dstate d) =i nodes.",
+            "VernacStartTheoremProof",
+            "4aaeac634504f3ec7088cedb2152e2e69bb78cdb"
+        ],
+        [
+            "by case.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition TPCCoh := CohPred (CohPredMixin l1 l2 l3).",
+            "VernacDefinition",
+            "6186ca0f5728605a1f2de80df39bb760f842eecf"
+        ],
+        [
+            "Section TransitionLemmas.",
+            "VernacBeginSection",
+            "a076d81a72deb7d89e40562958c64beac997c716"
+        ],
+        [
+            "Lemma send_soupCoh d m : soupCoh (dsoup d) -> (exists y, cohMsg m y) -> soupCoh (post_msg (dsoup d) m).1.",
+            "VernacStartTheoremProof",
+            "f4a6157b09614415ebffba15096dedf7c3df0c23"
+        ],
+        [
+            "move=>[H1 H2][y]Cm; split=>[|i ms/=]; first by rewrite valid_fresh.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "rewrite findUnL; last by rewrite valid_fresh.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "case: ifP=>E; first by move/H2.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "by move/findPt_inv=>[Z G]; subst i m; exists y.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma trans_updDom this d s : this \\in nodes -> TPCCoh d -> dom (upd this s (dstate d)) =i nodes.",
+            "VernacStartTheoremProof",
+            "38ddbbffcdfa39bf3a118e182d39b59fbc8397d0"
+        ],
+        [
+            "move=>D C z; rewrite -(cohDom C) domU inE/=.",
+            "VernacExtend",
+            "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+        ],
+        [
+            "by case: ifP=>///eqP->{z}; rewrite (cohDom C) D; apply: cohVl C.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma consume_coh d m : TPCCoh d -> soupCoh (consume_msg (dsoup d) m).",
+            "VernacStartTheoremProof",
+            "a7e8185683c19e6873152f7aab1372100a7358c6"
+        ],
+        [
+            "move=>C; split=>[|m' msg]; first by apply: consume_valid; rewrite (cohVs C).",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "case X: (m == m');[move/eqP: X=><-{m'}|].",
+            "VernacExtend",
+            "c4499c8f840c4e47d73ea32ebd509fa0e700d79a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "case/(find_mark (cohVs C))=>tms[E]->{msg}.",
+            "VernacExtend",
+            "e00fff71ff314c991514fc71c41a3556702e444a"
+        ],
+        [
+            "by case:(C); case=>_/(_ m tms E).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "rewrite eq_sym in X.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "rewrite (mark_other (cohVs C) X)=>E.",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "by case:(C); case=>_; move/(_ m' msg E).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma this_not_pts this : this \\in pts -> this == cn = false.",
+            "VernacStartTheoremProof",
+            "8e57d0d935a37813e35d2e234fe8d599c972ee3f"
+        ],
+        [
+            "by move=>H; apply/negP=>/eqP=>Z; subst this; rewrite H in (Hnin).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma this_not_pts' this : this == cn -> this \\notin pts.",
+            "VernacStartTheoremProof",
+            "6336181f765e72c4169546c779412e3600a09186"
+        ],
+        [
+            "by move/eqP->; apply: Hnin.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End TransitionLemmas.",
+            "VernacEndSegment",
+            "8907a68792d89223347c8d3667beafa121b378b2"
+        ],
+        [
+            "Lemma locCn n d (C : TPCCoh d): n \\in nodes -> valid (getLocal n d) /\\ if n == cn then exists (s : CStateT) (l : Log), getLocal n d = st :-> s \\+ log :-> l else if n \\in pts then exists (s : PStateT) (l : Log), getLocal n d = st :-> s \\+ log :-> l else log \\notin dom (getLocal n d).",
+            "VernacStartTheoremProof",
+            "6293d313c55684a0cab4800b482cde4e1cd02a78"
+        ],
+        [
+            "by case: C=>_ _ _ /(_ n)G; move: G; rewrite /localCoh/=.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma cohStC d (C : TPCCoh d) s: find st (getLocal cn d) = Some s -> dyn_tp s = CStateT.",
+            "VernacStartTheoremProof",
+            "fca32ff9b42be0a698ed88fbce749daf64d3e813"
+        ],
+        [
+            "have pf: cn \\in nodes by rewrite inE eqxx.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "move: (locCn C pf); rewrite eqxx; move =>[V][s'][l']Z; rewrite Z in V *.",
+            "VernacExtend",
+            "164dec8e666020d73c9ebc9fc08641d83bc05f4b"
+        ],
+        [
+            "rewrite findPtUn //.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "by case=><-/=.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma cohStP n d (C : TPCCoh d) (H : n \\in pts) s: find st (getLocal n d) = Some s -> dyn_tp s = PStateT.",
+            "VernacStartTheoremProof",
+            "f62ae1b157ede9671e44abb73f8bdc52fea6650a"
+        ],
+        [
+            "have pf: n \\in nodes by rewrite inE/=orbC mem_cat H.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "move: (locCn C pf); rewrite H=>[[V]].",
+            "VernacExtend",
+            "8261237f0cda1915a4077c28869831c5329103ce"
+        ],
+        [
+            "case E: (n == cn); last first.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "move=>[s'][l']Z; rewrite Z in V *.",
+            "VernacExtend",
+            "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+        ],
+        [
+            "by rewrite findUnL//; rewrite domPt inE/= findPt/=; case=><-.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "by move/eqP: E=>E; subst n; move: Hnin; rewrite H.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition getStC d (C : TPCCoh d) : CStateT := match find st (getLocal cn d) as f return _ = f -> _ with Some v => fun epf => icast (sym_eq (cohStC C epf)) (dyn_val v) | _ => fun epf => (0, CInit) end (erefl _).",
+            "VernacDefinition",
+            "4425de30833c00feb22ae12899c69cc3683c003d"
+        ],
+        [
+            "Lemma getStC_K d (C : TPCCoh d) m (l : Log): getLocal cn d = st :-> m \\+ log :-> l -> getStC C = m.",
+            "VernacStartTheoremProof",
+            "06f290519aac5904eec927e7c12b2f00ed5ce762"
+        ],
+        [
+            "move=>E; rewrite /getStC/=.",
+            "VernacExtend",
+            "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+        ],
+        [
+            "have pf : cn \\in nodes by rewrite inE eqxx.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "have V: valid (getLocal cn d) by case: (locCn C pf).",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "move: (cohStC C); rewrite !E=>/= H.",
+            "VernacExtend",
+            "8261237f0cda1915a4077c28869831c5329103ce"
+        ],
+        [
+            "by apply: eqc.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Program Definition getStP n d (C : TPCCoh d) (pf : n \\in nodes) : PStateT.",
+            "VernacDefinition",
+            "fb3d5879ce6f57b718574671cbc1563b70925f74"
+        ],
+        [
+            "case X: (n \\in pts); last by exact: (0, PInit).",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "exact: (match find st (getLocal n d) as f return _ = f -> _ with Some v => fun epf => icast (sym_eq (cohStP C X epf)) (dyn_val v) | _ => fun epf => (0, PInit) end (erefl _)).",
+            "VernacExtend",
+            "ce637ff86bafca5d8359473e8c02af644dcbdc43"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Lemma getStP_K n d (C : TPCCoh d) (pf : n \\in nodes) m (l : Log): n \\in pts -> getLocal n d = st :-> m \\+ log :-> l -> getStP C pf = m.",
+            "VernacStartTheoremProof",
+            "a6728c8343aaffc1848c4effd6378aa9d18cc406"
+        ],
+        [
+            "move=>X E; rewrite /getStP/=.",
+            "VernacExtend",
+            "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+        ],
+        [
+            "have V: valid (getLocal n d) by case: (locCn C pf).",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "rewrite E in V.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "move: (cohStP C); case B: (n \\in pts)=>//=; last by rewrite X in B.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "move=>H; move: (H (erefl true))=>{H}; rewrite E=>/=H.",
+            "VernacExtend",
+            "59558e378570fadf944f573c466a34c761bc9b23"
+        ],
+        [
+            "by apply: eqc.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma cohStL d (C : TPCCoh d) n (H : n \\in nodes) l: find log (getLocal n d) = Some l -> dyn_tp l = Log.",
+            "VernacStartTheoremProof",
+            "f7b19b8d4e1f713a5ef35297193bcd3ded3cbf02"
+        ],
+        [
+            "move: (locCn C H)=>[V].",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "case B: (n == cn)=>/=.",
+            "VernacExtend",
+            "e00fff71ff314c991514fc71c41a3556702e444a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "move=>[s'][l']Z; rewrite Z in V *; by rewrite joinC in V *; rewrite findPtUn //; case=><-/=.",
+            "VernacExtend",
+            "9316342455eb51a3e1204d3e55750c03c1806191"
+        ],
+        [
+            "rewrite inE in H; case/orP: H; first by rewrite B.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "rewrite/= mem_cat; case X: (n \\in pts)=>/=_.",
+            "VernacExtend",
+            "712d339e99ee17eb7d5033e19ac614eb3ca6b532"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "move=>[s'][l']Z; rewrite Z in V *; by rewrite joinC in V *; rewrite findPtUn //; case=><-/=.",
+            "VernacExtend",
+            "9316342455eb51a3e1204d3e55750c03c1806191"
+        ],
+        [
+            "by move=>H; move/find_some=>Y; rewrite Y in H.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition getStL n d (C : TPCCoh d) (pf : n \\in nodes) : Log := match find log (getLocal n d) as f return _ = f -> _ with Some v => fun epf => icast (sym_eq (cohStL C pf epf)) (dyn_val v) | _ => fun epf => [::] end (erefl _).",
+            "VernacDefinition",
+            "c2e4d78bc523135b649ef007bf9d0bfb4c7a97c4"
+        ],
+        [
+            "Lemma getStL_Kc n d (C : TPCCoh d) (pf : n \\in nodes) (m : CStateT) (l : Log): getLocal n d = st :-> m \\+ log :-> l -> getStL C pf = l.",
+            "VernacStartTheoremProof",
+            "0a37885210ae323bfef7906272366d555fe76b0e"
+        ],
+        [
+            "move=>E; rewrite /getStL/=.",
+            "VernacExtend",
+            "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+        ],
+        [
+            "have V: valid (getLocal n d) by case: (locCn C pf).",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by rewrite E in V; move: (cohStL C pf); rewrite !E/==>H; apply: eqc.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma getStL_Kp n d (C : TPCCoh d) (pf : n \\in nodes) (m : PStateT) (l : Log): getLocal n d = st :-> m \\+ log :-> l -> getStL C pf = l.",
+            "VernacStartTheoremProof",
+            "2df8eaeee11a9ce13f8a28ebca51da2da763287e"
+        ],
+        [
+            "move=>E; rewrite /getStL/=.",
+            "VernacExtend",
+            "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+        ],
+        [
+            "have V: valid (getLocal n d) by case: (locCn C pf).",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by rewrite E in V; move: (cohStL C pf); rewrite !E/==>H; apply: eqc.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma cn_in : cn \\in nodes.",
+            "VernacStartTheoremProof",
+            "f78615e4a2e73f699fce44f9d9127468fbb5b0ae"
+        ],
+        [
+            "by rewrite mem_cat inE eqxx.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma pts_in n: n \\in pts -> n \\in nodes.",
+            "VernacStartTheoremProof",
+            "546ab7267e9baaeed6c59a8dc6e20401477e19c8"
+        ],
+        [
+            "by rewrite /nodes !mem_cat orbC=>->.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma cn_pts_in this : this \\in cn :: pts -> this \\in nodes.",
+            "VernacStartTheoremProof",
+            "0e43a7b2aff213becb5e2583d2e37ec4d804aa95"
+        ],
+        [
+            "by rewrite /nodes catA/= -cat_cons mem_cat=>->.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma getStCE l i j pf pf' : getLocal cn (getStatelet j l) = getLocal cn (getStatelet i l) -> @getStC (getStatelet j l) pf' = @getStC (getStatelet i l) pf.",
+            "VernacStartTheoremProof",
+            "ffcbd72e8287e428c2f516fdc941f2cef290aad8"
+        ],
+        [
+            "case: {-1}(pf)=>_ _ _/(_ _ cn_in)[]V; rewrite eqxx=>[[cs]][lg]E.",
+            "VernacExtend",
+            "ba44c9d0281a02110ce54645304e6d990debd9c0"
+        ],
+        [
+            "by rewrite (getStC_K _ E); rewrite E=>E'; rewrite (getStC_K _ E').",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma getStPE l n i j C C' pf : n \\in pts -> getLocal n (getStatelet j l) = getLocal n (getStatelet i l) -> @getStP n (getStatelet j l) C' pf = @getStP n (getStatelet i l) C pf.",
+            "VernacStartTheoremProof",
+            "538895942bbb726a8d5962811bcabe28087178ad"
+        ],
+        [
+            "move=>I; case: {-1}(C)=>_ _ _/(_ _ pf)[]V; rewrite I.",
+            "VernacExtend",
+            "9c3f4e82a1696e467f5acd1f5c747a8b7b11bee4"
+        ],
+        [
+            "case: ifP; first by move/eqP=>Z; subst n; move: (Hnin); rewrite I.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "move=>_[ps][lg] E.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "by rewrite (getStP_K _ pf I E);rewrite E=>E'; rewrite (getStP_K _ pf I E').",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma getStLE l this i j pf pf' : forall (N : this \\in cn :: pts), getLocal this (getStatelet j l) = getLocal this (getStatelet i l) -> @getStL _ (getStatelet j l) pf' (cn_pts_in N) = @getStL _ (getStatelet i l) pf (cn_pts_in N).",
+            "VernacStartTheoremProof",
+            "2a936cdd81a2814f8b78d1895454eebe08a087ff"
+        ],
+        [
+            "move=>N; case: {-1}(pf)=>_ _ _/(_ _ (cn_pts_in N))[]V.",
+            "VernacExtend",
+            "a01b3d93f426ff68d360351709a5fa5af822af32"
+        ],
+        [
+            "move: (N)=>N'.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "rewrite inE in N; case/orP: N.",
+            "VernacExtend",
+            "712d339e99ee17eb7d5033e19ac614eb3ca6b532"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "move/eqP=>Z; subst this; rewrite eqxx=>[[cs]][lg]E.",
+            "VernacExtend",
+            "6d30090b6f074f75b1e382afbf89c6cc120d7489"
+        ],
+        [
+            "rewrite (@getStL_Kc _ _ pf (cn_pts_in N') cs lg)//.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "by rewrite E=>E'; rewrite (@getStL_Kc _ _ pf' (cn_pts_in N') cs lg)//.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "move=>Z; rewrite (this_not_pts Z) Z=>[[cs]][lg]E.",
+            "VernacExtend",
+            "8261237f0cda1915a4077c28869831c5329103ce"
+        ],
+        [
+            "rewrite (@getStL_Kp _ _ pf (cn_pts_in N') cs lg)//.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "by rewrite E=>E'; rewrite (@getStL_Kp _ _ pf' (cn_pts_in N') cs lg)//.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition cstep_send (cs: CStateT) (to : nid) (d : data) (l : Log) : CStateT * Log := if to \\in pts then let: (e, s) := cs in match s with | CInit => if pts == [:: to] then (e, CWaitPrepResponse d [::], l) else (e, CSentPrep d [:: to], l) | CSentPrep d' tos => if perm_eq (to :: tos) pts then (e, CWaitPrepResponse d' [::], l) else (e, CSentPrep d' (to :: tos), l) | CWaitPrepResponse d' res => if (perm_eq (map fst res) pts) then if all (fun r => r) (map snd res) then if pts == [:: to] then (e, CWaitAckCommit d' [::], l) else (e, CSentCommit d' [:: to], l) else if pts == [:: to] then (e, CWaitAckAbort d' [::], l) else (e, CSentAbort d' [:: to], l) else (cs, l) | CSentCommit d' tos => if perm_eq (to :: tos) pts then (e, CWaitAckCommit d' [::], l) else (e, CSentCommit d' (to :: tos), l) | CSentAbort d' tos => if perm_eq (to :: tos) pts then (e, CWaitAckAbort d' [::], l) else (e, CSentAbort d' (to :: tos), l) | _ => (cs, l) end else (cs, l).",
+            "VernacDefinition",
+            "157f58066067fe68907b680c348997730d549a2c"
+        ],
+        [
+            "Definition c_matches_tag s mtag : bool := match s with | CWaitPrepResponse _ _ => (mtag == prep_yes) || (mtag == prep_no) | CWaitAckCommit _ _ => mtag == commit_ack | CWaitAckAbort _ _ => mtag == abort_ack | _ => false end.",
+            "VernacDefinition",
+            "88e72685b86c7bbd1c53e765947ddb881166468f"
+        ],
+        [
+            "Definition cstep_recv' (cs : CStateT) (from : nid) (mtag : ttag) (mbody : payload) (l : Log) : CStateT * Log := let: (e, s) := cs in match s with | CWaitPrepResponse d' res => if (from \\in (map fst res)) then (cs, l) else (e, CWaitPrepResponse d' ((from, mtag == prep_yes) :: res), l) | CWaitAckCommit d' res => if from \\in res then (cs, l) else if (perm_eq (from :: res) pts) then ((e.+1, CInit), rcons l (true, d')) else (e, CWaitAckCommit d' (from :: res), l) | CWaitAckAbort d' res => if from \\in res then (cs, l) else if (perm_eq (from :: res) pts) then ((e.+1, CInit), rcons l (false, d')) else (e, CWaitAckAbort d' (from :: res), l) | _ => (cs, l) end.",
+            "VernacDefinition",
+            "008c4f9f36bedae4c81910ac943c2e60eddb6a58"
+        ],
+        [
+            "Definition cstep_recv (cs: CStateT) (from : nid) (mtag : ttag) (mbody : payload) (l : Log) : CStateT * Log := if (from \\notin pts) then (cs, l) else let: (e, s) := cs in if (head 0 mbody != e) then (cs, l) else cstep_recv' cs from mtag mbody l .",
+            "VernacDefinition",
+            "9051e1197bdc98531445dbf904952048f1859c8c"
+        ],
+        [
+            "Section CoordinatorGenericSendTransitions.",
+            "VernacBeginSection",
+            "4ad46465dbb583e60994e92c60528adb910db9ec"
+        ],
+        [
+            "Notation coh := TPCCoh.",
+            "VernacSyntacticDefinition",
+            "d11edab6b586c7bbe2634156b7f179a7aaf040b1"
+        ],
+        [
+            "Definition HCn this to := (this == cn /\\ to \\in pts).",
+            "VernacDefinition",
+            "abbf958161fb2bf90716b7c2c18ea0f07ad2326f"
+        ],
+        [
+            "Definition mkLocal {T} (sl : T * Log) := st :-> sl.1 \\+ log :-> sl.2.",
+            "VernacDefinition",
+            "a914dfc1c36437714ec64828a18957a17c88ab4d"
+        ],
+        [
+            "Variable stag : ttag.",
+            "VernacAssumption",
+            "be546384e28ed953e01b83d09b4d7f343c46c0e4"
+        ],
+        [
+            "Variable prec : CStateT -> nid -> payload -> Prop.",
+            "VernacAssumption",
+            "0650651e13a53997307b5370cdf53cf99222e9e7"
+        ],
+        [
+            "Hypothesis cn_prec_safe : forall this to s m, HCn this to -> prec s to m -> cohMsg (Msg (TMsg stag m) this to true) s.1.",
+            "VernacAssumption",
+            "604f6b0a8a361f0e70b400b5e4f2febd9f550c87"
+        ],
+        [
+            "Definition cn_safe (this n : nid) (d : dstatelet) (msg : data) := HCn this n /\\ exists (C : coh d), prec (getStC C) n msg.",
+            "VernacDefinition",
+            "ffabf118e864fd68d111fa8a5e21fa7556116309"
+        ],
+        [
+            "Lemma cn_safe_coh this to d m : cn_safe this to d m -> coh d.",
+            "VernacStartTheoremProof",
+            "13da00fdd70e967dd59b89a472210efb52a5dfbb"
+        ],
+        [
+            "by case=>_[].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma cn_this_in this to : HCn this to -> this \\in nodes.",
+            "VernacStartTheoremProof",
+            "94a1cd970f2857c25f9fd8f8921f78e0f0365f55"
+        ],
+        [
+            "by case=>/eqP->; rewrite inE eqxx.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma cn_to_in this to : HCn this to -> to \\in nodes.",
+            "VernacStartTheoremProof",
+            "3f5c7411c519bb5a458de3d24d8bd1a77645ac87"
+        ],
+        [
+            "by case=>_; rewrite /nodes inE/= mem_cat orbC=>->.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma cn_safe_in this to d m : cn_safe this to d m -> this \\in nodes /\\ to \\in nodes.",
+            "VernacStartTheoremProof",
+            "d093d8d41db9e85597af57241e1e1d151c9f75ff"
+        ],
+        [
+            "by case=>[]=>G _; move/cn_to_in: (G)->; case: G=>/eqP-> _; rewrite inE eqxx.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition cn_step (this to : nid) (d : dstatelet) (msg : seq nat) (pf : cn_safe this to d msg) := let C := cn_safe_coh pf in let s := getStC C in let l := getStL C (cn_this_in (proj1 pf)) in Some (mkLocal (cstep_send s to (behead msg) l)).",
+            "VernacDefinition",
+            "69b08b6c7f80b9e6e4c6607e340cacb9d84b2a81"
+        ],
+        [
+            "Lemma cn_step_coh : s_step_coh_t coh stag cn_step.",
+            "VernacStartTheoremProof",
+            "270332aa24b075e78817d833ed92db34f69e9f49"
+        ],
+        [
+            "move=>this to d msg pf h[]->{h}.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "have C : (coh d) by case: pf=>?[].",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "have E: this = cn by case: pf=>[][]/eqP.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "split=>/=.",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply: send_soupCoh; first by case:(cn_safe_coh pf).",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "exists (getStC (cn_safe_coh pf)).1.",
+            "VernacExtend",
+            "a04436295e75c267ac6ec32a2a6bd37b58261caf"
+        ],
+        [
+            "case: (pf)=>H[C']P/=; move: (conj H _)=>pf'.",
+            "VernacExtend",
+            "d09d9458d087c74b7317d831afc65fc07a0f6e3f"
+        ],
+        [
+            "by move: (cn_prec_safe H P); rewrite -(pf_irr C' (cn_safe_coh pf')).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by apply: trans_updDom=>//; case: (cn_safe_in pf).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by rewrite validU; apply: cohVl C.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "move=>n Ni.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "rewrite /localCoh/=.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "rewrite /getLocal/=findU; case: ifP=>B; last by case: C=>_ _ _/(_ n Ni).",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "move/eqP: B=>Z; subst n this; rewrite eqxx (cohVl C)/=.",
+            "VernacExtend",
+            "ea2cf4d7233aa95e0b0f1bbf65e6c4bc215b2c14"
+        ],
+        [
+            "by split; rewrite ?validPtUn//; last by eexists _, _.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma cn_safe_def this to d msg : cn_safe this to d msg <-> exists b pf, @cn_step this to d msg pf = Some b.",
+            "VernacStartTheoremProof",
+            "6f54f3143730f3b484b19a9b3c75699ec4f270fd"
+        ],
+        [
+            "split=>[pf/=|]; last by case=>?[].",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "set b := let C := cn_safe_coh pf in let s := getStC C in let l := getStL C (cn_this_in (proj1 pf)) in mkLocal (cstep_send s to (behead msg) l).",
+            "VernacExtend",
+            "69a61e99b234580f7b41fa5b9655c87ba9a76f70"
+        ],
+        [
+            "by exists b, pf.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition cn_send_trans := SendTrans cn_safe_coh cn_safe_in cn_safe_def cn_step_coh.",
+            "VernacDefinition",
+            "32541bcdca1be9f075acecaedede4a50c7a5f39f"
+        ],
+        [
+            "End CoordinatorGenericSendTransitions.",
+            "VernacEndSegment",
+            "70ec80cd5558784e7db2c0ff845fccf76b087482"
+        ],
+        [
+            "Section CoordinatorSendTransitions.",
+            "VernacBeginSection",
+            "0eda010b1306abb218e5a10f0286ac5b6262ffc8"
+        ],
+        [
+            "Definition send_prep_prec (p : CStateT) to (m : payload) := (exists n, p = (n, CInit) /\\ exists d, m = n :: d) \\/ exists n d ps, [/\\ p = (n, CSentPrep d ps), m = n :: d & to \\notin ps].",
+            "VernacDefinition",
+            "0124aac9593d33d1b1cef72164ccb4c5d91f03c2"
+        ],
+        [
+            "Program Definition cn_send_prep_trans : send_trans TPCCoh := @cn_send_trans prep_req send_prep_prec _.",
+            "VernacDefinition",
+            "ef893ceddfc9498b581f2dc3c9d66ec96aad1806"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "case: H=>/eqP->H; rewrite /cohMsg eqxx; split=>//=.",
+            "VernacExtend",
+            "c4a46ac89a9c7997fc10e59922c13d5e3d2b0b23"
+        ],
+        [
+            "case: H0; first by case=>n[->{s}][d->{m}]/=; eexists _.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "by case=>n[d][ps][->{s}]->; eexists _.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition send_commit_prec (p : CStateT) to (m : payload) := (exists n d res, [/\\ p = (n, CWaitPrepResponse d res), m = [::n], perm_eq (map fst res) pts & all (fun r => r) (map snd res)]) \\/ exists n d ps, [/\\ p = (n, CSentCommit d ps), m = [::n] & to \\notin ps].",
+            "VernacDefinition",
+            "6838e1ebd2ea3ec439c01e2781f9f501c3cd0456"
+        ],
+        [
+            "Program Definition cn_send_commit_trans : send_trans TPCCoh := @cn_send_trans commit_req send_commit_prec _.",
+            "VernacDefinition",
+            "91a411cddaf21585121d43e424a7c0b9007299de"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "case: H=>/eqP->H; rewrite /cohMsg eqxx; split=>//=.",
+            "VernacExtend",
+            "c4a46ac89a9c7997fc10e59922c13d5e3d2b0b23"
+        ],
+        [
+            "case: H0; by case=>n[d][res][->{s}]/=->.",
+            "VernacExtend",
+            "14b141a2d70f00681f703015bc169478d399fe62"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition send_abort_prec (p : CStateT) to (m : payload) := (exists n d res, [/\\ p = (n, CWaitPrepResponse d res), m = [::n], perm_eq (map fst res) pts & has (fun r => negb r) (map snd res)]) \\/ exists n d ps, [/\\ p = (n, CSentAbort d ps), m = [::n] & to \\notin ps].",
+            "VernacDefinition",
+            "88cdbcfcc4f80e39ebbface86cc34157c6e8d039"
+        ],
+        [
+            "Program Definition cn_send_abort_trans : send_trans TPCCoh := @cn_send_trans abort_req send_abort_prec _.",
+            "VernacDefinition",
+            "a3b26850ea244f75ccdb826e98da4a8414d5cba2"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "case: H=>/eqP->H; rewrite /cohMsg eqxx; split=>//=.",
+            "VernacExtend",
+            "c4a46ac89a9c7997fc10e59922c13d5e3d2b0b23"
+        ],
+        [
+            "by case:H0;move=>[n][d][res][->{s}]/=->.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End CoordinatorSendTransitions.",
+            "VernacEndSegment",
+            "83699bbef660e1ab0764ddece9488711dfca1bc8"
+        ],
+        [
+            "Section CoordinatorGenericReceiveTransitions.",
+            "VernacBeginSection",
+            "bacddb6797a9fe7fef7687371793eba29a26117c"
+        ],
+        [
+            "Notation coh := TPCCoh.",
+            "VernacSyntacticDefinition",
+            "d11edab6b586c7bbe2634156b7f179a7aaf040b1"
+        ],
+        [
+            "Variable rc_tag : ttag.",
+            "VernacAssumption",
+            "029ac716f7ec1a4c388c3dcfeb85c605ddccdf43"
+        ],
+        [
+            "Variable rc_wf : forall d, coh d -> nid -> nid -> TaggedMessage -> bool.",
+            "VernacAssumption",
+            "8b75f780af8333461e2bb0f077eef29a657d29cc"
+        ],
+        [
+            "Definition rc_step : receive_step_t coh := fun this (from : nid) (m : seq nat) d (pf : coh d) (pt : this \\in nodes) => if (this == cn) then let s := getStC pf in let l := @getStL this d pf pt in mkLocal (cstep_recv s from rc_tag m l) else getLocal this d.",
+            "VernacDefinition",
+            "bdf07635e4301c1bbc46de15a79a894ed46ab0e4"
+        ],
+        [
+            "Lemma rc_step_coh : r_step_coh_t rc_wf rc_tag rc_step.",
+            "VernacStartTheoremProof",
+            "b1cd222cf40553f62a932466d338c566d0b947cf"
+        ],
+        [
+            "move=>d from this m C pf tms D F Wf T/=.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "rewrite /rc_step; case X: (this == cn); last first.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "split=>/=; first by apply: consume_coh.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "by apply: trans_updDom.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "by rewrite validU; apply: cohVl C.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "by move=>n Ni/=; case: (C)=>_ _ _/(_ n Ni)=>L; rewrite -(getLocalU)// (cohVl C).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "split=>/=; first by apply: consume_coh.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by apply: trans_updDom.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by rewrite validU; apply: cohVl C.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "move=>n Ni/=; rewrite /localCoh/=.",
+            "VernacExtend",
+            "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+        ],
+        [
+            "rewrite /getLocal/=findU; case: ifP=>B/=; last by case: (C)=>_ _ _/(_ n Ni).",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "move/eqP: B X=>Z/eqP X; subst n this; rewrite eqxx (cohVl C)/=.",
+            "VernacExtend",
+            "ea2cf4d7233aa95e0b0f1bbf65e6c4bc215b2c14"
+        ],
+        [
+            "by split; rewrite ?hvalidPtUn//; last by eexists _, _.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition rc_recv_trans := ReceiveTrans rc_step_coh.",
+            "VernacDefinition",
+            "286139f06c9958b81e1dfe5d86a05119cf326ace"
+        ],
+        [
+            "End CoordinatorGenericReceiveTransitions.",
+            "VernacEndSegment",
+            "acf734aaacfd694dd188ffebc1e6c7da7945aa7f"
+        ],
+        [
+            "Section CoordinatorReceiveTransitions.",
+            "VernacBeginSection",
+            "528a6faafe85a740e07e209c75bb0851d2226803"
+        ],
+        [
+            "Definition cn_msg_wf d (C : TPCCoh d) (this from : nid) := [pred m : TaggedMessage | c_matches_tag (getStC C).2 (tag m)].",
+            "VernacDefinition",
+            "5319108c68002b2c4b9b84fcaecd354fc2e86036"
+        ],
+        [
+            "Definition cn_receive_prep_yes_trans := rc_recv_trans prep_yes cn_msg_wf.",
+            "VernacDefinition",
+            "a580c0878a2d8a2f10eb1d95ad4655cfd34a5f4a"
+        ],
+        [
+            "Definition cn_receive_prep_no_trans := rc_recv_trans prep_no cn_msg_wf.",
+            "VernacDefinition",
+            "c9871eb927def977df8b305f3c038a259782a1e5"
+        ],
+        [
+            "Definition cn_receive_commit_ack_trans := rc_recv_trans commit_ack cn_msg_wf.",
+            "VernacDefinition",
+            "a54b1448625ef1f4b6a4ca0fd5cede86f9f074d3"
+        ],
+        [
+            "Definition cn_receive_abort_ack_trans := rc_recv_trans abort_ack cn_msg_wf.",
+            "VernacDefinition",
+            "d197aa20e262e50accb6c334e5bbc9eadfd8c854"
+        ],
+        [
+            "End CoordinatorReceiveTransitions.",
+            "VernacEndSegment",
+            "96b7235479d4d8cf095b57f75434b28e5b70a816"
+        ],
+        [
+            "Definition pstep_send (cs: PStateT) (l : Log) (commit : bool) : PStateT * Log := let: (e, s) := cs in match s with | PGotRequest d => if commit then (e, PRespondedYes d, l) else (e, PRespondedNo d, l) | PCommitted d => (e.+1, PInit, l) | PAborted d => (e.+1, PInit, l) | _ => (cs, l) end.",
+            "VernacDefinition",
+            "5f4f71f94065639740b2ed4f89690c823d46999f"
+        ],
+        [
+            "Definition p_matches_tag s mtag : bool := match s with | PInit => mtag == prep_req | PRespondedYes _ => (mtag == commit_req) || (mtag == abort_req) | PRespondedNo _ => mtag == abort_req | _ => false end.",
+            "VernacDefinition",
+            "a98052e6039035f729c4d33e8b747868b4755045"
+        ],
+        [
+            "Definition pstep_recv (ps: PStateT) (from : nid) (mtag : ttag) (mbody : payload) (l : Log) : PStateT * Log := if (negb (p_matches_tag ps.2 mtag)) || (from != cn) || (head 0 mbody != ps.1) then (ps, l) else let: (e, s) := ps in match s with | PInit => (e, PGotRequest (behead mbody), l) | PRespondedYes d => if mtag == commit_req then (e, PCommitted d, rcons l (true, d)) else (e, PAborted d, rcons l (false, d)) | PRespondedNo d => (e, PAborted d, rcons l (false, d)) | _ => (ps, l) end.",
+            "VernacDefinition",
+            "16df9c8ada65e4804465faa02216395b14d96378"
+        ],
+        [
+            "Section ParticipantGenericSendTransitions.",
+            "VernacBeginSection",
+            "5a379881326d98f1920b08c58dcf226afa22c66f"
+        ],
+        [
+            "Notation coh := TPCCoh.",
+            "VernacSyntacticDefinition",
+            "d11edab6b586c7bbe2634156b7f179a7aaf040b1"
+        ],
+        [
+            "Definition HPn this to := (this \\in pts /\\ to == cn).",
+            "VernacDefinition",
+            "d9aeeb29973b8fc71b3240efc7f2a0086f6a388d"
+        ],
+        [
+            "Variable ptag : ttag.",
+            "VernacAssumption",
+            "d832768156e4976b65bb952a9bc70523df1de2e1"
+        ],
+        [
+            "Variable prec : PStateT -> payload -> Prop.",
+            "VernacAssumption",
+            "1c0fb5a04d869d238bf45e3fceda5ee10d3063d2"
+        ],
+        [
+            "Hypothesis pn_prec_safe : forall this to s m, HPn this to -> prec s m -> cohMsg (Msg (TMsg ptag m) this to true) s.1.",
+            "VernacAssumption",
+            "c2ce2e74fdc7b421b7b9c07d6c400f80342e5073"
+        ],
+        [
+            "Lemma pn_this_in this to : HPn this to -> this \\in nodes.",
+            "VernacStartTheoremProof",
+            "883bd3c0cdf970ebb7ad5c2e216f07d3c6174d0c"
+        ],
+        [
+            "by case; rewrite /nodes inE/= mem_cat=>->_/=; rewrite orbC.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition pn_safe (this n : nid) (d : dstatelet) (msg : data) := HPn this n /\\ exists (Hp : HPn this n) (C : coh d), prec (getStP C (pn_this_in Hp)) msg.",
+            "VernacDefinition",
+            "36cbe9ddd2cd0b2c3382b0bf61feca3b0a76f90e"
+        ],
+        [
+            "Lemma pn_safe_coh this to d m : pn_safe this to d m -> coh d.",
+            "VernacStartTheoremProof",
+            "a53b3b3fc7266f4dabeba7232d1664dc01e51047"
+        ],
+        [
+            "by case=>_; case=>?[].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma pn_to_in this to : HCn this to -> to \\in nodes.",
+            "VernacStartTheoremProof",
+            "09775d5f001adbab1b2fc0dfeab65aa969d0c32e"
+        ],
+        [
+            "by case=>_; rewrite /nodes inE/= mem_cat orbC=>->.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma pn_safe_in this to d m : pn_safe this to d m -> this \\in nodes /\\ to \\in nodes.",
+            "VernacStartTheoremProof",
+            "ec25ea45d72a06615f0bea6683288ace91f4238d"
+        ],
+        [
+            "by case; case=>H1/eqP->[X]_; move/pn_this_in: (X)=>->; rewrite /nodes inE eqxx/=.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Variable commit : bool.",
+            "VernacAssumption",
+            "34db76ac8d71e1fe46b7b80dfe9c106b7104a2fd"
+        ],
+        [
+            "Definition pn_step (this to : nid) (d : dstatelet) (msg : seq nat) (pf : pn_safe this to d msg) := let C := pn_safe_coh pf in let s := getStP C (pn_this_in (proj1 pf)) in let l := getStL C (pn_this_in (proj1 pf)) in Some (mkLocal (pstep_send s l commit)).",
+            "VernacDefinition",
+            "e63144064a7e70a323bb5863ca29191141837c1c"
+        ],
+        [
+            "Lemma pn_step_coh : s_step_coh_t coh ptag pn_step.",
+            "VernacStartTheoremProof",
+            "4fa0b2ab2c6e76e32342379da1830cc7f3f987a6"
+        ],
+        [
+            "move=>this to d msg pf h[]->{h}.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "have C : (coh d) by case: pf=>?[?][].",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "have E: this \\in pts by case: pf=>[][].",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "split=>/=.",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply: send_soupCoh; first by case:(pn_safe_coh pf).",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "exists (getStP C (pn_this_in (proj1 pf))).1.",
+            "VernacExtend",
+            "b37ed36b874661aa91f0a61b75971acc07605baa"
+        ],
+        [
+            "case: (pf)=>H[H'][C']P/=; move: (conj H _)=>pf'.",
+            "VernacExtend",
+            "d09d9458d087c74b7317d831afc65fc07a0f6e3f"
+        ],
+        [
+            "move: (pn_prec_safe H P); rewrite (pf_irr C' C)/=.",
+            "VernacExtend",
+            "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+        ],
+        [
+            "by rewrite (pf_irr (pn_this_in H') _)//; apply: pn_this_in.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by apply: trans_updDom=>//; case: (pn_safe_in pf).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by rewrite validU; apply: cohVl C.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "move=>n Ni.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "rewrite /localCoh/=.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "rewrite /getLocal/=findU; case: ifP=>B/=; last by case: C=>_ _ _/(_ n Ni).",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "move/eqP: B=>Z; subst n=>/=.",
+            "VernacExtend",
+            "8261237f0cda1915a4077c28869831c5329103ce"
+        ],
+        [
+            "have X : this == cn = false by apply/negP=>/eqP Z; subst this; move: E (Hnin)=>->.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "rewrite X (cohVl C)/=; split=>//.",
+            "VernacExtend",
+            "80e7cce19c53eb5d5a21aafd83e552d37e23084a"
+        ],
+        [
+            "move: (pstep_send _ _ _)=>ps; rewrite E.",
+            "VernacExtend",
+            "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+        ],
+        [
+            "rewrite ?validPtUn//; last by eexists _, _.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma pn_safe_def this to d msg : pn_safe this to d msg <-> exists b pf, @pn_step this to d msg pf = Some b.",
+            "VernacStartTheoremProof",
+            "e00b854950bf0c5034579772a0a7c824d5be1dfe"
+        ],
+        [
+            "split=>[pf/=|]; last by case=>?[].",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "set b := let C := pn_safe_coh pf in let s := getStP C (pn_this_in (proj1 pf)) in let l := getStL C (pn_this_in (proj1 pf)) in mkLocal (pstep_send s l commit).",
+            "VernacExtend",
+            "69a61e99b234580f7b41fa5b9655c87ba9a76f70"
+        ],
+        [
+            "by exists b, pf.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition pn_send_trans := SendTrans pn_safe_coh pn_safe_in pn_safe_def pn_step_coh.",
+            "VernacDefinition",
+            "e295757fbee2afa35848055cd57a9dc2e1b58217"
+        ],
+        [
+            "End ParticipantGenericSendTransitions.",
+            "VernacEndSegment",
+            "ff7ebe28789b73c1d841de67d9cfb8ea20c3ad47"
+        ],
+        [
+            "Section ParticipantSendTransitions.",
+            "VernacBeginSection",
+            "f7302c8a39dc6492b58370b020e1359e57b2346a"
+        ],
+        [
+            "Definition send_prep_resp_prec (ps : data -> PState) (p : PStateT) (m : payload) := exists n d, p = (n, ps d) /\\ m = [:: n].",
+            "VernacDefinition",
+            "e4e1c85bca3d935af09aece282aeee3b8901ec2a"
+        ],
+        [
+            "Program Definition pn_gen_send_trans (t : ttag) (T: t \\in [:: prep_yes; prep_no; commit_ack; abort_ack]) (ps : data -> PState) c := @pn_send_trans t (send_prep_resp_prec ps) _ c.",
+            "VernacDefinition",
+            "737eedbe7cc79b1c60fd4fd3c8ca6f5bccf6aa77"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "case: H=>H/eqP->{to}.",
+            "VernacExtend",
+            "e00fff71ff314c991514fc71c41a3556702e444a"
+        ],
+        [
+            "rewrite /cohMsg (this_not_pts H) H eqxx/=; split=>//.",
+            "VernacExtend",
+            "80e7cce19c53eb5d5a21aafd83e552d37e23084a"
+        ],
+        [
+            "by apply/andP; split=>//=; case: H0=>[?][?][->]/eqP.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Program Definition pn_send_yes_trans := @pn_gen_send_trans prep_yes _ PGotRequest true.",
+            "VernacDefinition",
+            "a854e6cdee361ed559ca71e3e4a4335900dfca25"
+        ],
+        [
+            "Program Definition pn_send_no_trans := @pn_gen_send_trans prep_no _ PGotRequest false.",
+            "VernacDefinition",
+            "5308fb2e45faaa2760fa5344a567871057491b50"
+        ],
+        [
+            "Program Definition pn_commit_ack_trans := @pn_gen_send_trans commit_ack _ PCommitted true.",
+            "VernacDefinition",
+            "d487ffcb331007999f9debb87a6a1c616a012b9e"
+        ],
+        [
+            "Program Definition pn_abort_ack_trans := @pn_gen_send_trans abort_ack _ PAborted false.",
+            "VernacDefinition",
+            "436731026af237a666e2e2a52ff8c8cb40ecef93"
+        ],
+        [
+            "End ParticipantSendTransitions.",
+            "VernacEndSegment",
+            "8252b86927632dbc44dfca0e3a6d04b0ecf27cfe"
+        ],
+        [
+            "Section ParticipantGenericReceiveTransitions.",
+            "VernacBeginSection",
+            "bda32c35faacf4848bc1eb3c86155ce785756cee"
+        ],
+        [
+            "Notation coh := TPCCoh.",
+            "VernacSyntacticDefinition",
+            "d11edab6b586c7bbe2634156b7f179a7aaf040b1"
+        ],
+        [
+            "Variable rp_tag : ttag.",
+            "VernacAssumption",
+            "0af162835f138ca9e975f984a6e010e1423590ac"
+        ],
+        [
+            "Variable rp_wf : forall d, coh d -> nid -> nid -> pred payload.",
+            "VernacAssumption",
+            "4e2098308582753d826d4bcaa1224980125b4595"
+        ],
+        [
+            "Definition rp_step : receive_step_t coh := fun this (from : nid) (m : seq nat) d (pf : coh d) (pt : this \\in nodes) => if (this \\in pts) then let s := getStP pf pt in let l := @getStL this d pf pt in mkLocal (pstep_recv s from rp_tag m l) else getLocal this d.",
+            "VernacDefinition",
+            "9fda2c9eafdb710f12583b1dc3fedf7a0799abdd"
+        ],
+        [
+            "Lemma rp_step_coh : r_step_coh_t rp_wf rp_tag rp_step.",
+            "VernacStartTheoremProof",
+            "bb6a5a956ad12e165db18cc222eced5ee5f6d2bb"
+        ],
+        [
+            "move=>d from this m C pf tms D F Wf T/=.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "rewrite /rp_step; case X: (this \\in pts); last first.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "split=>/=; first by apply: consume_coh.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "by apply: trans_updDom.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "by rewrite validU; apply: cohVl C.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have Y: forall z : nat_eqType, z \\in nodes -> localCoh z (getLocal z d) by case: (C).",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by move=>n Ni/=; move: (Y n Ni)=>L; rewrite -(getLocalU)// (cohVl C).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "split=>/=; first by apply: consume_coh.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by apply: trans_updDom.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by rewrite validU; apply: cohVl C.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "move=>n Ni/=; rewrite /localCoh/=.",
+            "VernacExtend",
+            "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+        ],
+        [
+            "rewrite /getLocal/=findU; case: ifP=>B/=; last by case: (C)=>_ _ _/(_ n Ni).",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "move/eqP: B X=>Z/eqP X/= ;rewrite !(cohVl C); subst n.",
+            "VernacExtend",
+            "c67b0068dad1f8f1ae533e1a4a862cd6ac3294b6"
+        ],
+        [
+            "split; first by rewrite ?hvalidPtUn.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "by move/eqP: X => X; rewrite (this_not_pts X) X; eexists _, _.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition rp_recv_trans := ReceiveTrans rp_step_coh.",
+            "VernacDefinition",
+            "6e1104eb5ad12f39e25f237516d0eb4cd4993133"
+        ],
+        [
+            "End ParticipantGenericReceiveTransitions.",
+            "VernacEndSegment",
+            "a6b3ae79160badd0a08f4402cbee8254cd15a9f6"
+        ],
+        [
+            "Section ParticipantReceiveTransitions.",
+            "VernacBeginSection",
+            "7625276ab3f3b3a311f3d779161c2f76122ede7b"
+        ],
+        [
+            "Definition pn_msg_wf d (_ : TPCCoh d) (this from : nid) := [pred p : payload | true].",
+            "VernacDefinition",
+            "6a9613a7e9f90360cb5b7f28c0472604a6abc1ea"
+        ],
+        [
+            "Definition pn_receive_got_prep_trans := rp_recv_trans prep_req pn_msg_wf.",
+            "VernacDefinition",
+            "88c92303c6e3bd9c0c39b2880a5abbdb424279ba"
+        ],
+        [
+            "Definition pn_receive_commit_ack_trans := rp_recv_trans commit_req pn_msg_wf.",
+            "VernacDefinition",
+            "65e0ba74c528fcb21ec1248cd35a7bb32dfb0f1b"
+        ],
+        [
+            "Definition pn_receive_abort_ack_trans := rp_recv_trans abort_req pn_msg_wf.",
+            "VernacDefinition",
+            "5d8c237b65537af68565e470bab2ca0beb4143e2"
+        ],
+        [
+            "End ParticipantReceiveTransitions.",
+            "VernacEndSegment",
+            "de4f2202e5419421263343335ba35ed6cf5fe773"
+        ],
+        [
+            "Section Protocol.",
+            "VernacBeginSection",
+            "695090f638b84556087f901bb7382b56fef1a388"
+        ],
+        [
+            "Variable l : Label.",
+            "VernacAssumption",
+            "aca5957ed38b3e3b45d48e71df1841eb1fc9d5f0"
+        ],
+        [
+            "Definition tpc_sends := [:: cn_send_prep_trans; cn_send_commit_trans; cn_send_abort_trans; pn_send_yes_trans; pn_send_no_trans; pn_commit_ack_trans; pn_abort_ack_trans ].",
+            "VernacDefinition",
+            "d297c185858d776e8f35178eba63d16624a6db5d"
+        ],
+        [
+            "Definition tpc_receives := [:: cn_receive_prep_yes_trans; cn_receive_prep_no_trans; cn_receive_commit_ack_trans; cn_receive_abort_ack_trans; pn_receive_got_prep_trans; pn_receive_commit_ack_trans; pn_receive_abort_ack_trans ].",
+            "VernacDefinition",
+            "a44e1d69c9a1f016d4460aa8519d17832f53737d"
+        ],
+        [
+            "Program Definition TwoPhaseCommitProtocol : protocol := @Protocol _ l _ tpc_sends tpc_receives _ _.",
+            "VernacDefinition",
+            "5c4fe475b432ac0892a54161b19cf4288de0bef2"
+        ],
+        [
+            "End Protocol.",
+            "VernacEndSegment",
+            "655d51001a6e3448f8243ee8e6e2afc49fa5fce2"
+        ],
+        [
+            "End TPCProtocol.",
+            "VernacEndSegment",
+            "0e20143f2cf9d857eb4b852942eda4bd0a0c3288"
+        ],
+        [
+            "Module Exports.",
+            "VernacDefineModule",
+            "d4a1114ec53f746523a7dec57823f7f03e51fa24"
+        ],
+        [
+            "Section Exports.",
+            "VernacBeginSection",
+            "3d3d73b16827535e7d0c9fdb92a2f163a05b14f4"
+        ],
+        [
+            "Definition TwoPhaseCommitProtocol := TwoPhaseCommitProtocol.",
+            "VernacDefinition",
+            "071a84dd159b7c8e2bd6319e6bfad7819b35b980"
+        ],
+        [
+            "Definition cn_send_prep_trans := cn_send_prep_trans.",
+            "VernacDefinition",
+            "8c3556457a4bc9ed1120f136e99c32f15389d709"
+        ],
+        [
+            "Definition cn_send_commit_trans := cn_send_commit_trans.",
+            "VernacDefinition",
+            "4a6ffeffa60e0d133402438da8460a7b1875868b"
+        ],
+        [
+            "Definition cn_send_abort_trans := cn_send_abort_trans.",
+            "VernacDefinition",
+            "e778e436aaae34bf135df189a91c1c8f8c90edc4"
+        ],
+        [
+            "Definition pn_send_yes_trans := pn_send_yes_trans.",
+            "VernacDefinition",
+            "f96f33fd631efffd59a95e9b4aed04b04cf952e9"
+        ],
+        [
+            "Definition pn_send_no_trans := pn_send_no_trans.",
+            "VernacDefinition",
+            "d2aa91553f7089dd266cbc9f8da7465b42b803ec"
+        ],
+        [
+            "Definition pn_commit_ack_trans := pn_commit_ack_trans.",
+            "VernacDefinition",
+            "ba2eedd64796817a1a92b16d122b10df7abd209b"
+        ],
+        [
+            "Definition pn_abort_ack_trans := pn_abort_ack_trans.",
+            "VernacDefinition",
+            "ecb3cf079279404072a6ebe031b9ae32cca5c416"
+        ],
+        [
+            "Definition cn_receive_prep_yes_trans := cn_receive_prep_yes_trans.",
+            "VernacDefinition",
+            "5dcef7a60499e78b48b755480084a541b8e1090f"
+        ],
+        [
+            "Definition cn_receive_prep_no_trans := cn_receive_prep_no_trans.",
+            "VernacDefinition",
+            "c88c2df99e360078f74bc09916b20cac6837c154"
+        ],
+        [
+            "Definition cn_receive_commit_ack_trans := cn_receive_commit_ack_trans.",
+            "VernacDefinition",
+            "8f6d806a5214bdd2561ade0a45516a65784b9620"
+        ],
+        [
+            "Definition cn_receive_abort_ack_trans := cn_receive_abort_ack_trans.",
+            "VernacDefinition",
+            "0107849ba63a025f3326a81b066572aacdffbcd7"
+        ],
+        [
+            "Definition pn_receive_got_prep_trans := pn_receive_got_prep_trans.",
+            "VernacDefinition",
+            "b317dc2b6c4fe74541ed8da287e842e879e8144a"
+        ],
+        [
+            "Definition pn_receive_commit_ack_trans := pn_receive_commit_ack_trans.",
+            "VernacDefinition",
+            "4e6837194f22ebd0e7ee4f52ac50e5972c18933d"
+        ],
+        [
+            "Definition pn_receive_abort_ack_trans := pn_receive_abort_ack_trans.",
+            "VernacDefinition",
+            "ffb4947e38a12e8401bd5f4defdf0764e668fd95"
+        ],
+        [
+            "Definition prep_req := prep_req.",
+            "VernacDefinition",
+            "1c9a260ca725108f011da20981fd2418265b2e55"
+        ],
+        [
+            "Definition prep_yes := prep_yes.",
+            "VernacDefinition",
+            "15b657cae0095f362ba8ff722e0850e928130f4c"
+        ],
+        [
+            "Definition prep_no := prep_no.",
+            "VernacDefinition",
+            "e782be53cb85dde4f03615a71b9c8e2e9ba29ec5"
+        ],
+        [
+            "Definition commit_req := commit_req.",
+            "VernacDefinition",
+            "1ef4b5e74b791311602151c5e893b403aecab678"
+        ],
+        [
+            "Definition abort_req := abort_req.",
+            "VernacDefinition",
+            "eededc28bd8c5a40f925260acd5f8587f22f5927"
+        ],
+        [
+            "Definition commit_ack := commit_ack.",
+            "VernacDefinition",
+            "1e0c460297707e20c92a031e75070c6ba44f91ec"
+        ],
+        [
+            "Definition abort_ack := abort_ack.",
+            "VernacDefinition",
+            "2d022d76756350a36868e773f9bf231a77b24d6a"
+        ],
+        [
+            "Definition getStC := getStC.",
+            "VernacDefinition",
+            "5570859592ffd88a355cff8ea8dedd58b207c159"
+        ],
+        [
+            "Definition getStP := getStP.",
+            "VernacDefinition",
+            "47f8ee89caa23e59bf163cab3eb555c383233500"
+        ],
+        [
+            "Definition getStL := getStL.",
+            "VernacDefinition",
+            "eb8b2a2051c3c83c424b6759a2c33161e4a5b6f8"
+        ],
+        [
+            "Definition getStCE := getStCE.",
+            "VernacDefinition",
+            "8f077fe90f32af2284489bd84f69d2c4f3fb1287"
+        ],
+        [
+            "Definition getStPE := getStPE.",
+            "VernacDefinition",
+            "b92607d80e70c8071998dc9c4e7db772b73a3f6e"
+        ],
+        [
+            "Definition getStCL := getStLE.",
+            "VernacDefinition",
+            "ec840c6d43831fcf012151e0361a5010875f9dbe"
+        ],
+        [
+            "End Exports.",
+            "VernacEndSegment",
+            "71efedae7ccffd696e1ffe5d8ae6baa8a4484918"
+        ],
+        [
+            "End Exports.",
+            "VernacEndSegment",
+            "71efedae7ccffd696e1ffe5d8ae6baa8a4484918"
+        ],
+        [
+            "End TPCProtocol.",
+            "VernacEndSegment",
+            "0e20143f2cf9d857eb4b852942eda4bd0a0c3288"
+        ],
+        [
+            "Export TPCProtocol.States.",
+            "VernacImport",
+            "abfd73b3d600afd819092257344d0455c0bda673"
+        ],
+        [
+            "Export TPCProtocol.Exports.",
+            "VernacImport",
+            "188e76d7e687b9f84fa7d8b77c42f430cf7491c3"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "l1",
+            "line_nb": 49,
+            "steps": [
+                {
+                    "command": [
+                        "by case.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "l2",
+            "line_nb": 52,
+            "steps": [
+                {
+                    "command": [
+                        "by case; case.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "l3",
+            "line_nb": 55,
+            "steps": [
+                {
+                    "command": [
+                        "by case.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "send_soupCoh",
+            "line_nb": 60,
+            "steps": [
+                {
+                    "command": [
+                        "move=>[H1 H2][y]Cm; split=>[|i ms/=]; first by rewrite valid_fresh.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite findUnL; last by rewrite valid_fresh.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "case: ifP=>E; first by move/H2.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "by move/findPt_inv=>[Z G]; subst i m; exists y.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "trans_updDom",
+            "line_nb": 66,
+            "steps": [
+                {
+                    "command": [
+                        "move=>D C z; rewrite -(cohDom C) domU inE/=.",
+                        "VernacExtend",
+                        "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+                    ]
+                },
+                {
+                    "command": [
+                        "by case: ifP=>///eqP->{z}; rewrite (cohDom C) D; apply: cohVl C.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "consume_coh",
+            "line_nb": 70,
+            "steps": [
+                {
+                    "command": [
+                        "move=>C; split=>[|m' msg]; first by apply: consume_valid; rewrite (cohVs C).",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "case X: (m == m');[move/eqP: X=><-{m'}|].",
+                        "VernacExtend",
+                        "c4499c8f840c4e47d73ea32ebd509fa0e700d79a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "case/(find_mark (cohVs C))=>tms[E]->{msg}.",
+                        "VernacExtend",
+                        "e00fff71ff314c991514fc71c41a3556702e444a"
+                    ]
+                },
+                {
+                    "command": [
+                        "by case:(C); case=>_/(_ m tms E).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite eq_sym in X.",
+                        "VernacExtend",
+                        "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (mark_other (cohVs C) X)=>E.",
+                        "VernacExtend",
+                        "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+                    ]
+                },
+                {
+                    "command": [
+                        "by case:(C); case=>_; move/(_ m' msg E).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "this_not_pts",
+            "line_nb": 80,
+            "steps": [
+                {
+                    "command": [
+                        "by move=>H; apply/negP=>/eqP=>Z; subst this; rewrite H in (Hnin).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "this_not_pts'",
+            "line_nb": 83,
+            "steps": [
+                {
+                    "command": [
+                        "by move/eqP->; apply: Hnin.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "locCn",
+            "line_nb": 87,
+            "steps": [
+                {
+                    "command": [
+                        "by case: C=>_ _ _ /(_ n)G; move: G; rewrite /localCoh/=.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "cohStC",
+            "line_nb": 90,
+            "steps": [
+                {
+                    "command": [
+                        "have pf: cn \\in nodes by rewrite inE eqxx.",
+                        "VernacExtend",
+                        "406cde1174359c53bf162a2a18c4eede395555f9"
+                    ]
+                },
+                {
+                    "command": [
+                        "move: (locCn C pf); rewrite eqxx; move =>[V][s'][l']Z; rewrite Z in V *.",
+                        "VernacExtend",
+                        "164dec8e666020d73c9ebc9fc08641d83bc05f4b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite findPtUn //.",
+                        "VernacExtend",
+                        "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+                    ]
+                },
+                {
+                    "command": [
+                        "by case=><-/=.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "cohStP",
+            "line_nb": 96,
+            "steps": [
+                {
+                    "command": [
+                        "have pf: n \\in nodes by rewrite inE/=orbC mem_cat H.",
+                        "VernacExtend",
+                        "406cde1174359c53bf162a2a18c4eede395555f9"
+                    ]
+                },
+                {
+                    "command": [
+                        "move: (locCn C pf); rewrite H=>[[V]].",
+                        "VernacExtend",
+                        "8261237f0cda1915a4077c28869831c5329103ce"
+                    ]
+                },
+                {
+                    "command": [
+                        "case E: (n == cn); last first.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "move=>[s'][l']Z; rewrite Z in V *.",
+                        "VernacExtend",
+                        "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite findUnL//; rewrite domPt inE/= findPt/=; case=><-.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "by move/eqP: E=>E; subst n; move: Hnin; rewrite H.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "getStC_K",
+            "line_nb": 106,
+            "steps": [
+                {
+                    "command": [
+                        "move=>E; rewrite /getStC/=.",
+                        "VernacExtend",
+                        "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+                    ]
+                },
+                {
+                    "command": [
+                        "have pf : cn \\in nodes by rewrite inE eqxx.",
+                        "VernacExtend",
+                        "406cde1174359c53bf162a2a18c4eede395555f9"
+                    ]
+                },
+                {
+                    "command": [
+                        "have V: valid (getLocal cn d) by case: (locCn C pf).",
+                        "VernacExtend",
+                        "406cde1174359c53bf162a2a18c4eede395555f9"
+                    ]
+                },
+                {
+                    "command": [
+                        "move: (cohStC C); rewrite !E=>/= H.",
+                        "VernacExtend",
+                        "8261237f0cda1915a4077c28869831c5329103ce"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply: eqc.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "getStP",
+            "line_nb": 113,
+            "steps": [
+                {
+                    "command": [
+                        "case X: (n \\in pts); last by exact: (0, PInit).",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "exact: (match find st (getLocal n d) as f return _ = f -> _ with Some v => fun epf => icast (sym_eq (cohStP C X epf)) (dyn_val v) | _ => fun epf => (0, PInit) end (erefl _)).",
+                        "VernacExtend",
+                        "ce637ff86bafca5d8359473e8c02af644dcbdc43"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "getStP_K",
+            "line_nb": 117,
+            "steps": [
+                {
+                    "command": [
+                        "move=>X E; rewrite /getStP/=.",
+                        "VernacExtend",
+                        "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+                    ]
+                },
+                {
+                    "command": [
+                        "have V: valid (getLocal n d) by case: (locCn C pf).",
+                        "VernacExtend",
+                        "406cde1174359c53bf162a2a18c4eede395555f9"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite E in V.",
+                        "VernacExtend",
+                        "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+                    ]
+                },
+                {
+                    "command": [
+                        "move: (cohStP C); case B: (n \\in pts)=>//=; last by rewrite X in B.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "move=>H; move: (H (erefl true))=>{H}; rewrite E=>/=H.",
+                        "VernacExtend",
+                        "59558e378570fadf944f573c466a34c761bc9b23"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply: eqc.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "cohStL",
+            "line_nb": 125,
+            "steps": [
+                {
+                    "command": [
+                        "move: (locCn C H)=>[V].",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "case B: (n == cn)=>/=.",
+                        "VernacExtend",
+                        "e00fff71ff314c991514fc71c41a3556702e444a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "move=>[s'][l']Z; rewrite Z in V *; by rewrite joinC in V *; rewrite findPtUn //; case=><-/=.",
+                        "VernacExtend",
+                        "9316342455eb51a3e1204d3e55750c03c1806191"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite inE in H; case/orP: H; first by rewrite B.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite/= mem_cat; case X: (n \\in pts)=>/=_.",
+                        "VernacExtend",
+                        "712d339e99ee17eb7d5033e19ac614eb3ca6b532"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "move=>[s'][l']Z; rewrite Z in V *; by rewrite joinC in V *; rewrite findPtUn //; case=><-/=.",
+                        "VernacExtend",
+                        "9316342455eb51a3e1204d3e55750c03c1806191"
+                    ]
+                },
+                {
+                    "command": [
+                        "by move=>H; move/find_some=>Y; rewrite Y in H.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "getStL_Kc",
+            "line_nb": 137,
+            "steps": [
+                {
+                    "command": [
+                        "move=>E; rewrite /getStL/=.",
+                        "VernacExtend",
+                        "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+                    ]
+                },
+                {
+                    "command": [
+                        "have V: valid (getLocal n d) by case: (locCn C pf).",
+                        "VernacExtend",
+                        "406cde1174359c53bf162a2a18c4eede395555f9"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite E in V; move: (cohStL C pf); rewrite !E/==>H; apply: eqc.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "getStL_Kp",
+            "line_nb": 142,
+            "steps": [
+                {
+                    "command": [
+                        "move=>E; rewrite /getStL/=.",
+                        "VernacExtend",
+                        "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+                    ]
+                },
+                {
+                    "command": [
+                        "have V: valid (getLocal n d) by case: (locCn C pf).",
+                        "VernacExtend",
+                        "406cde1174359c53bf162a2a18c4eede395555f9"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite E in V; move: (cohStL C pf); rewrite !E/==>H; apply: eqc.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "cn_in",
+            "line_nb": 147,
+            "steps": [
+                {
+                    "command": [
+                        "by rewrite mem_cat inE eqxx.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pts_in",
+            "line_nb": 150,
+            "steps": [
+                {
+                    "command": [
+                        "by rewrite /nodes !mem_cat orbC=>->.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "cn_pts_in",
+            "line_nb": 153,
+            "steps": [
+                {
+                    "command": [
+                        "by rewrite /nodes catA/= -cat_cons mem_cat=>->.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "getStCE",
+            "line_nb": 156,
+            "steps": [
+                {
+                    "command": [
+                        "case: {-1}(pf)=>_ _ _/(_ _ cn_in)[]V; rewrite eqxx=>[[cs]][lg]E.",
+                        "VernacExtend",
+                        "ba44c9d0281a02110ce54645304e6d990debd9c0"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite (getStC_K _ E); rewrite E=>E'; rewrite (getStC_K _ E').",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "getStPE",
+            "line_nb": 160,
+            "steps": [
+                {
+                    "command": [
+                        "move=>I; case: {-1}(C)=>_ _ _/(_ _ pf)[]V; rewrite I.",
+                        "VernacExtend",
+                        "9c3f4e82a1696e467f5acd1f5c747a8b7b11bee4"
+                    ]
+                },
+                {
+                    "command": [
+                        "case: ifP; first by move/eqP=>Z; subst n; move: (Hnin); rewrite I.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "move=>_[ps][lg] E.",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite (getStP_K _ pf I E);rewrite E=>E'; rewrite (getStP_K _ pf I E').",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "getStLE",
+            "line_nb": 166,
+            "steps": [
+                {
+                    "command": [
+                        "move=>N; case: {-1}(pf)=>_ _ _/(_ _ (cn_pts_in N))[]V.",
+                        "VernacExtend",
+                        "a01b3d93f426ff68d360351709a5fa5af822af32"
+                    ]
+                },
+                {
+                    "command": [
+                        "move: (N)=>N'.",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite inE in N; case/orP: N.",
+                        "VernacExtend",
+                        "712d339e99ee17eb7d5033e19ac614eb3ca6b532"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "move/eqP=>Z; subst this; rewrite eqxx=>[[cs]][lg]E.",
+                        "VernacExtend",
+                        "6d30090b6f074f75b1e382afbf89c6cc120d7489"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (@getStL_Kc _ _ pf (cn_pts_in N') cs lg)//.",
+                        "VernacExtend",
+                        "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite E=>E'; rewrite (@getStL_Kc _ _ pf' (cn_pts_in N') cs lg)//.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "move=>Z; rewrite (this_not_pts Z) Z=>[[cs]][lg]E.",
+                        "VernacExtend",
+                        "8261237f0cda1915a4077c28869831c5329103ce"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (@getStL_Kp _ _ pf (cn_pts_in N') cs lg)//.",
+                        "VernacExtend",
+                        "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite E=>E'; rewrite (@getStL_Kp _ _ pf' (cn_pts_in N') cs lg)//.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "cn_safe_coh",
+            "line_nb": 190,
+            "steps": [
+                {
+                    "command": [
+                        "by case=>_[].",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "cn_this_in",
+            "line_nb": 193,
+            "steps": [
+                {
+                    "command": [
+                        "by case=>/eqP->; rewrite inE eqxx.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "cn_to_in",
+            "line_nb": 196,
+            "steps": [
+                {
+                    "command": [
+                        "by case=>_; rewrite /nodes inE/= mem_cat orbC=>->.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "cn_safe_in",
+            "line_nb": 199,
+            "steps": [
+                {
+                    "command": [
+                        "by case=>[]=>G _; move/cn_to_in: (G)->; case: G=>/eqP-> _; rewrite inE eqxx.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "cn_safe_def",
+            "line_nb": 223,
+            "steps": [
+                {
+                    "command": [
+                        "split=>[pf/=|]; last by case=>?[].",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "set b := let C := cn_safe_coh pf in let s := getStC C in let l := getStL C (cn_this_in (proj1 pf)) in mkLocal (cstep_send s to (behead msg) l).",
+                        "VernacExtend",
+                        "69a61e99b234580f7b41fa5b9655c87ba9a76f70"
+                    ]
+                },
+                {
+                    "command": [
+                        "by exists b, pf.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "cn_send_prep_trans_obligation_1",
+            "line_nb": 233,
+            "steps": [
+                {
+                    "command": [
+                        "case: H=>/eqP->H; rewrite /cohMsg eqxx; split=>//=.",
+                        "VernacExtend",
+                        "c4a46ac89a9c7997fc10e59922c13d5e3d2b0b23"
+                    ]
+                },
+                {
+                    "command": [
+                        "case: H0; first by case=>n[->{s}][d->{m}]/=; eexists _.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "by case=>n[d][ps][->{s}]->; eexists _.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "cn_send_commit_trans_obligation_1",
+            "line_nb": 240,
+            "steps": [
+                {
+                    "command": [
+                        "case: H=>/eqP->H; rewrite /cohMsg eqxx; split=>//=.",
+                        "VernacExtend",
+                        "c4a46ac89a9c7997fc10e59922c13d5e3d2b0b23"
+                    ]
+                },
+                {
+                    "command": [
+                        "case: H0; by case=>n[d][res][->{s}]/=->.",
+                        "VernacExtend",
+                        "14b141a2d70f00681f703015bc169478d399fe62"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "cn_send_abort_trans_obligation_1",
+            "line_nb": 246,
+            "steps": [
+                {
+                    "command": [
+                        "case: H=>/eqP->H; rewrite /cohMsg eqxx; split=>//=.",
+                        "VernacExtend",
+                        "c4a46ac89a9c7997fc10e59922c13d5e3d2b0b23"
+                    ]
+                },
+                {
+                    "command": [
+                        "by case:H0;move=>[n][d][res][->{s}]/=->.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "rc_step_coh",
+            "line_nb": 256,
+            "steps": [
+                {
+                    "command": [
+                        "move=>d from this m C pf tms D F Wf T/=.",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite /rc_step; case X: (this == cn); last first.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "split=>/=; first by apply: consume_coh.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply: trans_updDom.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite validU; apply: cohVl C.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "by move=>n Ni/=; case: (C)=>_ _ _/(_ n Ni)=>L; rewrite -(getLocalU)// (cohVl C).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "split=>/=; first by apply: consume_coh.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply: trans_updDom.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite validU; apply: cohVl C.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "move=>n Ni/=; rewrite /localCoh/=.",
+                        "VernacExtend",
+                        "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite /getLocal/=findU; case: ifP=>B/=; last by case: (C)=>_ _ _/(_ n Ni).",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "move/eqP: B X=>Z/eqP X; subst n this; rewrite eqxx (cohVl C)/=.",
+                        "VernacExtend",
+                        "ea2cf4d7233aa95e0b0f1bbf65e6c4bc215b2c14"
+                    ]
+                },
+                {
+                    "command": [
+                        "by split; rewrite ?hvalidPtUn//; last by eexists _, _.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pn_this_in",
+            "line_nb": 294,
+            "steps": [
+                {
+                    "command": [
+                        "by case; rewrite /nodes inE/= mem_cat=>->_/=; rewrite orbC.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pn_safe_coh",
+            "line_nb": 298,
+            "steps": [
+                {
+                    "command": [
+                        "by case=>_; case=>?[].",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pn_to_in",
+            "line_nb": 301,
+            "steps": [
+                {
+                    "command": [
+                        "by case=>_; rewrite /nodes inE/= mem_cat orbC=>->.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pn_safe_in",
+            "line_nb": 304,
+            "steps": [
+                {
+                    "command": [
+                        "by case; case=>H1/eqP->[X]_; move/pn_this_in: (X)=>->; rewrite /nodes inE eqxx/=.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pn_safe_def",
+            "line_nb": 333,
+            "steps": [
+                {
+                    "command": [
+                        "split=>[pf/=|]; last by case=>?[].",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "set b := let C := pn_safe_coh pf in let s := getStP C (pn_this_in (proj1 pf)) in let l := getStL C (pn_this_in (proj1 pf)) in mkLocal (pstep_send s l commit).",
+                        "VernacExtend",
+                        "69a61e99b234580f7b41fa5b9655c87ba9a76f70"
+                    ]
+                },
+                {
+                    "command": [
+                        "by exists b, pf.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pn_gen_send_trans_obligation_1",
+            "line_nb": 343,
+            "steps": [
+                {
+                    "command": [
+                        "case: H=>H/eqP->{to}.",
+                        "VernacExtend",
+                        "e00fff71ff314c991514fc71c41a3556702e444a"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite /cohMsg (this_not_pts H) H eqxx/=; split=>//.",
+                        "VernacExtend",
+                        "80e7cce19c53eb5d5a21aafd83e552d37e23084a"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply/andP; split=>//=; case: H0=>[?][?][->]/eqP.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "rp_step_coh",
+            "line_nb": 358,
+            "steps": [
+                {
+                    "command": [
+                        "move=>d from this m C pf tms D F Wf T/=.",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite /rp_step; case X: (this \\in pts); last first.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "split=>/=; first by apply: consume_coh.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply: trans_updDom.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite validU; apply: cohVl C.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "have Y: forall z : nat_eqType, z \\in nodes -> localCoh z (getLocal z d) by case: (C).",
+                        "VernacExtend",
+                        "406cde1174359c53bf162a2a18c4eede395555f9"
+                    ]
+                },
+                {
+                    "command": [
+                        "by move=>n Ni/=; move: (Y n Ni)=>L; rewrite -(getLocalU)// (cohVl C).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "split=>/=; first by apply: consume_coh.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply: trans_updDom.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite validU; apply: cohVl C.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "move=>n Ni/=; rewrite /localCoh/=.",
+                        "VernacExtend",
+                        "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite /getLocal/=findU; case: ifP=>B/=; last by case: (C)=>_ _ _/(_ n Ni).",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "move/eqP: B X=>Z/eqP X/= ;rewrite !(cohVl C); subst n.",
+                        "VernacExtend",
+                        "c67b0068dad1f8f1ae533e1a4a862cd6ac3294b6"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; first by rewrite ?hvalidPtUn.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "by move/eqP: X => X; rewrite (this_not_pts X) X; eexists _, _.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

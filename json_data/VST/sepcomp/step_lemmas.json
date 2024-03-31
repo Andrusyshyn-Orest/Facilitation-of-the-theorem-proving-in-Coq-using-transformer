@@ -1,0 +1,1123 @@
+{
+    "filename": "sepcomp/step_lemmas.v",
+    "coq_project": "VST",
+    "vernac_cmds": [
+        [
+            "Require Import compcert.lib.Coqlib.",
+            "VernacRequire",
+            "0e8012a6c0062230df0c959370d96e0e84eae6bb"
+        ],
+        [
+            "Require Import compcert.lib.Maps.",
+            "VernacRequire",
+            "26c63953d85f7ad9c2666fdc8a1e61132cc296ac"
+        ],
+        [
+            "Require Import compcert.common.AST.",
+            "VernacRequire",
+            "736cc8fb6e99f68efba7c58bdf7b2370507d5002"
+        ],
+        [
+            "Require Import compcert.common.Values.",
+            "VernacRequire",
+            "775d93857ac31b6b7ea7c564f3005cd032b058e4"
+        ],
+        [
+            "Require Import VST.sepcomp.extspec.",
+            "VernacRequire",
+            "24d2770c0d56f347a534d202b9e8a12e01b32823"
+        ],
+        [
+            "Require Import VST.sepcomp.semantics.",
+            "VernacRequire",
+            "a2be15457f8bb984f06f0e1c749919cf8e319def"
+        ],
+        [
+            "Require Import VST.sepcomp.semantics_lemmas.",
+            "VernacRequire",
+            "6d02f97bdf7968a14093643c3ba44de71ca181ad"
+        ],
+        [
+            "Definition has_opttyp (v : option val) (t : option typ) := match v, t with None, None => True | Some v, Some t => Val.has_type v t | _, _ => False end.",
+            "VernacDefinition",
+            "214e1995cfdbde9e4895784d9da0db0d97c893ef"
+        ],
+        [
+            "Section safety.",
+            "VernacBeginSection",
+            "51be2eef0e45eb2bf57701728028a796dc99ea78"
+        ],
+        [
+            "Context {G C M Z:Type}.",
+            "VernacContext",
+            "a40d5f20894442b86f5208d78a72fff1ef19f6fb"
+        ],
+        [
+            "Context {genv_symb: G -> injective_PTree block}.",
+            "VernacContext",
+            "f5d8f9c63dc4dccde93f3c4ac98977ea2634dba7"
+        ],
+        [
+            "Context {Hrel: nat -> M -> M -> Prop}.",
+            "VernacContext",
+            "0d97063831d4ce17725c00f5bfac5aab59426a42"
+        ],
+        [
+            "Context (Hcore:@CoreSemantics C M).",
+            "VernacContext",
+            "7ca59bf4d920fda19ecc09ff55f77d4ae9669ea2"
+        ],
+        [
+            "Variable (Hspec:external_specification M external_function Z).",
+            "VernacAssumption",
+            "fda84313e74cb2b0d1e4c9f071f26e8459c9292f"
+        ],
+        [
+            "Variable ge : G.",
+            "VernacAssumption",
+            "7271d0c5885b07a373980b314c834908724ad013"
+        ],
+        [
+            "Inductive safeN_ : nat -> Z -> C -> M -> Prop := | safeN_0: forall z c m, safeN_ O z c m | safeN_step: forall n z c m c' m', corestep Hcore c m c' m' -> safeN_ n z c' m' -> safeN_ (S n) z c m | safeN_external: forall n z c m e args x, at_external Hcore c m = Some (e,args) -> ext_spec_pre Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z m -> (forall ret m' z' n' (Hargsty : Val.has_type_list args (sig_args (ef_sig e))) (Hretty : has_opttyp ret (sig_res (ef_sig e))), (n' <= n)%nat -> Hrel n' m m' -> ext_spec_post Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m' -> exists c', after_external Hcore ret c m' = Some c' /\\ safeN_ n' z' c' m') -> safeN_ (S n) z c m | safeN_halted: forall n z c m i, halted Hcore c i -> ext_spec_exit Hspec (Some (Vint i)) z m -> safeN_ n z c m.",
+            "VernacInductive",
+            "7a03a83bac4563dd9572e09e02337b1b7dd55d45"
+        ],
+        [
+            "Definition corestep_fun := forall m q m1 q1 m2 q2 , corestep Hcore q m q1 m1 -> corestep Hcore q m q2 m2 -> (q1, m1) = (q2, m2).",
+            "VernacDefinition",
+            "a722eb8c80854be5333654217b5f765d0a5550d5"
+        ],
+        [
+            "Lemma safe_corestep_forward: corestep_fun -> forall c m c' m' n z, corestep Hcore c m c' m' -> safeN_ (S n) z c m -> safeN_ n z c' m'.",
+            "VernacStartTheoremProof",
+            "9bce430cf04806b193dc244d6d50852e08bcc737"
+        ],
+        [
+            "simpl; intros; inv H1.",
+            "VernacExtend",
+            "f185056cec2e04c509cf584084f5c6b00e99f410"
+        ],
+        [
+            "assert ((c',m') = (c'0,m'0)) by (eapply H; eauto).",
+            "VernacExtend",
+            "a33c6bb3f3c25c5d01548e16dc6b2309fc46f378"
+        ],
+        [
+            "inv H1; auto.",
+            "VernacExtend",
+            "0fc7e924f7a5ebea3eed7a0833d11e2147d1303f"
+        ],
+        [
+            "erewrite corestep_not_at_external in H3; eauto; congruence.",
+            "VernacExtend",
+            "f8ffa8a2fc89d417c3dd8b2e8ccf879de14feadd"
+        ],
+        [
+            "eapply safeN_halted; eauto.",
+            "VernacExtend",
+            "44b82d5a3eb88f1ae2255a364e55d54671b7475c"
+        ],
+        [
+            "apply corestep_not_halted with (i0:=i) in H0.",
+            "VernacExtend",
+            "c132163e77874f7ff9c4507163c623d8cf87de11"
+        ],
+        [
+            "contradiction.",
+            "VernacExtend",
+            "9b6a5c45e1144cbbccd544effb2a97082518704a"
+        ],
+        [
+            "apply corestep_not_halted with (i0:=i) in H0.",
+            "VernacExtend",
+            "c132163e77874f7ff9c4507163c623d8cf87de11"
+        ],
+        [
+            "contradiction.",
+            "VernacExtend",
+            "9b6a5c45e1144cbbccd544effb2a97082518704a"
+        ],
+        [
+            "Unshelve.",
+            "VernacExtend",
+            "c817813615af0b6452c375cc2ce9f2ba23fdba54"
+        ],
+        [
+            "apply Integers.Int.zero.",
+            "VernacExtend",
+            "05278c5bc8c6211d649bafde3aa78fefebd8a6ca"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma safe_corestep_backward: forall c m c' m' n z, corestep Hcore c m c' m' -> safeN_ n z c' m' -> safeN_ (S n) z c m.",
+            "VernacStartTheoremProof",
+            "767235202737a32bad22a704975e6538763c454f"
+        ],
+        [
+            "intros; eapply safeN_step; eauto.",
+            "VernacExtend",
+            "b9bfdbbd3d6ebbc84357c337912ecb04e9fe1e1e"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma safe_downward1 : forall n c m z, safeN_ (S n) z c m -> safeN_ n z c m.",
+            "VernacStartTheoremProof",
+            "25bb7594ba911d58a210b2f470400275c9f9fa7f"
+        ],
+        [
+            "induction n.",
+            "VernacExtend",
+            "7f3faa2a3277e3553406d09101130efcb1764494"
+        ],
+        [
+            "econstructor; eauto.",
+            "VernacExtend",
+            "faa93781fb8bbf289e651728c4588af1c4169d34"
+        ],
+        [
+            "intros c m z H.",
+            "VernacExtend",
+            "9c058a9ba911b1a994f7348ffde3ee9ae9db4d3b"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "econstructor; eauto.",
+            "VernacExtend",
+            "faa93781fb8bbf289e651728c4588af1c4169d34"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "eapply safeN_external; eauto.",
+            "VernacExtend",
+            "5cf22b9416f708df513c430c00929b1606d5e6d3"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "eapply safeN_halted; eauto.",
+            "VernacExtend",
+            "44b82d5a3eb88f1ae2255a364e55d54671b7475c"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma safe_downward : forall n n' c m z, le n' n -> safeN_ n z c m -> safeN_ n' z c m.",
+            "VernacStartTheoremProof",
+            "d8a1cf962190285d0e694934d1209b4386646871"
+        ],
+        [
+            "do 6 intro.",
+            "VernacExtend",
+            "9f08c22b2e1d126384a164f4a91a47cb451277a1"
+        ],
+        [
+            "revert c m z.",
+            "VernacExtend",
+            "8f7678379d7b2203490bca76b9d739c843a83d9b"
+        ],
+        [
+            "induction H; auto.",
+            "VernacExtend",
+            "90cc3845c5168577531b5e1147599d755edab1c2"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply IHle.",
+            "VernacExtend",
+            "643780f977855f945532866720a558f5a34ca960"
+        ],
+        [
+            "apply safe_downward1.",
+            "VernacExtend",
+            "9f7808d2e4df45317e8e29a2f86976ccb6c74668"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma safe_corestepN_forward: corestep_fun -> forall z c m c' m' n n0, corestepN Hcore n0 c m c' m' -> safeN_ (n + S n0) z c m -> safeN_ n z c' m'.",
+            "VernacStartTheoremProof",
+            "8ba8c8c3850ec4b60733a6385752ca19c2e9465d"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "revert c m c' m' n H0 H1.",
+            "VernacExtend",
+            "35f9231990d9422b838580057eeda9c83ae58ef8"
+        ],
+        [
+            "induction n0; intros; auto.",
+            "VernacExtend",
+            "69afad7d21267f572fb722501ce960c6f980cb42"
+        ],
+        [
+            "simpl in H0; inv H0.",
+            "VernacExtend",
+            "ab1a0d3bfea39f698615165068142bcce0f19b4d"
+        ],
+        [
+            "eapply safe_downward in H1; eauto.",
+            "VernacExtend",
+            "62e518f40e38fa5b7c31b8f02e860bbe5038f7d9"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "simpl in H0.",
+            "VernacExtend",
+            "a4a6a8421870dbf7255f8d031744eec32f12a941"
+        ],
+        [
+            "destruct H0 as [c2 [m2 [STEP STEPN]]].",
+            "VernacExtend",
+            "5a99a4ad61b4fba2681add75703da2462ad8681a"
+        ],
+        [
+            "apply (IHn0 _ _ _ _ n STEPN).",
+            "VernacExtend",
+            "b1cc855a7893079e76ad70d3c45796c542406c1f"
+        ],
+        [
+            "assert (Heq: (n + S (S n0) = S (n + S n0))%nat) by omega.",
+            "VernacExtend",
+            "fce8bc85ab480952e2137c3536b84ef1604d915d"
+        ],
+        [
+            "rewrite Heq in H1.",
+            "VernacExtend",
+            "7d043ee21f4741b372c80c16a6f533dbf9bd8e24"
+        ],
+        [
+            "eapply safe_corestep_forward in H1; auto.",
+            "VernacExtend",
+            "3c97320082ba093b84df4ec2742a84a8f209fa26"
+        ],
+        [
+            "2: eauto.",
+            "VernacExtend",
+            "3f909af978c779ee16bb6a21f03c4b427bd31cf8"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma safe_step'_back2 : forall {ora st m st' m' n}, corestep Hcore st m st' m' -> safeN_ (n-1) ora st' m' -> safeN_ n ora st m.",
+            "VernacStartTheoremProof",
+            "91320a48f3664c89a6f2bc000fe2e4b35dbb242b"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct n.",
+            "VernacExtend",
+            "1582bf847770c098bee882393a48b146dcc37a8c"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "simpl in H0.",
+            "VernacExtend",
+            "a4a6a8421870dbf7255f8d031744eec32f12a941"
+        ],
+        [
+            "replace (n-0)%nat with n in H0.",
+            "VernacExtend",
+            "585f4296a76fcb6cedcf9a39b3851ed9a5c53dd2"
+        ],
+        [
+            "eapply safe_corestep_backward; eauto.",
+            "VernacExtend",
+            "2c0f3091806b1a9524b381d3cf400c61555b2295"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma safe_corestepN_backward: forall z c m c' m' n n0, corestepN Hcore n0 c m c' m' -> safeN_ (n - n0) z c' m' -> safeN_ n z c m.",
+            "VernacStartTheoremProof",
+            "af52b9490b9a095d4457d40368b3b4f8d1e6d2e5"
+        ],
+        [
+            "simpl; intros.",
+            "VernacExtend",
+            "429a59199da524088af55673600740ccc58db31e"
+        ],
+        [
+            "revert c m c' m' n H H0.",
+            "VernacExtend",
+            "ac31175741837c6a7dc0f7241b7055ae45543fb8"
+        ],
+        [
+            "induction n0; intros; auto.",
+            "VernacExtend",
+            "69afad7d21267f572fb722501ce960c6f980cb42"
+        ],
+        [
+            "simpl in H; inv H.",
+            "VernacExtend",
+            "a7b98c51e9f898b881b59c18b1bc811901bf5875"
+        ],
+        [
+            "solve[assert (Heq: (n = n - 0)%nat) by omega; rewrite Heq; auto].",
+            "VernacExtend",
+            "056aaf60b58ba537cddacdb91cf4462cd706afb3"
+        ],
+        [
+            "simpl in H.",
+            "VernacExtend",
+            "78dad51b2bb1130f71851d1e55489020824f59f6"
+        ],
+        [
+            "destruct H as [c2 [m2 [STEP STEPN]]].",
+            "VernacExtend",
+            "fec7a1b11a8e834603e8faf757dd6354ff40c52e"
+        ],
+        [
+            "assert (H: safeN_ (n - 1 - n0) z c' m').",
+            "VernacExtend",
+            "a8243e1211a417ea3230e9a180bdbef7f073f962"
+        ],
+        [
+            "eapply safe_downward in H0; eauto.",
+            "VernacExtend",
+            "4901c28021729631e754311b247015fc2359a65e"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "specialize (IHn0 _ _ _ _ (n - 1)%nat STEPN H).",
+            "VernacExtend",
+            "ae8bf8fd0889c7ae54002e576a603967d8049568"
+        ],
+        [
+            "solve[eapply safe_step'_back2; eauto].",
+            "VernacExtend",
+            "4c002b5e574d6c5632c136c7e54169fda3134d94"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma convergent_controls_safe : forall m q1 q2, (at_external Hcore q1 m = at_external Hcore q2 m) -> (forall ret m q', after_external Hcore ret q1 m = Some q' -> after_external Hcore ret q2 m = Some q') -> (halted Hcore q1 = halted Hcore q2) -> (forall q' m', corestep Hcore q1 m q' m' -> corestep Hcore q2 m q' m') -> (forall n z, safeN_ n z q1 m -> safeN_ n z q2 m).",
+            "VernacStartTheoremProof",
+            "08becc94dc100cb6702544fae8493172e89d40f8"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct n; simpl in *; try constructor.",
+            "VernacExtend",
+            "79eaf9a07b872a2aaba310d605ea916caa82a45a"
+        ],
+        [
+            "inv H3.",
+            "VernacExtend",
+            "bf389b6bd23f97715c74ed9eca5a780ee9e91e3c"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "econstructor; eauto.",
+            "VernacExtend",
+            "faa93781fb8bbf289e651728c4588af1c4169d34"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "eapply safeN_external; eauto.",
+            "VernacExtend",
+            "5cf22b9416f708df513c430c00929b1606d5e6d3"
+        ],
+        [
+            "rewrite <-H; eauto.",
+            "VernacExtend",
+            "7df0d4d829e1bcc720e55e5eedc01c6618d8755e"
+        ],
+        [
+            "intros ???? Hargsty Hretty ? H8 H9.",
+            "VernacExtend",
+            "1517fe64a031ec09655189ac0239012fef3989d6"
+        ],
+        [
+            "specialize (H7 _ _ _ _ Hargsty Hretty H3 H8 H9).",
+            "VernacExtend",
+            "9ade55fd7d2c17299db36d6aa7e97f0cd20d0ce1"
+        ],
+        [
+            "destruct H7 as [c' [? ?]].",
+            "VernacExtend",
+            "94987033ac8de849f5378be447e92a6ab7a91e9d"
+        ],
+        [
+            "exists c'; split; auto.",
+            "VernacExtend",
+            "818ab93fa9c878bc2b00491a90aab8bd7d6d6723"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "eapply safeN_halted; eauto.",
+            "VernacExtend",
+            "44b82d5a3eb88f1ae2255a364e55d54671b7475c"
+        ],
+        [
+            "rewrite <-H1; auto.",
+            "VernacExtend",
+            "32b903bcbdd2d6f83dd19185f0534857f043d3ae"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma wlog_safeN_gt0 : forall n z q m, (lt 0 n -> safeN_ n z q m) -> safeN_ n z q m.",
+            "VernacStartTheoremProof",
+            "e60c0fb46a3c2118809aa7709d251a57cd924ac8"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct n.",
+            "VernacExtend",
+            "1582bf847770c098bee882393a48b146dcc37a8c"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "apply H.",
+            "VernacExtend",
+            "4b47b71ad0f800d57cbdc591d68949e07decb540"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End safety.",
+            "VernacEndSegment",
+            "a1eaff2bc2c0c3a07dba307ffd36253cf9643bfe"
+        ],
+        [
+            "Section dry_safety.",
+            "VernacBeginSection",
+            "6b932a4e5cd992e20e964108930989a6d310c314"
+        ],
+        [
+            "Context {G C M Z:Type}.",
+            "VernacContext",
+            "a40d5f20894442b86f5208d78a72fff1ef19f6fb"
+        ],
+        [
+            "Context {genv_symb: G -> injective_PTree block}.",
+            "VernacContext",
+            "f5d8f9c63dc4dccde93f3c4ac98977ea2634dba7"
+        ],
+        [
+            "Context (Hcore:@CoreSemantics C M).",
+            "VernacContext",
+            "7ca59bf4d920fda19ecc09ff55f77d4ae9669ea2"
+        ],
+        [
+            "Variable (Hspec:external_specification M external_function Z).",
+            "VernacAssumption",
+            "fda84313e74cb2b0d1e4c9f071f26e8459c9292f"
+        ],
+        [
+            "Definition dry_safeN := @safeN_ G C M Z genv_symb (fun n' m m' => True) Hcore Hspec.",
+            "VernacDefinition",
+            "451101782a1cafc1c07e4c6477f496aacc63ef6a"
+        ],
+        [
+            "End dry_safety.",
+            "VernacEndSegment",
+            "b8b0369ca592fe9748761eac7d774d6e4754bf71"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "safe_corestep_backward",
+            "line_nb": 30,
+            "steps": [
+                {
+                    "command": [
+                        "intros; eapply safeN_step; eauto.",
+                        "VernacExtend",
+                        "b9bfdbbd3d6ebbc84357c337912ecb04e9fe1e1e"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "safe_downward1",
+            "line_nb": 33,
+            "steps": [
+                {
+                    "command": [
+                        "induction n.",
+                        "VernacExtend",
+                        "7f3faa2a3277e3553406d09101130efcb1764494"
+                    ]
+                },
+                {
+                    "command": [
+                        "econstructor; eauto.",
+                        "VernacExtend",
+                        "faa93781fb8bbf289e651728c4588af1c4169d34"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros c m z H.",
+                        "VernacExtend",
+                        "9c058a9ba911b1a994f7348ffde3ee9ae9db4d3b"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "econstructor; eauto.",
+                        "VernacExtend",
+                        "faa93781fb8bbf289e651728c4588af1c4169d34"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply safeN_external; eauto.",
+                        "VernacExtend",
+                        "5cf22b9416f708df513c430c00929b1606d5e6d3"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply safeN_halted; eauto.",
+                        "VernacExtend",
+                        "44b82d5a3eb88f1ae2255a364e55d54671b7475c"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "safe_downward",
+            "line_nb": 45,
+            "steps": [
+                {
+                    "command": [
+                        "do 6 intro.",
+                        "VernacExtend",
+                        "9f08c22b2e1d126384a164f4a91a47cb451277a1"
+                    ]
+                },
+                {
+                    "command": [
+                        "revert c m z.",
+                        "VernacExtend",
+                        "8f7678379d7b2203490bca76b9d739c843a83d9b"
+                    ]
+                },
+                {
+                    "command": [
+                        "induction H; auto.",
+                        "VernacExtend",
+                        "90cc3845c5168577531b5e1147599d755edab1c2"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply IHle.",
+                        "VernacExtend",
+                        "643780f977855f945532866720a558f5a34ca960"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply safe_downward1.",
+                        "VernacExtend",
+                        "9f7808d2e4df45317e8e29a2f86976ccb6c74668"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "safe_step'_back2",
+            "line_nb": 70,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct n.",
+                        "VernacExtend",
+                        "1582bf847770c098bee882393a48b146dcc37a8c"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor.",
+                        "VernacExtend",
+                        "3c77e6be855b5086df5e918bf2a0537e1010479a"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H0.",
+                        "VernacExtend",
+                        "a4a6a8421870dbf7255f8d031744eec32f12a941"
+                    ]
+                },
+                {
+                    "command": [
+                        "replace (n-0)%nat with n in H0.",
+                        "VernacExtend",
+                        "585f4296a76fcb6cedcf9a39b3851ed9a5c53dd2"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply safe_corestep_backward; eauto.",
+                        "VernacExtend",
+                        "2c0f3091806b1a9524b381d3cf400c61555b2295"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "safe_corestepN_backward",
+            "line_nb": 79,
+            "steps": [
+                {
+                    "command": [
+                        "simpl; intros.",
+                        "VernacExtend",
+                        "429a59199da524088af55673600740ccc58db31e"
+                    ]
+                },
+                {
+                    "command": [
+                        "revert c m c' m' n H H0.",
+                        "VernacExtend",
+                        "ac31175741837c6a7dc0f7241b7055ae45543fb8"
+                    ]
+                },
+                {
+                    "command": [
+                        "induction n0; intros; auto.",
+                        "VernacExtend",
+                        "69afad7d21267f572fb722501ce960c6f980cb42"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H; inv H.",
+                        "VernacExtend",
+                        "a7b98c51e9f898b881b59c18b1bc811901bf5875"
+                    ]
+                },
+                {
+                    "command": [
+                        "solve[assert (Heq: (n = n - 0)%nat) by omega; rewrite Heq; auto].",
+                        "VernacExtend",
+                        "056aaf60b58ba537cddacdb91cf4462cd706afb3"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H.",
+                        "VernacExtend",
+                        "78dad51b2bb1130f71851d1e55489020824f59f6"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H as [c2 [m2 [STEP STEPN]]].",
+                        "VernacExtend",
+                        "fec7a1b11a8e834603e8faf757dd6354ff40c52e"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (H: safeN_ (n - 1 - n0) z c' m').",
+                        "VernacExtend",
+                        "a8243e1211a417ea3230e9a180bdbef7f073f962"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply safe_downward in H0; eauto.",
+                        "VernacExtend",
+                        "4901c28021729631e754311b247015fc2359a65e"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (IHn0 _ _ _ _ (n - 1)%nat STEPN H).",
+                        "VernacExtend",
+                        "ae8bf8fd0889c7ae54002e576a603967d8049568"
+                    ]
+                },
+                {
+                    "command": [
+                        "solve[eapply safe_step'_back2; eauto].",
+                        "VernacExtend",
+                        "4c002b5e574d6c5632c136c7e54169fda3134d94"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "convergent_controls_safe",
+            "line_nb": 93,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct n; simpl in *; try constructor.",
+                        "VernacExtend",
+                        "79eaf9a07b872a2aaba310d605ea916caa82a45a"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H3.",
+                        "VernacExtend",
+                        "bf389b6bd23f97715c74ed9eca5a780ee9e91e3c"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "econstructor; eauto.",
+                        "VernacExtend",
+                        "faa93781fb8bbf289e651728c4588af1c4169d34"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply safeN_external; eauto.",
+                        "VernacExtend",
+                        "5cf22b9416f708df513c430c00929b1606d5e6d3"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <-H; eauto.",
+                        "VernacExtend",
+                        "7df0d4d829e1bcc720e55e5eedc01c6618d8755e"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros ???? Hargsty Hretty ? H8 H9.",
+                        "VernacExtend",
+                        "1517fe64a031ec09655189ac0239012fef3989d6"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (H7 _ _ _ _ Hargsty Hretty H3 H8 H9).",
+                        "VernacExtend",
+                        "9ade55fd7d2c17299db36d6aa7e97f0cd20d0ce1"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H7 as [c' [? ?]].",
+                        "VernacExtend",
+                        "94987033ac8de849f5378be447e92a6ab7a91e9d"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists c'; split; auto.",
+                        "VernacExtend",
+                        "818ab93fa9c878bc2b00491a90aab8bd7d6d6723"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply safeN_halted; eauto.",
+                        "VernacExtend",
+                        "44b82d5a3eb88f1ae2255a364e55d54671b7475c"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <-H1; auto.",
+                        "VernacExtend",
+                        "32b903bcbdd2d6f83dd19185f0534857f043d3ae"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "wlog_safeN_gt0",
+            "line_nb": 110,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct n.",
+                        "VernacExtend",
+                        "1582bf847770c098bee882393a48b146dcc37a8c"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor.",
+                        "VernacExtend",
+                        "3c77e6be855b5086df5e918bf2a0537e1010479a"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply H.",
+                        "VernacExtend",
+                        "4b47b71ad0f800d57cbdc591d68949e07decb540"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,5864 @@
+{
+    "filename": "floyd/data_at_rec_lemmas.v",
+    "coq_project": "VST",
+    "vernac_cmds": [
+        [
+            "Require Import VST.floyd.base2.",
+            "VernacRequire",
+            "c9732b06b9c2316526989f551596fbf382fa6641"
+        ],
+        [
+            "Require Import VST.floyd.client_lemmas.",
+            "VernacRequire",
+            "449c8140a2f7afa12f07d13833b2a4f672db98f1"
+        ],
+        [
+            "Require Import VST.floyd.type_induction.",
+            "VernacRequire",
+            "b89058f74a555f32a00b01d6d87f589d950b2448"
+        ],
+        [
+            "Require Import VST.floyd.nested_pred_lemmas.",
+            "VernacRequire",
+            "cf7d8ad82c9b94bc89a30d812bf2c228710d32ea"
+        ],
+        [
+            "Require Import VST.floyd.mapsto_memory_block.",
+            "VernacRequire",
+            "1eb48c3b1d3226b38616009522812b5e36900b31"
+        ],
+        [
+            "Require VST.floyd.aggregate_pred.",
+            "VernacRequire",
+            "f2dab6f34797b0b1a7c996880bedc9c42a72b087"
+        ],
+        [
+            "Import VST.floyd.aggregate_pred.aggregate_pred.",
+            "VernacImport",
+            "dc019fd10b89462a242c767b0a98e89aceed81ca"
+        ],
+        [
+            "Import VST.floyd.aggregate_pred.auxiliary_pred.",
+            "VernacImport",
+            "a193cc623ff57b1cfa88d37599f423f551a70f7d"
+        ],
+        [
+            "Require Import VST.floyd.reptype_lemmas.",
+            "VernacRequire",
+            "67895477ec539ad1bf901b33e9b181c1c2cf58be"
+        ],
+        [
+            "Require Import VST.floyd.jmeq_lemmas.",
+            "VernacRequire",
+            "a6fb0c3a29692102d721ac4dd667babf679323f6"
+        ],
+        [
+            "Require Import VST.floyd.sublist.",
+            "VernacRequire",
+            "d1f1b071609d5eb1d8166fe53222e46514697626"
+        ],
+        [
+            "Require Export VST.floyd.fieldlist.",
+            "VernacRequire",
+            "fedf2e502d563acdcdd7e4e96864bdcb602f11f4"
+        ],
+        [
+            "Require Export VST.floyd.aggregate_type.",
+            "VernacRequire",
+            "6706058edfa33793f018e82e2c3c75dbb31047e5"
+        ],
+        [
+            "Opaque alignof.",
+            "VernacSetOpacity",
+            "6ed607fc398185b3dd0a3f9995ccf4e10474087b"
+        ],
+        [
+            "Local Open Scope logic.",
+            "VernacOpenCloseScope",
+            "5937723d189e5aa98ad78e1018bed51ea2c1b0cd"
+        ],
+        [
+            "Arguments align !n !amount / .",
+            "VernacArguments",
+            "e6e2da99ccc46df9056b21c8a77eb76b6249ff83"
+        ],
+        [
+            "Arguments Z.max !n !m / .",
+            "VernacArguments",
+            "b19fe9754933287a9f574f7504da56ccf6e60735"
+        ],
+        [
+            "Definition offset_in_range ofs p := match p with | Vptr b iofs => 0 <= Ptrofs.unsigned iofs + ofs <= Ptrofs.modulus | _ => True end.",
+            "VernacDefinition",
+            "32fd34a2b0faf43dfbc8fcc501b7cbe910ff2925"
+        ],
+        [
+            "Definition offset_strict_in_range ofs p := match p with | Vptr b iofs => 0 <= Ptrofs.unsigned iofs + ofs < Ptrofs.modulus | _ => True end.",
+            "VernacDefinition",
+            "963d02e06e91b25a1154fccfd1e0999dfea3c50d"
+        ],
+        [
+            "Section CENV.",
+            "VernacBeginSection",
+            "7644d97935410cd1c048a15866d6e75d943dd433"
+        ],
+        [
+            "Context {cs: compspecs}.",
+            "VernacContext",
+            "54247ea3591f081b4582667d94ae6f9e673bf9e3"
+        ],
+        [
+            "Section WITH_SHARE.",
+            "VernacBeginSection",
+            "fe871e39c5badfeca27463aacdf3d49ed30e0aa6"
+        ],
+        [
+            "Variable sh: share.",
+            "VernacAssumption",
+            "a4278b3aa92575e0b24f3a298bb6917ba7206503"
+        ],
+        [
+            "Definition data_at_rec: forall t, reptype t -> val -> mpred := type_func (fun t => reptype t -> val -> mpred) (fun t v p => if type_is_volatile t then memory_block sh (sizeof t) p else mapsto sh t p (repinject t v)) (fun t n a P v => array_pred 0 (Z.max 0 n) (fun i v => at_offset (P v) (sizeof t * i)) (unfold_reptype v)) (fun id a P v => struct_data_at_rec_aux sh (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v)) (fun id a P v => union_data_at_rec_aux sh (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v)).",
+            "VernacDefinition",
+            "74915372a5a5c847b081cbd097733badfcc6176a"
+        ],
+        [
+            "Lemma data_at_rec_eq: forall t v, data_at_rec t v = match t return REPTYPE t -> val -> mpred with | Tvoid | Tfunction _ _ _ => fun _ _ => FF | Tint _ _ _ | Tfloat _ _ | Tlong _ _ | Tpointer _ _ => fun v p => if type_is_volatile t then memory_block sh (sizeof t) p else mapsto sh t p v | Tarray t0 n a => array_pred 0 (Z.max 0 n) (fun i v => at_offset (data_at_rec t0 v) (sizeof t0 * i)) | Tstruct id a => struct_pred (co_members (get_co id)) (fun it v => withspacer sh (field_offset cenv_cs (fst it) (co_members (get_co id)) + sizeof (field_type (fst it) (co_members (get_co id)))) (field_offset_next cenv_cs (fst it) (co_members (get_co id)) (co_sizeof (get_co id))) (at_offset (data_at_rec (field_type (fst it) (co_members (get_co id))) v) (field_offset cenv_cs (fst it) (co_members (get_co id))))) | Tunion id a => union_pred (co_members (get_co id)) (fun it v => withspacer sh (sizeof (field_type (fst it) (co_members (get_co id)))) (co_sizeof (get_co id)) (data_at_rec (field_type (fst it) (co_members (get_co id))) v)) end (unfold_reptype v).",
+            "VernacStartTheoremProof",
+            "3c34ed0c49f80fcfd6d582f9990689559a188435"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold data_at_rec at 1.",
+            "VernacExtend",
+            "59c6dd8a2e128723e7b1ca680da726d9e09f15e4"
+        ],
+        [
+            "rewrite type_func_eq.",
+            "VernacExtend",
+            "c91e226d46885ed017aa5e6d6b6f5b61f5c3a639"
+        ],
+        [
+            "destruct t; auto; try solve [destruct (readable_share_dec sh); reflexivity]; try solve [ match goal with | |- context[repinject ?tt] => rewrite (repinject_unfold_reptype tt); auto end].",
+            "VernacExtend",
+            "b3f6e591b755c274cbb64629b2cc6174d231bf20"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite <- struct_data_at_rec_aux_spec; reflexivity.",
+            "VernacExtend",
+            "b6951519348480ec744872c1b5e0432d84f3a78a"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite <- union_data_at_rec_aux_spec; reflexivity.",
+            "VernacExtend",
+            "da9d75e1654f3421a6e4eff0b90d690faab10f1e"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End WITH_SHARE.",
+            "VernacEndSegment",
+            "e3a88af69ae0a302e5e6a47ed19bb25f983a0df3"
+        ],
+        [
+            "Lemma data_at_rec_type_changable: forall (sh: Share.t) (t1 t2: type) v1 v2, t1 = t2 -> JMeq v1 v2 -> data_at_rec sh t1 v1 = data_at_rec sh t2 v2.",
+            "VernacStartTheoremProof",
+            "a725deb1812eeeb3504efa5cec24d9276d34bd76"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "subst t2.",
+            "VernacExtend",
+            "e4dd57e9b9492f7f098f4c9b9f0931631f282df4"
+        ],
+        [
+            "apply JMeq_eq in H0.",
+            "VernacExtend",
+            "87d28097d755b25f62a815ae773355cb3249511b"
+        ],
+        [
+            "rewrite H0.",
+            "VernacExtend",
+            "1a54b13ac1654793174947eafd5c41a3f024eb49"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma by_value_default_val: forall t:type, type_is_by_value t = true -> JMeq (default_val t) Vundef.",
+            "VernacStartTheoremProof",
+            "718e13ac96603c43d62c6af613f03d77d6f99356"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct t; try inversion H; try tauto; apply JMeq_refl.",
+            "VernacExtend",
+            "1ecd28cbbd2c9257278643011b7098ea3a05b2f6"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma by_value_reptype: forall t, type_is_by_value t = true -> reptype t = val.",
+            "VernacStartTheoremProof",
+            "0115346f0b4ed933e8bc68bee15ea8a5e830f2ef"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct t; simpl in H; try inversion H; tauto.",
+            "VernacExtend",
+            "7084d3111dcd277d71f2c730b654970d6f88cf8c"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma by_value_data_at_rec_volatile: forall sh t v p, type_is_by_value t = true -> type_is_volatile t = true -> data_at_rec sh t v p = memory_block sh (sizeof t) p.",
+            "VernacStartTheoremProof",
+            "187c1d2c6727033f5a0a763d2520ebe947c1dd04"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite data_at_rec_eq; destruct t; try solve [inversion H]; match goal with | |- context[type_is_volatile ?tt] => destruct (type_is_volatile tt) eqn:HH; auto; rewrite <- (repinject_unfold_reptype tt); auto end; inversion H0.",
+            "VernacExtend",
+            "4dd81e42072fdce2e3effe34a5f206e30e87c400"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma by_value_data_at_rec_nonvolatile: forall sh t v p, type_is_by_value t = true -> type_is_volatile t = false -> data_at_rec sh t v p = mapsto sh t p (repinject t v).",
+            "VernacStartTheoremProof",
+            "16bde030776754624e25c379bab60d82633a578e"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite data_at_rec_eq; destruct t; try solve [inversion H]; rewrite H0; match goal with | |- context[repinject ?tt] => rewrite (repinject_unfold_reptype tt); auto end.",
+            "VernacExtend",
+            "0d3a5dcdc0d1afdaf73af8c507a872721be8c7d3"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma by_value_data_at_rec_default_val: forall sh t p, type_is_by_value t = true -> size_compatible t p -> align_compatible t p -> data_at_rec sh t (default_val t) p = memory_block sh (sizeof t) p.",
+            "VernacStartTheoremProof",
+            "16fb54dafe1f6a464a33c2e9edc040e02bb56472"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct (type_is_volatile t) eqn:?H.",
+            "VernacExtend",
+            "0ccaae7d962e7fde5b98a2630915211668febc9c"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply by_value_data_at_rec_volatile; auto.",
+            "VernacExtend",
+            "41e969b67ce06474243c79ce3e1312d008362691"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite data_at_rec_eq; destruct t; try solve [inversion H]; rewrite H2; symmetry; rewrite memory_block_mapsto_ by auto; unfold mapsto_; try rewrite if_true by auto; auto.",
+            "VernacExtend",
+            "56bc5c9299ecee48d70a02add76d4b6aa6c03123"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma by_value_data_at_rec_nonreachable: forall sh t p v, type_is_by_value t = true -> size_compatible t p -> align_compatible t p -> ~ readable_share sh -> tc_val' t (repinject t v) -> data_at_rec sh t v p = memory_block sh (sizeof t) p.",
+            "VernacStartTheoremProof",
+            "6c138738d42ed298c1682d476b4ecf5bd1cdad87"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct (type_is_volatile t) eqn:?H.",
+            "VernacExtend",
+            "0ccaae7d962e7fde5b98a2630915211668febc9c"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply by_value_data_at_rec_volatile; auto.",
+            "VernacExtend",
+            "41e969b67ce06474243c79ce3e1312d008362691"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite by_value_data_at_rec_nonvolatile by auto.",
+            "VernacExtend",
+            "2234e3f393b6acb77ea915b95f0717738d5f2bf7"
+        ],
+        [
+            "symmetry; apply nonreadable_memory_block_mapsto; auto.",
+            "VernacExtend",
+            "805b7f088e46c738078a9541eb9a1e63718668a9"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma by_value_data_at_rec_default_val2: forall sh t b ofs, type_is_by_value t = true -> 0 <= ofs /\\ ofs + sizeof t < Ptrofs.modulus -> align_compatible_rec cenv_cs t ofs -> data_at_rec sh t (default_val t) (Vptr b (Ptrofs.repr ofs)) = memory_block sh (sizeof t) (Vptr b (Ptrofs.repr ofs)).",
+            "VernacStartTheoremProof",
+            "16cc3db8f04aaa280a2314df37cead5bbc8bc72d"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply by_value_data_at_rec_default_val; auto.",
+            "VernacExtend",
+            "a26cc8f706f62109c30855bb824b2f2c1d33e3e6"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "unfold size_compatible.",
+            "VernacExtend",
+            "f30a0228c86febc3982e0af7868b3f6e0736bc6a"
+        ],
+        [
+            "solve_mod_modulus.",
+            "VernacExtend",
+            "b705e3387e985663d3f5a4953305d4c4dce20c36"
+        ],
+        [
+            "pose_mod_le ofs.",
+            "VernacExtend",
+            "00c77ea83af0eb3e6f675211a9a01fb5193be55e"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "unfold align_compatible.",
+            "VernacExtend",
+            "fe48d33a9b12c4eeb44284dfcc0e393e8f65baab"
+        ],
+        [
+            "solve_mod_modulus.",
+            "VernacExtend",
+            "b705e3387e985663d3f5a4953305d4c4dce20c36"
+        ],
+        [
+            "pose proof sizeof_pos t.",
+            "VernacExtend",
+            "ae8d041da01ea19d95abbe7523653584bc09ad50"
+        ],
+        [
+            "rewrite Zmod_small by omega.",
+            "VernacExtend",
+            "b55bd313119b61355324b8f6158f311f7095d082"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma by_value_data_at_rec_nonreachable2: forall sh t b ofs v, type_is_by_value t = true -> 0 <= ofs /\\ ofs + sizeof t < Ptrofs.modulus -> align_compatible_rec cenv_cs t ofs -> ~ readable_share sh -> tc_val' t (repinject t v) -> data_at_rec sh t v (Vptr b (Ptrofs.repr ofs)) = memory_block sh (sizeof t) (Vptr b (Ptrofs.repr ofs)).",
+            "VernacStartTheoremProof",
+            "4208314f69b614110e760a7cd7ef1b2d3cafb517"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply by_value_data_at_rec_nonreachable; auto.",
+            "VernacExtend",
+            "2fb90280db6ec436badfe3bd750cb6d109876cfc"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "unfold size_compatible.",
+            "VernacExtend",
+            "f30a0228c86febc3982e0af7868b3f6e0736bc6a"
+        ],
+        [
+            "solve_mod_modulus.",
+            "VernacExtend",
+            "b705e3387e985663d3f5a4953305d4c4dce20c36"
+        ],
+        [
+            "pose_mod_le ofs.",
+            "VernacExtend",
+            "00c77ea83af0eb3e6f675211a9a01fb5193be55e"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "unfold align_compatible.",
+            "VernacExtend",
+            "fe48d33a9b12c4eeb44284dfcc0e393e8f65baab"
+        ],
+        [
+            "solve_mod_modulus.",
+            "VernacExtend",
+            "b705e3387e985663d3f5a4953305d4c4dce20c36"
+        ],
+        [
+            "pose proof sizeof_pos t.",
+            "VernacExtend",
+            "ae8d041da01ea19d95abbe7523653584bc09ad50"
+        ],
+        [
+            "rewrite Zmod_small by omega.",
+            "VernacExtend",
+            "b55bd313119b61355324b8f6158f311f7095d082"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma lower_sepcon_val': forall (P Q: val->mpred) v, ((P*Q) v) = (P v * Q v).",
+            "VernacStartTheoremProof",
+            "9813b1a252361f0683e9b9477b76054874ff06f5"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma Znth_nil: forall {A}{d: Inhabitant A} n, Znth n nil = default.",
+            "VernacStartTheoremProof",
+            "0edac793bdbb6416d56fac5140ff7be9e0cf9670"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold Znth.",
+            "VernacExtend",
+            "7211d3ddadb408c13a3757be0ceaaabeebf7b887"
+        ],
+        [
+            "if_tac; auto.",
+            "VernacExtend",
+            "405a5d1c67f2928c68a29c10540d8abdea32b1bd"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "destruct (Z.to_nat n); auto.",
+            "VernacExtend",
+            "0f11c6f9f3809246bf86f640b3dd61fd25f61698"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma offset_val_zero_Vptr: forall b i, offset_val 0 (Vptr b i) = Vptr b i.",
+            "VernacStartTheoremProof",
+            "23c7d2e61676d3cf55ab2dbb2b5b69b9313a5bd1"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold offset_val, Ptrofs.add.",
+            "VernacExtend",
+            "be7dd50171e42009d8683e177bad736bb06e761e"
+        ],
+        [
+            "change (Ptrofs.unsigned (Ptrofs.repr 0)) with 0.",
+            "VernacExtend",
+            "62f6d4449c48e8b6ca597f06f080e39c03d2cc98"
+        ],
+        [
+            "rewrite Z.add_0_r.",
+            "VernacExtend",
+            "06ae07741c51588ad5058ce812450f10227d7b7a"
+        ],
+        [
+            "rewrite Ptrofs.repr_unsigned.",
+            "VernacExtend",
+            "c05aa975620465844865478cae5f0f69520e0371"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma nth_list_repeat: forall A i n (x :A), nth i (list_repeat n x) x = x.",
+            "VernacStartTheoremProof",
+            "aa8951f03a12d71abaca578de87a7638855c9174"
+        ],
+        [
+            "induction i; destruct n; simpl; auto.",
+            "VernacExtend",
+            "03e6ed8956c3a74a3a9aec86e334cf323373bcac"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma nth_list_repeat': forall A i n (x y :A), (i < n)%nat -> nth i (list_repeat n x) y = x.",
+            "VernacStartTheoremProof",
+            "c6e1a75f0fbcd8f31ecdf2d21982ae6c4826618e"
+        ],
+        [
+            "induction i; destruct n; simpl; intros; auto.",
+            "VernacExtend",
+            "7d9ab39f2b4fa035f341f9d5c503d53726ec76e8"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "apply IHi; auto.",
+            "VernacExtend",
+            "fc58e93aeaf35aace96ccfed3d4fa9537c5547bc"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma Z2Nat_max0: forall z, Z.to_nat (Z.max 0 z) = Z.to_nat z.",
+            "VernacStartTheoremProof",
+            "a300323002595ea9b190dd1f7620dea6081f189d"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite Z.max_comm, <- nat_of_Z_max, Nat2Z.id.",
+            "VernacExtend",
+            "cdf275bd2dfa54122dbe71253ec0d236d4c2f4d2"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma range_max0: forall x z, 0 <= x < Z.max 0 z <-> 0 <= x < z.",
+            "VernacStartTheoremProof",
+            "710b852a9abc6f49f7bb79f3ae44c5eb7ef01fa2"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct (zlt z 0).",
+            "VernacExtend",
+            "7076620eacfe678def1d7d0611130847501273e1"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite Z.max_l by omega.",
+            "VernacExtend",
+            "33008bfe4a3b1ffcaa54873a74678ce072eb8059"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite Z.max_r by omega.",
+            "VernacExtend",
+            "8781eace12c9cb209471cff64545a076e9d72b4f"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma memory_block_data_at_rec_default_val: forall sh t b ofs (LEGAL_COSU: complete_legal_cosu_type t = true), 0 <= ofs /\\ ofs + sizeof t < Ptrofs.modulus -> align_compatible_rec cenv_cs t ofs -> data_at_rec sh t (default_val t) (Vptr b (Ptrofs.repr ofs)) = memory_block sh (sizeof t) (Vptr b (Ptrofs.repr ofs)).",
+            "VernacStartTheoremProof",
+            "2c31ce6e58867c6bd32e5179b6b155c36fe10351"
+        ],
+        [
+            "intros sh t.",
+            "VernacExtend",
+            "3ae0ffa156eb768b820b7da0feb7916550fbd225"
+        ],
+        [
+            "type_induction t; intros; try solve [inversion COMPLETE]; try solve [apply by_value_data_at_rec_default_val2; auto]; rewrite data_at_rec_eq.",
+            "VernacExtend",
+            "9654188d5f61320a6de76eed732064214da152d5"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite (default_val_eq (Tarray t z a)).",
+            "VernacExtend",
+            "4251b8bebd37f5ce4d71e1b1cccf00fbde439783"
+        ],
+        [
+            "rewrite unfold_fold_reptype.",
+            "VernacExtend",
+            "f8bbcd1df4e94ebcf61cc26b627b8810b875f978"
+        ],
+        [
+            "rewrite array_pred_ext with (P1 := fun i _ p => memory_block sh (sizeof t) (offset_val (sizeof t * i) p)) (v1 := list_repeat (Z.to_nat (Z.max 0 z)) (default_val t)); auto.",
+            "VernacExtend",
+            "8ef23896bfd7627d36359bea8d224c7a1a4326d1"
+        ],
+        [
+            "rewrite memory_block_array_pred; auto.",
+            "VernacExtend",
+            "7b4bdb5783714ea1bd1b818eed066899bc424fec"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply Z.le_max_l.",
+            "VernacExtend",
+            "8e1e3b091d8ceba9cc377d96e8b784dc483851da"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "rewrite Z2Nat_max0; auto.",
+            "VernacExtend",
+            "24a596757c406f9717be52c7b130ef74e367f7ed"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite at_offset_eq3.",
+            "VernacExtend",
+            "39e80ef500dc6da79b5e780bff18e6829d417733"
+        ],
+        [
+            "unfold offset_val; solve_mod_modulus.",
+            "VernacExtend",
+            "e48a6b8826ab1ec571825fad1b28fd2be8a22cd4"
+        ],
+        [
+            "unfold Znth.",
+            "VernacExtend",
+            "7211d3ddadb408c13a3757be0ceaaabeebf7b887"
+        ],
+        [
+            "rewrite if_false by omega.",
+            "VernacExtend",
+            "8021f382d1bbb53a8b088e0b3467827b50f226ef"
+        ],
+        [
+            "rewrite nth_list_repeat.",
+            "VernacExtend",
+            "15fd48eb470d835a8a3e00ec0debebdd5cb9e918"
+        ],
+        [
+            "unfold sizeof in H, H1; fold @sizeof in H,H1.",
+            "VernacExtend",
+            "be5f00014cf7c7515c09a63053e724fda27da0d0"
+        ],
+        [
+            "pose_size_mult cenv_cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil).",
+            "VernacExtend",
+            "d23ca820d4249ccbd157abcf0bacf03587d4fee7"
+        ],
+        [
+            "assert (sizeof t = 0 -> sizeof t * i = 0)%Z by (intros HH; rewrite HH, Z.mul_0_l; auto).",
+            "VernacExtend",
+            "2210c55a14d67aa367d737fa9b7ad6d06da15cbd"
+        ],
+        [
+            "apply IH; auto; try omega.",
+            "VernacExtend",
+            "fef4a3f0437b5ae9bb6a81b004abd369f923cf55"
+        ],
+        [
+            "eapply align_compatible_rec_Tarray_inv; [eassumption |].",
+            "VernacExtend",
+            "55f2d620ac7ca8052591e8442840ea4bb684f7f0"
+        ],
+        [
+            "apply range_max0; auto.",
+            "VernacExtend",
+            "58b3ffd4cb3601a4c1449ee5b92cfe48bbe0436b"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite default_val_eq.",
+            "VernacExtend",
+            "cd56a967f5d3c00d7f4f434bbd85c2b8375f2fb1"
+        ],
+        [
+            "rewrite unfold_fold_reptype.",
+            "VernacExtend",
+            "f8bbcd1df4e94ebcf61cc26b627b8810b875f978"
+        ],
+        [
+            "rewrite struct_pred_ext with (P1 := fun it _ p => memory_block sh (field_offset_next cenv_cs (fst it) (co_members (get_co id)) (co_sizeof (get_co id)) - field_offset cenv_cs (fst it) (co_members (get_co id))) (offset_val (field_offset cenv_cs (fst it) (co_members (get_co id))) p)) (v1 := (struct_default_val (co_members (get_co id)))); [| apply get_co_members_no_replicate |].",
+            "VernacExtend",
+            "18a10f6bc3c26a0a0da50e464f804adf1228b2e0"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite memory_block_struct_pred.",
+            "VernacExtend",
+            "96eb4359f5b9f8728a454eb59f7d356137b52b64"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "rewrite sizeof_Tstruct; auto.",
+            "VernacExtend",
+            "30be2d61de299ccc7ccbb67677669be64c8ebc6e"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "apply get_co_members_nil_sizeof_0.",
+            "VernacExtend",
+            "07d149474f5ab9d633225a178a967132d2b4e90a"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "apply get_co_members_no_replicate.",
+            "VernacExtend",
+            "48f67f7c710387cd2b4f4ca72c9e6a53e961df4d"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "rewrite sizeof_Tstruct in H.",
+            "VernacExtend",
+            "202c6e2213144cb51e7029b648240f92fc335e22"
+        ],
+        [
+            "pose proof co_consistent_sizeof cenv_cs (get_co id) (get_co_consistent id).",
+            "VernacExtend",
+            "bd3549dfe2124532d84eec97194b5b414c934bdd"
+        ],
+        [
+            "erewrite complete_legal_cosu_type_Tstruct in H1 by eauto.",
+            "VernacExtend",
+            "40ba60561c46d85385a03963fe95eab212277636"
+        ],
+        [
+            "pose proof co_consistent_sizeof cenv_cs (get_co id) (get_co_consistent id).",
+            "VernacExtend",
+            "bd3549dfe2124532d84eec97194b5b414c934bdd"
+        ],
+        [
+            "unfold sizeof_composite in H1.",
+            "VernacExtend",
+            "f1a0cf944f3725e2d4892e90d116ae8842cc1d27"
+        ],
+        [
+            "revert H1; pose_align_le; intros; omega.",
+            "VernacExtend",
+            "1074dcd46fc6cb170ef1c5af76ad019f898321c5"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "rewrite sizeof_Tstruct in H.",
+            "VernacExtend",
+            "202c6e2213144cb51e7029b648240f92fc335e22"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "pose proof get_co_members_no_replicate id as NO_REPLI.",
+            "VernacExtend",
+            "987ed7b10bc76aa646e7af32576b92c50d55f81f"
+        ],
+        [
+            "rewrite withspacer_spacer.",
+            "VernacExtend",
+            "907f875ad9e18e164e8437724214d01bcd7183c7"
+        ],
+        [
+            "simpl @fst.",
+            "VernacExtend",
+            "78ac36cecc4798cc1bec15bd5d4b5623d1e3c6da"
+        ],
+        [
+            "rewrite spacer_memory_block by (simpl; auto).",
+            "VernacExtend",
+            "6bb9a7839c0a31a8733cbe3e5fb826945e73a02b"
+        ],
+        [
+            "rewrite at_offset_eq3.",
+            "VernacExtend",
+            "39e80ef500dc6da79b5e780bff18e6829d417733"
+        ],
+        [
+            "unfold offset_val; solve_mod_modulus.",
+            "VernacExtend",
+            "e48a6b8826ab1ec571825fad1b28fd2be8a22cd4"
+        ],
+        [
+            "unfold struct_default_val.",
+            "VernacExtend",
+            "86f9255b6f7af80b0e15deded969f0b89c256d2c"
+        ],
+        [
+            "unfold proj_struct.",
+            "VernacExtend",
+            "f290ce7cbd88a1357d2da0bc1fd686a47da38cee"
+        ],
+        [
+            "rewrite compact_prod_proj_gen by (apply in_members_field_type; auto).",
+            "VernacExtend",
+            "d1db0e24603f5d9a687ee6666add2ad891015f02"
+        ],
+        [
+            "rewrite Forall_forall in IH.",
+            "VernacExtend",
+            "facea5663ee6deb8394d1fe395bb446fcfb7f613"
+        ],
+        [
+            "specialize (IH (i, field_type i (co_members (get_co id)))).",
+            "VernacExtend",
+            "05f18a55b64b6c63d11c8f1be2c3f32f9143055a"
+        ],
+        [
+            "spec IH; [apply in_members_field_type; auto |].",
+            "VernacExtend",
+            "ab721fd336ac7772afd6386f2704666b26a31b3e"
+        ],
+        [
+            "unfold snd in IH.",
+            "VernacExtend",
+            "b4741be55b84644870a00ed7abfec558886961f5"
+        ],
+        [
+            "rewrite IH.",
+            "VernacExtend",
+            "dbf4f765dab656705bc8df8600fa3b3017a20858"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "rewrite Z.add_assoc, sepcon_comm, <- memory_block_split by (pose_field; omega).",
+            "VernacExtend",
+            "bfe1656c27b230a846fc0f3810296cfa6a981412"
+        ],
+        [
+            "f_equal; omega.",
+            "VernacExtend",
+            "3b812353131f9b9bebbd6410b3fa7c9d2e597ec3"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "apply complete_legal_cosu_type_field_type.",
+            "VernacExtend",
+            "f8d5125bc17190a15c9ed8c79dc14d5d59445a63"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "simpl fst.",
+            "VernacExtend",
+            "50f078e6e6cbec9c7f54271bc03d95b1580e0c02"
+        ],
+        [
+            "pose_field; omega.",
+            "VernacExtend",
+            "65e5d7b9d0a637656b0fab6638aae1a6704f7281"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "simpl fst.",
+            "VernacExtend",
+            "50f078e6e6cbec9c7f54271bc03d95b1580e0c02"
+        ],
+        [
+            "eapply align_compatible_rec_Tstruct_inv'; eauto.",
+            "VernacExtend",
+            "f8315ee4d65fdcbbe32c7d359b0178c07bb084a5"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "assert (co_members (get_co id) = nil \\/ co_members (get_co id) <> nil) by (destruct (co_members (get_co id)); [left | right]; congruence).",
+            "VernacExtend",
+            "ceaf2d1ea6a8d568a20bf416b036379c1697eaea"
+        ],
+        [
+            "destruct H1.",
+            "VernacExtend",
+            "e752c2122f55c888e09082f784a6da990b01fbe7"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite sizeof_Tunion.",
+            "VernacExtend",
+            "4368f969e2f3802a882ff7109c9e93465872d736"
+        ],
+        [
+            "rewrite (get_co_members_nil_sizeof_0 _ H1).",
+            "VernacExtend",
+            "aef2be6c16f659218cf36aa2f8a890850938aaf1"
+        ],
+        [
+            "generalize (unfold_reptype (default_val (Tunion id a))); rewrite H1 in *; intros.",
+            "VernacExtend",
+            "c916917ed91c04d6639af1918bd0e0d78977623b"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite memory_block_zero.",
+            "VernacExtend",
+            "dfe4c35c00e8697f2a491d13a0d56564faf50a26"
+        ],
+        [
+            "normalize.",
+            "VernacExtend",
+            "b44f672ef6622bc7f333c87e081e8283dfd06387"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite default_val_eq.",
+            "VernacExtend",
+            "cd56a967f5d3c00d7f4f434bbd85c2b8375f2fb1"
+        ],
+        [
+            "rewrite unfold_fold_reptype.",
+            "VernacExtend",
+            "f8bbcd1df4e94ebcf61cc26b627b8810b875f978"
+        ],
+        [
+            "rewrite union_pred_ext with (P1 := fun it _ => memory_block sh (co_sizeof (get_co id))) (v1 := (union_default_val (co_members (get_co id)))); [| apply get_co_members_no_replicate | reflexivity |].",
+            "VernacExtend",
+            "b54a262a017de6a4cba643da84e5b42dad9ddcc1"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "rewrite memory_block_union_pred by (apply get_co_members_nil_sizeof_0).",
+            "VernacExtend",
+            "2d7992cf2d1dbb65250b6eb0b011d0d1d41e7ec5"
+        ],
+        [
+            "rewrite sizeof_Tunion.",
+            "VernacExtend",
+            "4368f969e2f3802a882ff7109c9e93465872d736"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "pose proof get_co_members_no_replicate id as NO_REPLI.",
+            "VernacExtend",
+            "987ed7b10bc76aa646e7af32576b92c50d55f81f"
+        ],
+        [
+            "pose proof @compact_sum_inj_in _ _ (co_members (get_co id)) (union_default_val (co_members (get_co id))) _ _ H3.",
+            "VernacExtend",
+            "bca6038f76ad1960e04970168077b2344804dab5"
+        ],
+        [
+            "apply in_map with (f := fst) in H4; unfold fst in H4.",
+            "VernacExtend",
+            "f60deb6cb8ec8241bbc6c3b6177f902ce6a65ade"
+        ],
+        [
+            "rewrite withspacer_spacer.",
+            "VernacExtend",
+            "907f875ad9e18e164e8437724214d01bcd7183c7"
+        ],
+        [
+            "simpl @fst.",
+            "VernacExtend",
+            "78ac36cecc4798cc1bec15bd5d4b5623d1e3c6da"
+        ],
+        [
+            "rewrite spacer_memory_block by (simpl; auto).",
+            "VernacExtend",
+            "6bb9a7839c0a31a8733cbe3e5fb826945e73a02b"
+        ],
+        [
+            "unfold offset_val; solve_mod_modulus.",
+            "VernacExtend",
+            "e48a6b8826ab1ec571825fad1b28fd2be8a22cd4"
+        ],
+        [
+            "unfold union_default_val.",
+            "VernacExtend",
+            "802fdb27e984c53aeaac8a0f3ca65d60c11806df"
+        ],
+        [
+            "unfold proj_union.",
+            "VernacExtend",
+            "91acff2a629ba8f8d67eaa004d23ae5985ae56f2"
+        ],
+        [
+            "unfold members_union_inj in *.",
+            "VernacExtend",
+            "e5090e9b7171aeb7f2d39b170c28e48341b8bc36"
+        ],
+        [
+            "rewrite compact_sum_proj_gen; [| auto].",
+            "VernacExtend",
+            "7537136c4225bd60ec6efd6317224239907c49b4"
+        ],
+        [
+            "rewrite Forall_forall in IH.",
+            "VernacExtend",
+            "facea5663ee6deb8394d1fe395bb446fcfb7f613"
+        ],
+        [
+            "specialize (IH (i, field_type i (co_members (get_co id)))).",
+            "VernacExtend",
+            "05f18a55b64b6c63d11c8f1be2c3f32f9143055a"
+        ],
+        [
+            "spec IH; [apply in_members_field_type; auto |].",
+            "VernacExtend",
+            "ab721fd336ac7772afd6386f2704666b26a31b3e"
+        ],
+        [
+            "unfold snd in IH.",
+            "VernacExtend",
+            "b4741be55b84644870a00ed7abfec558886961f5"
+        ],
+        [
+            "rewrite IH.",
+            "VernacExtend",
+            "dbf4f765dab656705bc8df8600fa3b3017a20858"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "rewrite sepcon_comm, <- memory_block_split by (pose_field; omega).",
+            "VernacExtend",
+            "8fb2d5ccd7b00f690fd72bc07661b13ccf748cd2"
+        ],
+        [
+            "f_equal; f_equal; omega.",
+            "VernacExtend",
+            "68428d37e8c127e27c688d05ea57aae2662f5dd6"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "apply complete_legal_cosu_type_field_type.",
+            "VernacExtend",
+            "f8d5125bc17190a15c9ed8c79dc14d5d59445a63"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "pose_field; omega.",
+            "VernacExtend",
+            "65e5d7b9d0a637656b0fab6638aae1a6704f7281"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "simpl fst.",
+            "VernacExtend",
+            "50f078e6e6cbec9c7f54271bc03d95b1580e0c02"
+        ],
+        [
+            "eapply align_compatible_rec_Tunion_inv'; eauto.",
+            "VernacExtend",
+            "fd0a53a95f64c6f5f5957163ecca683a25ad1eeb"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma data_at_rec_data_at_rec_ : forall sh t v b ofs (LEGAL_COSU: complete_legal_cosu_type t = true), 0 <= ofs /\\ ofs + sizeof t < Ptrofs.modulus -> align_compatible_rec cenv_cs t ofs -> data_at_rec sh t v (Vptr b (Ptrofs.repr ofs)) |-- data_at_rec sh t (default_val t) (Vptr b (Ptrofs.repr ofs)).",
+            "VernacStartTheoremProof",
+            "7f86148987e9320e643c63e5b581707c07975f38"
+        ],
+        [
+            "intros sh t.",
+            "VernacExtend",
+            "3ae0ffa156eb768b820b7da0feb7916550fbd225"
+        ],
+        [
+            "type_induction t; intros; try solve [inversion LEGAL_COSU]; try solve [rewrite !data_at_rec_eq; try (simple_if_tac; auto); try solve [rewrite default_val_eq, unfold_fold_reptype; apply mapsto_mapsto_]].",
+            "VernacExtend",
+            "747993d975d95846fbd134256a0f12976fed5712"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite !data_at_rec_eq.",
+            "VernacExtend",
+            "0bc5a10706d9c1d5a7c9cc88504c222260eb04f3"
+        ],
+        [
+            "apply array_pred_ext_derives.",
+            "VernacExtend",
+            "35a8e541cfba4b28d4542dbdde48e1534f9fd482"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "intros; rewrite default_val_eq.",
+            "VernacExtend",
+            "b1ce3bbdecbb4ee95dac22a670a75dd2f17e0527"
+        ],
+        [
+            "rewrite unfold_fold_reptype.",
+            "VernacExtend",
+            "f8bbcd1df4e94ebcf61cc26b627b8810b875f978"
+        ],
+        [
+            "rewrite Zlength_correct in H1.",
+            "VernacExtend",
+            "345b25e233a0729e39d1644d2afd2c8be976e400"
+        ],
+        [
+            "rewrite <- Z2Nat_max0.",
+            "VernacExtend",
+            "fbeb0fe852679a65da09db18a83177c4bed012ef"
+        ],
+        [
+            "rewrite Zlength_list_repeat by omega.",
+            "VernacExtend",
+            "47a96083f6e4ff4df615712f40895f0cd7608ba2"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "rewrite default_val_eq.",
+            "VernacExtend",
+            "cd56a967f5d3c00d7f4f434bbd85c2b8375f2fb1"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite !at_offset_eq3.",
+            "VernacExtend",
+            "3eb5c92ddf06cf0348b77ef1c5672246a7b8f8ff"
+        ],
+        [
+            "rewrite default_val_eq with (t0 := (Tarray t z a)), unfold_fold_reptype.",
+            "VernacExtend",
+            "64bcf76bcb68eb0373a8c2a2f61bf9046527c011"
+        ],
+        [
+            "eapply derives_trans.",
+            "VernacExtend",
+            "74bf196b92978065d64297654462f01dbd4ed9a4"
+        ],
+        [
+            "apply IH; auto.",
+            "VernacExtend",
+            "ab7c838ddd716a3b14059f64c365105253349c54"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "pose_size_mult cenv_cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil); simpl in H; try omega.",
+            "VernacExtend",
+            "3707e0b8792719ffa090038044c6fb04afd1e067"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "eapply align_compatible_rec_Tarray_inv; eauto.",
+            "VernacExtend",
+            "87117c2147bb08cfc59dd8474c25eb0b3335ccf5"
+        ],
+        [
+            "apply range_max0; auto.",
+            "VernacExtend",
+            "58b3ffd4cb3601a4c1449ee5b92cfe48bbe0436b"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply derives_refl'.",
+            "VernacExtend",
+            "c778e5f165b217e12e92c88c8e5f68e18a05e94d"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "unfold Znth.",
+            "VernacExtend",
+            "7211d3ddadb408c13a3757be0ceaaabeebf7b887"
+        ],
+        [
+            "rewrite if_false by omega.",
+            "VernacExtend",
+            "8021f382d1bbb53a8b088e0b3467827b50f226ef"
+        ],
+        [
+            "rewrite nth_list_repeat'; auto.",
+            "VernacExtend",
+            "7451ea400f39e3019c9746e37dbf2dff70a0bb6d"
+        ],
+        [
+            "apply Nat2Z.inj_lt.",
+            "VernacExtend",
+            "6ec2c5bd1d02f2d0261f8c87f0d2bf550988e026"
+        ],
+        [
+            "rewrite Z2Nat.id, Z2Nat_id' by omega.",
+            "VernacExtend",
+            "02e109cf583905a2c316fe58625b8b367a85b74c"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite !data_at_rec_eq.",
+            "VernacExtend",
+            "0bc5a10706d9c1d5a7c9cc88504c222260eb04f3"
+        ],
+        [
+            "rewrite default_val_eq, unfold_fold_reptype.",
+            "VernacExtend",
+            "6e0891c7cec54153ee88f3fd234a648eb38dbb9f"
+        ],
+        [
+            "assert (members_no_replicate (co_members (get_co id)) = true) as NO_REPLI by apply get_co_members_no_replicate.",
+            "VernacExtend",
+            "c8c75ffb3c4d96352e74e01e6d2891c314b6805a"
+        ],
+        [
+            "apply struct_pred_ext_derives; [auto |].",
+            "VernacExtend",
+            "4c6d6247856081f9cb30e1130abaa270f5270fdd"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite !withspacer_spacer.",
+            "VernacExtend",
+            "bda5b1b723663cade661d9c1212b4c2987b59cba"
+        ],
+        [
+            "simpl @fst.",
+            "VernacExtend",
+            "78ac36cecc4798cc1bec15bd5d4b5623d1e3c6da"
+        ],
+        [
+            "apply sepcon_derives; [auto |].",
+            "VernacExtend",
+            "cfb57c8b42ac475e8ae0cce035d9396c0be50b16"
+        ],
+        [
+            "rewrite !at_offset_eq3.",
+            "VernacExtend",
+            "3eb5c92ddf06cf0348b77ef1c5672246a7b8f8ff"
+        ],
+        [
+            "rewrite Forall_forall in IH.",
+            "VernacExtend",
+            "facea5663ee6deb8394d1fe395bb446fcfb7f613"
+        ],
+        [
+            "specialize (IH (i, (field_type i (co_members (get_co id))))).",
+            "VernacExtend",
+            "05f18a55b64b6c63d11c8f1be2c3f32f9143055a"
+        ],
+        [
+            "spec IH; [apply in_members_field_type; auto |].",
+            "VernacExtend",
+            "ab721fd336ac7772afd6386f2704666b26a31b3e"
+        ],
+        [
+            "unfold snd in IH.",
+            "VernacExtend",
+            "b4741be55b84644870a00ed7abfec558886961f5"
+        ],
+        [
+            "unfold struct_default_val.",
+            "VernacExtend",
+            "86f9255b6f7af80b0e15deded969f0b89c256d2c"
+        ],
+        [
+            "unfold proj_struct.",
+            "VernacExtend",
+            "f290ce7cbd88a1357d2da0bc1fd686a47da38cee"
+        ],
+        [
+            "rewrite compact_prod_proj_gen by (apply in_members_field_type; auto).",
+            "VernacExtend",
+            "d1db0e24603f5d9a687ee6666add2ad891015f02"
+        ],
+        [
+            "apply IH; try unfold fst.",
+            "VernacExtend",
+            "cabb290c1896763aab6497a8a28a78d457f07bfc"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply complete_legal_cosu_type_field_type; auto.",
+            "VernacExtend",
+            "a5f1a3db35bf7c00771256c70f7d3c9ab52556d5"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "pose_field; omega.",
+            "VernacExtend",
+            "65e5d7b9d0a637656b0fab6638aae1a6704f7281"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "eapply align_compatible_rec_Tstruct_inv'; eauto.",
+            "VernacExtend",
+            "f8315ee4d65fdcbbe32c7d359b0178c07bb084a5"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "assert (co_members (get_co id) = nil \\/ co_members (get_co id) <> nil) by (destruct (co_members (get_co id)); [left | right]; congruence).",
+            "VernacExtend",
+            "ceaf2d1ea6a8d568a20bf416b036379c1697eaea"
+        ],
+        [
+            "destruct H1.",
+            "VernacExtend",
+            "e752c2122f55c888e09082f784a6da990b01fbe7"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite !data_at_rec_eq.",
+            "VernacExtend",
+            "0bc5a10706d9c1d5a7c9cc88504c222260eb04f3"
+        ],
+        [
+            "generalize (unfold_reptype v) (unfold_reptype (default_val (Tunion id a))); rewrite H1; intros.",
+            "VernacExtend",
+            "691a1808808420131b109e291966bad185929645"
+        ],
+        [
+            "apply derives_refl.",
+            "VernacExtend",
+            "e6aad07de74a98e9e95ce8bc0aeafdd1290e4b6f"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite data_at_rec_eq.",
+            "VernacExtend",
+            "31ed6f6a7db2c59b3d70401f222b6fef31f1fa35"
+        ],
+        [
+            "rewrite memory_block_data_at_rec_default_val by auto.",
+            "VernacExtend",
+            "d76ce4c83eefb14a0a59868cf5081d0a42521a90"
+        ],
+        [
+            "eapply derives_trans.",
+            "VernacExtend",
+            "74bf196b92978065d64297654462f01dbd4ed9a4"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "assert (members_no_replicate (co_members (get_co id)) = true) as NO_REPLI by apply get_co_members_no_replicate.",
+            "VernacExtend",
+            "c8c75ffb3c4d96352e74e01e6d2891c314b6805a"
+        ],
+        [
+            "apply union_pred_ext_derives with (P1 := fun _ _ => memory_block sh (sizeof (Tunion id a))); [auto | reflexivity | ].",
+            "VernacExtend",
+            "4bd3ab2d32b4d0fabdcfd05a66052c6c33c02283"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "clear H3.",
+            "VernacExtend",
+            "fc50f4d83926cbda2c6b6c4c8fff0c14162e2a3f"
+        ],
+        [
+            "pose proof @compact_sum_inj_in _ _ (co_members (get_co id)) (unfold_reptype v) _ _ H2.",
+            "VernacExtend",
+            "b5eee74ca5d436f407acc036e8c902d597ae3586"
+        ],
+        [
+            "apply in_map with (f := fst) in H3; unfold fst in H3.",
+            "VernacExtend",
+            "be980b21829a517d545c2b04aef747d12c8ad448"
+        ],
+        [
+            "rewrite withspacer_spacer, sizeof_Tunion.",
+            "VernacExtend",
+            "96b80820f1ffe9e7ee5f7c9cc5d03506c7c4546b"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "pattern (co_sizeof (get_co id)) at 2; replace (co_sizeof (get_co id)) with (sizeof (field_type i (co_members (get_co id))) + (co_sizeof (get_co id) - sizeof (field_type i (co_members (get_co id))))) by omega.",
+            "VernacExtend",
+            "73176f4ecddab79a50a988d850f3140fbee8d820"
+        ],
+        [
+            "rewrite sepcon_comm.",
+            "VernacExtend",
+            "fd2af6f842f71517e95b56c21ef3f6449c4ad38d"
+        ],
+        [
+            "rewrite memory_block_split by (pose_field; omega).",
+            "VernacExtend",
+            "b84b86173f26ee23fb6dd12672f2834149cd17c8"
+        ],
+        [
+            "apply sepcon_derives; [| rewrite spacer_memory_block by (simpl; auto); unfold offset_val; solve_mod_modulus; auto ].",
+            "VernacExtend",
+            "07b6afce80ded7ab46f989365c70c32da60acd14"
+        ],
+        [
+            "rewrite <- memory_block_data_at_rec_default_val; auto.",
+            "VernacExtend",
+            "423552d07922c20a6fddadf48919356d107f7f7c"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "rewrite Forall_forall in IH.",
+            "VernacExtend",
+            "facea5663ee6deb8394d1fe395bb446fcfb7f613"
+        ],
+        [
+            "specialize (IH (i, (field_type i (co_members (get_co id))))).",
+            "VernacExtend",
+            "05f18a55b64b6c63d11c8f1be2c3f32f9143055a"
+        ],
+        [
+            "spec IH; [apply in_members_field_type; auto |].",
+            "VernacExtend",
+            "ab721fd336ac7772afd6386f2704666b26a31b3e"
+        ],
+        [
+            "unfold snd in IH.",
+            "VernacExtend",
+            "b4741be55b84644870a00ed7abfec558886961f5"
+        ],
+        [
+            "apply IH.",
+            "VernacExtend",
+            "88103d45393d3ee3ab547447d913543854db8cea"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply complete_legal_cosu_type_field_type; auto.",
+            "VernacExtend",
+            "a5f1a3db35bf7c00771256c70f7d3c9ab52556d5"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "pose_field; omega.",
+            "VernacExtend",
+            "65e5d7b9d0a637656b0fab6638aae1a6704f7281"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "eapply align_compatible_rec_Tunion_inv'; eauto.",
+            "VernacExtend",
+            "fd0a53a95f64c6f5f5957163ecca683a25ad1eeb"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "apply complete_legal_cosu_type_field_type; auto.",
+            "VernacExtend",
+            "a5f1a3db35bf7c00771256c70f7d3c9ab52556d5"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "pose_field; omega.",
+            "VernacExtend",
+            "65e5d7b9d0a637656b0fab6638aae1a6704f7281"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "eapply align_compatible_rec_Tunion_inv'; eauto.",
+            "VernacExtend",
+            "fd0a53a95f64c6f5f5957163ecca683a25ad1eeb"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "apply derives_refl.",
+            "VernacExtend",
+            "e6aad07de74a98e9e95ce8bc0aeafdd1290e4b6f"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "rewrite sizeof_Tunion.",
+            "VernacExtend",
+            "4368f969e2f3802a882ff7109c9e93465872d736"
+        ],
+        [
+            "rewrite memory_block_union_pred by (apply get_co_members_nil_sizeof_0).",
+            "VernacExtend",
+            "2d7992cf2d1dbb65250b6eb0b011d0d1d41e7ec5"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition value_fits: forall t, reptype t -> Prop := type_func (fun t => reptype t -> Prop) (fun t v => if type_is_volatile t then True else tc_val' t (repinject t v)) (fun t n a P v => Zlength (unfold_reptype v) = Z.max 0 n /\\ Forall P (unfold_reptype v)) (fun id a P v => struct_value_fits_aux (co_members (get_co id)) (co_members (get_co id)) P (unfold_reptype v)) (fun id a P v => union_value_fits_aux (co_members (get_co id)) (co_members (get_co id)) P (unfold_reptype v)).",
+            "VernacDefinition",
+            "fe5208b79d34aadfddd918bbf13f11b86c152f4b"
+        ],
+        [
+            "Lemma value_fits_eq: forall t v, value_fits t v = match t as t0 return (reptype t0 -> Prop) with | Tarray t' n a => fun v0 : reptype (Tarray t' n a) => (fun v1 : list (reptype t') => Zlength v1 = Z.max 0 n /\\ Forall (value_fits t') v1) (unfold_reptype v0) | Tstruct i a => fun v0 : reptype (Tstruct i a) => struct_Prop (co_members (get_co i)) (fun it : ident * type => value_fits (field_type (fst it) (co_members (get_co i)))) (unfold_reptype v0) | Tunion i a => fun v0 : reptype (Tunion i a) => union_Prop (co_members (get_co i)) (fun it : ident * type => value_fits (field_type (fst it) (co_members (get_co i)))) (unfold_reptype v0) | t0 => fun v0: reptype t0 => (if type_is_volatile t0 then True else tc_val' t0 (repinject t0 v0)) end v.",
+            "VernacStartTheoremProof",
+            "c73419a0a1337f1c85272353d7dd1653c82120ed"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold value_fits.",
+            "VernacExtend",
+            "9d808bb84844f74f0e59a1e051dfc96a18ace461"
+        ],
+        [
+            "rewrite type_func_eq.",
+            "VernacExtend",
+            "c91e226d46885ed017aa5e6d6b6f5b61f5c3a639"
+        ],
+        [
+            "destruct t; auto.",
+            "VernacExtend",
+            "005ed9da4fb43c9c32bf8a56e846700db3d6610d"
+        ],
+        [
+            "apply struct_value_fits_aux_spec.",
+            "VernacExtend",
+            "1e5f81ba18a6b4aa2602a18ead36addc2dea7a28"
+        ],
+        [
+            "apply union_value_fits_aux_spec.",
+            "VernacExtend",
+            "f4df65e1bb31f0b78cd965182f90fdf9f271bfc0"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma value_fits_type_changable: forall (t1 t2: type) v1 v2, t1 = t2 -> JMeq v1 v2 -> value_fits t1 v1 = value_fits t2 v2.",
+            "VernacStartTheoremProof",
+            "5f82a44e637652eece7b84a78d4d0e4040127f1a"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "subst t2.",
+            "VernacExtend",
+            "e4dd57e9b9492f7f098f4c9b9f0931631f282df4"
+        ],
+        [
+            "apply JMeq_eq in H0.",
+            "VernacExtend",
+            "87d28097d755b25f62a815ae773355cb3249511b"
+        ],
+        [
+            "rewrite H0.",
+            "VernacExtend",
+            "1a54b13ac1654793174947eafd5c41a3f024eb49"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma default_value_fits: forall t, value_fits t (default_val t).",
+            "VernacStartTheoremProof",
+            "3790cbf4bb54f2fabdfd9889eccbe0fbdb0ebde1"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "type_induction t; try destruct f; rewrite value_fits_eq; try solve [simpl; try (simple_if_tac; auto); apply tc_val'_Vundef]; rewrite default_val_eq, unfold_fold_reptype.",
+            "VernacExtend",
+            "4b85055a993dd61e55365b9a3f3273723ba33783"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite Zlength_list_repeat', Z2Nat_id'; auto.",
+            "VernacExtend",
+            "6c028fe0a8a9d1cdaedb724f298344d5e36d29fd"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply Forall_list_repeat; auto.",
+            "VernacExtend",
+            "bc1c06033361455aa1e121b24e59e4280976ffad"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "cbv zeta in IH.",
+            "VernacExtend",
+            "0ad05fda46abcb397c61b2dbe7fea231869b7786"
+        ],
+        [
+            "apply struct_Prop_compact_prod_gen.",
+            "VernacExtend",
+            "65d8a6e5549ac8f5e96197c9613454c042ea062a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply get_co_members_no_replicate.",
+            "VernacExtend",
+            "48f67f7c710387cd2b4f4ca72c9e6a53e961df4d"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite Forall_forall in IH.",
+            "VernacExtend",
+            "facea5663ee6deb8394d1fe395bb446fcfb7f613"
+        ],
+        [
+            "intros; apply IH.",
+            "VernacExtend",
+            "2236cee27445b2086711c830be7fd71cdaae76da"
+        ],
+        [
+            "apply in_members_field_type; auto.",
+            "VernacExtend",
+            "d08f202b3bf3f32686908375ff59d00c2e5ac773"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "cbv zeta in IH.",
+            "VernacExtend",
+            "0ad05fda46abcb397c61b2dbe7fea231869b7786"
+        ],
+        [
+            "apply union_Prop_compact_sum_gen.",
+            "VernacExtend",
+            "def4a23eae26cb7eb226039652e169ae15ca0c1d"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply get_co_members_no_replicate.",
+            "VernacExtend",
+            "48f67f7c710387cd2b4f4ca72c9e6a53e961df4d"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite Forall_forall in IH.",
+            "VernacExtend",
+            "facea5663ee6deb8394d1fe395bb446fcfb7f613"
+        ],
+        [
+            "intros; apply IH.",
+            "VernacExtend",
+            "2236cee27445b2086711c830be7fd71cdaae76da"
+        ],
+        [
+            "apply in_members_field_type; auto.",
+            "VernacExtend",
+            "d08f202b3bf3f32686908375ff59d00c2e5ac773"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma data_at_rec_value_fits: forall sh t v p, data_at_rec sh t v p |-- !! value_fits t v.",
+            "VernacStartTheoremProof",
+            "0e9e17867f733450ecab49878159a10dbb0f63e4"
+        ],
+        [
+            "intros until p.",
+            "VernacExtend",
+            "c6a569fafb1b9bc5c594dd8e438095a17b1f5a1c"
+        ],
+        [
+            "revert v p; type_induction t; intros; rewrite value_fits_eq, data_at_rec_eq; try solve [normalize]; try solve [cbv zeta; simple_if_tac; [normalize | apply mapsto_tc_val']].",
+            "VernacExtend",
+            "b245047671f7af5c844c5afc5a217c5bad6af21c"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "eapply derives_trans; [apply array_pred_local_facts |].",
+            "VernacExtend",
+            "ab0b063ee9c2c3028fe35ef0ffbb67d5fb91916a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold at_offset.",
+            "VernacExtend",
+            "bc0dfeaf7229d20cca61bfdf8ab31d4a18e8a567"
+        ],
+        [
+            "instantiate (1 := fun x => value_fits t x); simpl.",
+            "VernacExtend",
+            "0bd5c773f52a2f4b02631b815f248d1ef5b5da7d"
+        ],
+        [
+            "apply IH.",
+            "VernacExtend",
+            "88103d45393d3ee3ab547447d913543854db8cea"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply prop_derives.",
+            "VernacExtend",
+            "3ff0669364275651d7ffd02bff091ff41292645e"
+        ],
+        [
+            "intros [? ?]; split; auto.",
+            "VernacExtend",
+            "a07274998f1886ed54b2ee268d100714807931d9"
+        ],
+        [
+            "rewrite Zlength_correct in *.",
+            "VernacExtend",
+            "cd6681f42bfd1eeb8973da267ab3773501f5a083"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply struct_pred_local_facts; [apply get_co_members_no_replicate |].",
+            "VernacExtend",
+            "a8aa10e00144e701d3f8a1d4ecdbaf0ac6ad010f"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite withspacer_spacer.",
+            "VernacExtend",
+            "907f875ad9e18e164e8437724214d01bcd7183c7"
+        ],
+        [
+            "unfold at_offset.",
+            "VernacExtend",
+            "bc0dfeaf7229d20cca61bfdf8ab31d4a18e8a567"
+        ],
+        [
+            "cbv zeta in IH.",
+            "VernacExtend",
+            "0ad05fda46abcb397c61b2dbe7fea231869b7786"
+        ],
+        [
+            "rewrite Forall_forall in IH.",
+            "VernacExtend",
+            "facea5663ee6deb8394d1fe395bb446fcfb7f613"
+        ],
+        [
+            "specialize (IH (i, (field_type i (co_members (get_co id))))).",
+            "VernacExtend",
+            "05f18a55b64b6c63d11c8f1be2c3f32f9143055a"
+        ],
+        [
+            "spec IH; [apply in_members_field_type; auto |].",
+            "VernacExtend",
+            "ab721fd336ac7772afd6386f2704666b26a31b3e"
+        ],
+        [
+            "eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply IH] |].",
+            "VernacExtend",
+            "a7439a176bc451b86cbf69c5e0d2ceec95110e21"
+        ],
+        [
+            "rewrite sepcon_comm; apply derives_left_sepcon_right_corable; auto.",
+            "VernacExtend",
+            "ebcf567c10526322a7d5ba003343245236fffdde"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply union_pred_local_facts; [apply get_co_members_no_replicate |].",
+            "VernacExtend",
+            "b3181f83e3f0e01d82864bb0d3f0b67b5e105ff2"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite withspacer_spacer.",
+            "VernacExtend",
+            "907f875ad9e18e164e8437724214d01bcd7183c7"
+        ],
+        [
+            "unfold at_offset.",
+            "VernacExtend",
+            "bc0dfeaf7229d20cca61bfdf8ab31d4a18e8a567"
+        ],
+        [
+            "cbv zeta in IH.",
+            "VernacExtend",
+            "0ad05fda46abcb397c61b2dbe7fea231869b7786"
+        ],
+        [
+            "rewrite Forall_forall in IH.",
+            "VernacExtend",
+            "facea5663ee6deb8394d1fe395bb446fcfb7f613"
+        ],
+        [
+            "specialize (IH (i, (field_type i (co_members (get_co id))))).",
+            "VernacExtend",
+            "05f18a55b64b6c63d11c8f1be2c3f32f9143055a"
+        ],
+        [
+            "spec IH; [apply in_members_field_type; auto |].",
+            "VernacExtend",
+            "ab721fd336ac7772afd6386f2704666b26a31b3e"
+        ],
+        [
+            "eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply IH] |].",
+            "VernacExtend",
+            "a7439a176bc451b86cbf69c5e0d2ceec95110e21"
+        ],
+        [
+            "rewrite sepcon_comm; apply derives_left_sepcon_right_corable; auto.",
+            "VernacExtend",
+            "ebcf567c10526322a7d5ba003343245236fffdde"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma data_at_rec_share_join: forall sh1 sh2 sh t v b ofs, sepalg.join sh1 sh2 sh -> data_at_rec sh1 t v (Vptr b ofs) * data_at_rec sh2 t v (Vptr b ofs) = data_at_rec sh t v (Vptr b ofs).",
+            "VernacStartTheoremProof",
+            "7a4375129a5eba799bc13303bb9d10f9d0239010"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "revert v ofs; pattern t; type_induction t; intros; rewrite !data_at_rec_eq; try solve [simple_if_tac; [ apply memory_block_share_join; auto | apply mapsto_share_join; auto]]; try solve [normalize].",
+            "VernacExtend",
+            "b1dd9e6518bbaf90f51abd33d7a0e22ae821c5f5"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite array_pred_sepcon.",
+            "VernacExtend",
+            "f2ab9a7adff2c783425bf31a22970d4a2ed4f81c"
+        ],
+        [
+            "apply array_pred_ext; auto.",
+            "VernacExtend",
+            "3926987acb1058bcbaa0dd2f87ad43b041839d03"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold at_offset; simpl.",
+            "VernacExtend",
+            "0af7a57452fcb8cb9536c962d5c136d1097e3e02"
+        ],
+        [
+            "apply IH.",
+            "VernacExtend",
+            "88103d45393d3ee3ab547447d913543854db8cea"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite struct_pred_sepcon.",
+            "VernacExtend",
+            "410f46c3ea193859037495c5f1aa6880cdb24cff"
+        ],
+        [
+            "apply struct_pred_ext; [apply get_co_members_no_replicate |].",
+            "VernacExtend",
+            "649c875f561c1890bd7348c21bbc79383b13b733"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "Opaque field_type field_offset.",
+            "VernacSetOpacity",
+            "2716177384b744bf8c495cafbf1ad3e026e52aae"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "Transparent field_type field_offset.",
+            "VernacSetOpacity",
+            "f999f9994855b9c598dc6d72159b01a15c87fb70"
+        ],
+        [
+            "rewrite !withspacer_spacer.",
+            "VernacExtend",
+            "bda5b1b723663cade661d9c1212b4c2987b59cba"
+        ],
+        [
+            "rewrite !spacer_memory_block by (simpl; auto).",
+            "VernacExtend",
+            "01a40dfb3a35e82513000cee4540e42c013bb9dc"
+        ],
+        [
+            "rewrite !sepcon_assoc, (sepcon_comm (at_offset _ _ _)), <- !sepcon_assoc.",
+            "VernacExtend",
+            "24238760cdb8f466bb67f8f6de53630a677855d6"
+        ],
+        [
+            "erewrite memory_block_share_join by eassumption.",
+            "VernacExtend",
+            "a45d6d7e4c7ccdf5ec03079a1d457818d81c0037"
+        ],
+        [
+            "rewrite sepcon_assoc; f_equal.",
+            "VernacExtend",
+            "24b79bd4e9e6aa66f86b3229ac8144a07f7f7e25"
+        ],
+        [
+            "unfold at_offset.",
+            "VernacExtend",
+            "bc0dfeaf7229d20cca61bfdf8ab31d4a18e8a567"
+        ],
+        [
+            "cbv zeta in IH.",
+            "VernacExtend",
+            "0ad05fda46abcb397c61b2dbe7fea231869b7786"
+        ],
+        [
+            "rewrite Forall_forall in IH.",
+            "VernacExtend",
+            "facea5663ee6deb8394d1fe395bb446fcfb7f613"
+        ],
+        [
+            "pose proof H0.",
+            "VernacExtend",
+            "38149b49bae5e06f9bd33c7a91b472ae0999fddb"
+        ],
+        [
+            "apply in_members_field_type in H0.",
+            "VernacExtend",
+            "4c3d759d772e24758aeaffb969fedf0671e7af3b"
+        ],
+        [
+            "rewrite sepcon_comm.",
+            "VernacExtend",
+            "fd2af6f842f71517e95b56c21ef3f6449c4ad38d"
+        ],
+        [
+            "etransitivity; [apply (IH (i, field_type i (co_members (get_co id))) H0) |].",
+            "VernacExtend",
+            "475547ffaa51e6b16c1e9a0592cf949d87d15350"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "apply JMeq_eq.",
+            "VernacExtend",
+            "f9144ba53760411fdf5835dc5f32f0afc6eece41"
+        ],
+        [
+            "apply (@proj_compact_prod_JMeq _ _ _ (fun it => reptype (field_type (fst it) (co_members (get_co id)))) (fun it => reptype (field_type (fst it) (co_members (get_co id))))); auto.",
+            "VernacExtend",
+            "87bbe27050f7553e20951cbf45559fbe71ab1b8c"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite union_pred_sepcon.",
+            "VernacExtend",
+            "c4adfd5a06fc524c88ae637b3413aabed2c0e749"
+        ],
+        [
+            "apply union_pred_ext; [apply get_co_members_no_replicate | reflexivity | ].",
+            "VernacExtend",
+            "3cb7ecb26a93bf4cd3fa797f1dc60ea3bd343d8d"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "Opaque field_type field_offset.",
+            "VernacSetOpacity",
+            "2716177384b744bf8c495cafbf1ad3e026e52aae"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "Transparent field_type field_offset.",
+            "VernacSetOpacity",
+            "f999f9994855b9c598dc6d72159b01a15c87fb70"
+        ],
+        [
+            "rewrite !withspacer_spacer.",
+            "VernacExtend",
+            "bda5b1b723663cade661d9c1212b4c2987b59cba"
+        ],
+        [
+            "rewrite !spacer_memory_block by (simpl; auto).",
+            "VernacExtend",
+            "01a40dfb3a35e82513000cee4540e42c013bb9dc"
+        ],
+        [
+            "rewrite !sepcon_assoc, (sepcon_comm (data_at_rec _ _ _ _)), <- !sepcon_assoc.",
+            "VernacExtend",
+            "3db61c0129e8ecec3948bede7186b97b91fcf68e"
+        ],
+        [
+            "erewrite memory_block_share_join by eassumption.",
+            "VernacExtend",
+            "a45d6d7e4c7ccdf5ec03079a1d457818d81c0037"
+        ],
+        [
+            "rewrite sepcon_assoc; f_equal.",
+            "VernacExtend",
+            "24b79bd4e9e6aa66f86b3229ac8144a07f7f7e25"
+        ],
+        [
+            "unfold at_offset.",
+            "VernacExtend",
+            "bc0dfeaf7229d20cca61bfdf8ab31d4a18e8a567"
+        ],
+        [
+            "cbv zeta in IH.",
+            "VernacExtend",
+            "0ad05fda46abcb397c61b2dbe7fea231869b7786"
+        ],
+        [
+            "rewrite Forall_forall in IH.",
+            "VernacExtend",
+            "facea5663ee6deb8394d1fe395bb446fcfb7f613"
+        ],
+        [
+            "apply compact_sum_inj_in in H1.",
+            "VernacExtend",
+            "54e3597c7c7a52a12cb70aa1e8feb43db4edfe42"
+        ],
+        [
+            "rewrite sepcon_comm.",
+            "VernacExtend",
+            "fd2af6f842f71517e95b56c21ef3f6449c4ad38d"
+        ],
+        [
+            "etransitivity; [apply (IH (i, field_type i (co_members (get_co id))) H1) |].",
+            "VernacExtend",
+            "98219a5000d4adafba6ca84a996cefb18445678d"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "apply JMeq_eq.",
+            "VernacExtend",
+            "f9144ba53760411fdf5835dc5f32f0afc6eece41"
+        ],
+        [
+            "apply (@proj_compact_sum_JMeq _ _ _ (fun it => reptype (field_type (fst it) (co_members (get_co id)))) (fun it => reptype (field_type (fst it) (co_members (get_co id))))); auto.",
+            "VernacExtend",
+            "98935e71f7b35d9fd4a2d1e19a422f17c13302aa"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma nonreadable_memory_block_data_at_rec: forall sh t v b ofs (LEGAL_COSU: complete_legal_cosu_type t = true), 0 <= ofs /\\ ofs + sizeof t < Ptrofs.modulus -> align_compatible_rec cenv_cs t ofs -> ~ readable_share sh -> value_fits t v -> memory_block sh (sizeof t) (Vptr b (Ptrofs.repr ofs)) = data_at_rec sh t v (Vptr b (Ptrofs.repr ofs)).",
+            "VernacStartTheoremProof",
+            "f36aad168307c7fba38c8df52b9d49b25d6a5118"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "symmetry.",
+            "VernacExtend",
+            "a08fc0dc04bba893008bded8181f393e2d8db167"
+        ],
+        [
+            "revert v ofs LEGAL_COSU H H0 H1 H2; pattern t; type_induction t; intros; try inversion LEGAL_COSU; rewrite value_fits_eq in H2; cbv beta zeta in H2; try match type of H2 with | context [type_is_volatile ?t] => destruct (type_is_volatile t) eqn:?; [apply by_value_data_at_rec_volatile | apply by_value_data_at_rec_nonreachable2]; auto end; rewrite !data_at_rec_eq.",
+            "VernacExtend",
+            "92d8662628da5fe7169eaa9758117aeb043cf131"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "simpl in H, H0.",
+            "VernacExtend",
+            "9fd9352f01eb8c0c7aebee76645558e0f75b36e6"
+        ],
+        [
+            "rewrite array_pred_ext with (P1 := fun i _ p => memory_block sh (sizeof t) (offset_val (sizeof t * i) p)) (v1 := list_repeat (Z.to_nat (Z.max 0 z)) (default_val t)); auto.",
+            "VernacExtend",
+            "8ef23896bfd7627d36359bea8d224c7a1a4326d1"
+        ],
+        [
+            "rewrite memory_block_array_pred; auto.",
+            "VernacExtend",
+            "7b4bdb5783714ea1bd1b818eed066899bc424fec"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply Z.le_max_l.",
+            "VernacExtend",
+            "8e1e3b091d8ceba9cc377d96e8b784dc483851da"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite (proj1 H2).",
+            "VernacExtend",
+            "c6dde6a18710b692a1babe20913cd1d5cac911f3"
+        ],
+        [
+            "symmetry; apply Zlength_list_repeat; auto.",
+            "VernacExtend",
+            "cec07c4f3fbab8268ef4b476728bed6b5cadfe48"
+        ],
+        [
+            "apply Z.le_max_l.",
+            "VernacExtend",
+            "8e1e3b091d8ceba9cc377d96e8b784dc483851da"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite at_offset_eq3.",
+            "VernacExtend",
+            "39e80ef500dc6da79b5e780bff18e6829d417733"
+        ],
+        [
+            "unfold offset_val; solve_mod_modulus.",
+            "VernacExtend",
+            "e48a6b8826ab1ec571825fad1b28fd2be8a22cd4"
+        ],
+        [
+            "unfold Znth.",
+            "VernacExtend",
+            "7211d3ddadb408c13a3757be0ceaaabeebf7b887"
+        ],
+        [
+            "rewrite if_false by omega.",
+            "VernacExtend",
+            "8021f382d1bbb53a8b088e0b3467827b50f226ef"
+        ],
+        [
+            "rewrite Z.sub_0_r.",
+            "VernacExtend",
+            "7c1ebdca8a3d1d773bf152b4a568fe42ea3a288b"
+        ],
+        [
+            "assert (value_fits t (nth (Z.to_nat i) (unfold_reptype v) (default_val t))).",
+            "VernacExtend",
+            "2f8018a7093b1e56a63a7f9746b22bf362adaa16"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "destruct H2.",
+            "VernacExtend",
+            "7d33163a064bad536ec0f601f214b86de6ac5ab6"
+        ],
+        [
+            "rewrite Forall_forall in H5.",
+            "VernacExtend",
+            "42e495c5b92ca131f0fc30d529843b8b6c7205f7"
+        ],
+        [
+            "apply H5.",
+            "VernacExtend",
+            "4feb0df7cc51caef1d129e505dc0af74a67c0d74"
+        ],
+        [
+            "apply nth_In.",
+            "VernacExtend",
+            "dbe0d4a799c8c4eabb2f911bdc45e403fae438da"
+        ],
+        [
+            "apply Nat2Z.inj_lt.",
+            "VernacExtend",
+            "6ec2c5bd1d02f2d0261f8c87f0d2bf550988e026"
+        ],
+        [
+            "rewrite <- Zlength_correct, H2, Z2Nat.id by omega.",
+            "VernacExtend",
+            "94a01b5e729e66b8b4650c1d3903380ae47c6087"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "apply IH; auto.",
+            "VernacExtend",
+            "ab7c838ddd716a3b14059f64c365105253349c54"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "pose_size_mult cenv_cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil); omega.",
+            "VernacExtend",
+            "b713fb9d10763adc9a1c0c258d4c1cd9ae6a7801"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "eapply align_compatible_rec_Tarray_inv; eauto.",
+            "VernacExtend",
+            "87117c2147bb08cfc59dd8474c25eb0b3335ccf5"
+        ],
+        [
+            "apply range_max0; auto.",
+            "VernacExtend",
+            "58b3ffd4cb3601a4c1449ee5b92cfe48bbe0436b"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite struct_pred_ext with (P1 := fun it _ p => memory_block sh (field_offset_next cenv_cs (fst it) (co_members (get_co id)) (co_sizeof (get_co id)) - field_offset cenv_cs (fst it) (co_members (get_co id))) (offset_val (field_offset cenv_cs (fst it) (co_members (get_co id))) p)) (v1 := (struct_default_val (co_members (get_co id)))); [| apply get_co_members_no_replicate |].",
+            "VernacExtend",
+            "18a10f6bc3c26a0a0da50e464f804adf1228b2e0"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite memory_block_struct_pred.",
+            "VernacExtend",
+            "96eb4359f5b9f8728a454eb59f7d356137b52b64"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "rewrite sizeof_Tstruct; auto.",
+            "VernacExtend",
+            "30be2d61de299ccc7ccbb67677669be64c8ebc6e"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "apply get_co_members_nil_sizeof_0.",
+            "VernacExtend",
+            "07d149474f5ab9d633225a178a967132d2b4e90a"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "apply get_co_members_no_replicate.",
+            "VernacExtend",
+            "48f67f7c710387cd2b4f4ca72c9e6a53e961df4d"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "rewrite sizeof_Tstruct in H.",
+            "VernacExtend",
+            "202c6e2213144cb51e7029b648240f92fc335e22"
+        ],
+        [
+            "pose proof co_consistent_sizeof cenv_cs (get_co id) (get_co_consistent id).",
+            "VernacExtend",
+            "bd3549dfe2124532d84eec97194b5b414c934bdd"
+        ],
+        [
+            "erewrite complete_legal_cosu_type_Tstruct in H3 by exact LEGAL_COSU.",
+            "VernacExtend",
+            "004421b2924c2f72c1c6ff4f241be8e65355669b"
+        ],
+        [
+            "unfold sizeof_composite in H3.",
+            "VernacExtend",
+            "26057bfc8e5aebbfacce0e2462cf804518868307"
+        ],
+        [
+            "revert H3; pose_align_le; intros; omega.",
+            "VernacExtend",
+            "8b1ec512bf551c6775ae52615c7064c9ee6da0d6"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "rewrite sizeof_Tstruct in H.",
+            "VernacExtend",
+            "202c6e2213144cb51e7029b648240f92fc335e22"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "pose proof get_co_members_no_replicate id as NO_REPLI.",
+            "VernacExtend",
+            "987ed7b10bc76aa646e7af32576b92c50d55f81f"
+        ],
+        [
+            "rewrite withspacer_spacer.",
+            "VernacExtend",
+            "907f875ad9e18e164e8437724214d01bcd7183c7"
+        ],
+        [
+            "simpl @fst.",
+            "VernacExtend",
+            "78ac36cecc4798cc1bec15bd5d4b5623d1e3c6da"
+        ],
+        [
+            "rewrite spacer_memory_block by (simpl; auto).",
+            "VernacExtend",
+            "6bb9a7839c0a31a8733cbe3e5fb826945e73a02b"
+        ],
+        [
+            "rewrite at_offset_eq3.",
+            "VernacExtend",
+            "39e80ef500dc6da79b5e780bff18e6829d417733"
+        ],
+        [
+            "unfold offset_val; solve_mod_modulus.",
+            "VernacExtend",
+            "e48a6b8826ab1ec571825fad1b28fd2be8a22cd4"
+        ],
+        [
+            "unfold struct_default_val.",
+            "VernacExtend",
+            "86f9255b6f7af80b0e15deded969f0b89c256d2c"
+        ],
+        [
+            "rewrite Forall_forall in IH.",
+            "VernacExtend",
+            "facea5663ee6deb8394d1fe395bb446fcfb7f613"
+        ],
+        [
+            "specialize (IH (i, field_type i (co_members (get_co id)))).",
+            "VernacExtend",
+            "05f18a55b64b6c63d11c8f1be2c3f32f9143055a"
+        ],
+        [
+            "spec IH; [apply in_members_field_type; auto |].",
+            "VernacExtend",
+            "ab721fd336ac7772afd6386f2704666b26a31b3e"
+        ],
+        [
+            "unfold snd in IH.",
+            "VernacExtend",
+            "b4741be55b84644870a00ed7abfec558886961f5"
+        ],
+        [
+            "apply struct_Prop_proj with (i := i) (d:= d0) in H2; auto.",
+            "VernacExtend",
+            "d18409965fed4204bb253208b4371d362b77543d"
+        ],
+        [
+            "rewrite IH; auto.",
+            "VernacExtend",
+            "e446d61fab29de5c06ade533575e5b57264728f1"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "rewrite Z.add_assoc, sepcon_comm, <- memory_block_split by (pose_field; omega).",
+            "VernacExtend",
+            "bfe1656c27b230a846fc0f3810296cfa6a981412"
+        ],
+        [
+            "f_equal; omega.",
+            "VernacExtend",
+            "3b812353131f9b9bebbd6410b3fa7c9d2e597ec3"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "apply complete_legal_cosu_type_field_type; auto.",
+            "VernacExtend",
+            "a5f1a3db35bf7c00771256c70f7d3c9ab52556d5"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "simpl fst.",
+            "VernacExtend",
+            "50f078e6e6cbec9c7f54271bc03d95b1580e0c02"
+        ],
+        [
+            "pose_field; omega.",
+            "VernacExtend",
+            "65e5d7b9d0a637656b0fab6638aae1a6704f7281"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "eapply align_compatible_rec_Tstruct_inv'; eauto.",
+            "VernacExtend",
+            "f8315ee4d65fdcbbe32c7d359b0178c07bb084a5"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "assert (co_members (get_co id) = nil \\/ co_members (get_co id) <> nil) by (clear; destruct (co_members (get_co id)); [left | right]; congruence).",
+            "VernacExtend",
+            "d2fb1aeb9a84710f3d3fff97b10e899ab5ad0b80"
+        ],
+        [
+            "destruct H3.",
+            "VernacExtend",
+            "1c0230aafd4a4c88f93d392a681d452fd6dea35e"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite sizeof_Tunion.",
+            "VernacExtend",
+            "4368f969e2f3802a882ff7109c9e93465872d736"
+        ],
+        [
+            "rewrite (get_co_members_nil_sizeof_0 _ H3).",
+            "VernacExtend",
+            "663ed847e3ae3fbf445b0d1de55369c01f30e90a"
+        ],
+        [
+            "forget (unfold_reptype v) as v'; simpl in v'.",
+            "VernacExtend",
+            "e94c3712d9a510f026dffac240f5b9d40049825b"
+        ],
+        [
+            "generalize (unfold_reptype (default_val (Tunion id a))); clear H2; revert v'; rewrite H3 in *; intros.",
+            "VernacExtend",
+            "f6ef2958fb134abb322738a107258f3ba6de4331"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite memory_block_zero.",
+            "VernacExtend",
+            "dfe4c35c00e8697f2a491d13a0d56564faf50a26"
+        ],
+        [
+            "normalize.",
+            "VernacExtend",
+            "b44f672ef6622bc7f333c87e081e8283dfd06387"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite union_pred_ext with (P1 := fun it _ => memory_block sh (co_sizeof (get_co id))) (v1 := (unfold_reptype v)); [| apply get_co_members_no_replicate | reflexivity |].",
+            "VernacExtend",
+            "90fc42c5447f8d79fe428945702ea9aa3225d00f"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "rewrite memory_block_union_pred by (apply get_co_members_nil_sizeof_0).",
+            "VernacExtend",
+            "2d7992cf2d1dbb65250b6eb0b011d0d1d41e7ec5"
+        ],
+        [
+            "rewrite sizeof_Tunion.",
+            "VernacExtend",
+            "4368f969e2f3802a882ff7109c9e93465872d736"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "pose proof get_co_members_no_replicate id as NO_REPLI.",
+            "VernacExtend",
+            "987ed7b10bc76aa646e7af32576b92c50d55f81f"
+        ],
+        [
+            "pose proof @compact_sum_inj_in _ _ (co_members (get_co id)) _ _ _ H6.",
+            "VernacExtend",
+            "6d1f62d3fa34dc7c05700003eb79a08e2e5d0467"
+        ],
+        [
+            "apply in_map with (f := fst) in H7; unfold fst in H7.",
+            "VernacExtend",
+            "7718704e77e765709ed5944f6105649c11a9311c"
+        ],
+        [
+            "rewrite withspacer_spacer.",
+            "VernacExtend",
+            "907f875ad9e18e164e8437724214d01bcd7183c7"
+        ],
+        [
+            "simpl @fst.",
+            "VernacExtend",
+            "78ac36cecc4798cc1bec15bd5d4b5623d1e3c6da"
+        ],
+        [
+            "rewrite spacer_memory_block by (simpl; auto).",
+            "VernacExtend",
+            "6bb9a7839c0a31a8733cbe3e5fb826945e73a02b"
+        ],
+        [
+            "unfold offset_val; solve_mod_modulus.",
+            "VernacExtend",
+            "e48a6b8826ab1ec571825fad1b28fd2be8a22cd4"
+        ],
+        [
+            "rewrite Forall_forall in IH.",
+            "VernacExtend",
+            "facea5663ee6deb8394d1fe395bb446fcfb7f613"
+        ],
+        [
+            "specialize (IH (i, field_type i (co_members (get_co id)))).",
+            "VernacExtend",
+            "05f18a55b64b6c63d11c8f1be2c3f32f9143055a"
+        ],
+        [
+            "spec IH; [apply in_members_field_type; auto |].",
+            "VernacExtend",
+            "ab721fd336ac7772afd6386f2704666b26a31b3e"
+        ],
+        [
+            "unfold snd in IH.",
+            "VernacExtend",
+            "b4741be55b84644870a00ed7abfec558886961f5"
+        ],
+        [
+            "apply union_Prop_proj with (i := i) (d := d0) in H2; auto.",
+            "VernacExtend",
+            "f0611bf8eb06cbb271841f241a9bc989e8fc88fd"
+        ],
+        [
+            "rewrite IH; auto.",
+            "VernacExtend",
+            "e446d61fab29de5c06ade533575e5b57264728f1"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "rewrite sepcon_comm, <- memory_block_split by (pose_field; omega).",
+            "VernacExtend",
+            "8fb2d5ccd7b00f690fd72bc07661b13ccf748cd2"
+        ],
+        [
+            "f_equal; f_equal; omega.",
+            "VernacExtend",
+            "68428d37e8c127e27c688d05ea57aae2662f5dd6"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "apply complete_legal_cosu_type_field_type; auto.",
+            "VernacExtend",
+            "a5f1a3db35bf7c00771256c70f7d3c9ab52556d5"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "simpl fst; pose_field; omega.",
+            "VernacExtend",
+            "c6e48485bc19d1badf68f5cf1a1cc802d7f42f67"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "eapply align_compatible_rec_Tunion_inv'; eauto.",
+            "VernacExtend",
+            "fd0a53a95f64c6f5f5957163ecca683a25ad1eeb"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End CENV.",
+            "VernacEndSegment",
+            "7830f2173e9d4455d8e9007644a70416b59d31ad"
+        ],
+        [
+            "Lemma data_at_rec_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (sh: Share.t) (t: type) v1 v2, JMeq v1 v2 -> cs_preserve_type cs_from cs_to (coeq _ _) t = true -> @data_at_rec cs_from sh t v1 = @data_at_rec cs_to sh t v2.",
+            "VernacStartTheoremProof",
+            "8f8326636d9f5a6a281ef6deb40ae9cf3732b4f7"
+        ],
+        [
+            "intros sh t.",
+            "VernacExtend",
+            "3ae0ffa156eb768b820b7da0feb7916550fbd225"
+        ],
+        [
+            "type_induction t; intros.",
+            "VernacExtend",
+            "a28efca30e6a79f1042b05e6a4fe88f42f8bc2e2"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite !data_at_rec_eq; auto.",
+            "VernacExtend",
+            "c3b5ce6e790e3133194921572f69408e1c138fa4"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite !data_at_rec_eq.",
+            "VernacExtend",
+            "0bc5a10706d9c1d5a7c9cc88504c222260eb04f3"
+        ],
+        [
+            "change val in v1, v2.",
+            "VernacExtend",
+            "9416a1fa59a08e962d382b136297dceffcd699a0"
+        ],
+        [
+            "apply JMeq_eq in H.",
+            "VernacExtend",
+            "5b521693beb1b440eaba37a9549bdfbfc4d1bacd"
+        ],
+        [
+            "subst; auto.",
+            "VernacExtend",
+            "0dfc636d3b0c9fb40074fb6c1c1b90bf77fecdc8"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite !data_at_rec_eq.",
+            "VernacExtend",
+            "0bc5a10706d9c1d5a7c9cc88504c222260eb04f3"
+        ],
+        [
+            "change val in v1, v2.",
+            "VernacExtend",
+            "9416a1fa59a08e962d382b136297dceffcd699a0"
+        ],
+        [
+            "apply JMeq_eq in H.",
+            "VernacExtend",
+            "5b521693beb1b440eaba37a9549bdfbfc4d1bacd"
+        ],
+        [
+            "subst; auto.",
+            "VernacExtend",
+            "0dfc636d3b0c9fb40074fb6c1c1b90bf77fecdc8"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite !data_at_rec_eq.",
+            "VernacExtend",
+            "0bc5a10706d9c1d5a7c9cc88504c222260eb04f3"
+        ],
+        [
+            "change val in v1, v2.",
+            "VernacExtend",
+            "9416a1fa59a08e962d382b136297dceffcd699a0"
+        ],
+        [
+            "apply JMeq_eq in H.",
+            "VernacExtend",
+            "5b521693beb1b440eaba37a9549bdfbfc4d1bacd"
+        ],
+        [
+            "subst; auto.",
+            "VernacExtend",
+            "0dfc636d3b0c9fb40074fb6c1c1b90bf77fecdc8"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite !data_at_rec_eq.",
+            "VernacExtend",
+            "0bc5a10706d9c1d5a7c9cc88504c222260eb04f3"
+        ],
+        [
+            "change val in v1, v2.",
+            "VernacExtend",
+            "9416a1fa59a08e962d382b136297dceffcd699a0"
+        ],
+        [
+            "apply JMeq_eq in H.",
+            "VernacExtend",
+            "5b521693beb1b440eaba37a9549bdfbfc4d1bacd"
+        ],
+        [
+            "subst; auto.",
+            "VernacExtend",
+            "0dfc636d3b0c9fb40074fb6c1c1b90bf77fecdc8"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite !data_at_rec_eq.",
+            "VernacExtend",
+            "0bc5a10706d9c1d5a7c9cc88504c222260eb04f3"
+        ],
+        [
+            "extensionality p.",
+            "VernacExtend",
+            "e4a2902c7965e2aa0528ab42cbcdeaf51ce0776b"
+        ],
+        [
+            "assert (JMeq (unfold_reptype v1) (unfold_reptype v2)).",
+            "VernacExtend",
+            "363318ab95c6cf03cad89c15d7bccdbfeff4e451"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "eapply JMeq_trans; [| eapply JMeq_trans; [exact H |]].",
+            "VernacExtend",
+            "563e78222637548260f345aaea5645e11e42c7da"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply (unfold_reptype_JMeq (Tarray t z a) v1).",
+            "VernacExtend",
+            "7f74685e97986537098a096babe266dc8cbc3f87"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply JMeq_sym, (unfold_reptype_JMeq (Tarray t z a) v2).",
+            "VernacExtend",
+            "59f681b620137c65c9d32eda6954e21394d0f3ae"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "apply array_pred_ext.",
+            "VernacExtend",
+            "45a9646f45db1aa5fa5b8cddd85548a5d3253622"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply list_func_JMeq; [apply reptype_change_composite; auto | auto].",
+            "VernacExtend",
+            "c36f7b42a34774a4b6797c23224f50991d05cbfc"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite (IH (Znth (i - 0) (unfold_reptype v1)) (Znth (i - 0) (unfold_reptype v2))); auto.",
+            "VernacExtend",
+            "2c2ffc1f8f20c989d2acc35f5fe86d7af07167b0"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "apply sizeof_change_composite; auto.",
+            "VernacExtend",
+            "9dc9ddefa2163062dc3c3f744af07ee9719cec22"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "pose (Znthx (A: Type) (i: Z) (al: list A) (d: A) := @Znth A d i al).",
+            "VernacExtend",
+            "584613e527ba0e677da3592437f16845efb12564"
+        ],
+        [
+            "change (@Znth (@reptype cs_from t) (@Inhabitant_reptype cs_from t) (i - 0) (@unfold_reptype cs_from (Tarray t z a) v1)) with (Znthx (@reptype cs_from t) (i-0) (@unfold_reptype cs_from (Tarray t z a) v1)(@Inhabitant_reptype cs_from t)).",
+            "VernacExtend",
+            "0d8acc9b373d623551cfdf855002098b656c414f"
+        ],
+        [
+            "change (@Znth (@reptype cs_to t) (@Inhabitant_reptype cs_to t) (i - 0) (@unfold_reptype cs_to (Tarray t z a) v2)) with (Znthx (@reptype cs_to t) (i-0) (@unfold_reptype cs_to (Tarray t z a) v2)(@Inhabitant_reptype cs_to t)).",
+            "VernacExtend",
+            "f34497c9eb481d1b3c34f247b0e95ab66acace24"
+        ],
+        [
+            "change (@Znthx (@reptype cs_from t) (i - 0)) with ((fun X: Type => @Znthx X (i - 0)) (@reptype cs_from t)).",
+            "VernacExtend",
+            "d7e22c4865eb491dd0216aa91963519f7c2796d7"
+        ],
+        [
+            "change (@Znthx (@reptype cs_to t) (i - 0)) with ((fun X: Type => @Znthx X (i - 0)) (@reptype cs_to t)).",
+            "VernacExtend",
+            "b088f7694fde08d674af8414881ceee38fd9414a"
+        ],
+        [
+            "apply @list_func_JMeq'; auto.",
+            "VernacExtend",
+            "22364982f9c6731145d484b0a024315e9568fb18"
+        ],
+        [
+            "apply default_val_change_composite; auto.",
+            "VernacExtend",
+            "46be48759d73a10af2be9da414b3cdbd7765d6ed"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite !data_at_rec_eq.",
+            "VernacExtend",
+            "0bc5a10706d9c1d5a7c9cc88504c222260eb04f3"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite !data_at_rec_eq.",
+            "VernacExtend",
+            "0bc5a10706d9c1d5a7c9cc88504c222260eb04f3"
+        ],
+        [
+            "extensionality p.",
+            "VernacExtend",
+            "e4a2902c7965e2aa0528ab42cbcdeaf51ce0776b"
+        ],
+        [
+            "assert (JMeq (unfold_reptype v1) (unfold_reptype v2)).",
+            "VernacExtend",
+            "363318ab95c6cf03cad89c15d7bccdbfeff4e451"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "eapply JMeq_trans; [| eapply JMeq_trans; [exact H |]].",
+            "VernacExtend",
+            "563e78222637548260f345aaea5645e11e42c7da"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply (unfold_reptype_JMeq (Tstruct _ _) v1).",
+            "VernacExtend",
+            "0f3610e592ff4975977833c7df359c487cead320"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply JMeq_sym, (unfold_reptype_JMeq (Tstruct _ _) v2).",
+            "VernacExtend",
+            "8c34587d149cff293722c5da900c160b0e2857ee"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "revert H1; clear H.",
+            "VernacExtend",
+            "1c147b0b1bb4eafc2ce0465269cf40a7462e9ff3"
+        ],
+        [
+            "forget (unfold_reptype v1) as v1'.",
+            "VernacExtend",
+            "688fabcc57bdaad055e140d10210a4f4d66e3c28"
+        ],
+        [
+            "forget (unfold_reptype v2) as v2'.",
+            "VernacExtend",
+            "571a261b35a09e86e8636f0d5b9b4d6e051856aa"
+        ],
+        [
+            "clear v1 v2.",
+            "VernacExtend",
+            "9106903e9ee1c3797fc38238d2c052a0ee10cb1c"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "simpl in v1', v2', H1.",
+            "VernacExtend",
+            "9a71804a5ebc90bdf594fad12b1e6f9059f0801b"
+        ],
+        [
+            "unfold reptype_structlist in *.",
+            "VernacExtend",
+            "b129c0073e444436dbd575e5f6671e706ff0cae4"
+        ],
+        [
+            "revert v1' H1.",
+            "VernacExtend",
+            "3f5bcfc5abb24ff7437914d74ce1e1364bf2909a"
+        ],
+        [
+            "rewrite co_members_get_co_change_composite in * by auto.",
+            "VernacExtend",
+            "52a670cd128ff81495039834ab6a9ed3c0eeb82a"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "pose proof (fun i => field_offset_change_composite _ i H0) as HH0.",
+            "VernacExtend",
+            "1b42362213363585bd3ed30f9894feeec1f9f578"
+        ],
+        [
+            "pose proof (fun i => field_offset_next_change_composite _ i H0) as HH1.",
+            "VernacExtend",
+            "01163ce606192051f3587686f1ff35471d51973e"
+        ],
+        [
+            "apply members_spec_change_composite in H0.",
+            "VernacExtend",
+            "0f305a23c573ec829731410c2a3a3786b25d3e28"
+        ],
+        [
+            "apply struct_pred_ext; [apply get_co_members_no_replicate |].",
+            "VernacExtend",
+            "649c875f561c1890bd7348c21bbc79383b13b733"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "f_equal; [f_equal | | f_equal ]; auto.",
+            "VernacExtend",
+            "83f83ea4fa8dffe2ceb3e1a3a6d96ae0bcbdbd81"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply sizeof_change_composite; auto.",
+            "VernacExtend",
+            "9dc9ddefa2163062dc3c3f744af07ee9719cec22"
+        ],
+        [
+            "rewrite Forall_forall in H0.",
+            "VernacExtend",
+            "64229b50b43ee2e3cf7ce72a10042c0799b36044"
+        ],
+        [
+            "apply H0.",
+            "VernacExtend",
+            "c75b3371fc84f2aae811de7e80b1bdb43e4d249a"
+        ],
+        [
+            "apply in_members_field_type.",
+            "VernacExtend",
+            "bce7db47c28876faf55bd58a7cb7c137b093e955"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "clear HH0 HH1.",
+            "VernacExtend",
+            "c1bfc99b2a5a2670e4c9cc1d40faa9b6fc387233"
+        ],
+        [
+            "simpl fst in *.",
+            "VernacExtend",
+            "f1535698ca93ac80445e2fbe5d457f8a3df71731"
+        ],
+        [
+            "revert d0 d1 v1' v2' IH H0 H1.",
+            "VernacExtend",
+            "55933f05ec347ea7e1a2ed1d232c5651a6a19f0a"
+        ],
+        [
+            "generalize (co_members (get_co id)) at 1 2 3 5 7 8 9 10 11 12 13 15 17 19 21 23 24 26; intros.",
+            "VernacExtend",
+            "d57d63a7fed5351117a1048e54c1a53a16328635"
+        ],
+        [
+            "pose proof in_members_field_type _ _ H.",
+            "VernacExtend",
+            "7a501472daffab9df77cc9e04d145dcb446580ed"
+        ],
+        [
+            "rewrite Forall_forall in IH, H0.",
+            "VernacExtend",
+            "8023ecdcbf3b28cd54e7a51705c8bcf8a6b318ce"
+        ],
+        [
+            "specialize (IH _ H2); pose proof (H0 _ H2).",
+            "VernacExtend",
+            "8ef17505d5c0346f058223a51c7fd5bc4fff849e"
+        ],
+        [
+            "apply IH; auto.",
+            "VernacExtend",
+            "ab7c838ddd716a3b14059f64c365105253349c54"
+        ],
+        [
+            "apply (@proj_struct_JMeq i (co_members (@get_co cs_to id)) (fun it : ident * type => @reptype cs_from (field_type (@fst ident type it) m)) (fun it : ident * type => @reptype cs_to (field_type (@fst ident type it) m))); auto.",
+            "VernacExtend",
+            "b56605913bd24108426c0d9d33ed1a076675ceb1"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite reptype_change_composite; [reflexivity |].",
+            "VernacExtend",
+            "76f0b44bbfa6bf3ef2d0afe0208cf99b3bb947a0"
+        ],
+        [
+            "apply H0.",
+            "VernacExtend",
+            "c75b3371fc84f2aae811de7e80b1bdb43e4d249a"
+        ],
+        [
+            "apply in_members_field_type; auto.",
+            "VernacExtend",
+            "d08f202b3bf3f32686908375ff59d00c2e5ac773"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "apply get_co_members_no_replicate.",
+            "VernacExtend",
+            "48f67f7c710387cd2b4f4ca72c9e6a53e961df4d"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite !data_at_rec_eq.",
+            "VernacExtend",
+            "0bc5a10706d9c1d5a7c9cc88504c222260eb04f3"
+        ],
+        [
+            "extensionality p.",
+            "VernacExtend",
+            "e4a2902c7965e2aa0528ab42cbcdeaf51ce0776b"
+        ],
+        [
+            "assert (JMeq (unfold_reptype v1) (unfold_reptype v2)).",
+            "VernacExtend",
+            "363318ab95c6cf03cad89c15d7bccdbfeff4e451"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "eapply JMeq_trans; [| eapply JMeq_trans; [exact H |]].",
+            "VernacExtend",
+            "563e78222637548260f345aaea5645e11e42c7da"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply (unfold_reptype_JMeq (Tunion _ _) v1).",
+            "VernacExtend",
+            "ff09a6efae4e051c1fea5ae3fce81d5f728c183f"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply JMeq_sym, (unfold_reptype_JMeq (Tunion _ _) v2).",
+            "VernacExtend",
+            "aff14c0d98721fd89f3578be38fb3fa6e42b7d15"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "revert H1; clear H.",
+            "VernacExtend",
+            "1c147b0b1bb4eafc2ce0465269cf40a7462e9ff3"
+        ],
+        [
+            "forget (unfold_reptype v1) as v1'.",
+            "VernacExtend",
+            "688fabcc57bdaad055e140d10210a4f4d66e3c28"
+        ],
+        [
+            "forget (unfold_reptype v2) as v2'.",
+            "VernacExtend",
+            "571a261b35a09e86e8636f0d5b9b4d6e051856aa"
+        ],
+        [
+            "clear v1 v2.",
+            "VernacExtend",
+            "9106903e9ee1c3797fc38238d2c052a0ee10cb1c"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "simpl in v1', v2', H1.",
+            "VernacExtend",
+            "9a71804a5ebc90bdf594fad12b1e6f9059f0801b"
+        ],
+        [
+            "unfold reptype_structlist in *.",
+            "VernacExtend",
+            "b129c0073e444436dbd575e5f6671e706ff0cae4"
+        ],
+        [
+            "revert v1' H1.",
+            "VernacExtend",
+            "3f5bcfc5abb24ff7437914d74ce1e1364bf2909a"
+        ],
+        [
+            "rewrite co_members_get_co_change_composite in * by auto.",
+            "VernacExtend",
+            "52a670cd128ff81495039834ab6a9ed3c0eeb82a"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "pose proof (fun i => field_offset_change_composite _ i H0) as HH0.",
+            "VernacExtend",
+            "1b42362213363585bd3ed30f9894feeec1f9f578"
+        ],
+        [
+            "pose proof (fun i => field_offset_next_change_composite _ i H0) as HH1.",
+            "VernacExtend",
+            "01163ce606192051f3587686f1ff35471d51973e"
+        ],
+        [
+            "pose proof H0 as H0'.",
+            "VernacExtend",
+            "ba095feee80e888b9a0b7f45e9287e1e2c5012ac"
+        ],
+        [
+            "apply members_spec_change_composite in H0.",
+            "VernacExtend",
+            "0f305a23c573ec829731410c2a3a3786b25d3e28"
+        ],
+        [
+            "apply union_pred_ext.",
+            "VernacExtend",
+            "be46cc23202c660848bb7b093511c79b9a5ea71b"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "apply get_co_members_no_replicate.",
+            "VernacExtend",
+            "48f67f7c710387cd2b4f4ca72c9e6a53e961df4d"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "apply members_union_inj_JMeq; auto.",
+            "VernacExtend",
+            "08aa64d7a54adae4adaa19238cab79678fffdb7d"
+        ],
+        [
+            "2: apply get_co_members_no_replicate.",
+            "VernacExtend",
+            "f42c631f78c6ca51ba965c1f62b7c34f3a09f95b"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite reptype_change_composite; [reflexivity |].",
+            "VernacExtend",
+            "76f0b44bbfa6bf3ef2d0afe0208cf99b3bb947a0"
+        ],
+        [
+            "apply in_members_field_type in H.",
+            "VernacExtend",
+            "e0c80e6e2e3ba9a0032a138e45b163f3edf4b041"
+        ],
+        [
+            "rewrite Forall_forall in H0.",
+            "VernacExtend",
+            "64229b50b43ee2e3cf7ce72a10042c0799b36044"
+        ],
+        [
+            "apply (H0 _ H).",
+            "VernacExtend",
+            "ac707dc9c4a160557ceffd888c137ad7cfbaf0c5"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply sizeof_change_composite; auto.",
+            "VernacExtend",
+            "9dc9ddefa2163062dc3c3f744af07ee9719cec22"
+        ],
+        [
+            "rewrite Forall_forall in H0.",
+            "VernacExtend",
+            "64229b50b43ee2e3cf7ce72a10042c0799b36044"
+        ],
+        [
+            "apply H0.",
+            "VernacExtend",
+            "c75b3371fc84f2aae811de7e80b1bdb43e4d249a"
+        ],
+        [
+            "apply in_members_field_type.",
+            "VernacExtend",
+            "bce7db47c28876faf55bd58a7cb7c137b093e955"
+        ],
+        [
+            "apply compact_sum_inj_in in H.",
+            "VernacExtend",
+            "47885617212f3aebf847be9941e40a8aed3b37bc"
+        ],
+        [
+            "apply (in_map fst) in H.",
+            "VernacExtend",
+            "2bba470cc78e94bc24ac0494e9d3525429ff3180"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply co_sizeof_get_co_change_composite.",
+            "VernacExtend",
+            "aa11df35705c709362dd8463fe3785880acd0f36"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "clear HH0 HH1.",
+            "VernacExtend",
+            "c1bfc99b2a5a2670e4c9cc1d40faa9b6fc387233"
+        ],
+        [
+            "simpl fst in *.",
+            "VernacExtend",
+            "f1535698ca93ac80445e2fbe5d457f8a3df71731"
+        ],
+        [
+            "revert d0 d1 v1' v2' IH H0 H1 H H2.",
+            "VernacExtend",
+            "256190320ac30436e713e7d58038098121b9ab8c"
+        ],
+        [
+            "unfold reptype_unionlist.",
+            "VernacExtend",
+            "b095a0f69bb6e92e51c1daeb94dc65b7bce90e08"
+        ],
+        [
+            "generalize (co_members (get_co id)) at 1 2 3 5 7 8 9 10 11 12 13 15 17 19 22 25 27 29 30 32; intros.",
+            "VernacExtend",
+            "2a82568c377440c9ce6a8248e63a6233dcc55420"
+        ],
+        [
+            "apply compact_sum_inj_in in H2.",
+            "VernacExtend",
+            "16d4af76902d9faa7e83070a4888409a3eec87f9"
+        ],
+        [
+            "apply (in_map fst) in H2.",
+            "VernacExtend",
+            "96dc96cdef21a616363cd97b4eec49150bb28aac"
+        ],
+        [
+            "apply in_members_field_type in H2.",
+            "VernacExtend",
+            "2198e7ffcd7d67b5d66f2de8829c05b9d4097537"
+        ],
+        [
+            "rewrite Forall_forall in IH, H0.",
+            "VernacExtend",
+            "8023ecdcbf3b28cd54e7a51705c8bcf8a6b318ce"
+        ],
+        [
+            "specialize (IH _ H2); pose proof (H0 _ H2).",
+            "VernacExtend",
+            "8ef17505d5c0346f058223a51c7fd5bc4fff849e"
+        ],
+        [
+            "apply IH; auto.",
+            "VernacExtend",
+            "ab7c838ddd716a3b14059f64c365105253349c54"
+        ],
+        [
+            "apply (@proj_union_JMeq i (co_members (@get_co cs_to id)) (fun it : ident * type => @reptype cs_from (field_type (@fst ident type it) m)) (fun it : ident * type => @reptype cs_to (field_type (@fst ident type it) m))); auto.",
+            "VernacExtend",
+            "160a153d380e7212fa9b2ef5272b4662bbc94578"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite reptype_change_composite; [reflexivity |].",
+            "VernacExtend",
+            "76f0b44bbfa6bf3ef2d0afe0208cf99b3bb947a0"
+        ],
+        [
+            "apply H0.",
+            "VernacExtend",
+            "c75b3371fc84f2aae811de7e80b1bdb43e4d249a"
+        ],
+        [
+            "apply in_members_field_type; auto.",
+            "VernacExtend",
+            "d08f202b3bf3f32686908375ff59d00c2e5ac773"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "apply get_co_members_no_replicate.",
+            "VernacExtend",
+            "48f67f7c710387cd2b4f4ca72c9e6a53e961df4d"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma value_fits_Tstruct: forall {cs: compspecs} t (v: reptype t) i a m v2 r, t = Tstruct i a -> m = co_members (get_co i) -> JMeq (@unfold_reptype cs t v) v2 -> r =struct_Prop m (fun it => value_fits (field_type (fst it) m)) v2 -> value_fits t v = r.",
+            "VernacStartTheoremProof",
+            "c2d79e07ea803f8d592dbb6ee7ef33122c376d06"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "rewrite value_fits_eq; simpl.",
+            "VernacExtend",
+            "908d6077999cb379f3940fef5c6c2038a1313821"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "apply JMeq_eq in H1.",
+            "VernacExtend",
+            "db6251550852055f814af9ae422efbbe268b14b5"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma value_fits_Tunion: forall {cs: compspecs} t (v: reptype t) i a m v2 r, t = Tunion i a -> m = co_members (get_co i) -> JMeq (@unfold_reptype cs t v) v2 -> r =union_Prop m (fun it => value_fits (field_type (fst it) m)) v2 -> value_fits t v = r.",
+            "VernacStartTheoremProof",
+            "1eb5da0fd7590a0c88c8dc56ad6b93f174900fff"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "rewrite value_fits_eq; simpl.",
+            "VernacExtend",
+            "908d6077999cb379f3940fef5c6c2038a1313821"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "apply JMeq_eq in H1.",
+            "VernacExtend",
+            "db6251550852055f814af9ae422efbbe268b14b5"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma value_fits_by_value_defined: forall {cs: compspecs} t t' v r, type_is_by_value t = true -> repinject t v <> Vundef -> t = t' -> (r = if type_is_volatile t' then True else tc_val t' (repinject t v)) -> value_fits t v = r.",
+            "VernacStartTheoremProof",
+            "89ce291d2b2a1180574939dbeaf2a0dffb8b2d80"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "subst t' r.",
+            "VernacExtend",
+            "c244f07210afa4771061acf7ec0b8d1ba3fac3bd"
+        ],
+        [
+            "rewrite value_fits_eq.",
+            "VernacExtend",
+            "50c5c285829b45097678310e2959b8b2c6ebf02a"
+        ],
+        [
+            "unfold tc_val'.",
+            "VernacExtend",
+            "61208a269c11cc870f6197774860d62a19e00349"
+        ],
+        [
+            "destruct t; inv H; (simple_if_tac; auto; apply prop_ext; intuition).",
+            "VernacExtend",
+            "38d690102485c6febcc5b1c890d724481f6461b0"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma value_fits_by_value_Vundef: forall {cs: compspecs} t v, type_is_by_value t = true -> repinject t v = Vundef -> value_fits t v = True.",
+            "VernacStartTheoremProof",
+            "42880e11a0719ec7f17de556dd13d7a599472aa0"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite value_fits_eq.",
+            "VernacExtend",
+            "50c5c285829b45097678310e2959b8b2c6ebf02a"
+        ],
+        [
+            "unfold tc_val'.",
+            "VernacExtend",
+            "61208a269c11cc870f6197774860d62a19e00349"
+        ],
+        [
+            "destruct t; inv H; (simple_if_tac; auto; auto; apply prop_ext; intuition).",
+            "VernacExtend",
+            "df236a1a95fa3ce81667184d718d80f602089370"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma value_fits_by_value: forall {cs: compspecs} t t' v r, type_is_by_value t = true -> t = t' -> (r = if type_is_volatile t then True else tc_val' t' (repinject t v)) -> value_fits t v = r.",
+            "VernacStartTheoremProof",
+            "f3581c91f53f0805d8d84cb1b343ae0a19223e02"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "subst r t'.",
+            "VernacExtend",
+            "6ed694c48347dd32fdb8efa135a4ecf6f2364319"
+        ],
+        [
+            "rewrite value_fits_eq.",
+            "VernacExtend",
+            "50c5c285829b45097678310e2959b8b2c6ebf02a"
+        ],
+        [
+            "unfold tc_val'.",
+            "VernacExtend",
+            "61208a269c11cc870f6197774860d62a19e00349"
+        ],
+        [
+            "destruct t; inv H; (simple_if_tac; auto; apply prop_ext; intuition).",
+            "VernacExtend",
+            "38d690102485c6febcc5b1c890d724481f6461b0"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma value_fits_Tarray: forall {cs: compspecs} t (v: reptype t) t' n a (v' : list (reptype t')) r, t = (Tarray t' n a) -> JMeq (unfold_reptype v) v' -> n >= 0 -> r = (Zlength v' = n /\\ Forall (value_fits t') v') -> value_fits t v =r.",
+            "VernacStartTheoremProof",
+            "f4ad93adfa16f078772f30a7e031c9aac807188d"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "rewrite value_fits_eq.",
+            "VernacExtend",
+            "50c5c285829b45097678310e2959b8b2c6ebf02a"
+        ],
+        [
+            "apply JMeq_eq in H0.",
+            "VernacExtend",
+            "87d28097d755b25f62a815ae773355cb3249511b"
+        ],
+        [
+            "rewrite H0.",
+            "VernacExtend",
+            "1a54b13ac1654793174947eafd5c41a3f024eb49"
+        ],
+        [
+            "rewrite Z.max_r by omega.",
+            "VernacExtend",
+            "8781eace12c9cb209471cff64545a076e9d72b4f"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Ltac cleanup_unfold_reptype := match goal with |- JMeq (unfold_reptype ?A) _ => instantiate (1:=A); apply JMeq_refl end.",
+            "VernacExtend",
+            "74ebb02b2a0d8436c72be2134213b81bb3613414"
+        ],
+        [
+            "Ltac simplify_value_fits' := first [erewrite value_fits_Tstruct; [ | reflexivity | simpl; reflexivity | cleanup_unfold_reptype | simpl; reflexivity] |erewrite value_fits_Tarray; [ | reflexivity | cleanup_unfold_reptype | repeat subst_any; try computable; omega | simpl; reflexivity ] | erewrite value_fits_by_value_defined; [ | reflexivity | repeat subst_any; clear; simpl; intro; discriminate | simpl; lazy beta iota zeta delta [field_type]; simpl; reflexivity | simpl; reflexivity ] | rewrite value_fits_by_value_Vundef; [ | reflexivity | reflexivity ] | erewrite value_fits_by_value; [ | reflexivity | simpl; lazy beta iota zeta delta [field_type]; simpl; reflexivity | simpl; reflexivity ] ]; cbv beta; repeat match goal with |- context [@reptype ?cs ?t] => change (@reptype cs t) with val end.",
+            "VernacExtend",
+            "9b39eabfb88ee3c5462c346d91a539c72c385528"
+        ],
+        [
+            "Tactic Notation \"simplify_value_fits\" := simplify_value_fits'.",
+            "VernacExtend",
+            "96d5d5e4eeb64db1cf0ba6ae9323de596dce78fd"
+        ],
+        [
+            "Tactic Notation \"simplify_value_fits\" \"in\" hyp(H) := match type of H with ?A => let a := fresh \"a\" in set (a:=A) in H; let H1 := fresh in assert (H1: a = A) by (apply eq_refl); clearbody a; match goal with |- ?B => let BB := fresh \"BB\" in set (BB:=B); revert H1; simplify_value_fits'; intro H1; subst a; subst BB end end.",
+            "VernacExtend",
+            "7e4af86cb9a2634649a2658bc396a2bca353b3d0"
+        ],
+        [
+            "Tactic Notation \"simplify_value_fits\" \"in\" \"*\" := repeat match goal with | H: context [value_fits _ _ _] |- _ => simplify_value_fits in H end; repeat simplify_value_fits'.",
+            "VernacExtend",
+            "f4ad0980710d158ff14a86dbb07319a9009db9da"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "data_at_rec_eq",
+            "line_nb": 24,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold data_at_rec at 1.",
+                        "VernacExtend",
+                        "59c6dd8a2e128723e7b1ca680da726d9e09f15e4"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite type_func_eq.",
+                        "VernacExtend",
+                        "c91e226d46885ed017aa5e6d6b6f5b61f5c3a639"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct t; auto; try solve [destruct (readable_share_dec sh); reflexivity]; try solve [ match goal with | |- context[repinject ?tt] => rewrite (repinject_unfold_reptype tt); auto end].",
+                        "VernacExtend",
+                        "b3f6e591b755c274cbb64629b2cc6174d231bf20"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- struct_data_at_rec_aux_spec; reflexivity.",
+                        "VernacExtend",
+                        "b6951519348480ec744872c1b5e0432d84f3a78a"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- union_data_at_rec_aux_spec; reflexivity.",
+                        "VernacExtend",
+                        "da9d75e1654f3421a6e4eff0b90d690faab10f1e"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "data_at_rec_type_changable",
+            "line_nb": 35,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst t2.",
+                        "VernacExtend",
+                        "e4dd57e9b9492f7f098f4c9b9f0931631f282df4"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply JMeq_eq in H0.",
+                        "VernacExtend",
+                        "87d28097d755b25f62a815ae773355cb3249511b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H0.",
+                        "VernacExtend",
+                        "1a54b13ac1654793174947eafd5c41a3f024eb49"
+                    ]
+                },
+                {
+                    "command": [
+                        "reflexivity.",
+                        "VernacExtend",
+                        "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "by_value_default_val",
+            "line_nb": 42,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct t; try inversion H; try tauto; apply JMeq_refl.",
+                        "VernacExtend",
+                        "1ecd28cbbd2c9257278643011b7098ea3a05b2f6"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "by_value_reptype",
+            "line_nb": 46,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct t; simpl in H; try inversion H; tauto.",
+                        "VernacExtend",
+                        "7084d3111dcd277d71f2c730b654970d6f88cf8c"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "by_value_data_at_rec_volatile",
+            "line_nb": 50,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite data_at_rec_eq; destruct t; try solve [inversion H]; match goal with | |- context[type_is_volatile ?tt] => destruct (type_is_volatile tt) eqn:HH; auto; rewrite <- (repinject_unfold_reptype tt); auto end; inversion H0.",
+                        "VernacExtend",
+                        "4dd81e42072fdce2e3effe34a5f206e30e87c400"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "by_value_data_at_rec_nonvolatile",
+            "line_nb": 54,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite data_at_rec_eq; destruct t; try solve [inversion H]; rewrite H0; match goal with | |- context[repinject ?tt] => rewrite (repinject_unfold_reptype tt); auto end.",
+                        "VernacExtend",
+                        "0d3a5dcdc0d1afdaf73af8c507a872721be8c7d3"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "by_value_data_at_rec_default_val",
+            "line_nb": 58,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (type_is_volatile t) eqn:?H.",
+                        "VernacExtend",
+                        "0ccaae7d962e7fde5b98a2630915211668febc9c"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply by_value_data_at_rec_volatile; auto.",
+                        "VernacExtend",
+                        "41e969b67ce06474243c79ce3e1312d008362691"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite data_at_rec_eq; destruct t; try solve [inversion H]; rewrite H2; symmetry; rewrite memory_block_mapsto_ by auto; unfold mapsto_; try rewrite if_true by auto; auto.",
+                        "VernacExtend",
+                        "56bc5c9299ecee48d70a02add76d4b6aa6c03123"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "by_value_data_at_rec_nonreachable",
+            "line_nb": 66,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (type_is_volatile t) eqn:?H.",
+                        "VernacExtend",
+                        "0ccaae7d962e7fde5b98a2630915211668febc9c"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply by_value_data_at_rec_volatile; auto.",
+                        "VernacExtend",
+                        "41e969b67ce06474243c79ce3e1312d008362691"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite by_value_data_at_rec_nonvolatile by auto.",
+                        "VernacExtend",
+                        "2234e3f393b6acb77ea915b95f0717738d5f2bf7"
+                    ]
+                },
+                {
+                    "command": [
+                        "symmetry; apply nonreadable_memory_block_mapsto; auto.",
+                        "VernacExtend",
+                        "805b7f088e46c738078a9541eb9a1e63718668a9"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "by_value_data_at_rec_default_val2",
+            "line_nb": 75,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply by_value_data_at_rec_default_val; auto.",
+                        "VernacExtend",
+                        "a26cc8f706f62109c30855bb824b2f2c1d33e3e6"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold size_compatible.",
+                        "VernacExtend",
+                        "f30a0228c86febc3982e0af7868b3f6e0736bc6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "solve_mod_modulus.",
+                        "VernacExtend",
+                        "b705e3387e985663d3f5a4953305d4c4dce20c36"
+                    ]
+                },
+                {
+                    "command": [
+                        "pose_mod_le ofs.",
+                        "VernacExtend",
+                        "00c77ea83af0eb3e6f675211a9a01fb5193be55e"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold align_compatible.",
+                        "VernacExtend",
+                        "fe48d33a9b12c4eeb44284dfcc0e393e8f65baab"
+                    ]
+                },
+                {
+                    "command": [
+                        "solve_mod_modulus.",
+                        "VernacExtend",
+                        "b705e3387e985663d3f5a4953305d4c4dce20c36"
+                    ]
+                },
+                {
+                    "command": [
+                        "pose proof sizeof_pos t.",
+                        "VernacExtend",
+                        "ae8d041da01ea19d95abbe7523653584bc09ad50"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Zmod_small by omega.",
+                        "VernacExtend",
+                        "b55bd313119b61355324b8f6158f311f7095d082"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "by_value_data_at_rec_nonreachable2",
+            "line_nb": 90,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply by_value_data_at_rec_nonreachable; auto.",
+                        "VernacExtend",
+                        "2fb90280db6ec436badfe3bd750cb6d109876cfc"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold size_compatible.",
+                        "VernacExtend",
+                        "f30a0228c86febc3982e0af7868b3f6e0736bc6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "solve_mod_modulus.",
+                        "VernacExtend",
+                        "b705e3387e985663d3f5a4953305d4c4dce20c36"
+                    ]
+                },
+                {
+                    "command": [
+                        "pose_mod_le ofs.",
+                        "VernacExtend",
+                        "00c77ea83af0eb3e6f675211a9a01fb5193be55e"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold align_compatible.",
+                        "VernacExtend",
+                        "fe48d33a9b12c4eeb44284dfcc0e393e8f65baab"
+                    ]
+                },
+                {
+                    "command": [
+                        "solve_mod_modulus.",
+                        "VernacExtend",
+                        "b705e3387e985663d3f5a4953305d4c4dce20c36"
+                    ]
+                },
+                {
+                    "command": [
+                        "pose proof sizeof_pos t.",
+                        "VernacExtend",
+                        "ae8d041da01ea19d95abbe7523653584bc09ad50"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Zmod_small by omega.",
+                        "VernacExtend",
+                        "b55bd313119b61355324b8f6158f311f7095d082"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "lower_sepcon_val'",
+            "line_nb": 105,
+            "steps": [
+                {
+                    "command": [
+                        "reflexivity.",
+                        "VernacExtend",
+                        "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Znth_nil",
+            "line_nb": 108,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold Znth.",
+                        "VernacExtend",
+                        "7211d3ddadb408c13a3757be0ceaaabeebf7b887"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac; auto.",
+                        "VernacExtend",
+                        "405a5d1c67f2928c68a29c10540d8abdea32b1bd"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (Z.to_nat n); auto.",
+                        "VernacExtend",
+                        "0f11c6f9f3809246bf86f640b3dd61fd25f61698"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "offset_val_zero_Vptr",
+            "line_nb": 115,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold offset_val, Ptrofs.add.",
+                        "VernacExtend",
+                        "be7dd50171e42009d8683e177bad736bb06e761e"
+                    ]
+                },
+                {
+                    "command": [
+                        "change (Ptrofs.unsigned (Ptrofs.repr 0)) with 0.",
+                        "VernacExtend",
+                        "62f6d4449c48e8b6ca597f06f080e39c03d2cc98"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Z.add_0_r.",
+                        "VernacExtend",
+                        "06ae07741c51588ad5058ce812450f10227d7b7a"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Ptrofs.repr_unsigned.",
+                        "VernacExtend",
+                        "c05aa975620465844865478cae5f0f69520e0371"
+                    ]
+                },
+                {
+                    "command": [
+                        "reflexivity.",
+                        "VernacExtend",
+                        "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "nth_list_repeat",
+            "line_nb": 123,
+            "steps": [
+                {
+                    "command": [
+                        "induction i; destruct n; simpl; auto.",
+                        "VernacExtend",
+                        "03e6ed8956c3a74a3a9aec86e334cf323373bcac"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "nth_list_repeat'",
+            "line_nb": 126,
+            "steps": [
+                {
+                    "command": [
+                        "induction i; destruct n; simpl; intros; auto.",
+                        "VernacExtend",
+                        "7d9ab39f2b4fa035f341f9d5c503d53726ec76e8"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply IHi; auto.",
+                        "VernacExtend",
+                        "fc58e93aeaf35aace96ccfed3d4fa9537c5547bc"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Z2Nat_max0",
+            "line_nb": 133,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Z.max_comm, <- nat_of_Z_max, Nat2Z.id.",
+                        "VernacExtend",
+                        "cdf275bd2dfa54122dbe71253ec0d236d4c2f4d2"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "range_max0",
+            "line_nb": 138,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (zlt z 0).",
+                        "VernacExtend",
+                        "7076620eacfe678def1d7d0611130847501273e1"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Z.max_l by omega.",
+                        "VernacExtend",
+                        "33008bfe4a3b1ffcaa54873a74678ce072eb8059"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Z.max_r by omega.",
+                        "VernacExtend",
+                        "8781eace12c9cb209471cff64545a076e9d72b4f"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "value_fits_eq",
+            "line_nb": 390,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold value_fits.",
+                        "VernacExtend",
+                        "9d808bb84844f74f0e59a1e051dfc96a18ace461"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite type_func_eq.",
+                        "VernacExtend",
+                        "c91e226d46885ed017aa5e6d6b6f5b61f5c3a639"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct t; auto.",
+                        "VernacExtend",
+                        "005ed9da4fb43c9c32bf8a56e846700db3d6610d"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply struct_value_fits_aux_spec.",
+                        "VernacExtend",
+                        "1e5f81ba18a6b4aa2602a18ead36addc2dea7a28"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply union_value_fits_aux_spec.",
+                        "VernacExtend",
+                        "f4df65e1bb31f0b78cd965182f90fdf9f271bfc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "value_fits_type_changable",
+            "line_nb": 398,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst t2.",
+                        "VernacExtend",
+                        "e4dd57e9b9492f7f098f4c9b9f0931631f282df4"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply JMeq_eq in H0.",
+                        "VernacExtend",
+                        "87d28097d755b25f62a815ae773355cb3249511b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H0.",
+                        "VernacExtend",
+                        "1a54b13ac1654793174947eafd5c41a3f024eb49"
+                    ]
+                },
+                {
+                    "command": [
+                        "reflexivity.",
+                        "VernacExtend",
+                        "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "default_value_fits",
+            "line_nb": 405,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "type_induction t; try destruct f; rewrite value_fits_eq; try solve [simpl; try (simple_if_tac; auto); apply tc_val'_Vundef]; rewrite default_val_eq, unfold_fold_reptype.",
+                        "VernacExtend",
+                        "4b85055a993dd61e55365b9a3f3273723ba33783"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "split.",
+                        "VernacExtend",
+                        "55abc140132bd88981001ac656020469a8d503eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Zlength_list_repeat', Z2Nat_id'; auto.",
+                        "VernacExtend",
+                        "6c028fe0a8a9d1cdaedb724f298344d5e36d29fd"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Forall_list_repeat; auto.",
+                        "VernacExtend",
+                        "bc1c06033361455aa1e121b24e59e4280976ffad"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "cbv zeta in IH.",
+                        "VernacExtend",
+                        "0ad05fda46abcb397c61b2dbe7fea231869b7786"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply struct_Prop_compact_prod_gen.",
+                        "VernacExtend",
+                        "65d8a6e5549ac8f5e96197c9613454c042ea062a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply get_co_members_no_replicate.",
+                        "VernacExtend",
+                        "48f67f7c710387cd2b4f4ca72c9e6a53e961df4d"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Forall_forall in IH.",
+                        "VernacExtend",
+                        "facea5663ee6deb8394d1fe395bb446fcfb7f613"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros; apply IH.",
+                        "VernacExtend",
+                        "2236cee27445b2086711c830be7fd71cdaae76da"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply in_members_field_type; auto.",
+                        "VernacExtend",
+                        "d08f202b3bf3f32686908375ff59d00c2e5ac773"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "cbv zeta in IH.",
+                        "VernacExtend",
+                        "0ad05fda46abcb397c61b2dbe7fea231869b7786"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply union_Prop_compact_sum_gen.",
+                        "VernacExtend",
+                        "def4a23eae26cb7eb226039652e169ae15ca0c1d"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply get_co_members_no_replicate.",
+                        "VernacExtend",
+                        "48f67f7c710387cd2b4f4ca72c9e6a53e961df4d"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Forall_forall in IH.",
+                        "VernacExtend",
+                        "facea5663ee6deb8394d1fe395bb446fcfb7f613"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros; apply IH.",
+                        "VernacExtend",
+                        "2236cee27445b2086711c830be7fd71cdaae76da"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply in_members_field_type; auto.",
+                        "VernacExtend",
+                        "d08f202b3bf3f32686908375ff59d00c2e5ac773"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "value_fits_Tstruct",
+            "line_nb": 831,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst.",
+                        "VernacExtend",
+                        "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite value_fits_eq; simpl.",
+                        "VernacExtend",
+                        "908d6077999cb379f3940fef5c6c2038a1313821"
+                    ]
+                },
+                {
+                    "command": [
+                        "f_equal.",
+                        "VernacExtend",
+                        "dfce814d1efcef60f8330516ad88155a3a5ec317"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply JMeq_eq in H1.",
+                        "VernacExtend",
+                        "db6251550852055f814af9ae422efbbe268b14b5"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "value_fits_Tunion",
+            "line_nb": 839,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst.",
+                        "VernacExtend",
+                        "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite value_fits_eq; simpl.",
+                        "VernacExtend",
+                        "908d6077999cb379f3940fef5c6c2038a1313821"
+                    ]
+                },
+                {
+                    "command": [
+                        "f_equal.",
+                        "VernacExtend",
+                        "dfce814d1efcef60f8330516ad88155a3a5ec317"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply JMeq_eq in H1.",
+                        "VernacExtend",
+                        "db6251550852055f814af9ae422efbbe268b14b5"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "value_fits_by_value_defined",
+            "line_nb": 847,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst t' r.",
+                        "VernacExtend",
+                        "c244f07210afa4771061acf7ec0b8d1ba3fac3bd"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite value_fits_eq.",
+                        "VernacExtend",
+                        "50c5c285829b45097678310e2959b8b2c6ebf02a"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold tc_val'.",
+                        "VernacExtend",
+                        "61208a269c11cc870f6197774860d62a19e00349"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct t; inv H; (simple_if_tac; auto; apply prop_ext; intuition).",
+                        "VernacExtend",
+                        "38d690102485c6febcc5b1c890d724481f6461b0"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "value_fits_by_value_Vundef",
+            "line_nb": 854,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite value_fits_eq.",
+                        "VernacExtend",
+                        "50c5c285829b45097678310e2959b8b2c6ebf02a"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold tc_val'.",
+                        "VernacExtend",
+                        "61208a269c11cc870f6197774860d62a19e00349"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct t; inv H; (simple_if_tac; auto; auto; apply prop_ext; intuition).",
+                        "VernacExtend",
+                        "df236a1a95fa3ce81667184d718d80f602089370"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "value_fits_by_value",
+            "line_nb": 860,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst r t'.",
+                        "VernacExtend",
+                        "6ed694c48347dd32fdb8efa135a4ecf6f2364319"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite value_fits_eq.",
+                        "VernacExtend",
+                        "50c5c285829b45097678310e2959b8b2c6ebf02a"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold tc_val'.",
+                        "VernacExtend",
+                        "61208a269c11cc870f6197774860d62a19e00349"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct t; inv H; (simple_if_tac; auto; apply prop_ext; intuition).",
+                        "VernacExtend",
+                        "38d690102485c6febcc5b1c890d724481f6461b0"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "value_fits_Tarray",
+            "line_nb": 867,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst.",
+                        "VernacExtend",
+                        "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite value_fits_eq.",
+                        "VernacExtend",
+                        "50c5c285829b45097678310e2959b8b2c6ebf02a"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply JMeq_eq in H0.",
+                        "VernacExtend",
+                        "87d28097d755b25f62a815ae773355cb3249511b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H0.",
+                        "VernacExtend",
+                        "1a54b13ac1654793174947eafd5c41a3f024eb49"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Z.max_r by omega.",
+                        "VernacExtend",
+                        "8781eace12c9cb209471cff64545a076e9d72b4f"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,1766 @@
+{
+    "filename": "veric/seplog.v",
+    "coq_project": "VST",
+    "vernac_cmds": [
+        [
+            "Require Import VST.msl.log_normalize.",
+            "VernacRequire",
+            "91ddc4fb8664a1d5492a375b6453dedd2b7de768"
+        ],
+        [
+            "Require Import VST.msl.alg_seplog.",
+            "VernacRequire",
+            "0bebe5a1ce6d010a69c5175bdcbe3697220eebcd"
+        ],
+        [
+            "Require Export VST.veric.base.",
+            "VernacRequire",
+            "c7e34d793d3b095308aa80b56a6bb26f238ab08e"
+        ],
+        [
+            "Require Import VST.veric.rmaps.",
+            "VernacRequire",
+            "65dd06aa857655d44d3341a99fa83639cff14334"
+        ],
+        [
+            "Require Import VST.veric.compcert_rmaps.",
+            "VernacRequire",
+            "c684a380737921a2e41654d70bb2fe8e448426cf"
+        ],
+        [
+            "Require Import VST.veric.res_predicates.",
+            "VernacRequire",
+            "768b4200cf583d1957d2bf97075bbe3044eb3f8d"
+        ],
+        [
+            "Require Import VST.veric.mpred.",
+            "VernacRequire",
+            "11652084584e46804583cf99fdbf0fa76aa9fd7a"
+        ],
+        [
+            "Require Import VST.veric.address_conflict.",
+            "VernacRequire",
+            "961a4ba5744ef11c31b9981ae3719fa701b7bd4d"
+        ],
+        [
+            "Require Export VST.veric.shares.",
+            "VernacRequire",
+            "30cd0bcbdfe7d2b1f788c0c9d90885965b7ba0a7"
+        ],
+        [
+            "Local Open Scope pred.",
+            "VernacOpenCloseScope",
+            "61fa11c1c3de9a21b4672e107d4df33b39563e17"
+        ],
+        [
+            "Definition func_at (f: funspec): address -> pred rmap := match f with | mk_funspec fsig cc A P Q _ _ => pureat (SomeP (SpecTT A) (packPQ P Q)) (FUN fsig cc) end.",
+            "VernacDefinition",
+            "21c25245defb86eb79554455e2a34a91a1011367"
+        ],
+        [
+            "Definition func_at' (f: funspec) (loc: address) : pred rmap := match f with | mk_funspec fsig cc _ _ _ _ _ => EX pp:_, pureat pp (FUN fsig cc) loc end.",
+            "VernacDefinition",
+            "9f12ad95981eea481e24c6893c98fd315d1cdbc6"
+        ],
+        [
+            "Definition func_ptr (f: funspec) (v: val): mpred := EX b: block, !! (v = Vptr b Ptrofs.zero) && func_at f (b, 0).",
+            "VernacDefinition",
+            "3089f50cf3975e0ed82bad249c0cf560b3e199c5"
+        ],
+        [
+            "Definition NDmk_funspec (f: funsig) (cc: calling_convention) (A: Type) (Pre Post: A -> environ -> mpred): funspec := mk_funspec f cc (rmaps.ConstType A) (fun _ => Pre) (fun _ => Post) (const_super_non_expansive _ _) (const_super_non_expansive _ _).",
+            "VernacDefinition",
+            "cdd07e1db6ff1c6d5f920bfd11052621236904f6"
+        ],
+        [
+            "Bind Scope pred with assert.",
+            "VernacBindScope",
+            "74e8366b36b8e12914a9ef4bb4a04f2b495fcf6a"
+        ],
+        [
+            "Local Open Scope pred.",
+            "VernacOpenCloseScope",
+            "61fa11c1c3de9a21b4672e107d4df33b39563e17"
+        ],
+        [
+            "Definition closed_wrt_vars {B} (S: ident -> Prop) (F: environ -> B) : Prop := forall rho te', (forall i, S i \\/ Map.get (te_of rho) i = Map.get te' i) -> F rho = F (mkEnviron (ge_of rho) (ve_of rho) te').",
+            "VernacDefinition",
+            "10cede97ae73a5b30036c83acb289cbbd6c041d8"
+        ],
+        [
+            "Definition closed_wrt_lvars {B} (S: ident -> Prop) (F: environ -> B) : Prop := forall rho ve', (forall i, S i \\/ Map.get (ve_of rho) i = Map.get ve' i) -> F rho = F (mkEnviron (ge_of rho) ve' (te_of rho)).",
+            "VernacDefinition",
+            "2a382a0807ea41da227724d59d71225c176a0996"
+        ],
+        [
+            "Definition not_a_param (params: list (ident * type)) (i : ident) : Prop := ~ In i (map (@fst _ _) params).",
+            "VernacDefinition",
+            "acb99d36a2203838c0beec5993f7958f40b49e92"
+        ],
+        [
+            "Definition is_a_local (vars: list (ident * type)) (i: ident) : Prop := In i (map (@fst _ _) vars) .",
+            "VernacDefinition",
+            "613487d92479e767d4414774098878612965af56"
+        ],
+        [
+            "Fixpoint sepcon_list {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A} {AgeA: Age_alg A} (p: list (pred A)) : pred A := match p with nil => emp | h::t => h * sepcon_list t end.",
+            "VernacFixpoint",
+            "23a337b6da994138373f8bb922e0a5b2d7108721"
+        ],
+        [
+            "Definition typed_true (t: type) (v: val) : Prop := strict_bool_val v t = Some true.",
+            "VernacDefinition",
+            "8b1990a1161950bd6327c54b33ac4ed573ba3f62"
+        ],
+        [
+            "Definition typed_false (t: type)(v: val) : Prop := strict_bool_val v t = Some false.",
+            "VernacDefinition",
+            "8f5ee749bae666c1dd049e77805c2ca4409e18e7"
+        ],
+        [
+            "Definition subst {A} (x: ident) (v: val) (P: environ -> A) : environ -> A := fun s => P (env_set s x v).",
+            "VernacDefinition",
+            "63bc469af91ecebf74b313c861eaed3bb0a26ef3"
+        ],
+        [
+            "Lemma subst_extens: forall a v P Q, (forall rho, P rho |-- Q rho) -> forall rho, subst a v P rho |-- subst a v Q rho.",
+            "VernacStartTheoremProof",
+            "4414a30c433aba660f24ee3abecfee596d4181e7"
+        ],
+        [
+            "unfold subst, derives.",
+            "VernacExtend",
+            "793c8a7890c18c33c443c6dacbcf779f12b2ad37"
+        ],
+        [
+            "simpl; auto.",
+            "VernacExtend",
+            "9b631374b1d3067f703fd99c5dc6e1e5c8405957"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma approx_sepcon: forall (P Q: mpred) n, approx n (P * Q) = approx n P * approx n Q.",
+            "VernacStartTheoremProof",
+            "53146807dd76fd391743738043243933cab665a2"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "change sepcon with predicates_sl.sepcon in *.",
+            "VernacExtend",
+            "33502aa8a2b09f49aae65c48f7959726f5f3e043"
+        ],
+        [
+            "apply predicates_hered.pred_ext.",
+            "VernacExtend",
+            "db0c3686a410166b6cab5f0ff4dc25cf2926aa43"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros w ?.",
+            "VernacExtend",
+            "28315d52d5dd42359452ccb9c1ee1f226270dda5"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "destruct H as [? [y [z [? [? ?]]]]].",
+            "VernacExtend",
+            "8ef838eb728663940741f166d7a1306b34676e12"
+        ],
+        [
+            "exists y, z; split; auto.",
+            "VernacExtend",
+            "796552e04200e429f471da55ad27f0bcc54d97ce"
+        ],
+        [
+            "split; split; auto.",
+            "VernacExtend",
+            "b2e93e94f13c9bd512d688f442e3b664146a316b"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply age_sepalg.join_level in H0.",
+            "VernacExtend",
+            "38801efd00abc87d710a164d15c56553d8fb547c"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply age_sepalg.join_level in H0.",
+            "VernacExtend",
+            "38801efd00abc87d710a164d15c56553d8fb547c"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros w ?.",
+            "VernacExtend",
+            "28315d52d5dd42359452ccb9c1ee1f226270dda5"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "destruct H as [y [z [? [[? ?] [? ?]]]]].",
+            "VernacExtend",
+            "45f487428797d60e1c3fdc3578b9d11a250b4f19"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply age_sepalg.join_level in H.",
+            "VernacExtend",
+            "8b82b953829f7a459f1d739ab615c96e7b56ddbe"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "exists y, z.",
+            "VernacExtend",
+            "398d87f053b0fb1b533b8fe201ef6cc07e9fefc0"
+        ],
+        [
+            "split; [| split]; auto.",
+            "VernacExtend",
+            "67cc0d66fb7cc73eb9e9cd5c6654f12477784046"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma approx_andp: forall (P Q: mpred) n, approx n (P && Q) = approx n P && approx n Q.",
+            "VernacStartTheoremProof",
+            "a3280841104100774cdaa214f74e11288f6f94eb"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "change andp with (@predicates_hered.andp compcert_rmaps.RML.R.rmap _) in *.",
+            "VernacExtend",
+            "14ec10b456173e5faf6c2e7e591810caaf196a6b"
+        ],
+        [
+            "apply predicates_hered.pred_ext.",
+            "VernacExtend",
+            "db0c3686a410166b6cab5f0ff4dc25cf2926aa43"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros w ?.",
+            "VernacExtend",
+            "28315d52d5dd42359452ccb9c1ee1f226270dda5"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "tauto.",
+            "VernacExtend",
+            "9bfafe84fb6724789bdf6cfd21cd721dd63fdabd"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros w ?.",
+            "VernacExtend",
+            "28315d52d5dd42359452ccb9c1ee1f226270dda5"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "tauto.",
+            "VernacExtend",
+            "9bfafe84fb6724789bdf6cfd21cd721dd63fdabd"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma approx_exp: forall A (P: A -> mpred) n, approx n (exp P) = EX a: A, approx n (P a).",
+            "VernacStartTheoremProof",
+            "aae484da017b75d4646576b2c88bd6add6ad911e"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply predicates_hered.pred_ext.",
+            "VernacExtend",
+            "db0c3686a410166b6cab5f0ff4dc25cf2926aa43"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros w ?.",
+            "VernacExtend",
+            "28315d52d5dd42359452ccb9c1ee1f226270dda5"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "firstorder.",
+            "VernacExtend",
+            "ceb9f57e98a5f5a73ee421cf30fd2f4f09432d14"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros w ?.",
+            "VernacExtend",
+            "28315d52d5dd42359452ccb9c1ee1f226270dda5"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "firstorder.",
+            "VernacExtend",
+            "ceb9f57e98a5f5a73ee421cf30fd2f4f09432d14"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma approx_allp: forall A (P: A -> mpred) n, A -> approx n (allp P) = ALL a: A, approx n (P a).",
+            "VernacStartTheoremProof",
+            "8dbfd382d3f41d39e0c2034db1d2e2236acf5026"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply predicates_hered.pred_ext.",
+            "VernacExtend",
+            "db0c3686a410166b6cab5f0ff4dc25cf2926aa43"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros w ?.",
+            "VernacExtend",
+            "28315d52d5dd42359452ccb9c1ee1f226270dda5"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "firstorder.",
+            "VernacExtend",
+            "ceb9f57e98a5f5a73ee421cf30fd2f4f09432d14"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros w ?.",
+            "VernacExtend",
+            "28315d52d5dd42359452ccb9c1ee1f226270dda5"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "firstorder.",
+            "VernacExtend",
+            "ceb9f57e98a5f5a73ee421cf30fd2f4f09432d14"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma approx_jam {B: Type} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> mpred) n (b : B) : approx n (jam S P Q b) = jam S (approx n oo P) (approx n oo Q) b.",
+            "VernacStartTheoremProof",
+            "a36cf9901bd5ddcf735c1b252e73a28c9923a181"
+        ],
+        [
+            "apply predicates_hered.pred_ext.",
+            "VernacExtend",
+            "db0c3686a410166b6cab5f0ff4dc25cf2926aa43"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros w ?.",
+            "VernacExtend",
+            "28315d52d5dd42359452ccb9c1ee1f226270dda5"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "if_tac; firstorder.",
+            "VernacExtend",
+            "22d09b372e7b1cdaaa6f6a38ab40fd1abc9a49f5"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros w ?.",
+            "VernacExtend",
+            "28315d52d5dd42359452ccb9c1ee1f226270dda5"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "if_tac; firstorder.",
+            "VernacExtend",
+            "22d09b372e7b1cdaaa6f6a38ab40fd1abc9a49f5"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma approx_func_ptr: forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v: val) (n: nat), approx n (func_ptr (NDmk_funspec fsig0 cc A P Q) v) = approx n (func_ptr (NDmk_funspec fsig0 cc A (fun a rho => approx n (P a rho)) (fun a rho => approx n (Q a rho))) v).",
+            "VernacStartTheoremProof",
+            "e04d2b6ce062e11476b042612442f1adc4dbd592"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold func_ptr.",
+            "VernacExtend",
+            "309a832a328a5096f01b5f3ab94b4877466d4231"
+        ],
+        [
+            "rewrite !approx_exp; f_equal; extensionality b.",
+            "VernacExtend",
+            "dd1777ed800852bb8e5d69489a6d5b2b6bf3b218"
+        ],
+        [
+            "rewrite !approx_andp; f_equal.",
+            "VernacExtend",
+            "9e3ac09d2cf2258cd359de278d63aff8366f7219"
+        ],
+        [
+            "unfold func_at, NDmk_funspec.",
+            "VernacExtend",
+            "65190c791621cbf1872d0962e1800980a9190039"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "apply pred_ext; intros w; simpl; intros [? ?]; split; auto.",
+            "VernacExtend",
+            "88397709142baf324bcf2980f3ef86a74a2b96fd"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite H0.",
+            "VernacExtend",
+            "1a54b13ac1654793174947eafd5c41a3f024eb49"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "extensionality ts a.",
+            "VernacExtend",
+            "33b428b059c927cc288b207f56b8adaa83f05990"
+        ],
+        [
+            "extensionality prepost rho.",
+            "VernacExtend",
+            "c6defb49847a4d4c0b736e903c119e4c3dcd85c6"
+        ],
+        [
+            "unfold packPQ; destruct prepost; simpl.",
+            "VernacExtend",
+            "12f18a1c40accf8e5a34d6a1291ccaabe61da380"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "change (approx (level w) (approx n (P a rho))) with ((approx (level w) oo (approx n)) (P a rho)).",
+            "VernacExtend",
+            "c15ca4978409fd7de963828281330ca99c3bfa60"
+        ],
+        [
+            "rewrite approx_oo_approx' by omega.",
+            "VernacExtend",
+            "941e3d4e21dba7bfc6a3e8705e22d3ccf4d6a251"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "change (approx (level w) (approx n (Q a rho))) with ((approx (level w) oo (approx n)) (Q a rho)).",
+            "VernacExtend",
+            "9ebd07a24372f5fe51cba584e1689842a25534f6"
+        ],
+        [
+            "rewrite approx_oo_approx' by omega.",
+            "VernacExtend",
+            "941e3d4e21dba7bfc6a3e8705e22d3ccf4d6a251"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite H0.",
+            "VernacExtend",
+            "1a54b13ac1654793174947eafd5c41a3f024eb49"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "extensionality ts a.",
+            "VernacExtend",
+            "33b428b059c927cc288b207f56b8adaa83f05990"
+        ],
+        [
+            "extensionality prepost rho.",
+            "VernacExtend",
+            "c6defb49847a4d4c0b736e903c119e4c3dcd85c6"
+        ],
+        [
+            "unfold packPQ; destruct prepost; simpl.",
+            "VernacExtend",
+            "12f18a1c40accf8e5a34d6a1291ccaabe61da380"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "change (approx (level w) (approx n (P a rho))) with ((approx (level w) oo (approx n)) (P a rho)).",
+            "VernacExtend",
+            "c15ca4978409fd7de963828281330ca99c3bfa60"
+        ],
+        [
+            "rewrite approx_oo_approx' by omega.",
+            "VernacExtend",
+            "941e3d4e21dba7bfc6a3e8705e22d3ccf4d6a251"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "change (approx (level w) (approx n (Q a rho))) with ((approx (level w) oo (approx n)) (Q a rho)).",
+            "VernacExtend",
+            "9ebd07a24372f5fe51cba584e1689842a25534f6"
+        ],
+        [
+            "rewrite approx_oo_approx' by omega.",
+            "VernacExtend",
+            "941e3d4e21dba7bfc6a3e8705e22d3ccf4d6a251"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition funspecs_assert (FunSpecs: PTree.t funspec): assert := fun rho => (ALL id: ident, ALL fs:funspec, !! (FunSpecs!id = Some fs) --> EX b:block, !! (Map.get (ge_of rho) id = Some b) && func_at fs (b,0)) && (ALL b: block, ALL fs:funspec, func_at' fs (b,0) --> EX id:ident, !! (Map.get (ge_of rho) id = Some b) && !! exists fs, FunSpecs!id = Some fs).",
+            "VernacDefinition",
+            "168be6cf98521d39ec0bff922da10fd7063fb785"
+        ],
+        [
+            "Definition globals_only (rho: environ) : environ := (mkEnviron (ge_of rho) (Map.empty _) (Map.empty _)).",
+            "VernacDefinition",
+            "af8cd2c2c12dd5bbf565bd8b025146ae647906bb"
+        ],
+        [
+            "Fixpoint make_args (il: list ident) (vl: list val) (rho: environ) := match il, vl with | nil, nil => globals_only rho | i::il', v::vl' => env_set (make_args il' vl' rho) i v | _ , _ => rho end.",
+            "VernacFixpoint",
+            "b2ee32fb5863643701a364e18638883fcbd5e52a"
+        ],
+        [
+            "Lemma same_FS_funspecs_assert: forall FS1 FS2, (forall id, FS1 ! id = FS2 ! id) -> funspecs_assert FS1 = funspecs_assert FS2.",
+            "VernacStartTheoremProof",
+            "643ddfe83371cb21f97e6bb8c344a8f34ef28749"
+        ],
+        [
+            "assert (forall FS FS' rho, (forall id, FS ! id = FS' ! id) -> funspecs_assert FS rho |-- funspecs_assert FS' rho).",
+            "VernacExtend",
+            "04e9fab7b3bd8cd9adc95b24634e6f5fa0679e9e"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "intros; intros w [? ?]; split.",
+            "VernacExtend",
+            "97a841cbd68f64fe3109a717e2c8aa299ea948ee"
+        ],
+        [
+            "clear H1; intro id.",
+            "VernacExtend",
+            "a8044f5ab342b8a6cef578cbd5247270a6bd95f0"
+        ],
+        [
+            "rewrite <- (H id); auto.",
+            "VernacExtend",
+            "578dedfc7e981866c2fa02eb2bd993fa61218b0b"
+        ],
+        [
+            "intros loc fs w' Hw' H4; destruct (H1 loc fs w' Hw' H4) as [id H3].",
+            "VernacExtend",
+            "0b2f69d69d5278803c9afe4d0e14b491c6859385"
+        ],
+        [
+            "exists id; rewrite <- (H id); auto.",
+            "VernacExtend",
+            "35ddf6628c29b49cd45686fe4f82f286ea48699e"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "extensionality rho.",
+            "VernacExtend",
+            "a6182bb98d71ae2b51b3675429229ccd77d7161f"
+        ],
+        [
+            "apply pred_ext; apply H; intros; auto.",
+            "VernacExtend",
+            "ae10d4fd0b53c9decd18e494f7633bfe5df89e8b"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma funspecs_assert_rho: forall G rho rho', ge_of rho = ge_of rho' -> funspecs_assert G rho |-- funspecs_assert G rho'.",
+            "VernacStartTheoremProof",
+            "1b4cfd16efe57554bcd31fa81bcc193eae87f408"
+        ],
+        [
+            "unfold funspecs_assert; intros.",
+            "VernacExtend",
+            "010ebb398f4e395cb7d523998bd441b99fb7e4d3"
+        ],
+        [
+            "rewrite H; auto.",
+            "VernacExtend",
+            "3e25713af8eaa76cddf9287af10d66733da2ee16"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "subst_extens",
+            "line_nb": 24,
+            "steps": [
+                {
+                    "command": [
+                        "unfold subst, derives.",
+                        "VernacExtend",
+                        "793c8a7890c18c33c443c6dacbcf779f12b2ad37"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl; auto.",
+                        "VernacExtend",
+                        "9b631374b1d3067f703fd99c5dc6e1e5c8405957"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "approx_sepcon",
+            "line_nb": 28,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "change sepcon with predicates_sl.sepcon in *.",
+                        "VernacExtend",
+                        "33502aa8a2b09f49aae65c48f7959726f5f3e043"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply predicates_hered.pred_ext.",
+                        "VernacExtend",
+                        "db0c3686a410166b6cab5f0ff4dc25cf2926aa43"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros w ?.",
+                        "VernacExtend",
+                        "28315d52d5dd42359452ccb9c1ee1f226270dda5"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H as [? [y [z [? [? ?]]]]].",
+                        "VernacExtend",
+                        "8ef838eb728663940741f166d7a1306b34676e12"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists y, z; split; auto.",
+                        "VernacExtend",
+                        "796552e04200e429f471da55ad27f0bcc54d97ce"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; split; auto.",
+                        "VernacExtend",
+                        "b2e93e94f13c9bd512d688f442e3b664146a316b"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply age_sepalg.join_level in H0.",
+                        "VernacExtend",
+                        "38801efd00abc87d710a164d15c56553d8fb547c"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply age_sepalg.join_level in H0.",
+                        "VernacExtend",
+                        "38801efd00abc87d710a164d15c56553d8fb547c"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros w ?.",
+                        "VernacExtend",
+                        "28315d52d5dd42359452ccb9c1ee1f226270dda5"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H as [y [z [? [[? ?] [? ?]]]]].",
+                        "VernacExtend",
+                        "45f487428797d60e1c3fdc3578b9d11a250b4f19"
+                    ]
+                },
+                {
+                    "command": [
+                        "split.",
+                        "VernacExtend",
+                        "55abc140132bd88981001ac656020469a8d503eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply age_sepalg.join_level in H.",
+                        "VernacExtend",
+                        "8b82b953829f7a459f1d739ab615c96e7b56ddbe"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists y, z.",
+                        "VernacExtend",
+                        "398d87f053b0fb1b533b8fe201ef6cc07e9fefc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; [| split]; auto.",
+                        "VernacExtend",
+                        "67cc0d66fb7cc73eb9e9cd5c6654f12477784046"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "approx_andp",
+            "line_nb": 56,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "change andp with (@predicates_hered.andp compcert_rmaps.RML.R.rmap _) in *.",
+                        "VernacExtend",
+                        "14ec10b456173e5faf6c2e7e591810caaf196a6b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply predicates_hered.pred_ext.",
+                        "VernacExtend",
+                        "db0c3686a410166b6cab5f0ff4dc25cf2926aa43"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros w ?.",
+                        "VernacExtend",
+                        "28315d52d5dd42359452ccb9c1ee1f226270dda5"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "tauto.",
+                        "VernacExtend",
+                        "9bfafe84fb6724789bdf6cfd21cd721dd63fdabd"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros w ?.",
+                        "VernacExtend",
+                        "28315d52d5dd42359452ccb9c1ee1f226270dda5"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "tauto.",
+                        "VernacExtend",
+                        "9bfafe84fb6724789bdf6cfd21cd721dd63fdabd"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "approx_exp",
+            "line_nb": 69,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply predicates_hered.pred_ext.",
+                        "VernacExtend",
+                        "db0c3686a410166b6cab5f0ff4dc25cf2926aa43"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros w ?.",
+                        "VernacExtend",
+                        "28315d52d5dd42359452ccb9c1ee1f226270dda5"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "firstorder.",
+                        "VernacExtend",
+                        "ceb9f57e98a5f5a73ee421cf30fd2f4f09432d14"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros w ?.",
+                        "VernacExtend",
+                        "28315d52d5dd42359452ccb9c1ee1f226270dda5"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "firstorder.",
+                        "VernacExtend",
+                        "ceb9f57e98a5f5a73ee421cf30fd2f4f09432d14"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "approx_allp",
+            "line_nb": 81,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply predicates_hered.pred_ext.",
+                        "VernacExtend",
+                        "db0c3686a410166b6cab5f0ff4dc25cf2926aa43"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros w ?.",
+                        "VernacExtend",
+                        "28315d52d5dd42359452ccb9c1ee1f226270dda5"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "firstorder.",
+                        "VernacExtend",
+                        "ceb9f57e98a5f5a73ee421cf30fd2f4f09432d14"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros w ?.",
+                        "VernacExtend",
+                        "28315d52d5dd42359452ccb9c1ee1f226270dda5"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "firstorder.",
+                        "VernacExtend",
+                        "ceb9f57e98a5f5a73ee421cf30fd2f4f09432d14"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "approx_jam",
+            "line_nb": 93,
+            "steps": [
+                {
+                    "command": [
+                        "apply predicates_hered.pred_ext.",
+                        "VernacExtend",
+                        "db0c3686a410166b6cab5f0ff4dc25cf2926aa43"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros w ?.",
+                        "VernacExtend",
+                        "28315d52d5dd42359452ccb9c1ee1f226270dda5"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac; firstorder.",
+                        "VernacExtend",
+                        "22d09b372e7b1cdaaa6f6a38ab40fd1abc9a49f5"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros w ?.",
+                        "VernacExtend",
+                        "28315d52d5dd42359452ccb9c1ee1f226270dda5"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac; firstorder.",
+                        "VernacExtend",
+                        "22d09b372e7b1cdaaa6f6a38ab40fd1abc9a49f5"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "approx_func_ptr",
+            "line_nb": 104,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold func_ptr.",
+                        "VernacExtend",
+                        "309a832a328a5096f01b5f3ab94b4877466d4231"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite !approx_exp; f_equal; extensionality b.",
+                        "VernacExtend",
+                        "dd1777ed800852bb8e5d69489a6d5b2b6bf3b218"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite !approx_andp; f_equal.",
+                        "VernacExtend",
+                        "9e3ac09d2cf2258cd359de278d63aff8366f7219"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold func_at, NDmk_funspec.",
+                        "VernacExtend",
+                        "65190c791621cbf1872d0962e1800980a9190039"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply pred_ext; intros w; simpl; intros [? ?]; split; auto.",
+                        "VernacExtend",
+                        "88397709142baf324bcf2980f3ef86a74a2b96fd"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H0.",
+                        "VernacExtend",
+                        "1a54b13ac1654793174947eafd5c41a3f024eb49"
+                    ]
+                },
+                {
+                    "command": [
+                        "f_equal.",
+                        "VernacExtend",
+                        "dfce814d1efcef60f8330516ad88155a3a5ec317"
+                    ]
+                },
+                {
+                    "command": [
+                        "f_equal.",
+                        "VernacExtend",
+                        "dfce814d1efcef60f8330516ad88155a3a5ec317"
+                    ]
+                },
+                {
+                    "command": [
+                        "extensionality ts a.",
+                        "VernacExtend",
+                        "33b428b059c927cc288b207f56b8adaa83f05990"
+                    ]
+                },
+                {
+                    "command": [
+                        "extensionality prepost rho.",
+                        "VernacExtend",
+                        "c6defb49847a4d4c0b736e903c119e4c3dcd85c6"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold packPQ; destruct prepost; simpl.",
+                        "VernacExtend",
+                        "12f18a1c40accf8e5a34d6a1291ccaabe61da380"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "change (approx (level w) (approx n (P a rho))) with ((approx (level w) oo (approx n)) (P a rho)).",
+                        "VernacExtend",
+                        "c15ca4978409fd7de963828281330ca99c3bfa60"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite approx_oo_approx' by omega.",
+                        "VernacExtend",
+                        "941e3d4e21dba7bfc6a3e8705e22d3ccf4d6a251"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "change (approx (level w) (approx n (Q a rho))) with ((approx (level w) oo (approx n)) (Q a rho)).",
+                        "VernacExtend",
+                        "9ebd07a24372f5fe51cba584e1689842a25534f6"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite approx_oo_approx' by omega.",
+                        "VernacExtend",
+                        "941e3d4e21dba7bfc6a3e8705e22d3ccf4d6a251"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H0.",
+                        "VernacExtend",
+                        "1a54b13ac1654793174947eafd5c41a3f024eb49"
+                    ]
+                },
+                {
+                    "command": [
+                        "f_equal.",
+                        "VernacExtend",
+                        "dfce814d1efcef60f8330516ad88155a3a5ec317"
+                    ]
+                },
+                {
+                    "command": [
+                        "f_equal.",
+                        "VernacExtend",
+                        "dfce814d1efcef60f8330516ad88155a3a5ec317"
+                    ]
+                },
+                {
+                    "command": [
+                        "extensionality ts a.",
+                        "VernacExtend",
+                        "33b428b059c927cc288b207f56b8adaa83f05990"
+                    ]
+                },
+                {
+                    "command": [
+                        "extensionality prepost rho.",
+                        "VernacExtend",
+                        "c6defb49847a4d4c0b736e903c119e4c3dcd85c6"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold packPQ; destruct prepost; simpl.",
+                        "VernacExtend",
+                        "12f18a1c40accf8e5a34d6a1291ccaabe61da380"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "change (approx (level w) (approx n (P a rho))) with ((approx (level w) oo (approx n)) (P a rho)).",
+                        "VernacExtend",
+                        "c15ca4978409fd7de963828281330ca99c3bfa60"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite approx_oo_approx' by omega.",
+                        "VernacExtend",
+                        "941e3d4e21dba7bfc6a3e8705e22d3ccf4d6a251"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "change (approx (level w) (approx n (Q a rho))) with ((approx (level w) oo (approx n)) (Q a rho)).",
+                        "VernacExtend",
+                        "9ebd07a24372f5fe51cba584e1689842a25534f6"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite approx_oo_approx' by omega.",
+                        "VernacExtend",
+                        "941e3d4e21dba7bfc6a3e8705e22d3ccf4d6a251"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "same_FS_funspecs_assert",
+            "line_nb": 146,
+            "steps": [
+                {
+                    "command": [
+                        "assert (forall FS FS' rho, (forall id, FS ! id = FS' ! id) -> funspecs_assert FS rho |-- funspecs_assert FS' rho).",
+                        "VernacExtend",
+                        "04e9fab7b3bd8cd9adc95b24634e6f5fa0679e9e"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros; intros w [? ?]; split.",
+                        "VernacExtend",
+                        "97a841cbd68f64fe3109a717e2c8aa299ea948ee"
+                    ]
+                },
+                {
+                    "command": [
+                        "clear H1; intro id.",
+                        "VernacExtend",
+                        "a8044f5ab342b8a6cef578cbd5247270a6bd95f0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- (H id); auto.",
+                        "VernacExtend",
+                        "578dedfc7e981866c2fa02eb2bd993fa61218b0b"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros loc fs w' Hw' H4; destruct (H1 loc fs w' Hw' H4) as [id H3].",
+                        "VernacExtend",
+                        "0b2f69d69d5278803c9afe4d0e14b491c6859385"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists id; rewrite <- (H id); auto.",
+                        "VernacExtend",
+                        "35ddf6628c29b49cd45686fe4f82f286ea48699e"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "extensionality rho.",
+                        "VernacExtend",
+                        "a6182bb98d71ae2b51b3675429229ccd77d7161f"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply pred_ext; apply H; intros; auto.",
+                        "VernacExtend",
+                        "ae10d4fd0b53c9decd18e494f7633bfe5df89e8b"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "funspecs_assert_rho",
+            "line_nb": 159,
+            "steps": [
+                {
+                    "command": [
+                        "unfold funspecs_assert; intros.",
+                        "VernacExtend",
+                        "010ebb398f4e395cb7d523998bd441b99fb7e4d3"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H; auto.",
+                        "VernacExtend",
+                        "3e25713af8eaa76cddf9287af10d66733da2ee16"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

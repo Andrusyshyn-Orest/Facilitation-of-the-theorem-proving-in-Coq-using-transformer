@@ -1,0 +1,1409 @@
+{
+    "filename": "veric/expr.v",
+    "coq_project": "VST",
+    "vernac_cmds": [
+        [
+            "Require Import VST.msl.msl_standard.",
+            "VernacRequire",
+            "bbb3b33b9509ab47eb7418bd6127eafa914382b1"
+        ],
+        [
+            "Require Import VST.veric.Clight_base.",
+            "VernacRequire",
+            "03391ebcbe352738cbe4d19626ab439bfac7c2e7"
+        ],
+        [
+            "Require Import VST.veric.compcert_rmaps.",
+            "VernacRequire",
+            "c684a380737921a2e41654d70bb2fe8e448426cf"
+        ],
+        [
+            "Require Import VST.veric.mpred.",
+            "VernacRequire",
+            "11652084584e46804583cf99fdbf0fa76aa9fd7a"
+        ],
+        [
+            "Require Import VST.veric.tycontext.",
+            "VernacRequire",
+            "f8951535af03e9380f7d0a99afae06d1059d4422"
+        ],
+        [
+            "Require Import VST.veric.Clight_lemmas.",
+            "VernacRequire",
+            "02532b9c71acd440dec2f77aca2af2a0760847e8"
+        ],
+        [
+            "Require Export VST.veric.lift.",
+            "VernacRequire",
+            "a2b13af547730877202833ed1aa4372c4010d65b"
+        ],
+        [
+            "Require Export VST.veric.Clight_Cop2.",
+            "VernacRequire",
+            "f26799d3f059d36bf082c985a0aceb7571097bd4"
+        ],
+        [
+            "Require Export VST.veric.val_lemmas.",
+            "VernacRequire",
+            "c62a044d2d4e1d8979636699ff444a9d12833491"
+        ],
+        [
+            "Definition eval_unop (op: Cop.unary_operation) (t1 : type) := force_val1 (Clight_Cop2.sem_unary_operation op t1).",
+            "VernacDefinition",
+            "fa02e29c52564ef1512130c2acedf52dc534e841"
+        ],
+        [
+            "Definition op_to_cmp cop := match cop with | Cop.Oeq => Ceq | Cop.One => Cne | Cop.Olt => Clt | Cop.Ogt => Cgt | Cop.Ole => Cle | Cop.Oge => Cge | _ => Ceq end.",
+            "VernacDefinition",
+            "aee3f94c55716419c23fa005d3fd848266d0bbea"
+        ],
+        [
+            "Definition is_comparison op := match op with | Cop.Oeq | Cop.One | Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge => true | _ => false end.",
+            "VernacDefinition",
+            "7538c416484e3e2e4a20c05234f7c4f07b4ef255"
+        ],
+        [
+            "Definition eval_binop {CS:compspecs} (op: Cop.binary_operation) (t1 t2 : type) := force_val2 (Clight_Cop2.sem_binary_operation' op t1 t2).",
+            "VernacDefinition",
+            "68fbd394002a610bd8c0bf7ab8fdae4ef22f2e5b"
+        ],
+        [
+            "Arguments eval_binop CS op t1 t2 / v1 v2.",
+            "VernacArguments",
+            "82956d8c89834b7eb80b6f71473902010d4e9cb3"
+        ],
+        [
+            "Definition eval_cast (t1 t2 : type) := force_val1 (sem_cast t1 t2).",
+            "VernacDefinition",
+            "831063f3187391eea136564d20d65b6b4261096b"
+        ],
+        [
+            "Arguments eval_cast t1 t2 / v.",
+            "VernacArguments",
+            "fcc0659791ebed9d9594ed48312e6f65619aee04"
+        ],
+        [
+            "Definition eval_field {CS: compspecs} (ty: type) (fld: ident) : val -> val := match ty with | Tstruct id att => match cenv_cs ! id with | Some co => match field_offset cenv_cs fld (co_members co) with | Errors.OK delta => offset_val delta | _ => always Vundef end | _ => always Vundef end | Tunion id att => match cenv_cs ! id with | Some co => force_ptr | _ => always Vundef end | _ => always Vundef end.",
+            "VernacDefinition",
+            "1fae8b7dc0a118b4fc68306d02c45db53bcc61ff"
+        ],
+        [
+            "Definition eval_var (id:ident) (ty: type) (rho: environ) : val := match Map.get (ve_of rho) id with | Some (b,ty') => if eqb_type ty ty' then Vptr b Ptrofs.zero else Vundef | None => match Map.get (ge_of rho) id with | Some b => Vptr b Ptrofs.zero | None => Vundef end end.",
+            "VernacDefinition",
+            "9440035e7b17e8df48507330e30330729ec03a6c"
+        ],
+        [
+            "Definition deref_noload (ty: type) : val -> val := match access_mode ty with | By_reference => Datatypes.id | _ => always Vundef end.",
+            "VernacDefinition",
+            "a8f7c904137b3a468639de36dafbe76ca58c77c8"
+        ],
+        [
+            "Fixpoint eval_expr {CS: compspecs} (e: expr) : environ -> val := match e with | Econst_int i ty => `(Vint i) | Econst_long i ty => `(Vlong i) | Econst_float f ty => `(Vfloat f) | Econst_single f ty => `(Vsingle f) | Etempvar id ty => eval_id id | Eaddrof a ty => eval_lvalue a | Eunop op a ty => `(eval_unop op (typeof a)) (eval_expr a) | Ebinop op a1 a2 ty => `(eval_binop op (typeof a1) (typeof a2)) (eval_expr a1) (eval_expr a2) | Ecast a ty => `(eval_cast (typeof a) ty) (eval_expr a) | Evar id ty => eval_var id ty | Ederef a ty => eval_expr a | Efield a i ty => `(eval_field (typeof a) i) (eval_lvalue a) | Esizeof t ty => `(Vptrofs (Ptrofs.repr (sizeof t))) | Ealignof t ty => `(Vptrofs (Ptrofs.repr (alignof t))) end with eval_lvalue {CS: compspecs} (e: expr) : environ -> val := match e with | Evar id ty => eval_var id ty | Ederef a ty => eval_expr a | Efield a i ty => `(eval_field (typeof a) i) (eval_lvalue a) | _ => `Vundef end.",
+            "VernacFixpoint",
+            "fdc4be904da676cef82b06de2a343cd452019030"
+        ],
+        [
+            "Fixpoint eval_exprlist {CS: compspecs} (et: list type) (el:list expr) : environ -> list val := match et, el with | t::et', e::el' => `(@cons val) (`force_val (`(sem_cast (typeof e) t) (eval_expr e))) (eval_exprlist et' el') | _, _ => `nil end.",
+            "VernacFixpoint",
+            "b6f778f505555742e330f4f6a045d3f9514b6e99"
+        ],
+        [
+            "Definition eval_expropt {CS: compspecs} (e: option expr) : environ -> option val := match e with Some e' => `(@Some val) (eval_expr e') | None => `None end.",
+            "VernacDefinition",
+            "fc17f7434f16a130d9752b951d8d2f5d0757836a"
+        ],
+        [
+            "Definition bool_type (t: type) : bool := match t with | Tpointer _ _ => negb (eqb_type t int_or_ptr_type) | Tint _ _ _ | Tlong _ _ | Tarray _ _ _ | Tfunction _ _ _ | Tfloat _ _ => true | _ => false end.",
+            "VernacDefinition",
+            "97ebfa31bcc0157859488644ce63d87d8f9f9661"
+        ],
+        [
+            "Definition is_scalar_type (ty:type) : bool := match ty with | Tint _ _ _ => true | Tfloat _ _ => true | _ => false end.",
+            "VernacDefinition",
+            "dd9e04355f9fefd26430129a01d670e67c8c5d8d"
+        ],
+        [
+            "Definition is_int_type ty := match ty with | Tint _ _ _ => true | _ => false end.",
+            "VernacDefinition",
+            "f34ec8c124e36b5874d5d43dddb9ae77ae2ab910"
+        ],
+        [
+            "Definition is_int32_type ty := match ty with | Tint I32 _ _ => true | _ => false end.",
+            "VernacDefinition",
+            "13d1536ec53acc1a35f33ba0d7076d89d210f10f"
+        ],
+        [
+            "Definition is_long_type ty := match ty with | Tlong _ _ => true | _ => false end.",
+            "VernacDefinition",
+            "219bf711b42c90ad03b05c257c2e652610f33bbb"
+        ],
+        [
+            "Definition is_ptrofs_type := if Archi.ptr64 then is_long_type else is_int32_type.",
+            "VernacDefinition",
+            "8b272e38e80bf982c8a1be9791027f691dcbc9fa"
+        ],
+        [
+            "Definition is_float_type ty := match ty with | Tfloat F64 _ => true | _ => false end.",
+            "VernacDefinition",
+            "3c553de2a598d57b076923d17bc7ca8887ef37c1"
+        ],
+        [
+            "Definition is_single_type ty := match ty with | Tfloat F32 _ => true | _ => false end.",
+            "VernacDefinition",
+            "7648bfa92d9392bf4919aeffd88939407a322aa7"
+        ],
+        [
+            "Definition is_anyfloat_type ty := match ty with | Tfloat F64 _ => true | Tfloat F32 _ => true | _ => false end.",
+            "VernacDefinition",
+            "4d710b940b08c170cb1637061051daa217f622fc"
+        ],
+        [
+            "Definition is_pointer_type ty := match ty with | (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ | Tstruct _ _ | Tunion _ _) => negb (eqb_type ty int_or_ptr_type) | _ => false end.",
+            "VernacDefinition",
+            "59e32dc300bb754f0e68e1c1dbad40453515bd6d"
+        ],
+        [
+            "Inductive tc_error := | op_result_type : expr -> tc_error | arg_type : expr -> tc_error | pp_compare_size_0 : type -> tc_error | pp_compare_size_exceed : type -> tc_error | invalid_cast : type -> type -> tc_error | invalid_cast_result : type -> type -> tc_error | invalid_expression : expr -> tc_error | var_not_in_tycontext : tycontext -> positive -> tc_error | mismatch_context_type : type -> type -> tc_error | deref_byvalue : type -> tc_error | volatile_load : type -> tc_error | invalid_field_access : expr -> tc_error | invalid_composite_name: ident -> tc_error | invalid_struct_field : ident -> ident -> tc_error | invalid_lvalue : expr -> tc_error | wrong_signature : tc_error | int_or_ptr_type_error : tc_error | miscellaneous_typecheck_error : tc_error.",
+            "VernacInductive",
+            "916584e5275b12fbd6b191936a48da64b2a60e93"
+        ],
+        [
+            "Inductive tc_assert := | tc_FF: tc_error -> tc_assert | tc_TT : tc_assert | tc_andp': tc_assert -> tc_assert -> tc_assert | tc_orp' : tc_assert -> tc_assert -> tc_assert | tc_nonzero': expr -> tc_assert | tc_iszero': expr -> tc_assert | tc_isptr: expr -> tc_assert | tc_isint: expr -> tc_assert | tc_islong: expr -> tc_assert | tc_test_eq': expr -> expr -> tc_assert | tc_test_order': expr -> expr -> tc_assert | tc_ilt': expr -> int -> tc_assert | tc_llt': expr -> int64 -> tc_assert | tc_Zle: expr -> Z -> tc_assert | tc_Zge: expr -> Z -> tc_assert | tc_samebase: expr -> expr -> tc_assert | tc_nodivover': expr -> expr -> tc_assert | tc_initialized: PTree.elt -> type -> tc_assert | tc_nosignedover: (Z->Z->Z) -> expr -> expr -> tc_assert.",
+            "VernacInductive",
+            "6e427e9949b11d55a5f5d5c315573a0e051859c7"
+        ],
+        [
+            "Definition tc_noproof := tc_FF miscellaneous_typecheck_error.",
+            "VernacDefinition",
+            "bdc6ef659ec489c81e412f5906af8a8ac28589fb"
+        ],
+        [
+            "Definition tc_iszero {CS: compspecs} (e: expr) : tc_assert := match eval_expr e any_environ with | Vint i => if Int.eq i Int.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid) | Vlong i => if Int64.eq i Int64.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid) | _ => tc_iszero' e end.",
+            "VernacDefinition",
+            "f2fe4dc8f95dd3ec487e2f31e5e7ba889fe7b86f"
+        ],
+        [
+            "Definition tc_nonzero {CS: compspecs} (e: expr) : tc_assert := match eval_expr e any_environ with | Vint i => if negb (Int.eq i Int.zero) then tc_TT else tc_nonzero' e | Vlong i => if negb (Int64.eq i Int64.zero) then tc_TT else tc_nonzero' e | _ => tc_nonzero' e end.",
+            "VernacDefinition",
+            "3afb651e70a1c2a178251f8ec0f18e2df6524072"
+        ],
+        [
+            "Definition tc_test_eq {CS: compspecs} (e1 e2: expr) : tc_assert := match eval_expr e1 any_environ, eval_expr e2 any_environ with | Vint i, Vint j => if andb (negb Archi.ptr64) (andb (Int.eq i Int.zero) (Int.eq j Int.zero)) then tc_TT else tc_test_eq' e1 e2 | Vlong i, Vlong j => if andb Archi.ptr64 (andb (Int64.eq i Int64.zero) (Int64.eq j Int64.zero)) then tc_TT else tc_test_eq' e1 e2 | _, _ => tc_test_eq' e1 e2 end.",
+            "VernacDefinition",
+            "c571beaae3303fcbc9405d18f6fd7b57f6ac8b16"
+        ],
+        [
+            "Definition tc_test_order {CS: compspecs} (e1 e2: expr) : tc_assert := match eval_expr e1 any_environ, eval_expr e2 any_environ with | Vint i, Vint j => if andb (negb Archi.ptr64) (andb (Int.eq i Int.zero) (Int.eq j Int.zero)) then tc_TT else tc_test_order' e1 e2 | Vlong i, Vlong j => if andb Archi.ptr64 (andb (Int64.eq i Int64.zero) (Int64.eq j Int64.zero)) then tc_TT else tc_test_order' e1 e2 | _, _ => tc_test_order' e1 e2 end.",
+            "VernacDefinition",
+            "896ef5053065083ab4eb224d89b07a645892d241"
+        ],
+        [
+            "Definition tc_nodivover {CS: compspecs} (e1 e2: expr) : tc_assert := match eval_expr e1 any_environ, eval_expr e2 any_environ with | Vint n1, Vint n2 => if (negb (Int.eq n1 (Int.repr Int.min_signed) && Int.eq n2 Int.mone)) then tc_TT else tc_nodivover' e1 e2 | Vlong n1, Vlong n2 => if (negb (Int64.eq n1 (Int64.repr Int64.min_signed) && Int64.eq n2 Int64.mone)) then tc_TT else tc_nodivover' e1 e2 | Vint n1, Vlong n2 => tc_TT | Vlong n1, Vint n2 => if (negb (Int64.eq n1 (Int64.repr Int64.min_signed) && Int.eq n2 Int.mone)) then tc_TT else tc_nodivover' e1 e2 | _ , _ => tc_nodivover' e1 e2 end.",
+            "VernacDefinition",
+            "b006b3c3ad8defc8e8cc717a4a7ca46221bb540d"
+        ],
+        [
+            "Definition if_expr_signed (e: expr) (tc: tc_assert) : tc_assert := match typeof e with | Tint _ Signed _ => tc | Tlong Signed _ => tc | _ => tc_TT end.",
+            "VernacDefinition",
+            "72f6b3f57891ec391bc8661300a3481a32e1b4bc"
+        ],
+        [
+            "Definition tc_nobinover (op: Z->Z->Z) {CS: compspecs} (e1 e2: expr) : tc_assert := if_expr_signed e1 match eval_expr e1 any_environ, eval_expr e2 any_environ with | Vint n1, Vint n2 => if range_s32 (op (Int.signed n1) (Int.signed n2)) then tc_TT else tc_nosignedover op e1 e2 | Vlong n1, Vlong n2 => if range_s64 (op (Int64.signed n1) (Int64.signed n2)) then tc_TT else tc_nosignedover op e1 e2 | Vint n1, Vlong n2 => if range_s64 (op (Int.signed n1) (Int64.signed n2)) then tc_TT else tc_nosignedover op e1 e2 | Vlong n1, Vint n2 => if range_s64 (op (Int64.signed n1) (Int.signed n2)) then tc_TT else tc_nosignedover op e1 e2 | _ , _ => tc_nosignedover op e1 e2 end.",
+            "VernacDefinition",
+            "a13ff4322439ead94037df3f59dbcd825a68b778"
+        ],
+        [
+            "Definition tc_andp (a1: tc_assert) (a2 : tc_assert) : tc_assert := match a1 with | tc_TT => a2 | tc_FF e => tc_FF e | _ => match a2 with | tc_TT => a1 | tc_FF e => tc_FF e | _ => tc_andp' a1 a2 end end.",
+            "VernacDefinition",
+            "ad1354ed4fd129eb989e4ed8ceaf972bdbb41b3d"
+        ],
+        [
+            "Definition tc_orp (a1: tc_assert) (a2 : tc_assert) : tc_assert := match a1 with | tc_TT => tc_TT | tc_FF _ => a2 | _ => match a2 with | tc_TT => tc_TT | tc_FF _ => a1 | _ => tc_orp' a1 a2 end end.",
+            "VernacDefinition",
+            "b45a95fc88c33f872115ce16f8993c4fb3250624"
+        ],
+        [
+            "Definition tc_bool (b : bool) (e: tc_error) := if b then tc_TT else tc_FF e.",
+            "VernacDefinition",
+            "67d91a6c671fa4eea37839cc3daa0dde5ef3bbe5"
+        ],
+        [
+            "Definition check_pp_int {CS: compspecs} e1 e2 op t e := match op with | Cop.Oeq | Cop.One => tc_andp (tc_test_eq e1 e2) (tc_bool (is_int_type t) (op_result_type e)) | Cop.Ole | Cop.Olt | Cop.Oge | Cop.Ogt => tc_andp (tc_test_order e1 e2) (tc_bool (is_int_type t) (op_result_type e)) | _ => tc_noproof end.",
+            "VernacDefinition",
+            "d30c74fc09f033cc9c37314533d474ec737ad84c"
+        ],
+        [
+            "Definition binarithType t1 t2 ty deferr reterr : tc_assert := match Cop.classify_binarith t1 t2 with | Cop.bin_case_i sg => tc_bool (is_int32_type ty) reterr | Cop.bin_case_l sg => tc_bool (is_long_type ty) reterr | Cop.bin_case_f => tc_bool (is_float_type ty) reterr | Cop.bin_case_s => tc_bool (is_single_type ty) reterr | Cop.bin_default => tc_FF deferr end.",
+            "VernacDefinition",
+            "e18f6751ea151947ff552cc8d90fe42a96b2c2c0"
+        ],
+        [
+            "Definition is_numeric_type t := match t with Tint _ _ _ | Tlong _ _ | Tfloat _ _ => true | _ => false end.",
+            "VernacDefinition",
+            "05fa32394bc14bead51ab9c4c55a92aaa5b89a51"
+        ],
+        [
+            "Definition tc_ilt {CS: compspecs} (e: expr) (j: int) := match eval_expr e any_environ with | Vint i => if Int.ltu i j then tc_TT else tc_ilt' e j | _ => tc_ilt' e j end.",
+            "VernacDefinition",
+            "eef4d20d66f3a24c0d077ba5700d7e880f79ae99"
+        ],
+        [
+            "Definition tc_llt {CS: compspecs} (e: expr) (j: int64) := match eval_expr e any_environ with | Vlong i => if Int64.ltu i j then tc_TT else tc_llt' e j | _ => tc_llt' e j end.",
+            "VernacDefinition",
+            "20a1def36db7cc99e56e0f9b6f019e1953db7f85"
+        ],
+        [
+            "Definition tc_int_or_ptr_type (t: type) : tc_assert := tc_bool (negb (eqb_type t int_or_ptr_type)) int_or_ptr_type_error.",
+            "VernacDefinition",
+            "65170d8e9a527ecd3cf9c484a0839eef4d5e4ce4"
+        ],
+        [
+            "Definition isUnOpResultType {CS: compspecs} op a ty : tc_assert := match op with | Cop.Onotbool => match typeof a with | Tint _ _ _ | Tlong _ _ | Tfloat _ _ => tc_bool (is_int_type ty) (op_result_type a) | Tpointer _ _ => tc_andp (tc_int_or_ptr_type (typeof a)) (tc_andp (tc_bool (is_int_type ty) (op_result_type a)) (tc_test_eq a (if Archi.ptr64 then Econst_long Int64.zero (Tlong Signed noattr) else Econst_int Int.zero (Tint I32 Signed noattr)))) | _ => tc_FF (op_result_type a) end | Cop.Onotint => match Cop.classify_notint (typeof a) with | Cop.notint_default => tc_FF (op_result_type a) | Cop.notint_case_i _ => tc_bool (is_int32_type ty) (op_result_type a) | Cop.notint_case_l _ => tc_bool (is_long_type ty) (op_result_type a) end | Cop.Oneg => match Cop.classify_neg (typeof a) with | Cop.neg_case_i sg => tc_andp (tc_bool (is_int32_type ty) (op_result_type a)) match (typeof a) with | Tint _ Signed _ => tc_nosignedover Z.sub (Econst_int Int.zero (typeof a)) a | Tlong Signed _ => tc_nosignedover Z.sub (Econst_long Int64.zero (typeof a)) a | _ => tc_TT end | Cop.neg_case_f => tc_bool (is_float_type ty) (op_result_type a) | Cop.neg_case_s => tc_bool (is_single_type ty) (op_result_type a) | _ => tc_FF (op_result_type a) end | Cop.Oabsfloat =>match Cop.classify_neg (typeof a) with | Cop.neg_case_i sg => tc_bool (is_float_type ty) (op_result_type a) | Cop.neg_case_l _ => tc_bool (is_float_type ty) (op_result_type a) | Cop.neg_case_f => tc_bool (is_float_type ty) (op_result_type a) | Cop.neg_case_s => tc_bool (is_float_type ty) (op_result_type a) | _ => tc_FF (op_result_type a) end end.",
+            "VernacDefinition",
+            "b249fcf28a272b82e76ff25dca5bd8a3c65c48e8"
+        ],
+        [
+            "Definition isBinOpResultType {CS: compspecs} op a1 a2 ty : tc_assert := let e := (Ebinop op a1 a2 ty) in let reterr := op_result_type e in let deferr := arg_type e in match op with | Cop.Oadd => match Cop.classify_add (typeof a1) (typeof a2) with | Cop.add_case_pi t si => tc_andp (tc_andp (tc_andp (tc_isptr a1) (tc_bool (complete_type cenv_cs t) reterr)) (tc_int_or_ptr_type (typeof a1))) (tc_bool (is_pointer_type ty) reterr) | Cop.add_case_ip si t => tc_andp (tc_andp (tc_andp (tc_isptr a2) (tc_bool (complete_type cenv_cs t) reterr)) (tc_int_or_ptr_type (typeof a2))) (tc_bool (is_pointer_type ty) reterr) | Cop.add_case_pl t => tc_andp (tc_andp (tc_andp (tc_isptr a1) (tc_bool (complete_type cenv_cs t) reterr)) (tc_int_or_ptr_type (typeof a1))) (tc_bool (is_pointer_type ty) reterr) | Cop.add_case_lp t => tc_andp (tc_andp (tc_andp (tc_isptr a2) (tc_bool (complete_type cenv_cs t) reterr)) (tc_int_or_ptr_type (typeof a2))) (tc_bool (is_pointer_type ty) reterr) | Cop.add_default => tc_andp (binarithType (typeof a1) (typeof a2) ty deferr reterr) (tc_nobinover Z.add a1 a2) end | Cop.Osub => match Cop.classify_sub (typeof a1) (typeof a2) with | Cop.sub_case_pi t si => tc_andp (tc_andp (tc_andp (tc_isptr a1) (tc_bool (complete_type cenv_cs t) reterr)) (tc_int_or_ptr_type (typeof a1))) (tc_bool (is_pointer_type ty) reterr) | Cop.sub_case_pl t => tc_andp (tc_andp (tc_andp (tc_isptr a1) (tc_bool (complete_type cenv_cs t) reterr)) (tc_int_or_ptr_type (typeof a1))) (tc_bool (is_pointer_type ty) reterr) | Cop.sub_case_pp t => tc_andp (tc_andp (tc_andp (tc_andp (tc_andp (tc_andp (tc_andp (tc_andp (tc_samebase a1 a2) (tc_isptr a1)) (tc_isptr a2)) (tc_int_or_ptr_type (typeof a1))) (tc_int_or_ptr_type (typeof a2))) (tc_bool (is_ptrofs_type ty) reterr)) (tc_bool (negb (Z.eqb (sizeof t) 0)) (pp_compare_size_0 t))) (tc_bool (complete_type cenv_cs t) reterr)) (tc_bool (Z.leb (sizeof t) Ptrofs.max_signed) (pp_compare_size_exceed t)) | Cop.sub_default => tc_andp (binarithType (typeof a1) (typeof a2) ty deferr reterr) (tc_nobinover Z.sub a1 a2) end | Cop.Omul => tc_andp (binarithType (typeof a1) (typeof a2) ty deferr reterr) (tc_nobinover Z.mul a1 a2) | Cop.Omod => match Cop.classify_binarith (typeof a1) (typeof a2) with | Cop.bin_case_i Unsigned => tc_andp (tc_nonzero a2) (tc_bool (is_int32_type ty) reterr) | Cop.bin_case_l Unsigned => tc_andp (tc_nonzero a2) (tc_bool (is_long_type ty) reterr) | Cop.bin_case_i Signed => tc_andp (tc_andp (tc_nonzero a2) (tc_nodivover a1 a2)) (tc_bool (is_int32_type ty) reterr) | Cop.bin_case_l Signed => tc_andp (tc_andp (tc_nonzero a2) (tc_nodivover a1 a2)) (tc_bool (is_long_type ty) reterr) | _ => tc_FF deferr end | Cop.Odiv => match Cop.classify_binarith (typeof a1) (typeof a2) with | Cop.bin_case_i Unsigned => tc_andp (tc_nonzero a2) (tc_bool (is_int32_type ty) reterr) | Cop.bin_case_l Unsigned => tc_andp (tc_nonzero a2) (tc_bool (is_long_type ty) reterr) | Cop.bin_case_i Signed => tc_andp (tc_andp (tc_nonzero a2) (tc_nodivover a1 a2)) (tc_bool (is_int32_type ty) reterr) | Cop.bin_case_l Signed => tc_andp (tc_andp (tc_nonzero a2) (tc_nodivover a1 a2)) (tc_bool (is_long_type ty) reterr) | Cop.bin_case_f => tc_bool (is_float_type ty) reterr | Cop.bin_case_s => tc_bool (is_single_type ty) reterr | Cop.bin_default => tc_FF deferr end | Cop.Oshl | Cop.Oshr => match Cop.classify_shift (typeof a1) (typeof a2) with | Cop.shift_case_ii _ => tc_andp (tc_ilt a2 Int.iwordsize) (tc_bool (is_int32_type ty) reterr) | Cop.shift_case_il _ => tc_andp (tc_llt a2 (Int64.repr 32)) (tc_bool (is_int32_type ty) reterr) | Cop.shift_case_li _ => tc_andp (tc_ilt a2 Int64.iwordsize') (tc_bool (is_long_type ty) reterr) | Cop.shift_case_ll _ => tc_andp (tc_llt a2 Int64.iwordsize) (tc_bool (is_long_type ty) reterr) | Cop.shift_default => tc_FF deferr end | Cop.Oand | Cop.Oor | Cop.Oxor => match Cop.classify_binarith (typeof a1) (typeof a2) with | Cop.bin_case_i _ =>tc_bool (is_int32_type ty) reterr | Cop.bin_case_l _ =>tc_bool (is_long_type ty) reterr | Cop.bin_case_f => tc_FF deferr | Cop.bin_case_s => tc_FF deferr | Cop.bin_default => tc_FF deferr end | Cop.Oeq | Cop.One | Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge => match Cop.classify_cmp (typeof a1) (typeof a2) with | Cop.cmp_default => tc_bool (is_numeric_type (typeof a1) && is_numeric_type (typeof a2) && is_int_type ty) deferr | Cop.cmp_case_pp => tc_andp (tc_andp (tc_int_or_ptr_type (typeof a1)) (tc_int_or_ptr_type (typeof a2))) (check_pp_int a1 a2 op ty e) | Cop.cmp_case_pi si => tc_andp (tc_int_or_ptr_type (typeof a1)) (check_pp_int a1 (Ecast a2 size_t) op ty e) | Cop.cmp_case_ip si => tc_andp (tc_int_or_ptr_type (typeof a2)) (check_pp_int (Ecast a1 size_t) a2 op ty e) | Cop.cmp_case_pl => tc_andp (tc_int_or_ptr_type (typeof a1)) (check_pp_int a1 (Ecast a2 size_t) op ty e) | Cop.cmp_case_lp => tc_andp (tc_int_or_ptr_type (typeof a2)) (check_pp_int (Ecast a1 size_t) a2 op ty e) end end.",
+            "VernacDefinition",
+            "fbf7e2b8332e1c2dbeebcadb4c055ca9e40b2c07"
+        ],
+        [
+            "Definition isCastResultType {CS: compspecs} tfrom tto a : tc_assert := match classify_cast tfrom tto with | Cop.cast_case_default => tc_FF (invalid_cast tfrom tto) | Cop.cast_case_f2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed) | Cop.cast_case_s2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed) | Cop.cast_case_f2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned) | Cop.cast_case_s2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned) | Cop.cast_case_i2l _ => tc_andp (tc_bool (is_int_type tfrom) (invalid_cast_result tfrom tto)) (if is_pointer_type tto then tc_iszero a else tc_TT) | Cop.cast_case_l2i _ _ => tc_andp (tc_bool (is_long_type tfrom) (invalid_cast_result tfrom tto)) (if is_pointer_type tto then tc_iszero a else tc_TT) | Cop.cast_case_pointer => if eqb_type tfrom tto then tc_TT else if orb (andb (is_pointer_type tto) (is_pointer_type tfrom)) (if Archi.ptr64 then (andb (is_long_type tto) (is_long_type tfrom)) else (andb (is_int_type tto) (is_int_type tfrom))) then tc_TT else if (andb (eqb_type tto int_or_ptr_type) ((if Archi.ptr64 then is_long_type else is_int_type) tfrom)) then tc_TT else if (andb (eqb_type tto int_or_ptr_type) (is_pointer_type tfrom)) then tc_TT else if (andb (eqb_type tfrom int_or_ptr_type) (is_pointer_type tto)) then tc_isptr a else if (andb (eqb_type tfrom int_or_ptr_type) ((if Archi.ptr64 then is_long_type else is_int_type) tto)) then (if Archi.ptr64 then tc_islong else tc_isint) a else tc_iszero a | Cop.cast_case_l2l => tc_bool (is_long_type tfrom && is_long_type tto) (invalid_cast_result tto tto) | Cop.cast_case_void => tc_noproof | Cop.cast_case_f2bool => tc_bool (is_float_type tfrom) (invalid_cast_result tfrom tto) | Cop.cast_case_s2bool => tc_bool (is_single_type tfrom) (invalid_cast_result tfrom tto) | Cop.cast_case_l2bool => if is_pointer_type tfrom then tc_test_eq a (Econst_long Int64.zero (Tlong Unsigned noattr)) else tc_TT | Cop.cast_case_i2bool => if is_pointer_type tfrom then tc_test_eq a (Econst_int Int.zero (Tint I32 Unsigned noattr)) else tc_TT | _ => match tto with | Tint _ _ _ => tc_bool (is_int_type tfrom) (invalid_cast_result tto tto) | Tfloat F64 _ => tc_bool (is_anyfloat_type tfrom) (invalid_cast_result tto tto) | Tfloat F32 _ => tc_bool (is_anyfloat_type tfrom) (invalid_cast_result tto tto) | _ => tc_FF (invalid_cast tfrom tto) end end.",
+            "VernacDefinition",
+            "5766bd6a51517a94c82efaf8c256bc701ae3dd21"
+        ],
+        [
+            "Definition is_neutral_cast t1 t2 := match t1, t2 with | Tint IBool _ _, Tint _ _ _ => true | Tint I8 Signed _, Tint I8 Signed _ => true | Tint I8 Signed _, Tint I16 Signed _ => true | Tint I16 Signed _, Tint I16 Signed _ => true | Tint I8 Unsigned _, Tint I8 Unsigned _ => true | Tint I8 Unsigned _, Tint I16 Unsigned _ => true | Tint I16 Unsigned _, Tint I16 Unsigned _ => true | Tint _ _ _, Tint I32 _ _ => true | Tlong _ _, Tlong _ _ => true | Tfloat F64 _, Tfloat F64 _ => true | Tfloat F32 _, Tfloat F32 _ => true | Tpointer _ _, Tpointer _ _ => eqb_type t1 t2 || negb (eqb_type t1 int_or_ptr_type) && negb (eqb_type t2 int_or_ptr_type) | _, _ => false end.",
+            "VernacDefinition",
+            "4aa42d9fcdded0cc0fe69ed4e6cedb03fccab079"
+        ],
+        [
+            "Definition get_var_type (Delta : tycontext) id : option type := match (var_types Delta) ! id with | Some ty => Some ty | None => match (glob_types Delta) ! id with | Some g => Some g | None => None end end.",
+            "VernacDefinition",
+            "150c5a147127df03af2edd2f2b84f2a17c9d50f2"
+        ],
+        [
+            "Definition same_base_type t1 t2 : bool := match t1, t2 with | (Tarray _ _ _ | Tfunction _ _ _), (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => Bool.eqb (eqb_type t1 int_or_ptr_type) (eqb_type t2 int_or_ptr_type) | (Tstruct _ _ | Tunion _ _), (Tstruct _ _ | Tunion _ _ ) => true | _, _ => false end.",
+            "VernacDefinition",
+            "746f6bdca337cceb641363b92ee4db5eba7e79fa"
+        ],
+        [
+            "Fixpoint typecheck_expr {CS: compspecs} (Delta : tycontext) (e: expr) : tc_assert := let tcr := typecheck_expr Delta in match e with | Econst_int _ (Tint I32 _ _) => tc_TT | Econst_float _ (Tfloat F64 _) => tc_TT | Econst_single _ (Tfloat F32 _) => tc_TT | Etempvar id ty => match (temp_types Delta)!id with | Some ty' => if is_neutral_cast ty' ty || same_base_type ty' ty then tc_initialized id ty' else tc_FF (mismatch_context_type ty ty') | None => tc_FF (var_not_in_tycontext Delta id) end | Eaddrof a ty => tc_andp (typecheck_lvalue Delta a) (tc_bool (is_pointer_type ty) (op_result_type e)) | Eunop op a ty => tc_andp (isUnOpResultType op a ty) (tcr a) | Ebinop op a1 a2 ty => tc_andp (tc_andp (isBinOpResultType op a1 a2 ty) (tcr a1)) (tcr a2) | Ecast a ty => tc_andp (tcr a) (isCastResultType (typeof a) ty a) | Evar id ty => match access_mode ty with | By_reference => match get_var_type Delta id with | Some ty' => tc_bool (eqb_type ty ty') (mismatch_context_type ty ty') | None => tc_FF (var_not_in_tycontext Delta id) end | _ => tc_FF (deref_byvalue ty) end | Efield a i ty => match access_mode ty with | By_reference => tc_andp (typecheck_lvalue Delta a) (match typeof a with | Tstruct id att => match cenv_cs ! id with | Some co => match field_offset cenv_cs i (co_members co) with | Errors.OK delta => tc_TT | _ => tc_FF (invalid_struct_field i id) end | _ => tc_FF (invalid_composite_name id) end | Tunion id att => match cenv_cs ! id with | Some co => tc_TT | _ => tc_FF (invalid_composite_name id) end | _ => tc_FF (invalid_field_access e) end) | _ => tc_FF (deref_byvalue ty) end | Ederef a ty => match access_mode ty with | By_reference => tc_andp (tc_andp (typecheck_expr Delta a) (tc_bool (is_pointer_type (typeof a))(op_result_type e))) (tc_isptr a) | _ => tc_FF (deref_byvalue ty) end | Esizeof ty t => tc_andp (tc_bool (complete_type cenv_cs ty) (invalid_expression e)) (tc_bool (eqb_type t size_t) (invalid_expression e)) | Ealignof ty t => tc_andp (tc_bool (complete_type cenv_cs ty) (invalid_expression e)) (tc_bool (eqb_type t size_t) (invalid_expression e)) | _ => tc_FF (invalid_expression e) end with typecheck_lvalue {CS: compspecs}(Delta: tycontext) (e: expr) : tc_assert := match e with | Evar id ty => match get_var_type Delta id with | Some ty' => tc_bool (eqb_type ty ty') (mismatch_context_type ty ty') | None => tc_FF (var_not_in_tycontext Delta id) end | Ederef a ty => tc_andp (tc_andp (typecheck_expr Delta a) (tc_bool (is_pointer_type (typeof a))(op_result_type e))) (tc_isptr a) | Efield a i ty => tc_andp (typecheck_lvalue Delta a) (match typeof a with | Tstruct id att => match cenv_cs ! id with | Some co => match field_offset cenv_cs i (co_members co) with | Errors.OK delta => tc_TT | _ => tc_FF (invalid_struct_field i id) end | _ => tc_FF (invalid_composite_name id) end | Tunion id att => match cenv_cs ! id with | Some co => tc_TT | _ => tc_FF (invalid_composite_name id) end | _ => tc_FF (invalid_field_access e) end) | _ => tc_FF (invalid_lvalue e) end.",
+            "VernacFixpoint",
+            "e8286a5216b1be5ec736c88d03c42248024247af"
+        ],
+        [
+            "Definition implicit_deref (t: type) : type := match t with | Tarray t' _ _ => Tpointer t' noattr | _ => t end.",
+            "VernacDefinition",
+            "2dc5afff11285b9a4ef61e2f14c62f51270282ac"
+        ],
+        [
+            "Definition typecheck_temp_id {CS: compspecs}id ty Delta a : tc_assert := match (temp_types Delta)!id with | Some t => tc_andp (tc_bool (is_neutral_cast (implicit_deref ty) t) (invalid_cast ty t)) (isCastResultType (implicit_deref ty) t a) | None => tc_FF (var_not_in_tycontext Delta id) end.",
+            "VernacDefinition",
+            "33b9322b5acbd173682792809f2307ba3dc1728b"
+        ],
+        [
+            "Fixpoint tc_might_be_true (asn : tc_assert) := match asn with | tc_FF _ => false | tc_andp' a1 a2 => tc_might_be_true a1 && tc_might_be_true a2 | _ => true end.",
+            "VernacFixpoint",
+            "cf79bbe8a37163df84c13f2f797e617d8ffa4fff"
+        ],
+        [
+            "Fixpoint tc_always_true (asn : tc_assert) := match asn with | tc_TT => true | tc_andp' a1 a2 => tc_always_true a1 && tc_always_true a2 | _ => false end.",
+            "VernacFixpoint",
+            "5ff54c9f7062f594eb861e230f85c0a2b99880c5"
+        ],
+        [
+            "Definition typecheck_b {CS: compspecs}Delta e := tc_might_be_true (typecheck_expr Delta e).",
+            "VernacDefinition",
+            "7568583bf4d8ec077beef308b8511bd3f269fc76"
+        ],
+        [
+            "Definition typecheck_pure_b {CS: compspecs}Delta e := tc_always_true (typecheck_expr Delta e).",
+            "VernacDefinition",
+            "deb7d9beb1b38a2e9b038eeb8e5b3bff998c7ef0"
+        ],
+        [
+            "Fixpoint typecheck_exprlist {CS: compspecs}(Delta : tycontext) (tl : list type) (el : list expr) : tc_assert := match tl,el with | t::tl', e:: el' => tc_andp (typecheck_expr Delta (Ecast e t)) (typecheck_exprlist Delta tl' el') | nil, nil => tc_TT | _, _ => tc_FF wrong_signature end.",
+            "VernacFixpoint",
+            "336ac0e951271a99a092a5dc3282f2ea22e34059"
+        ],
+        [
+            "Definition typecheck_temp_environ (te: tenviron) (tc: PTree.t type) := forall id ty , tc ! id = Some ty -> exists v, Map.get te id = Some v /\\ tc_val' ty v.",
+            "VernacDefinition",
+            "7c4cb36750a24a523dbe56aea3ac139ccc441183"
+        ],
+        [
+            "Definition typecheck_var_environ (ve: venviron) (tc: PTree.t type) := forall id ty, tc ! id = Some ty <-> exists v, Map.get ve id = Some(v,ty).",
+            "VernacDefinition",
+            "42ed6de6c1a734fd8f98ab059187fe0b9ae2ca3a"
+        ],
+        [
+            "Definition typecheck_glob_environ (ge: genviron) (tc: PTree.t type) := forall id t, tc ! id = Some t -> (exists b, Map.get ge id = Some b).",
+            "VernacDefinition",
+            "4cbe9d1d11107aaa536eb29566c9db246e0c79b5"
+        ],
+        [
+            "Definition typecheck_environ (Delta: tycontext) (rho : environ) := typecheck_temp_environ (te_of rho) (temp_types Delta) /\\ typecheck_var_environ (ve_of rho) (var_types Delta) /\\ typecheck_glob_environ (ge_of rho) (glob_types Delta).",
+            "VernacDefinition",
+            "cfe9c174d5610ce62e916075d6657c1333d67e0c"
+        ],
+        [
+            "Lemma typecheck_var_environ_None: forall ve vt, typecheck_var_environ ve vt -> forall i, vt ! i = None <-> Map.get ve i = None.",
+            "VernacStartTheoremProof",
+            "ddb6cb5d2ae01a1a1bc7ec2129094b5e74f80d1d"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct (vt ! i) eqn:?H, (Map.get ve i) eqn:?H; try (split; congruence).",
+            "VernacExtend",
+            "d47421262c70108e2e083f2795e4e7ffa865cd48"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply H in H0.",
+            "VernacExtend",
+            "3b12de80516a2aa60cdde675feacb2e18e944fd4"
+        ],
+        [
+            "destruct H0; congruence.",
+            "VernacExtend",
+            "6f349f81ca2d04da6e17f4696723b8d7e59ce9c0"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct p.",
+            "VernacExtend",
+            "b4e16e38d42fc59fab0ab4e95e065fc358d5a1ad"
+        ],
+        [
+            "assert (vt ! i = Some t) by (apply H; eauto).",
+            "VernacExtend",
+            "b609005ec1e78d4e1c28b0f0abce9f0ce5b4a81e"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma WARNING___________you_should_use_tactic___destruct_var_types___instead: forall (ve : venviron) (vt : PTree.t type), typecheck_var_environ ve vt -> forall i : positive, match vt ! i with | Some t => exists b, Map.get ve i = Some (b, t) | None => Map.get ve i = None end.",
+            "VernacStartTheoremProof",
+            "f266f92da13cb30f6602cc48569fc9831fd5349f"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "pose proof (H i).",
+            "VernacExtend",
+            "133ec2504960b23072162881ce6e633f8aa0362e"
+        ],
+        [
+            "destruct (vt ! i) eqn:?H.",
+            "VernacExtend",
+            "0d2335030471f55b9ab5fd49e28a49ca8285602e"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "specialize (H0 t).",
+            "VernacExtend",
+            "8af7431c2bd8a561ba28de9f47c815fa14faed7f"
+        ],
+        [
+            "destruct H0 as [? _].",
+            "VernacExtend",
+            "1e578e84e7a531f32f36c087bbd511d26e131ff7"
+        ],
+        [
+            "specialize (H0 eq_refl).",
+            "VernacExtend",
+            "380ed514073837620479c20afb431f705d4ef04c"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "eapply typecheck_var_environ_None; eauto.",
+            "VernacExtend",
+            "427147bb22d6352370ede012c4aedf74088c5286"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma WARNING___________you_should_use_tactic___destruct_glob_types___instead: forall (ge : genviron) (gt : PTree.t type), typecheck_glob_environ ge gt -> forall i : positive, match gt ! i with | Some t => exists b, Map.get ge i = Some b | None => True end.",
+            "VernacStartTheoremProof",
+            "dac3859e641966cfdb56f4dcb0c90fdc9478daa5"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "pose proof (H i).",
+            "VernacExtend",
+            "133ec2504960b23072162881ce6e633f8aa0362e"
+        ],
+        [
+            "destruct (gt ! i).",
+            "VernacExtend",
+            "aa13e8f5e82e87a61b90b154dce413be102befe5"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "specialize (H0 t).",
+            "VernacExtend",
+            "8af7431c2bd8a561ba28de9f47c815fa14faed7f"
+        ],
+        [
+            "specialize (H0 eq_refl).",
+            "VernacExtend",
+            "380ed514073837620479c20afb431f705d4ef04c"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Ltac _destruct_var_types i Heq_vt Heq_ve t b := let HH := fresh \"H\" in match goal with | H: typecheck_var_environ _ _ |- _ => pose proof WARNING___________you_should_use_tactic___destruct_var_types___instead _ _ H i as HH | H: typecheck_environ _ _ |- _ => pose proof WARNING___________you_should_use_tactic___destruct_var_types___instead _ _ (proj1 (proj2 H)) i as HH end; match type of HH with | match ?o with _ => _ end => match goal with | H: o = Some _ |- _ => rewrite H in HH | H: Some _ = o |- _ => rewrite <- H in HH | H: o = None |- _ => rewrite H in HH | H: None = o |- _ => rewrite <- H in HH | _ => let HH' := fresh \"H\" in pose proof eq_refl o as HH'; destruct o as [t |] in HH, HH' at 2; pose proof HH' as Heq_vt; clear HH' end end; match type of HH with | ex _ => pose proof HH as [b Heq_ve] | _ => pose proof HH as Heq_ve end; clear HH.",
+            "VernacExtend",
+            "c65268a67473ea189c427270c95a3c2f120a3bee"
+        ],
+        [
+            "Tactic Notation \"destruct_var_types\" constr(i) := let Heq_vt := fresh \"Heqo\" in let Heq_ve := fresh \"Heqo\" in let t := fresh \"t\" in let b := fresh \"b\" in _destruct_var_types i Heq_vt Heq_ve t b.",
+            "VernacExtend",
+            "4604eac67ae96836490ea0c9b04b8676fc1a9ebf"
+        ],
+        [
+            "Tactic Notation \"destruct_var_types\" constr(i) \"as\" \"[\" ident(t) ident(b) \"]\" := let Heq_vt := fresh \"Heqo\" in let Heq_ve := fresh \"Heqo\" in _destruct_var_types i Heq_vt Heq_ve t b.",
+            "VernacExtend",
+            "856dfcfa0881544f954e8b369dcfe33ef03df337"
+        ],
+        [
+            "Tactic Notation \"destruct_var_types\" constr(i) \"eqn\" \":\" simple_intropattern(Heq_vt) \"&\" simple_intropattern(Heq_ve) := let t := fresh \"t\" in let b := fresh \"b\" in _destruct_var_types i Heq_vt Heq_ve t b.",
+            "VernacExtend",
+            "1d672101db7dd8330376b4c22836eed539e92b3d"
+        ],
+        [
+            "Tactic Notation \"destruct_var_types\" constr(i) \"as\" \"[\" ident(t) ident(b) \"]\" \"eqn\" \":\" simple_intropattern(Heq_vt) \"&\" simple_intropattern(Heq_ve) := _destruct_var_types i Heq_vt Heq_ve t b.",
+            "VernacExtend",
+            "162ee3fbaf1696829974da38a66c6f46322155e9"
+        ],
+        [
+            "Ltac _destruct_glob_types i Heq_gt Heq_ge t b := let HH := fresh \"H\" in match goal with | H: typecheck_glob_environ _ _ |- _ => pose proof WARNING___________you_should_use_tactic___destruct_glob_types___instead _ _ H i as HH | H: typecheck_environ _ _ |- _ => pose proof WARNING___________you_should_use_tactic___destruct_glob_types___instead _ _ (proj2 (proj2 H)) i as HH end; match type of HH with | match ?o with _ => _ end => match goal with | H: o = Some _ |- _ => rewrite H in HH | H: Some _ = o |- _ => rewrite <- H in HH | H: o = None |- _ => rewrite H in HH | H: None = o |- _ => rewrite <- H in HH | _ => let HH' := fresh \"H\" in pose proof eq_refl o as HH'; destruct o as [t |] in HH, HH' at 2; pose proof HH' as Heq_gt; clear HH' end end; match type of HH with | ex _ => pose proof HH as [b Heq_ge] | _ => idtac end; clear HH.",
+            "VernacExtend",
+            "c753f31defbf6544bfd1383f6a3508c3cb095be8"
+        ],
+        [
+            "Tactic Notation \"destruct_glob_types\" constr(i) := let Heq_gt := fresh \"Heqo\" in let Heq_ge := fresh \"Heqo\" in let t := fresh \"t\" in let b := fresh \"b\" in _destruct_glob_types i Heq_gt Heq_ge t b.",
+            "VernacExtend",
+            "68a2fbdb30743bbdb734b15dfc7b0ea688c9f978"
+        ],
+        [
+            "Tactic Notation \"destruct_glob_types\" constr(i) \"as\" \"[\" ident(t) ident(b) \"]\" := let Heq_gt := fresh \"Heqo\" in let Heq_ge := fresh \"Heqo\" in _destruct_glob_types i Heq_gt Heq_ge t b.",
+            "VernacExtend",
+            "b6eade0c7eb9844573153958f9be112eba9e1277"
+        ],
+        [
+            "Tactic Notation \"destruct_glob_types\" constr(i) \"eqn\" \":\" simple_intropattern(Heq_gt) \"&\" simple_intropattern(Heq_ge) := let t := fresh \"t\" in let b := fresh \"b\" in _destruct_glob_types i Heq_gt Heq_ge t b.",
+            "VernacExtend",
+            "a582ce5e31cae113a8a075e44030abf8e43b463b"
+        ],
+        [
+            "Tactic Notation \"destruct_glob_types\" constr(i) \"as\" \"[\" ident(t) ident(b) \"]\" \"eqn\" \":\" simple_intropattern(Heq_gt) \"&\" simple_intropattern(Heq_ge) := _destruct_glob_types i Heq_gt Heq_ge t b.",
+            "VernacExtend",
+            "a629b9bed1c54ffa3055e51a9e72b13bb7713b8c"
+        ],
+        [
+            "Fixpoint match_fsig_aux (bl: list expr) (tl: list (ident*type)) : bool := match bl, tl with | b::bl', (_,t'):: tl' => if eqb_type (typeof b) t' then match_fsig_aux bl' tl' else false | nil, nil => true | nil, _::_ => false | _::_, nil => false end.",
+            "VernacFixpoint",
+            "ea1a0bd52d186437eddd6c370d918ac6f460507f"
+        ],
+        [
+            "Definition match_fsig (fs: funsig) (bl: list expr) (ret: option ident) : bool := andb (match_fsig_aux bl (fst fs)) (match snd fs, ret with | Tvoid , None => true | Tvoid, Some _ => false | _, None => false | _, Some _ => true end).",
+            "VernacDefinition",
+            "48a72ca4c98a98ec8d24f3c180a2cc1a0a29d930"
+        ],
+        [
+            "Lemma match_fsig_e: forall fs bl ret, match_fsig fs bl ret = true -> map typeof bl = map (@snd _ _) (fst fs) /\\ (snd fs=Tvoid <-> ret=None).",
+            "VernacStartTheoremProof",
+            "decc2d14b21bd869a84317c5f9fde224503c24b7"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply andb_true_iff in H.",
+            "VernacExtend",
+            "6be4e13be3cc994beedd2c7e4adabd0a944c1be7"
+        ],
+        [
+            "destruct H.",
+            "VernacExtend",
+            "8b2bca015429da94c456243b461e17a2a0582c40"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "clear H0.",
+            "VernacExtend",
+            "fe72360cf92275fb4ba47f89dfeb905e6d21c4a9"
+        ],
+        [
+            "forget (fst fs) as tl.",
+            "VernacExtend",
+            "29c8542ef40b55c2ff34f310d2480ba5ac0fd341"
+        ],
+        [
+            "revert tl H; induction bl; destruct tl; intros; inv H.",
+            "VernacExtend",
+            "60333b52370da3d8bcc59d9e14f165dfd7f7180c"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "destruct p.",
+            "VernacExtend",
+            "b4e16e38d42fc59fab0ab4e95e065fc358d5a1ad"
+        ],
+        [
+            "revert H1; case_eq (eqb_type (typeof a) t); intros.",
+            "VernacExtend",
+            "07d324a4a06361e4e52ac84763a0be929db74629"
+        ],
+        [
+            "apply eqb_type_true in H.",
+            "VernacExtend",
+            "49e74e294118dedb6bf04858bdd3c98faf13a525"
+        ],
+        [
+            "subst; simpl in *.",
+            "VernacExtend",
+            "e273de7514ad96e96a09ebeca61a1469071c25a2"
+        ],
+        [
+            "f_equal; auto.",
+            "VernacExtend",
+            "8016959cfe83d1ba3fdad91954454045f7af1d22"
+        ],
+        [
+            "inv H1.",
+            "VernacExtend",
+            "7549fbb600c3af6072a6d21bdcba999a253a2e01"
+        ],
+        [
+            "clear H.",
+            "VernacExtend",
+            "f2c5826643b985ca1b67f3433f38ccbe2735e582"
+        ],
+        [
+            "destruct (snd fs); destruct ret; intuition congruence.",
+            "VernacExtend",
+            "fb08d6265fba768ca6147cc240b3b96fdda5f978"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition expr_closed_wrt_vars {CS: compspecs}(S: ident -> Prop) (e: expr) : Prop := forall rho te', (forall i, S i \\/ Map.get (te_of rho) i = Map.get te' i) -> eval_expr e rho = eval_expr e (mkEnviron (ge_of rho) (ve_of rho) te').",
+            "VernacDefinition",
+            "fd37a8feca7f249cc7ab68cc85191375d52fd7a6"
+        ],
+        [
+            "Definition lvalue_closed_wrt_vars {CS: compspecs}(S: ident -> Prop) (e: expr) : Prop := forall rho te', (forall i, S i \\/ Map.get (te_of rho) i = Map.get te' i) -> eval_lvalue e rho = eval_lvalue e (mkEnviron (ge_of rho) (ve_of rho) te').",
+            "VernacDefinition",
+            "8996a00737784943364ccf4771031d804bdbeef2"
+        ],
+        [
+            "Definition typecheck_store e1 := (is_int_type (typeof e1) = true -> typeof e1 = Tint I32 Signed noattr) /\\ (is_float_type (typeof e1) = true -> typeof e1 = Tfloat F64 noattr).",
+            "VernacDefinition",
+            "6a144e8f40fd193d45fe8b8081f2757f0c40eef7"
+        ],
+        [
+            "Ltac tc_assert_ext := repeat match goal with | [H : _ /\\ _ |- _] => destruct H end.",
+            "VernacExtend",
+            "4c858ea69ca8c2a29c24346713f169874ac19e36"
+        ],
+        [
+            "Ltac of_bool_destruct := match goal with | [ |- context[Val.of_bool ?X] ] => destruct X end.",
+            "VernacExtend",
+            "d3e32dc63f6378fd47e774f766aadf71631e9bf1"
+        ],
+        [
+            "Lemma orb_if : forall {D} b c (d:D) (e:D), (if (b || c) then d else e) = if b then d else if c then d else e.",
+            "VernacStartTheoremProof",
+            "2c4ac3ef47fe3a3998eb3f8d75ea41ad9f611de6"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "remember (b || c).",
+            "VernacExtend",
+            "29dc2ff62e3db1cb9bdad2592d91bdb64f358c7e"
+        ],
+        [
+            "destruct b0; auto.",
+            "VernacExtend",
+            "02828966e2a651f00e9f95879bfbed2a1f029b94"
+        ],
+        [
+            "symmetry in Heqb0.",
+            "VernacExtend",
+            "41d364c4f80b12df07b6b063825dbc5f304991e4"
+        ],
+        [
+            "rewrite orb_true_iff in Heqb0.",
+            "VernacExtend",
+            "ad0b21b43b53e1f1c48434c313b775081dc17992"
+        ],
+        [
+            "intuition; subst; auto.",
+            "VernacExtend",
+            "a413b1004b36e70518df6bcd5c477cb046def878"
+        ],
+        [
+            "destruct b; auto.",
+            "VernacExtend",
+            "95533d5a0da46eaf4c778d77a0f89adc7cad4aff"
+        ],
+        [
+            "symmetry in Heqb0; rewrite orb_false_iff in Heqb0.",
+            "VernacExtend",
+            "e869cc9e8255b8ebf50c7271b3209827c2f19762"
+        ],
+        [
+            "intuition; subst; auto.",
+            "VernacExtend",
+            "a413b1004b36e70518df6bcd5c477cb046def878"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma andb_if : forall {D} b c (d:D) (e:D), (if (b && c) then d else e) = if b then (if c then d else e) else e.",
+            "VernacStartTheoremProof",
+            "3884ef56a1283c4c91fd60855ee8611ab515d7e4"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "remember (b&&c).",
+            "VernacExtend",
+            "fb06a9651178bfbab576dea815c808aff410cf59"
+        ],
+        [
+            "destruct b0; symmetry in Heqb0; try rewrite andb_true_iff in *; try rewrite andb_false_iff in *; simple_if_tac; auto; intuition; destruct c; auto; intuition.",
+            "VernacExtend",
+            "55b30dff8daebb5218a3649ea8fdd9540149d658"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Program Definition valid_pointer' (p: val) (d: Z) : mpred := match p with | Vint i => if Archi.ptr64 then FF else prop (i = Int.zero) | Vlong i => if Archi.ptr64 then prop (i=Int64.zero) else FF | Vptr b ofs => fun m => match m @ (b, Ptrofs.unsigned ofs + d) with | YES _ _ _ pp => True | NO sh _ => nonidentity sh | _ => False end | _ => FF end.",
+            "VernacDefinition",
+            "5bd777142a34dc505a84297fa4f93aa6bd81e6ca"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "split; intros; congruence.",
+            "VernacExtend",
+            "e6e7134eeb6213890fdce2a7ed77f1313465a8a9"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "hnf; simpl; intros.",
+            "VernacExtend",
+            "e0b5522baa24e202beb8485721673eb94b7a40e0"
+        ],
+        [
+            "destruct (a@(b,Ptrofs.unsigned ofs + d)) eqn:?; try contradiction.",
+            "VernacExtend",
+            "caa7422d1db156bbd8b5e075bf32a4b4ec88881b"
+        ],
+        [
+            "rewrite (necR_NO a a') in Heqr.",
+            "VernacExtend",
+            "3f68e473ac9ce6c0e1119455e66505eb7b429a02"
+        ],
+        [
+            "rewrite Heqr; auto.",
+            "VernacExtend",
+            "946c89a1119a73a0f4de7d21b279936b313271e0"
+        ],
+        [
+            "constructor; auto.",
+            "VernacExtend",
+            "686f227fe0f57af60032eb35216aef1e62d0c0e5"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "apply (necR_YES a a') in Heqr; [ | constructor; auto].",
+            "VernacExtend",
+            "6fe41c174b4aaf071d4886448ba491276e9f1ecf"
+        ],
+        [
+            "rewrite Heqr.",
+            "VernacExtend",
+            "f652b0eda032f30e329360736a6784b9c61cfcb5"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "split3; intros; congruence.",
+            "VernacExtend",
+            "1d5acd16d6244aeabfe97d52dfa1f7b9fd1672de"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "split3; intros; congruence.",
+            "VernacExtend",
+            "1d5acd16d6244aeabfe97d52dfa1f7b9fd1672de"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "split3; intros; congruence.",
+            "VernacExtend",
+            "1d5acd16d6244aeabfe97d52dfa1f7b9fd1672de"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition valid_pointer (p: val) : mpred := (valid_pointer' p 0).",
+            "VernacDefinition",
+            "952cb70c8e2d9bb09f1dcafd2cfb709e3f862075"
+        ],
+        [
+            "Definition weak_valid_pointer (p: val) : mpred := orp (valid_pointer' p 0) (valid_pointer' p (-1)).",
+            "VernacDefinition",
+            "b42a11a94a980ad2879e001d912d40d53c4333d5"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "typecheck_var_environ_None",
+            "line_nb": 69,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (vt ! i) eqn:?H, (Map.get ve i) eqn:?H; try (split; congruence).",
+                        "VernacExtend",
+                        "d47421262c70108e2e083f2795e4e7ffa865cd48"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply H in H0.",
+                        "VernacExtend",
+                        "3b12de80516a2aa60cdde675feacb2e18e944fd4"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H0; congruence.",
+                        "VernacExtend",
+                        "6f349f81ca2d04da6e17f4696723b8d7e59ce9c0"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct p.",
+                        "VernacExtend",
+                        "b4e16e38d42fc59fab0ab4e95e065fc358d5a1ad"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (vt ! i = Some t) by (apply H; eauto).",
+                        "VernacExtend",
+                        "b609005ec1e78d4e1c28b0f0abce9f0ce5b4a81e"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "WARNING___________you_should_use_tactic___destruct_var_types___instead",
+            "line_nb": 80,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "pose proof (H i).",
+                        "VernacExtend",
+                        "133ec2504960b23072162881ce6e633f8aa0362e"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (vt ! i) eqn:?H.",
+                        "VernacExtend",
+                        "0d2335030471f55b9ab5fd49e28a49ca8285602e"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (H0 t).",
+                        "VernacExtend",
+                        "8af7431c2bd8a561ba28de9f47c815fa14faed7f"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H0 as [? _].",
+                        "VernacExtend",
+                        "1e578e84e7a531f32f36c087bbd511d26e131ff7"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (H0 eq_refl).",
+                        "VernacExtend",
+                        "380ed514073837620479c20afb431f705d4ef04c"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply typecheck_var_environ_None; eauto.",
+                        "VernacExtend",
+                        "427147bb22d6352370ede012c4aedf74088c5286"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "WARNING___________you_should_use_tactic___destruct_glob_types___instead",
+            "line_nb": 92,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "pose proof (H i).",
+                        "VernacExtend",
+                        "133ec2504960b23072162881ce6e633f8aa0362e"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (gt ! i).",
+                        "VernacExtend",
+                        "aa13e8f5e82e87a61b90b154dce413be102befe5"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (H0 t).",
+                        "VernacExtend",
+                        "8af7431c2bd8a561ba28de9f47c815fa14faed7f"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (H0 eq_refl).",
+                        "VernacExtend",
+                        "380ed514073837620479c20afb431f705d4ef04c"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "orb_if",
+            "line_nb": 138,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "remember (b || c).",
+                        "VernacExtend",
+                        "29dc2ff62e3db1cb9bdad2592d91bdb64f358c7e"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct b0; auto.",
+                        "VernacExtend",
+                        "02828966e2a651f00e9f95879bfbed2a1f029b94"
+                    ]
+                },
+                {
+                    "command": [
+                        "symmetry in Heqb0.",
+                        "VernacExtend",
+                        "41d364c4f80b12df07b6b063825dbc5f304991e4"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite orb_true_iff in Heqb0.",
+                        "VernacExtend",
+                        "ad0b21b43b53e1f1c48434c313b775081dc17992"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition; subst; auto.",
+                        "VernacExtend",
+                        "a413b1004b36e70518df6bcd5c477cb046def878"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct b; auto.",
+                        "VernacExtend",
+                        "95533d5a0da46eaf4c778d77a0f89adc7cad4aff"
+                    ]
+                },
+                {
+                    "command": [
+                        "symmetry in Heqb0; rewrite orb_false_iff in Heqb0.",
+                        "VernacExtend",
+                        "e869cc9e8255b8ebf50c7271b3209827c2f19762"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition; subst; auto.",
+                        "VernacExtend",
+                        "a413b1004b36e70518df6bcd5c477cb046def878"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "andb_if",
+            "line_nb": 149,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "remember (b&&c).",
+                        "VernacExtend",
+                        "fb06a9651178bfbab576dea815c808aff410cf59"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct b0; symmetry in Heqb0; try rewrite andb_true_iff in *; try rewrite andb_false_iff in *; simple_if_tac; auto; intuition; destruct c; auto; intuition.",
+                        "VernacExtend",
+                        "55b30dff8daebb5218a3649ea8fdd9540149d658"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "valid_pointer'_obligation_1",
+            "line_nb": 155,
+            "steps": [
+                {
+                    "command": [
+                        "split; intros; congruence.",
+                        "VernacExtend",
+                        "e6e7134eeb6213890fdce2a7ed77f1313465a8a9"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "valid_pointer'_obligation_2",
+            "line_nb": 158,
+            "steps": [
+                {
+                    "command": [
+                        "hnf; simpl; intros.",
+                        "VernacExtend",
+                        "e0b5522baa24e202beb8485721673eb94b7a40e0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (a@(b,Ptrofs.unsigned ofs + d)) eqn:?; try contradiction.",
+                        "VernacExtend",
+                        "caa7422d1db156bbd8b5e075bf32a4b4ec88881b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (necR_NO a a') in Heqr.",
+                        "VernacExtend",
+                        "3f68e473ac9ce6c0e1119455e66505eb7b429a02"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Heqr; auto.",
+                        "VernacExtend",
+                        "946c89a1119a73a0f4de7d21b279936b313271e0"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; auto.",
+                        "VernacExtend",
+                        "686f227fe0f57af60032eb35216aef1e62d0c0e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst.",
+                        "VernacExtend",
+                        "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (necR_YES a a') in Heqr; [ | constructor; auto].",
+                        "VernacExtend",
+                        "6fe41c174b4aaf071d4886448ba491276e9f1ecf"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Heqr.",
+                        "VernacExtend",
+                        "f652b0eda032f30e329360736a6784b9c61cfcb5"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "valid_pointer'_obligation_3",
+            "line_nb": 169,
+            "steps": [
+                {
+                    "command": [
+                        "split3; intros; congruence.",
+                        "VernacExtend",
+                        "1d5acd16d6244aeabfe97d52dfa1f7b9fd1672de"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "valid_pointer'_obligation_4",
+            "line_nb": 172,
+            "steps": [
+                {
+                    "command": [
+                        "split3; intros; congruence.",
+                        "VernacExtend",
+                        "1d5acd16d6244aeabfe97d52dfa1f7b9fd1672de"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "valid_pointer'_obligation_5",
+            "line_nb": 175,
+            "steps": [
+                {
+                    "command": [
+                        "split3; intros; congruence.",
+                        "VernacExtend",
+                        "1d5acd16d6244aeabfe97d52dfa1f7b9fd1672de"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

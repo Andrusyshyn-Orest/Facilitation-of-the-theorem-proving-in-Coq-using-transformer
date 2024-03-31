@@ -1,0 +1,2310 @@
+{
+    "filename": "x86/Conventions1.v",
+    "coq_project": "CompCert",
+    "vernac_cmds": [
+        [
+            "Require Import Coqlib Decidableplus.",
+            "VernacRequire",
+            "005c5db6ffdb32e3b44577c2a68d4f55ab21c4bb"
+        ],
+        [
+            "Require Import AST Machregs Locations.",
+            "VernacRequire",
+            "2acf35927a5396960c9819e3a1e759a60e7a51c3"
+        ],
+        [
+            "Definition is_callee_save (r: mreg) : bool := match r with | AX | CX | DX => false | BX | BP => true | SI | DI => negb Archi.ptr64 | R8 | R9 | R10 | R11 => false | R12 | R13 | R14 | R15 => true | X0 | X1 | X2 | X3 | X4 | X5 | X6 | X7 => false | X8 | X9 | X10 | X11 | X12 | X13 | X14 | X15 => false | FP0 => false end.",
+            "VernacDefinition",
+            "27bcaf9b37cfb1d0995085c4e5d29cbb7c23db84"
+        ],
+        [
+            "Definition int_caller_save_regs := if Archi.ptr64 then AX :: CX :: DX :: SI :: DI :: R8 :: R9 :: R10 :: R11 :: nil else AX :: CX :: DX :: nil.",
+            "VernacDefinition",
+            "d8482e16a069a550f5962ef4adf2d05f120fc712"
+        ],
+        [
+            "Definition float_caller_save_regs := if Archi.ptr64 then X0 :: X1 :: X2 :: X3 :: X4 :: X5 :: X6 :: X7 :: X8 :: X9 :: X10 :: X11 :: X12 :: X13 :: X14 :: X15 :: nil else X0 :: X1 :: X2 :: X3 :: X4 :: X5 :: X6 :: X7 :: nil.",
+            "VernacDefinition",
+            "3e357bd4b69cad3d5bd8f82f07c493f7ddab13bb"
+        ],
+        [
+            "Definition int_callee_save_regs := if Archi.ptr64 then BX :: BP :: R12 :: R13 :: R14 :: R15 :: nil else BX :: SI :: DI :: BP :: nil.",
+            "VernacDefinition",
+            "e57b9d5404cfcb1fcd49f343abadcfb68b8aeb54"
+        ],
+        [
+            "Definition float_callee_save_regs : list mreg := nil.",
+            "VernacDefinition",
+            "05086d0d117b572df4faddc2f778b1a9e396f25d"
+        ],
+        [
+            "Definition destroyed_at_call := List.filter (fun r => negb (is_callee_save r)) all_mregs.",
+            "VernacDefinition",
+            "df70d0c3d0734e6b52dfdbc58c4f2a0b8592b9c1"
+        ],
+        [
+            "Definition dummy_int_reg := AX.",
+            "VernacDefinition",
+            "ab4369ff5752c958cc471b3fe6b655e2d815c840"
+        ],
+        [
+            "Definition dummy_float_reg := X0.",
+            "VernacDefinition",
+            "8e07cde62b1b83025454752df1bed727e1a78388"
+        ],
+        [
+            "Definition callee_save_type := mreg_type.",
+            "VernacDefinition",
+            "eb72116cde2c3aaf61f019bf02cbea47ef7da80a"
+        ],
+        [
+            "Definition is_float_reg (r: mreg) := match r with | AX | BX | CX | DX | SI | DI | BP | R8 | R9 | R10 | R11 | R12 | R13 | R14 | R15 => false | X0 | X1 | X2 | X3 | X4 | X5 | X6 | X7 | X8 | X9 | X10 | X11 | X12 | X13 | X14 | X15 | FP0 => true end.",
+            "VernacDefinition",
+            "76cf3e540651dbe6e7ea1331722e3f0265e33978"
+        ],
+        [
+            "Definition loc_result_32 (s: signature) : rpair mreg := match s.(sig_res) with | None => One AX | Some (Tint | Tany32) => One AX | Some (Tfloat | Tsingle) => One FP0 | Some Tany64 => One X0 | Some Tlong => Twolong DX AX end.",
+            "VernacDefinition",
+            "e59bd83ccc98bbec72f5bf1af782c13f404b28fb"
+        ],
+        [
+            "Definition loc_result_64 (s: signature) : rpair mreg := match s.(sig_res) with | None => One AX | Some (Tint | Tlong | Tany32 | Tany64) => One AX | Some (Tfloat | Tsingle) => One X0 end.",
+            "VernacDefinition",
+            "d10c3c4428683d2e17362a153d1e6b77da7f5f57"
+        ],
+        [
+            "Definition loc_result := if Archi.ptr64 then loc_result_64 else loc_result_32.",
+            "VernacDefinition",
+            "7d77d9199e3655a89ac513d1dd2b14956c55bb37"
+        ],
+        [
+            "Lemma loc_result_type: forall sig, subtype (proj_sig_res sig) (typ_rpair mreg_type (loc_result sig)) = true.",
+            "VernacStartTheoremProof",
+            "538e7bde4c9bd31960dd223cf06cfbf00fd867f8"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold proj_sig_res, loc_result, loc_result_32, loc_result_64, mreg_type; destruct Archi.ptr64; destruct (sig_res sig) as [[]|]; auto.",
+            "VernacExtend",
+            "3f9df1650fe54c78821d70627ae816695a6d5da0"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma loc_result_caller_save: forall (s: signature), forall_rpair (fun r => is_callee_save r = false) (loc_result s).",
+            "VernacStartTheoremProof",
+            "bc6bb706286597c1dfb07dd0aa4f32e73ad01d1b"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold loc_result, loc_result_32, loc_result_64, is_callee_save; destruct Archi.ptr64; destruct (sig_res s) as [[]|]; simpl; auto.",
+            "VernacExtend",
+            "ab786fa038056dc54f940028811c62e23cd9f098"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma loc_result_pair: forall sg, match loc_result sg with | One _ => True | Twolong r1 r2 => r1 <> r2 /\\ sg.(sig_res) = Some Tlong /\\ subtype Tint (mreg_type r1) = true /\\ subtype Tint (mreg_type r2) = true /\\ Archi.ptr64 = false end.",
+            "VernacStartTheoremProof",
+            "945c6df99500a28cb6a36149b2d0fd50ad621bca"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold loc_result, loc_result_32, loc_result_64, mreg_type; destruct Archi.ptr64; destruct (sig_res sg) as [[]|]; auto.",
+            "VernacExtend",
+            "2ec7c7dff60c7e8e4610fe9f635e0df941fab512"
+        ],
+        [
+            "split; auto.",
+            "VernacExtend",
+            "fcd44a714bd12fa54b1c7746996e44dbac16df06"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma loc_result_exten: forall s1 s2, s1.(sig_res) = s2.(sig_res) -> loc_result s1 = loc_result s2.",
+            "VernacStartTheoremProof",
+            "224ff490037474b3742cdee33e32ee3968418b9d"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold loc_result, loc_result_32, loc_result_64.",
+            "VernacExtend",
+            "8ff29edae04f4984373ab4a9b7d1ac3fedb29458"
+        ],
+        [
+            "destruct Archi.ptr64; rewrite H; auto.",
+            "VernacExtend",
+            "38a8ffba65af207005de8bbeca1a8ea01dd4d09c"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Fixpoint loc_arguments_32 (tyl: list typ) (ofs: Z) {struct tyl} : list (rpair loc) := match tyl with | nil => nil | ty :: tys => match ty with | Tlong => Twolong (S Outgoing (ofs + 1) Tint) (S Outgoing ofs Tint) | _ => One (S Outgoing ofs ty) end :: loc_arguments_32 tys (ofs + typesize ty) end.",
+            "VernacFixpoint",
+            "a19405e5036c0fcb2885a3b603b2e3aa25da713f"
+        ],
+        [
+            "Definition int_param_regs := DI :: SI :: DX :: CX :: R8 :: R9 :: nil.",
+            "VernacDefinition",
+            "9a457f9b8edf3325eace84be94f6129c3eea4c92"
+        ],
+        [
+            "Definition float_param_regs := X0 :: X1 :: X2 :: X3 :: X4 :: X5 :: X6 :: X7 :: nil.",
+            "VernacDefinition",
+            "bb6ab6022816266fe63c8a1ceafad87ef8b73062"
+        ],
+        [
+            "Fixpoint loc_arguments_64 (tyl: list typ) (ir fr ofs: Z) {struct tyl} : list (rpair loc) := match tyl with | nil => nil | (Tint | Tlong | Tany32 | Tany64) as ty :: tys => match list_nth_z int_param_regs ir with | None => One (S Outgoing ofs ty) :: loc_arguments_64 tys ir fr (ofs + 2) | Some ireg => One (R ireg) :: loc_arguments_64 tys (ir + 1) fr ofs end | (Tfloat | Tsingle) as ty :: tys => match list_nth_z float_param_regs fr with | None => One (S Outgoing ofs ty) :: loc_arguments_64 tys ir fr (ofs + 2) | Some freg => One (R freg) :: loc_arguments_64 tys ir (fr + 1) ofs end end.",
+            "VernacFixpoint",
+            "7b2a4ca1b2cd6a7eac9885e96b301a3a9f2e2688"
+        ],
+        [
+            "Definition loc_arguments (s: signature) : list (rpair loc) := if Archi.ptr64 then loc_arguments_64 s.(sig_args) 0 0 0 else loc_arguments_32 s.(sig_args) 0.",
+            "VernacDefinition",
+            "109f057317ea97749408c2cae507a8a3393a1f9a"
+        ],
+        [
+            "Fixpoint size_arguments_32 (tyl: list typ) (ofs: Z) {struct tyl} : Z := match tyl with | nil => ofs | ty :: tys => size_arguments_32 tys (ofs + typesize ty) end.",
+            "VernacFixpoint",
+            "588136231931ecc2e7b0f7a623e8de79178973e2"
+        ],
+        [
+            "Fixpoint size_arguments_64 (tyl: list typ) (ir fr ofs: Z) {struct tyl} : Z := match tyl with | nil => ofs | (Tint | Tlong | Tany32 | Tany64) :: tys => match list_nth_z int_param_regs ir with | None => size_arguments_64 tys ir fr (ofs + 2) | Some ireg => size_arguments_64 tys (ir + 1) fr ofs end | (Tfloat | Tsingle) :: tys => match list_nth_z float_param_regs fr with | None => size_arguments_64 tys ir fr (ofs + 2) | Some freg => size_arguments_64 tys ir (fr + 1) ofs end end.",
+            "VernacFixpoint",
+            "55c9151f59d37f7a133dd783147e80cd26b247a5"
+        ],
+        [
+            "Definition size_arguments (s: signature) : Z := if Archi.ptr64 then size_arguments_64 s.(sig_args) 0 0 0 else size_arguments_32 s.(sig_args) 0.",
+            "VernacDefinition",
+            "a14752dbd02b1e7073527a7dabe7e82c0e6bdf2a"
+        ],
+        [
+            "Definition loc_argument_acceptable (l: loc) : Prop := match l with | R r => is_callee_save r = false | S Outgoing ofs ty => ofs >= 0 /\\ (typealign ty | ofs) | _ => False end.",
+            "VernacDefinition",
+            "b766d9549f5824a6c15b49b72dabc1e7ec63bba5"
+        ],
+        [
+            "Definition loc_argument_32_charact (ofs: Z) (l: loc) : Prop := match l with | S Outgoing ofs' ty => ofs' >= ofs /\\ typealign ty = 1 | _ => False end.",
+            "VernacDefinition",
+            "6b279c504fefa3a7a5b000ea692aa7c9293f2a1b"
+        ],
+        [
+            "Definition loc_argument_64_charact (ofs: Z) (l: loc) : Prop := match l with | R r => In r int_param_regs \\/ In r float_param_regs | S Outgoing ofs' ty => ofs' >= ofs /\\ (2 | ofs') | _ => False end.",
+            "VernacDefinition",
+            "88ffce9f5c9b0bcffefae70bd0f9737d0a1d4ecd"
+        ],
+        [
+            "Remark loc_arguments_32_charact: forall tyl ofs p, In p (loc_arguments_32 tyl ofs) -> forall_rpair (loc_argument_32_charact ofs) p.",
+            "VernacStartTheoremProof",
+            "72a6aefe9363e24d1d2db9d1514a87e60878e995"
+        ],
+        [
+            "assert (X: forall ofs1 ofs2 l, loc_argument_32_charact ofs2 l -> ofs1 <= ofs2 -> loc_argument_32_charact ofs1 l).",
+            "VernacExtend",
+            "dde94ee83195e891fd616669945999b6bcd6dda1"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "destruct l; simpl; intros; auto.",
+            "VernacExtend",
+            "8769400ca06c7eb2835efb0d448ed5cd06557e11"
+        ],
+        [
+            "destruct sl; auto.",
+            "VernacExtend",
+            "08cc0853f3c8a0ea6faea7cb80c5fc488773ad8c"
+        ],
+        [
+            "intuition omega.",
+            "VernacExtend",
+            "5f92d30bb29b9eb23dd48e29b891c328862da0f8"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "induction tyl as [ | ty tyl]; simpl loc_arguments_32; intros.",
+            "VernacExtend",
+            "b97ad71a514f97fa2f1f9e83cfaa8b0d0fd1f603"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "contradiction.",
+            "VernacExtend",
+            "9b6a5c45e1144cbbccd544effb2a97082518704a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct H.",
+            "VernacExtend",
+            "8b2bca015429da94c456243b461e17a2a0582c40"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct ty; subst p; simpl; omega.",
+            "VernacExtend",
+            "f55a430bb73dbd97b57e01235f131bd10baf3445"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply IHtyl in H.",
+            "VernacExtend",
+            "fffc0abeda62ced703e791990b09f8bd6a07778a"
+        ],
+        [
+            "generalize (typesize_pos ty); intros.",
+            "VernacExtend",
+            "344be5a4e82576a127b26abdb3cbc85310ea6487"
+        ],
+        [
+            "destruct p; simpl in *.",
+            "VernacExtend",
+            "21fa2abfdaae8a18ac0ac4debd1bca139800054d"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "eapply X; eauto; omega.",
+            "VernacExtend",
+            "a9222cb2bb60a96b3bd790132098c2103bfa7924"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "destruct H; split; eapply X; eauto; omega.",
+            "VernacExtend",
+            "8b744704105073667bbe12c0574bfc34d7257dc0"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Remark loc_arguments_64_charact: forall tyl ir fr ofs p, In p (loc_arguments_64 tyl ir fr ofs) -> (2 | ofs) -> forall_rpair (loc_argument_64_charact ofs) p.",
+            "VernacStartTheoremProof",
+            "abd53be1318ce4d3bb78b9d868e71658d74a42e7"
+        ],
+        [
+            "assert (X: forall ofs1 ofs2 l, loc_argument_64_charact ofs2 l -> ofs1 <= ofs2 -> loc_argument_64_charact ofs1 l).",
+            "VernacExtend",
+            "d3a786a17f3d46e3bd1ab11729e423eb5a2722d3"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "destruct l; simpl; intros; auto.",
+            "VernacExtend",
+            "8769400ca06c7eb2835efb0d448ed5cd06557e11"
+        ],
+        [
+            "destruct sl; auto.",
+            "VernacExtend",
+            "08cc0853f3c8a0ea6faea7cb80c5fc488773ad8c"
+        ],
+        [
+            "intuition omega.",
+            "VernacExtend",
+            "5f92d30bb29b9eb23dd48e29b891c328862da0f8"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "assert (Y: forall ofs1 ofs2 p, forall_rpair (loc_argument_64_charact ofs2) p -> ofs1 <= ofs2 -> forall_rpair (loc_argument_64_charact ofs1) p).",
+            "VernacExtend",
+            "45921b7153335db8e86352634012ffe4278e9d6a"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "destruct p; simpl; intuition eauto.",
+            "VernacExtend",
+            "95b1f1f6f8eff36ab060c82007789757e6167d51"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "assert (Z: forall ofs, (2 | ofs) -> (2 | ofs + 2)).",
+            "VernacExtend",
+            "8d758a66cbbcbc8283b749f27097df9b8a6f280c"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply Z.divide_add_r; auto.",
+            "VernacExtend",
+            "e3c971e0308291f72e95aaad33fe2ae1e1e55607"
+        ],
+        [
+            "apply Z.divide_refl.",
+            "VernacExtend",
+            "1ab6b0d2bd2532fd064920c3397684f20646a41c"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "Opaque list_nth_z.",
+            "VernacSetOpacity",
+            "d1e5e8bcc91ec8bb24f03ad96342cc34ee1809e3"
+        ],
+        [
+            "induction tyl; simpl loc_arguments_64; intros.",
+            "VernacExtend",
+            "febeb4c70c3e7492d73dbbc61358535bd455407f"
+        ],
+        [
+            "elim H.",
+            "VernacExtend",
+            "853aa440c3a3810be05f0f87d0e688c05b92253d"
+        ],
+        [
+            "assert (A: forall ty, In p match list_nth_z int_param_regs ir with | Some ireg => One (R ireg) :: loc_arguments_64 tyl (ir + 1) fr ofs | None => One (S Outgoing ofs ty) :: loc_arguments_64 tyl ir fr (ofs + 2) end -> forall_rpair (loc_argument_64_charact ofs) p).",
+            "VernacExtend",
+            "7f3a901692c1138513358d9887c0c642e9a9d9f5"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct (list_nth_z int_param_regs ir) as [r|] eqn:E; destruct H1.",
+            "VernacExtend",
+            "23acffc32fd967ab4b0f707fdd680f0bd6a37055"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "eapply list_nth_z_in; eauto.",
+            "VernacExtend",
+            "0533f256734e656f0ec37688ebda6ef904f169e5"
+        ],
+        [
+            "eapply IHtyl; eauto.",
+            "VernacExtend",
+            "3cd4a2ae8356bc7839952ca308605cb68f2e754c"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "assumption.",
+            "VernacExtend",
+            "41f0308313ff87e6ab2782f90d6021ec4b55d932"
+        ],
+        [
+            "eapply Y; eauto.",
+            "VernacExtend",
+            "970dceb452e5f238b3d39e5489a5f1baf79b5bf7"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "assert (B: forall ty, In p match list_nth_z float_param_regs fr with | Some ireg => One (R ireg) :: loc_arguments_64 tyl ir (fr + 1) ofs | None => One (S Outgoing ofs ty) :: loc_arguments_64 tyl ir fr (ofs + 2) end -> forall_rpair (loc_argument_64_charact ofs) p).",
+            "VernacExtend",
+            "e2e9eda1295229f1c2db8fd172d2bd21ab7b63b7"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct (list_nth_z float_param_regs fr) as [r|] eqn:E; destruct H1.",
+            "VernacExtend",
+            "9e7ee723303ee4dfc6990a6145fbfe08e9ef319c"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "right.",
+            "VernacExtend",
+            "27e417a3497755767e1a1d6ba87753ecddaee6b7"
+        ],
+        [
+            "eapply list_nth_z_in; eauto.",
+            "VernacExtend",
+            "0533f256734e656f0ec37688ebda6ef904f169e5"
+        ],
+        [
+            "eapply IHtyl; eauto.",
+            "VernacExtend",
+            "3cd4a2ae8356bc7839952ca308605cb68f2e754c"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "assumption.",
+            "VernacExtend",
+            "41f0308313ff87e6ab2782f90d6021ec4b55d932"
+        ],
+        [
+            "eapply Y; eauto.",
+            "VernacExtend",
+            "970dceb452e5f238b3d39e5489a5f1baf79b5bf7"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "destruct a; eauto.",
+            "VernacExtend",
+            "00f083951347a10010e279bb27981b630eaafae9"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma loc_arguments_acceptable: forall (s: signature) (p: rpair loc), In p (loc_arguments s) -> forall_rpair loc_argument_acceptable p.",
+            "VernacStartTheoremProof",
+            "2d233fc7e5f5ec546f32bd19c00382256dcc1516"
+        ],
+        [
+            "unfold loc_arguments; intros.",
+            "VernacExtend",
+            "c5abd9c60d959268f7d830eb02747666237f26bc"
+        ],
+        [
+            "destruct Archi.ptr64 eqn:SF.",
+            "VernacExtend",
+            "b3ec352221d52e0e6cbb1b3d4cfe34e2c8972d7d"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "assert (A: forall r, In r int_param_regs -> is_callee_save r = false) by (unfold is_callee_save; rewrite SF; decide_goal).",
+            "VernacExtend",
+            "2987325bd8572bd5173fe31ec48418ce2164810c"
+        ],
+        [
+            "assert (B: forall r, In r float_param_regs -> is_callee_save r = false) by decide_goal.",
+            "VernacExtend",
+            "42d23635e59766e4d002f8fddd293f7f7c1637a0"
+        ],
+        [
+            "assert (X: forall l, loc_argument_64_charact 0 l -> loc_argument_acceptable l).",
+            "VernacExtend",
+            "f4edce8cc07c3989a7c1bdf45a4535e38621b76b"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "unfold loc_argument_64_charact, loc_argument_acceptable.",
+            "VernacExtend",
+            "32caa7bf761f6a55750a90b47ff20e02bdd95181"
+        ],
+        [
+            "destruct l as [r | [] ofs ty]; auto.",
+            "VernacExtend",
+            "256aeb8de25775169d6b5b59a2651f95468f88f2"
+        ],
+        [
+            "intros [C|C]; auto.",
+            "VernacExtend",
+            "342797f113e342ac3fdb0ff902e005b564fc5282"
+        ],
+        [
+            "intros [C D].",
+            "VernacExtend",
+            "2f6a424bd743322897b5ce3b772a6736bb0cd683"
+        ],
+        [
+            "split; auto.",
+            "VernacExtend",
+            "fcd44a714bd12fa54b1c7746996e44dbac16df06"
+        ],
+        [
+            "apply Z.divide_trans with 2; auto.",
+            "VernacExtend",
+            "d1172ad48be187019fa927fc4121892b67c21b82"
+        ],
+        [
+            "exists (2 / typealign ty); destruct ty; reflexivity.",
+            "VernacExtend",
+            "649fad3892a73cce3c81d5aa5f90e1193ef50281"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "exploit loc_arguments_64_charact; eauto using Z.divide_0_r.",
+            "VernacExtend",
+            "83af4303eed7ed73b6abccd1c579f06978692e4a"
+        ],
+        [
+            "unfold forall_rpair; destruct p; intuition auto.",
+            "VernacExtend",
+            "6dc61f7b344e6ae80099072a085a8b0e0795a873"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "assert (X: forall l, loc_argument_32_charact 0 l -> loc_argument_acceptable l).",
+            "VernacExtend",
+            "0e1b5e204f29aa2d185e5a4478f7e50d4febe013"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "destruct l as [r | [] ofs ty]; simpl; intuition auto.",
+            "VernacExtend",
+            "1b1b586912519e54425f9f6fddb0caac0c5d4ae4"
+        ],
+        [
+            "rewrite H2; apply Z.divide_1_l.",
+            "VernacExtend",
+            "78ed3f8620a19399b5f392b527b1ba92430d4117"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "exploit loc_arguments_32_charact; eauto.",
+            "VernacExtend",
+            "57283bf71871260663a6793d35aecfabe6aa19ba"
+        ],
+        [
+            "unfold forall_rpair; destruct p; intuition auto.",
+            "VernacExtend",
+            "6dc61f7b344e6ae80099072a085a8b0e0795a873"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Hint Resolve loc_arguments_acceptable: locs.",
+            "VernacHints",
+            "4a1b63f2b3d42572916c7d3d240cb43eda2f716c"
+        ],
+        [
+            "Remark size_arguments_32_above: forall tyl ofs0, ofs0 <= size_arguments_32 tyl ofs0.",
+            "VernacStartTheoremProof",
+            "9017a9f568bde86825239592b7dd7ceb54542e3c"
+        ],
+        [
+            "induction tyl; simpl; intros.",
+            "VernacExtend",
+            "132adc23d7d110f2f04c842fd221b17df63cf530"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "apply Z.le_trans with (ofs0 + typesize a); auto.",
+            "VernacExtend",
+            "e10a84028814defb8e3018849c696ea156c601c2"
+        ],
+        [
+            "generalize (typesize_pos a); omega.",
+            "VernacExtend",
+            "b8a78f6aeba78e118acdcde0a7c4d355dc4fa27a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Remark size_arguments_64_above: forall tyl ir fr ofs0, ofs0 <= size_arguments_64 tyl ir fr ofs0.",
+            "VernacStartTheoremProof",
+            "86ce5dd9078a989e81f9de118db25fdfd816c146"
+        ],
+        [
+            "induction tyl; simpl; intros.",
+            "VernacExtend",
+            "132adc23d7d110f2f04c842fd221b17df63cf530"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "assert (A: ofs0 <= match list_nth_z int_param_regs ir with | Some _ => size_arguments_64 tyl (ir + 1) fr ofs0 | None => size_arguments_64 tyl ir fr (ofs0 + 2) end).",
+            "VernacExtend",
+            "844d221a8c1addadd3d1468ceb38fe91fb2069f1"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "destruct (list_nth_z int_param_regs ir); eauto.",
+            "VernacExtend",
+            "aa75bd708638ca9a0c22c3d715be5ca0e6dcba89"
+        ],
+        [
+            "apply Z.le_trans with (ofs0 + 2); auto.",
+            "VernacExtend",
+            "78f0cb7dd506e575248fa8042f38ba6b740627d2"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "assert (B: ofs0 <= match list_nth_z float_param_regs fr with | Some _ => size_arguments_64 tyl ir (fr + 1) ofs0 | None => size_arguments_64 tyl ir fr (ofs0 + 2) end).",
+            "VernacExtend",
+            "d63ae52a80781f6b3e031fa4ffc9c8a182c347de"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "destruct (list_nth_z float_param_regs fr); eauto.",
+            "VernacExtend",
+            "28d3d5d0b6336ba9792e42ca2404a7f75914cf1f"
+        ],
+        [
+            "apply Z.le_trans with (ofs0 + 2); auto.",
+            "VernacExtend",
+            "78f0cb7dd506e575248fa8042f38ba6b740627d2"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "destruct a; auto.",
+            "VernacExtend",
+            "7f3d8b3039d2691d4be2748b78f9d8a9a90a4b44"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma size_arguments_above: forall s, size_arguments s >= 0.",
+            "VernacStartTheoremProof",
+            "f7b7715c682ee5db5d216eebcf782f1a806f304b"
+        ],
+        [
+            "intros; unfold size_arguments.",
+            "VernacExtend",
+            "d992182279cfe9adb759a38cc538b8a94cba0046"
+        ],
+        [
+            "apply Z.le_ge.",
+            "VernacExtend",
+            "c4dcbab35b048b7732ad4cfdf583a2a33a36cc5c"
+        ],
+        [
+            "destruct Archi.ptr64; [apply size_arguments_64_above|apply size_arguments_32_above].",
+            "VernacExtend",
+            "7a8912cb1dbb172b50dee7bb4c17920276ad6683"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma loc_arguments_32_bounded: forall ofs ty tyl ofs0, In (S Outgoing ofs ty) (regs_of_rpairs (loc_arguments_32 tyl ofs0)) -> ofs + typesize ty <= size_arguments_32 tyl ofs0.",
+            "VernacStartTheoremProof",
+            "95fec40a15c6798bcce5c7a777393f00059fb59b"
+        ],
+        [
+            "induction tyl as [ | t l]; simpl; intros x IN.",
+            "VernacExtend",
+            "2c786e00e109022875b11340573251cc69d6c7ad"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "contradiction.",
+            "VernacExtend",
+            "9b6a5c45e1144cbbccd544effb2a97082518704a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite in_app_iff in IN; destruct IN as [IN|IN].",
+            "VernacExtend",
+            "08fa49b59e07c00d914c90617397363ebdd8206c"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply Z.le_trans with (x + typesize t); [|apply size_arguments_32_above].",
+            "VernacExtend",
+            "8cf735f8f07c1abfbe31951b46b62b2fb119614a"
+        ],
+        [
+            "Ltac decomp := match goal with | [ H: _ \\/ _ |- _ ] => destruct H; decomp | [ H: S _ _ _ = S _ _ _ |- _ ] => inv H | [ H: False |- _ ] => contradiction end.",
+            "VernacExtend",
+            "bec63b0aac800f2e9877f9fc6ca988c7143a8ca2"
+        ],
+        [
+            "destruct t; simpl in IN; decomp; simpl; omega.",
+            "VernacExtend",
+            "a90dc18797be0ae62fe305243e8544c0b9eefe75"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply IHl; auto.",
+            "VernacExtend",
+            "e138dde1a62d902d35fbbfcb71bf2b52acaced18"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma loc_arguments_64_bounded: forall ofs ty tyl ir fr ofs0, In (S Outgoing ofs ty) (regs_of_rpairs (loc_arguments_64 tyl ir fr ofs0)) -> ofs + typesize ty <= size_arguments_64 tyl ir fr ofs0.",
+            "VernacStartTheoremProof",
+            "d18fa1d72e307559339ae4502f847eaeb678ff6e"
+        ],
+        [
+            "induction tyl; simpl; intros.",
+            "VernacExtend",
+            "132adc23d7d110f2f04c842fd221b17df63cf530"
+        ],
+        [
+            "contradiction.",
+            "VernacExtend",
+            "9b6a5c45e1144cbbccd544effb2a97082518704a"
+        ],
+        [
+            "assert (T: forall ty0, typesize ty0 <= 2).",
+            "VernacExtend",
+            "fb129808c4a310a268929807cc15da88375a53b3"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "destruct ty0; simpl; omega.",
+            "VernacExtend",
+            "916c2d43747e4e40247f53d33f54de3d9e51db98"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "assert (A: forall ty0, In (S Outgoing ofs ty) (regs_of_rpairs match list_nth_z int_param_regs ir with | Some ireg => One (R ireg) :: loc_arguments_64 tyl (ir + 1) fr ofs0 | None => One (S Outgoing ofs0 ty0) :: loc_arguments_64 tyl ir fr (ofs0 + 2) end) -> ofs + typesize ty <= match list_nth_z int_param_regs ir with | Some _ => size_arguments_64 tyl (ir + 1) fr ofs0 | None => size_arguments_64 tyl ir fr (ofs0 + 2) end).",
+            "VernacExtend",
+            "dfc3adc26c568369f1ba903b176b16d1b5d53a2b"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct (list_nth_z int_param_regs ir); simpl in H0; destruct H0.",
+            "VernacExtend",
+            "b6f2eac814998fbd64a485ac8594dc339803fc1e"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "discriminate.",
+            "VernacExtend",
+            "66ca81b65e1a53372a2515fdfdd2a6b0677cb9c8"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "eapply IHtyl; eauto.",
+            "VernacExtend",
+            "3cd4a2ae8356bc7839952ca308605cb68f2e754c"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "inv H0.",
+            "VernacExtend",
+            "52c34ef20c88d5292e2350aff94f149a3968b772"
+        ],
+        [
+            "apply Z.le_trans with (ofs + 2).",
+            "VernacExtend",
+            "efa73ed9fd4f15e48bc60b909626c13868d61520"
+        ],
+        [
+            "specialize (T ty).",
+            "VernacExtend",
+            "f3d8c67bd5a63eb1c6a08ecb1dfdfb33491b3236"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "apply size_arguments_64_above.",
+            "VernacExtend",
+            "6546eac951c19cb2d32d53cff792cb9a195f518d"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "eapply IHtyl; eauto.",
+            "VernacExtend",
+            "3cd4a2ae8356bc7839952ca308605cb68f2e754c"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "assert (B: forall ty0, In (S Outgoing ofs ty) (regs_of_rpairs match list_nth_z float_param_regs fr with | Some ireg => One (R ireg) :: loc_arguments_64 tyl ir (fr + 1) ofs0 | None => One (S Outgoing ofs0 ty0) :: loc_arguments_64 tyl ir fr (ofs0 + 2) end) -> ofs + typesize ty <= match list_nth_z float_param_regs fr with | Some _ => size_arguments_64 tyl ir (fr + 1) ofs0 | None => size_arguments_64 tyl ir fr (ofs0 + 2) end).",
+            "VernacExtend",
+            "a5309b6372a4e344b3cd54bd194b2c4761b2438f"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct (list_nth_z float_param_regs fr); simpl in H0; destruct H0.",
+            "VernacExtend",
+            "cd3bcd34462d9c72cf53233c391136821cf467ed"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "discriminate.",
+            "VernacExtend",
+            "66ca81b65e1a53372a2515fdfdd2a6b0677cb9c8"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "eapply IHtyl; eauto.",
+            "VernacExtend",
+            "3cd4a2ae8356bc7839952ca308605cb68f2e754c"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "inv H0.",
+            "VernacExtend",
+            "52c34ef20c88d5292e2350aff94f149a3968b772"
+        ],
+        [
+            "apply Z.le_trans with (ofs + 2).",
+            "VernacExtend",
+            "efa73ed9fd4f15e48bc60b909626c13868d61520"
+        ],
+        [
+            "specialize (T ty).",
+            "VernacExtend",
+            "f3d8c67bd5a63eb1c6a08ecb1dfdfb33491b3236"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "apply size_arguments_64_above.",
+            "VernacExtend",
+            "6546eac951c19cb2d32d53cff792cb9a195f518d"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "eapply IHtyl; eauto.",
+            "VernacExtend",
+            "3cd4a2ae8356bc7839952ca308605cb68f2e754c"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "destruct a; eauto.",
+            "VernacExtend",
+            "00f083951347a10010e279bb27981b630eaafae9"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma loc_arguments_bounded: forall (s: signature) (ofs: Z) (ty: typ), In (S Outgoing ofs ty) (regs_of_rpairs (loc_arguments s)) -> ofs + typesize ty <= size_arguments s.",
+            "VernacStartTheoremProof",
+            "e63c3021e1ae7803db2996655b4c7aa02b0619a0"
+        ],
+        [
+            "unfold loc_arguments, size_arguments; intros.",
+            "VernacExtend",
+            "dcf125465cbcf8b60c55700e3b1873fb37e61d1d"
+        ],
+        [
+            "destruct Archi.ptr64; eauto using loc_arguments_32_bounded, loc_arguments_64_bounded.",
+            "VernacExtend",
+            "30c200aeabfb9b65d4e16920d42030981d1fd88b"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma loc_arguments_main: loc_arguments signature_main = nil.",
+            "VernacStartTheoremProof",
+            "897bb2d234e0b54b140d783c72ea581ac48cc3f2"
+        ],
+        [
+            "unfold loc_arguments; destruct Archi.ptr64; reflexivity.",
+            "VernacExtend",
+            "9f4ed8244aa8edae58d56cf9949900cd5b9790ac"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "loc_result_type",
+            "line_nb": 15,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold proj_sig_res, loc_result, loc_result_32, loc_result_64, mreg_type; destruct Archi.ptr64; destruct (sig_res sig) as [[]|]; auto.",
+                        "VernacExtend",
+                        "3f9df1650fe54c78821d70627ae816695a6d5da0"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "loc_result_caller_save",
+            "line_nb": 19,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold loc_result, loc_result_32, loc_result_64, is_callee_save; destruct Archi.ptr64; destruct (sig_res s) as [[]|]; simpl; auto.",
+                        "VernacExtend",
+                        "ab786fa038056dc54f940028811c62e23cd9f098"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "loc_result_pair",
+            "line_nb": 23,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold loc_result, loc_result_32, loc_result_64, mreg_type; destruct Archi.ptr64; destruct (sig_res sg) as [[]|]; auto.",
+                        "VernacExtend",
+                        "2ec7c7dff60c7e8e4610fe9f635e0df941fab512"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; auto.",
+                        "VernacExtend",
+                        "fcd44a714bd12fa54b1c7746996e44dbac16df06"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "loc_result_exten",
+            "line_nb": 29,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold loc_result, loc_result_32, loc_result_64.",
+                        "VernacExtend",
+                        "8ff29edae04f4984373ab4a9b7d1ac3fedb29458"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct Archi.ptr64; rewrite H; auto.",
+                        "VernacExtend",
+                        "38a8ffba65af207005de8bbeca1a8ea01dd4d09c"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "loc_arguments_32_charact",
+            "line_nb": 45,
+            "steps": [
+                {
+                    "command": [
+                        "assert (X: forall ofs1 ofs2 l, loc_argument_32_charact ofs2 l -> ofs1 <= ofs2 -> loc_argument_32_charact ofs1 l).",
+                        "VernacExtend",
+                        "dde94ee83195e891fd616669945999b6bcd6dda1"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct l; simpl; intros; auto.",
+                        "VernacExtend",
+                        "8769400ca06c7eb2835efb0d448ed5cd06557e11"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct sl; auto.",
+                        "VernacExtend",
+                        "08cc0853f3c8a0ea6faea7cb80c5fc488773ad8c"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition omega.",
+                        "VernacExtend",
+                        "5f92d30bb29b9eb23dd48e29b891c328862da0f8"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "induction tyl as [ | ty tyl]; simpl loc_arguments_32; intros.",
+                        "VernacExtend",
+                        "b97ad71a514f97fa2f1f9e83cfaa8b0d0fd1f603"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "contradiction.",
+                        "VernacExtend",
+                        "9b6a5c45e1144cbbccd544effb2a97082518704a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H.",
+                        "VernacExtend",
+                        "8b2bca015429da94c456243b461e17a2a0582c40"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct ty; subst p; simpl; omega.",
+                        "VernacExtend",
+                        "f55a430bb73dbd97b57e01235f131bd10baf3445"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply IHtyl in H.",
+                        "VernacExtend",
+                        "fffc0abeda62ced703e791990b09f8bd6a07778a"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize (typesize_pos ty); intros.",
+                        "VernacExtend",
+                        "344be5a4e82576a127b26abdb3cbc85310ea6487"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct p; simpl in *.",
+                        "VernacExtend",
+                        "21fa2abfdaae8a18ac0ac4debd1bca139800054d"
+                    ]
+                },
+                {
+                    "command": [
+                        "*",
+                        "VernacBullet",
+                        "8a329d054468e0c41ce333043e0978e30eed7b98"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply X; eauto; omega.",
+                        "VernacExtend",
+                        "a9222cb2bb60a96b3bd790132098c2103bfa7924"
+                    ]
+                },
+                {
+                    "command": [
+                        "*",
+                        "VernacBullet",
+                        "8a329d054468e0c41ce333043e0978e30eed7b98"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; split; eapply X; eauto; omega.",
+                        "VernacExtend",
+                        "8b744704105073667bbe12c0574bfc34d7257dc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "loc_arguments_acceptable",
+            "line_nb": 120,
+            "steps": [
+                {
+                    "command": [
+                        "unfold loc_arguments; intros.",
+                        "VernacExtend",
+                        "c5abd9c60d959268f7d830eb02747666237f26bc"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct Archi.ptr64 eqn:SF.",
+                        "VernacExtend",
+                        "b3ec352221d52e0e6cbb1b3d4cfe34e2c8972d7d"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (A: forall r, In r int_param_regs -> is_callee_save r = false) by (unfold is_callee_save; rewrite SF; decide_goal).",
+                        "VernacExtend",
+                        "2987325bd8572bd5173fe31ec48418ce2164810c"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (B: forall r, In r float_param_regs -> is_callee_save r = false) by decide_goal.",
+                        "VernacExtend",
+                        "42d23635e59766e4d002f8fddd293f7f7c1637a0"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (X: forall l, loc_argument_64_charact 0 l -> loc_argument_acceptable l).",
+                        "VernacExtend",
+                        "f4edce8cc07c3989a7c1bdf45a4535e38621b76b"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold loc_argument_64_charact, loc_argument_acceptable.",
+                        "VernacExtend",
+                        "32caa7bf761f6a55750a90b47ff20e02bdd95181"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct l as [r | [] ofs ty]; auto.",
+                        "VernacExtend",
+                        "256aeb8de25775169d6b5b59a2651f95468f88f2"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [C|C]; auto.",
+                        "VernacExtend",
+                        "342797f113e342ac3fdb0ff902e005b564fc5282"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [C D].",
+                        "VernacExtend",
+                        "2f6a424bd743322897b5ce3b772a6736bb0cd683"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; auto.",
+                        "VernacExtend",
+                        "fcd44a714bd12fa54b1c7746996e44dbac16df06"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Z.divide_trans with 2; auto.",
+                        "VernacExtend",
+                        "d1172ad48be187019fa927fc4121892b67c21b82"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists (2 / typealign ty); destruct ty; reflexivity.",
+                        "VernacExtend",
+                        "649fad3892a73cce3c81d5aa5f90e1193ef50281"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit loc_arguments_64_charact; eauto using Z.divide_0_r.",
+                        "VernacExtend",
+                        "83af4303eed7ed73b6abccd1c579f06978692e4a"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold forall_rpair; destruct p; intuition auto.",
+                        "VernacExtend",
+                        "6dc61f7b344e6ae80099072a085a8b0e0795a873"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (X: forall l, loc_argument_32_charact 0 l -> loc_argument_acceptable l).",
+                        "VernacExtend",
+                        "0e1b5e204f29aa2d185e5a4478f7e50d4febe013"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct l as [r | [] ofs ty]; simpl; intuition auto.",
+                        "VernacExtend",
+                        "1b1b586912519e54425f9f6fddb0caac0c5d4ae4"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H2; apply Z.divide_1_l.",
+                        "VernacExtend",
+                        "78ed3f8620a19399b5f392b527b1ba92430d4117"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit loc_arguments_32_charact; eauto.",
+                        "VernacExtend",
+                        "57283bf71871260663a6793d35aecfabe6aa19ba"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold forall_rpair; destruct p; intuition auto.",
+                        "VernacExtend",
+                        "6dc61f7b344e6ae80099072a085a8b0e0795a873"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "size_arguments_32_above",
+            "line_nb": 148,
+            "steps": [
+                {
+                    "command": [
+                        "induction tyl; simpl; intros.",
+                        "VernacExtend",
+                        "132adc23d7d110f2f04c842fd221b17df63cf530"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Z.le_trans with (ofs0 + typesize a); auto.",
+                        "VernacExtend",
+                        "e10a84028814defb8e3018849c696ea156c601c2"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize (typesize_pos a); omega.",
+                        "VernacExtend",
+                        "b8a78f6aeba78e118acdcde0a7c4d355dc4fa27a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "size_arguments_64_above",
+            "line_nb": 154,
+            "steps": [
+                {
+                    "command": [
+                        "induction tyl; simpl; intros.",
+                        "VernacExtend",
+                        "132adc23d7d110f2f04c842fd221b17df63cf530"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (A: ofs0 <= match list_nth_z int_param_regs ir with | Some _ => size_arguments_64 tyl (ir + 1) fr ofs0 | None => size_arguments_64 tyl ir fr (ofs0 + 2) end).",
+                        "VernacExtend",
+                        "844d221a8c1addadd3d1468ceb38fe91fb2069f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (list_nth_z int_param_regs ir); eauto.",
+                        "VernacExtend",
+                        "aa75bd708638ca9a0c22c3d715be5ca0e6dcba89"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Z.le_trans with (ofs0 + 2); auto.",
+                        "VernacExtend",
+                        "78f0cb7dd506e575248fa8042f38ba6b740627d2"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (B: ofs0 <= match list_nth_z float_param_regs fr with | Some _ => size_arguments_64 tyl ir (fr + 1) ofs0 | None => size_arguments_64 tyl ir fr (ofs0 + 2) end).",
+                        "VernacExtend",
+                        "d63ae52a80781f6b3e031fa4ffc9c8a182c347de"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (list_nth_z float_param_regs fr); eauto.",
+                        "VernacExtend",
+                        "28d3d5d0b6336ba9792e42ca2404a7f75914cf1f"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Z.le_trans with (ofs0 + 2); auto.",
+                        "VernacExtend",
+                        "78f0cb7dd506e575248fa8042f38ba6b740627d2"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a; auto.",
+                        "VernacExtend",
+                        "7f3d8b3039d2691d4be2748b78f9d8a9a90a4b44"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "size_arguments_above",
+            "line_nb": 171,
+            "steps": [
+                {
+                    "command": [
+                        "intros; unfold size_arguments.",
+                        "VernacExtend",
+                        "d992182279cfe9adb759a38cc538b8a94cba0046"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Z.le_ge.",
+                        "VernacExtend",
+                        "c4dcbab35b048b7732ad4cfdf583a2a33a36cc5c"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct Archi.ptr64; [apply size_arguments_64_above|apply size_arguments_32_above].",
+                        "VernacExtend",
+                        "7a8912cb1dbb172b50dee7bb4c17920276ad6683"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "loc_arguments_32_bounded",
+            "line_nb": 176,
+            "steps": [
+                {
+                    "command": [
+                        "induction tyl as [ | t l]; simpl; intros x IN.",
+                        "VernacExtend",
+                        "2c786e00e109022875b11340573251cc69d6c7ad"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "contradiction.",
+                        "VernacExtend",
+                        "9b6a5c45e1144cbbccd544effb2a97082518704a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite in_app_iff in IN; destruct IN as [IN|IN].",
+                        "VernacExtend",
+                        "08fa49b59e07c00d914c90617397363ebdd8206c"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Z.le_trans with (x + typesize t); [|apply size_arguments_32_above].",
+                        "VernacExtend",
+                        "8cf735f8f07c1abfbe31951b46b62b2fb119614a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Ltac decomp := match goal with | [ H: _ \\/ _ |- _ ] => destruct H; decomp | [ H: S _ _ _ = S _ _ _ |- _ ] => inv H | [ H: False |- _ ] => contradiction end.",
+                        "VernacExtend",
+                        "bec63b0aac800f2e9877f9fc6ca988c7143a8ca2"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct t; simpl in IN; decomp; simpl; omega.",
+                        "VernacExtend",
+                        "a90dc18797be0ae62fe305243e8544c0b9eefe75"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply IHl; auto.",
+                        "VernacExtend",
+                        "e138dde1a62d902d35fbbfcb71bf2b52acaced18"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "loc_arguments_64_bounded",
+            "line_nb": 189,
+            "steps": [
+                {
+                    "command": [
+                        "induction tyl; simpl; intros.",
+                        "VernacExtend",
+                        "132adc23d7d110f2f04c842fd221b17df63cf530"
+                    ]
+                },
+                {
+                    "command": [
+                        "contradiction.",
+                        "VernacExtend",
+                        "9b6a5c45e1144cbbccd544effb2a97082518704a"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (T: forall ty0, typesize ty0 <= 2).",
+                        "VernacExtend",
+                        "fb129808c4a310a268929807cc15da88375a53b3"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct ty0; simpl; omega.",
+                        "VernacExtend",
+                        "916c2d43747e4e40247f53d33f54de3d9e51db98"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (A: forall ty0, In (S Outgoing ofs ty) (regs_of_rpairs match list_nth_z int_param_regs ir with | Some ireg => One (R ireg) :: loc_arguments_64 tyl (ir + 1) fr ofs0 | None => One (S Outgoing ofs0 ty0) :: loc_arguments_64 tyl ir fr (ofs0 + 2) end) -> ofs + typesize ty <= match list_nth_z int_param_regs ir with | Some _ => size_arguments_64 tyl (ir + 1) fr ofs0 | None => size_arguments_64 tyl ir fr (ofs0 + 2) end).",
+                        "VernacExtend",
+                        "dfc3adc26c568369f1ba903b176b16d1b5d53a2b"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (list_nth_z int_param_regs ir); simpl in H0; destruct H0.",
+                        "VernacExtend",
+                        "b6f2eac814998fbd64a485ac8594dc339803fc1e"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "discriminate.",
+                        "VernacExtend",
+                        "66ca81b65e1a53372a2515fdfdd2a6b0677cb9c8"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply IHtyl; eauto.",
+                        "VernacExtend",
+                        "3cd4a2ae8356bc7839952ca308605cb68f2e754c"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H0.",
+                        "VernacExtend",
+                        "52c34ef20c88d5292e2350aff94f149a3968b772"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Z.le_trans with (ofs + 2).",
+                        "VernacExtend",
+                        "efa73ed9fd4f15e48bc60b909626c13868d61520"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (T ty).",
+                        "VernacExtend",
+                        "f3d8c67bd5a63eb1c6a08ecb1dfdfb33491b3236"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply size_arguments_64_above.",
+                        "VernacExtend",
+                        "6546eac951c19cb2d32d53cff792cb9a195f518d"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply IHtyl; eauto.",
+                        "VernacExtend",
+                        "3cd4a2ae8356bc7839952ca308605cb68f2e754c"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (B: forall ty0, In (S Outgoing ofs ty) (regs_of_rpairs match list_nth_z float_param_regs fr with | Some ireg => One (R ireg) :: loc_arguments_64 tyl ir (fr + 1) ofs0 | None => One (S Outgoing ofs0 ty0) :: loc_arguments_64 tyl ir fr (ofs0 + 2) end) -> ofs + typesize ty <= match list_nth_z float_param_regs fr with | Some _ => size_arguments_64 tyl ir (fr + 1) ofs0 | None => size_arguments_64 tyl ir fr (ofs0 + 2) end).",
+                        "VernacExtend",
+                        "a5309b6372a4e344b3cd54bd194b2c4761b2438f"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (list_nth_z float_param_regs fr); simpl in H0; destruct H0.",
+                        "VernacExtend",
+                        "cd3bcd34462d9c72cf53233c391136821cf467ed"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "discriminate.",
+                        "VernacExtend",
+                        "66ca81b65e1a53372a2515fdfdd2a6b0677cb9c8"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply IHtyl; eauto.",
+                        "VernacExtend",
+                        "3cd4a2ae8356bc7839952ca308605cb68f2e754c"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H0.",
+                        "VernacExtend",
+                        "52c34ef20c88d5292e2350aff94f149a3968b772"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Z.le_trans with (ofs + 2).",
+                        "VernacExtend",
+                        "efa73ed9fd4f15e48bc60b909626c13868d61520"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (T ty).",
+                        "VernacExtend",
+                        "f3d8c67bd5a63eb1c6a08ecb1dfdfb33491b3236"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply size_arguments_64_above.",
+                        "VernacExtend",
+                        "6546eac951c19cb2d32d53cff792cb9a195f518d"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply IHtyl; eauto.",
+                        "VernacExtend",
+                        "3cd4a2ae8356bc7839952ca308605cb68f2e754c"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a; eauto.",
+                        "VernacExtend",
+                        "00f083951347a10010e279bb27981b630eaafae9"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "loc_arguments_bounded",
+            "line_nb": 232,
+            "steps": [
+                {
+                    "command": [
+                        "unfold loc_arguments, size_arguments; intros.",
+                        "VernacExtend",
+                        "dcf125465cbcf8b60c55700e3b1873fb37e61d1d"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct Archi.ptr64; eauto using loc_arguments_32_bounded, loc_arguments_64_bounded.",
+                        "VernacExtend",
+                        "30c200aeabfb9b65d4e16920d42030981d1fd88b"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "loc_arguments_main",
+            "line_nb": 236,
+            "steps": [
+                {
+                    "command": [
+                        "unfold loc_arguments; destruct Archi.ptr64; reflexivity.",
+                        "VernacExtend",
+                        "9f4ed8244aa8edae58d56cf9949900cd5b9790ac"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

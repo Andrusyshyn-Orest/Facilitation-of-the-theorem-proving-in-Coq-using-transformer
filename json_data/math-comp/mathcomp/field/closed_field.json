@@ -1,0 +1,4536 @@
+{
+    "filename": "mathcomp/field/closed_field.v",
+    "coq_project": "math-comp",
+    "vernac_cmds": [
+        [
+            "Require Import mathcomp.ssreflect.ssreflect.",
+            "VernacRequire",
+            "85e251063dc2b5a9653f7bb76dcd176ed36b42a9"
+        ],
+        [
+            "From mathcomp Require Import ssrfun ssrbool eqtype choice ssrnat seq fintype generic_quotient.",
+            "VernacRequire",
+            "f1514174fbe6dff4cf27fb01b00c0382eb15da08"
+        ],
+        [
+            "From mathcomp Require Import bigop ssralg poly polydiv matrix mxpoly countalg ring_quotient.",
+            "VernacRequire",
+            "7bda3389820db4dcdf9378401d1f9fd3ec6fa68a"
+        ],
+        [
+            "Set Implicit Arguments.",
+            "VernacSetOption",
+            "9e84ff8896f028601d8aded48c1d4aebe60aa584"
+        ],
+        [
+            "Unset Strict Implicit.",
+            "VernacUnsetOption",
+            "2842adaf6959318f2042805935c46f513bdc0348"
+        ],
+        [
+            "Unset Printing Implicit Defensive.",
+            "VernacUnsetOption",
+            "444e5f0be4b25d9b1fd556943a447ec10046d151"
+        ],
+        [
+            "Import GRing.Theory.",
+            "VernacImport",
+            "a0fcf55540300b9b0e54bd28a113c5228ff530f4"
+        ],
+        [
+            "Local Open Scope ring_scope.",
+            "VernacOpenCloseScope",
+            "fb9da4a291533574d328be8c8a69d90a14641928"
+        ],
+        [
+            "Import Pdiv.Ring.",
+            "VernacImport",
+            "60cb24f7c4618924c9c09f811773ad7caee83bd0"
+        ],
+        [
+            "Import PreClosedField.",
+            "VernacImport",
+            "58be983d2f2137d7896e7e202b0bb3fcf5108364"
+        ],
+        [
+            "Module ClosedFieldQE.",
+            "VernacDefineModule",
+            "6e5287aed5a9305bb18cd08d5b99ad6025d18d48"
+        ],
+        [
+            "Section ClosedFieldQE.",
+            "VernacBeginSection",
+            "037e34dd07442cfbf8279b5c0d67cacae90d58b4"
+        ],
+        [
+            "Variables (F : fieldType) (F_closed : GRing.ClosedField.axiom F).",
+            "VernacAssumption",
+            "ce05d24bddb93272303a21378b58098e1ea3287a"
+        ],
+        [
+            "Notation fF := (@GRing.formula F).",
+            "VernacSyntacticDefinition",
+            "dfcd93ae00874d86106db7f440c0ed0319ad40ff"
+        ],
+        [
+            "Notation tF := (@GRing.term F).",
+            "VernacSyntacticDefinition",
+            "e829dd9078346df972e0d291403185307f6845ff"
+        ],
+        [
+            "Notation qf f := (GRing.qf_form f && GRing.rformula f).",
+            "VernacSyntacticDefinition",
+            "f53adb1f96d3240f2783623d1d5f6c450cb5d27a"
+        ],
+        [
+            "Definition polyF := seq tF.",
+            "VernacDefinition",
+            "fe87eb91edf8815a5d23aa2fdd0b1fc6e9148897"
+        ],
+        [
+            "Lemma qf_simpl (f : fF) : (qf f -> GRing.qf_form f) * (qf f -> GRing.rformula f).",
+            "VernacStartTheoremProof",
+            "77a5037be4289e85c290b62fae08e419e7836669"
+        ],
+        [
+            "by split=> /andP[].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Notation cps T := ((T -> fF) -> fF).",
+            "VernacSyntacticDefinition",
+            "7071fa77101c0723e4a11bb5d5aaf32d387aaa96"
+        ],
+        [
+            "Definition ret T1 : T1 -> cps T1 := fun x k => k x.",
+            "VernacDefinition",
+            "ab8519df973311928d318942a29d4d2ea65502cb"
+        ],
+        [
+            "Arguments ret {T1} x k /.",
+            "VernacArguments",
+            "78693865b02a5e84c85f3f98be454d3549f7f44e"
+        ],
+        [
+            "Definition bind T1 T2 (x : cps T1) (f : T1 -> cps T2) : cps T2 := fun k => x (fun x => f x k).",
+            "VernacDefinition",
+            "57dd9fd71586cf7c4352afe08e77383f1a5dadf9"
+        ],
+        [
+            "Arguments bind {T1 T2} x f k /.",
+            "VernacArguments",
+            "0ca62db18adc7ef11096018b7e391abd38c27690"
+        ],
+        [
+            "Notation \"''let' x <- y ; z\" := (bind y (fun x => z)) (at level 99, x at level 0, y at level 0, format \"'[hv' ''let' x <- y ; '/' z ']'\").",
+            "VernacNotation",
+            "5960365d569113fa7329388f7a65f9700ecf680e"
+        ],
+        [
+            "Definition cpsif T (c : fF) (t : T) (e : T) : cps T := fun k => GRing.If c (k t) (k e).",
+            "VernacDefinition",
+            "5baad8ebffd7ef93b43b24415f5258873aaefe62"
+        ],
+        [
+            "Arguments cpsif {T} c t e k /.",
+            "VernacArguments",
+            "d52f11c9fe820012aba02a7e7ad3bd3e5208b1c0"
+        ],
+        [
+            "Notation \"''if' c1 'then' c2 'else' c3\" := (cpsif c1%T c2%T c3%T) (at level 200, right associativity, format \"'[hv ' ''if' c1 '/' '[' 'then' c2 ']' '/' '[' 'else' c3 ']' ']'\").",
+            "VernacNotation",
+            "66d80fc3e51a935775cbfb1f38d968d4e07c38c7"
+        ],
+        [
+            "Notation eval := GRing.eval.",
+            "VernacSyntacticDefinition",
+            "a315b183cb4181151407fae528348558192130ef"
+        ],
+        [
+            "Notation rterm := GRing.rterm.",
+            "VernacSyntacticDefinition",
+            "4079c545c9120a2b5dd1a86dc6e07f0b96888c93"
+        ],
+        [
+            "Notation qf_eval := GRing.qf_eval.",
+            "VernacSyntacticDefinition",
+            "ee151632474dcb1b0efaa42dbb9fa5fc597e0f0d"
+        ],
+        [
+            "Fixpoint eval_poly (e : seq F) pf := if pf is c :: q then eval_poly e q * 'X + (eval e c)%:P else 0.",
+            "VernacFixpoint",
+            "3d496216e07efd1597c2f80ee279f646fddce068"
+        ],
+        [
+            "Definition rpoly (p : polyF) := all (@rterm F) p.",
+            "VernacDefinition",
+            "aa8ec5cbee2ec914e89c62cedae954074fbd7beb"
+        ],
+        [
+            "Definition sizeT : polyF -> cps nat := (fix loop p := if p isn't c :: q then ret 0%N else 'let n <- loop q; if n is m.+1 then ret m.+2 else 'if (c == 0) then 0%N else 1%N).",
+            "VernacDefinition",
+            "e2afd4c7a75d5747081a2a7d39283efff8d7b22c"
+        ],
+        [
+            "Definition qf_red_cps T (x : cps T) (y : _ -> T) := forall e k, qf_eval e (x k) = qf_eval e (k (y e)).",
+            "VernacDefinition",
+            "f93a20e3275b24217bd1d0fdee2acec9da67d196"
+        ],
+        [
+            "Notation \"x ->_ e y\" := (qf_red_cps x (fun e => y)) (e ident, at level 90, format \"x ->_ e y\").",
+            "VernacNotation",
+            "ac78e3143c7c1a9166c7e0c2b3f7c15baa834a4c"
+        ],
+        [
+            "Definition qf_cps T D (x : cps T) := forall k, (forall y, D y -> qf (k y)) -> qf (x k).",
+            "VernacDefinition",
+            "14c77bcd823dcf521ad1bae3359a74fdfe62fc7b"
+        ],
+        [
+            "Lemma qf_cps_ret T D (x : T) : D x -> qf_cps D (ret x).",
+            "VernacStartTheoremProof",
+            "7746e9f3ab7005937aa1633f2ce37b5c335d135b"
+        ],
+        [
+            "move=> ??; exact.",
+            "VernacExtend",
+            "53efbfe17e30ebe8184b27eedef8dafaaf3f855d"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Hint Resolve qf_cps_ret : core.",
+            "VernacHints",
+            "8e0d30a18e49004d4bbe3d750a5625a4d5bc396d"
+        ],
+        [
+            "Lemma qf_cps_bind T1 D1 T2 D2 (x : cps T1) (f : T1 -> cps T2) : qf_cps D1 x -> (forall x, D1 x -> qf_cps D2 (f x)) -> qf_cps D2 (bind x f).",
+            "VernacStartTheoremProof",
+            "d6e5cbe716d970ea4aea8073969f47f2929859dc"
+        ],
+        [
+            "by move=> xP fP k kP /=; apply: xP => y ?; apply: fP.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma qf_cps_if T D (c : fF) (t : T) (e : T) : qf c -> D t -> D e -> qf_cps D ('if c then t else e).",
+            "VernacStartTheoremProof",
+            "fffb9238722accf6faa711aec91cc5956633e923"
+        ],
+        [
+            "move=> qfc Dt De k kP /=; have [qft qfe] := (kP _ Dt, kP _ De).",
+            "VernacExtend",
+            "ccd83c252dcbae3d56f3d057fcb8217878b51901"
+        ],
+        [
+            "by do !rewrite qf_simpl //.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma sizeTP (pf : polyF) : sizeT pf ->_e size (eval_poly e pf).",
+            "VernacStartTheoremProof",
+            "aeb3d1018e33301b75e182427b91c569d53c1a17"
+        ],
+        [
+            "elim: pf=> [|c qf qfP /=]; first by rewrite /= size_poly0.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "move=> e k; rewrite size_MXaddC qfP -(size_poly_eq0 (eval_poly _ _)).",
+            "VernacExtend",
+            "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+        ],
+        [
+            "by case: (size (eval_poly e qf))=> //=; case: eqP; rewrite // orbF.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma sizeT_qf (p : polyF) : rpoly p -> qf_cps xpredT (sizeT p).",
+            "VernacStartTheoremProof",
+            "9619b30cfac469fb90c71a7972e45691fd704d92"
+        ],
+        [
+            "elim: p => /= [_|c p ihp /andP[rc rq]]; first exact: qf_cps_ret.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "apply: qf_cps_bind; first exact: ihp.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "move=> [|n] //= _; last exact: qf_cps_ret.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "by apply: qf_cps_if; rewrite //= rc.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition isnull (p : polyF) : cps bool := 'let n <- sizeT p; ret (n == 0%N).",
+            "VernacDefinition",
+            "6a67515ba8a65661da31ead9c86eed837c581f18"
+        ],
+        [
+            "Lemma isnullP (p : polyF) : isnull p ->_e (eval_poly e p == 0).",
+            "VernacStartTheoremProof",
+            "33a5f208ff9820598d54323444df1a54f43d70a3"
+        ],
+        [
+            "by move=> e k; rewrite sizeTP size_poly_eq0.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma isnull_qf (p : polyF) : rpoly p -> qf_cps xpredT (isnull p).",
+            "VernacStartTheoremProof",
+            "6eac7b3aa6a5fc675f9ed9ab1d168afc6406fed6"
+        ],
+        [
+            "move=> rp; apply: qf_cps_bind; first exact: sizeT_qf.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "by move=> ? _; apply: qf_cps_ret.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition lt_sizeT (p q : polyF) : cps bool := 'let n <- sizeT p; 'let m <- sizeT q; ret (n < m).",
+            "VernacDefinition",
+            "afeef02f0872010c6dfdc1ae1d77fa234bbb41b0"
+        ],
+        [
+            "Definition lift (p : {poly F}) := map GRing.Const p.",
+            "VernacDefinition",
+            "5247421b58be2d097a9e55f873c2d3c161b57fb6"
+        ],
+        [
+            "Lemma eval_lift (e : seq F) (p : {poly F}) : eval_poly e (lift p) = p.",
+            "VernacStartTheoremProof",
+            "818ef0ed345f62bdef0832e400fa5e1b9f8885af"
+        ],
+        [
+            "elim/poly_ind: p => [|p c]; first by rewrite /lift polyseq0.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "rewrite -cons_poly_def /lift polyseq_cons /nilp.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "case pn0: (_ == _) => /=; last by move->; rewrite -cons_poly_def.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "move=> _; rewrite polyseqC.",
+            "VernacExtend",
+            "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+        ],
+        [
+            "case c0: (_==_)=> /=.",
+            "VernacExtend",
+            "e00fff71ff314c991514fc71c41a3556702e444a"
+        ],
+        [
+            "move: pn0; rewrite (eqP c0) size_poly_eq0; move/eqP->.",
+            "VernacExtend",
+            "3a65ea1b6b22307e89e32603f079817b80e7bf25"
+        ],
+        [
+            "by apply: val_inj=> /=; rewrite polyseq_cons // polyseq0.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "by rewrite mul0r add0r; apply: val_inj=> /=; rewrite polyseq_cons // /nilp pn0.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Fixpoint lead_coefT p : cps tF := if p is c :: q then 'let l <- lead_coefT q; 'if (l == 0) then c else l else ret 0%T.",
+            "VernacFixpoint",
+            "a1a0068c45aa25ab8110e049285b868f41232113"
+        ],
+        [
+            "Lemma lead_coefTP (k : tF -> fF) : (forall x e, qf_eval e (k x) = qf_eval e (k (eval e x)%:T%T)) -> forall (p : polyF) (e : seq F), qf_eval e (lead_coefT p k) = qf_eval e (k (lead_coef (eval_poly e p))%:T%T).",
+            "VernacStartTheoremProof",
+            "1c79f58e5e9dbd0042c1f5887928bc1e1afacade"
+        ],
+        [
+            "move=> kP p e; elim: p => [|a p IHp]/= in k kP e *.",
+            "VernacExtend",
+            "06880003f1108b2eb418688c7bc6bf1013cf0e4c"
+        ],
+        [
+            "by rewrite lead_coef0 kP.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "rewrite IHp; last by move=> *; rewrite //= -kP.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "rewrite GRing.eval_If /= lead_coef_eq0.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "case p'0: (_ == _); first by rewrite (eqP p'0) mul0r add0r lead_coefC -kP.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "rewrite lead_coefDl ?lead_coefMX // polyseqC size_mul ?p'0 //; last first.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "by rewrite -size_poly_eq0 size_polyX.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "rewrite size_polyX addnC /=; case: (_ == _)=> //=.",
+            "VernacExtend",
+            "712d339e99ee17eb7d5033e19ac614eb3ca6b532"
+        ],
+        [
+            "by rewrite ltnS lt0n size_poly_eq0 p'0.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma lead_coefT_qf (p : polyF) : rpoly p -> qf_cps (@rterm _) (lead_coefT p).",
+            "VernacStartTheoremProof",
+            "47e7ff075b4fdfd18262a6f28bdaf2a1d0f7a26a"
+        ],
+        [
+            "elim: p => [_|c q ihp //= /andP[rc rq]]; first by apply: qf_cps_ret.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "apply: qf_cps_bind => [|y ty]; first exact: ihp.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "by apply: qf_cps_if; rewrite //= ty.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Fixpoint amulXnT (a : tF) (n : nat) : polyF := if n is n'.+1 then 0%T :: (amulXnT a n') else [:: a].",
+            "VernacFixpoint",
+            "c01714763cea4ac0b2d99b847b8d5c322f1fae8c"
+        ],
+        [
+            "Lemma eval_amulXnT (a : tF) (n : nat) (e : seq F) : eval_poly e (amulXnT a n) = (eval e a)%:P * 'X^n.",
+            "VernacStartTheoremProof",
+            "f367eb43c692dcba912208136532456ed05ba40b"
+        ],
+        [
+            "elim: n=> [|n] /=; first by rewrite expr0 mulr1 mul0r add0r.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "by move->; rewrite addr0 -mulrA -exprSr.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma ramulXnT: forall a n, rterm a -> rpoly (amulXnT a n).",
+            "VernacStartTheoremProof",
+            "55c9c106e0187bf6f276d5ea5c20e303e3591bea"
+        ],
+        [
+            "by move=> a n; elim: n a=> [a /= -> //|n ihn a ra]; apply: ihn.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Fixpoint sumpT (p q : polyF) := match p, q with a :: p, b :: q => (a + b)%T :: sumpT p q | [::], q => q | p, [::] => p end.",
+            "VernacFixpoint",
+            "eea21194da7dfcc3b1080f49e435f550bb9565e7"
+        ],
+        [
+            "Lemma eval_sumpT (p q : polyF) (e : seq F) : eval_poly e (sumpT p q) = (eval_poly e p) + (eval_poly e q).",
+            "VernacStartTheoremProof",
+            "eb8fade0e098e0c39f8d9c50b847346ea132197a"
+        ],
+        [
+            "elim: p q => [|a p Hp] q /=; first by rewrite add0r.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "case: q => [|b q] /=; first by rewrite addr0.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "rewrite Hp mulrDl -!addrA; congr (_ + _); rewrite polyC_add addrC -addrA.",
+            "VernacExtend",
+            "9d78117f9fa00d8b79d08aff717709f8d084ba84"
+        ],
+        [
+            "by congr (_ + _); rewrite addrC.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma rsumpT (p q : polyF) : rpoly p -> rpoly q -> rpoly (sumpT p q).",
+            "VernacStartTheoremProof",
+            "ef909812ddf92dfe6bfbbce0cbb24003994406cc"
+        ],
+        [
+            "elim: p q=> [|a p ihp] q rp rq //; move: rp; case/andP=> ra rp.",
+            "VernacExtend",
+            "a73255e8827e489ce91d85f6e3bf952e27d3b50a"
+        ],
+        [
+            "case: q rq => [|b q]; rewrite /= ?ra ?rp //=.",
+            "VernacExtend",
+            "90a2acb29b7a5304b0ab6ba5269c420638ddef63"
+        ],
+        [
+            "by case/andP=> -> rq //=; apply: ihp.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Fixpoint mulpT (p q : polyF) := if p isn't a :: p then [::] else sumpT [seq (a * x)%T | x <- q] (0%T :: mulpT p q).",
+            "VernacFixpoint",
+            "35dbece45d80745a6eff306da65d92c8680c6856"
+        ],
+        [
+            "Lemma eval_mulpT (p q : polyF) (e : seq F) : eval_poly e (mulpT p q) = (eval_poly e p) * (eval_poly e q).",
+            "VernacStartTheoremProof",
+            "3faa821253e5868dadbcec0d58c227b1ba9f3d20"
+        ],
+        [
+            "elim: p q=> [|a p Hp] q /=; first by rewrite mul0r.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "rewrite eval_sumpT /= Hp addr0 mulrDl addrC mulrAC; congr (_ + _).",
+            "VernacExtend",
+            "a0279e71fd23ac6bde2b8b4402981a70ea719044"
+        ],
+        [
+            "elim: q=> [|b q Hq] /=; first by rewrite mulr0.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "by rewrite Hq polyC_mul mulrDr mulrA.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma rpoly_map_mul (t : tF) (p : polyF) (rt : rterm t) : rpoly [seq (t * x)%T | x <- p] = rpoly p.",
+            "VernacStartTheoremProof",
+            "3851d691be004225a4c505f47fbe95e309881171"
+        ],
+        [
+            "by rewrite /rpoly all_map /= (@eq_all _ _ (@rterm _)) // => x; rewrite /= rt.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma rmulpT (p q : polyF) : rpoly p -> rpoly q -> rpoly (mulpT p q).",
+            "VernacStartTheoremProof",
+            "169c73e4994e5f8e81a26f587c162c4905cf628c"
+        ],
+        [
+            "elim: p q=> [|a p ihp] q rp rq //=; move: rp; case/andP=> ra rp /=.",
+            "VernacExtend",
+            "a73255e8827e489ce91d85f6e3bf952e27d3b50a"
+        ],
+        [
+            "apply: rsumpT; last exact: ihp.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "by rewrite rpoly_map_mul.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition opppT : polyF -> polyF := map (GRing.Mul (- 1%T)%T).",
+            "VernacDefinition",
+            "be0f47617cddde9fd08493be4cc729e26264ff18"
+        ],
+        [
+            "Lemma eval_opppT (p : polyF) (e : seq F) : eval_poly e (opppT p) = - eval_poly e p.",
+            "VernacStartTheoremProof",
+            "d3cddefcac46036152e0676cd167a4e27236680d"
+        ],
+        [
+            "by elim: p; rewrite /= ?oppr0 // => ? ? ->; rewrite !mulNr opprD polyC_opp mul1r.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition natmulpT n : polyF -> polyF := map (GRing.Mul n%:R%T).",
+            "VernacDefinition",
+            "46b46614cac796166fcab10738daf29835d6dc73"
+        ],
+        [
+            "Lemma eval_natmulpT (p : polyF) (n : nat) (e : seq F) : eval_poly e (natmulpT n p) = (eval_poly e p) *+ n.",
+            "VernacStartTheoremProof",
+            "85b9f2594c21e032debb3808755e89c7401909fd"
+        ],
+        [
+            "elim: p; rewrite //= ?mul0rn // => c p ->.",
+            "VernacExtend",
+            "5c0d3b68844697b312245da3ed2c1b277720f6af"
+        ],
+        [
+            "rewrite mulrnDl mulr_natl polyC_muln; congr (_ + _).",
+            "VernacExtend",
+            "a0279e71fd23ac6bde2b8b4402981a70ea719044"
+        ],
+        [
+            "by rewrite -mulr_natl mulrAC -mulrA mulr_natl mulrC.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Fixpoint redivp_rec_loopT (q : polyF) sq cq (c : nat) (qq r : polyF) (n : nat) {struct n} : cps (nat * polyF * polyF) := 'let sr <- sizeT r; if sr < sq then ret (c, qq, r) else 'let lr <- lead_coefT r; let m := amulXnT lr (sr - sq) in let qq1 := sumpT (mulpT qq [::cq]) m in let r1 := sumpT (mulpT r ([::cq])) (opppT (mulpT m q)) in if n is n1.+1 then redivp_rec_loopT q sq cq c.+1 qq1 r1 n1 else ret (c.+1, qq1, r1).",
+            "VernacFixpoint",
+            "3a97d119764b131993afc8739a76376817eaf136"
+        ],
+        [
+            "Fixpoint redivp_rec_loop (q : {poly F}) sq cq (k : nat) (qq r : {poly F}) (n : nat) {struct n} := if size r < sq then (k, qq, r) else let m := (lead_coef r) *: 'X^(size r - sq) in let qq1 := qq * cq%:P + m in let r1 := r * cq%:P - m * q in if n is n1.+1 then redivp_rec_loop q sq cq k.+1 qq1 r1 n1 else (k.+1, qq1, r1).",
+            "VernacFixpoint",
+            "049f4a80f66d6f6c73fbd08134278705b1b596e4"
+        ],
+        [
+            "Lemma redivp_rec_loopTP (k : nat * polyF * polyF -> fF) : (forall c qq r e, qf_eval e (k (c,qq,r)) = qf_eval e (k (c, lift (eval_poly e qq), lift (eval_poly e r)))) -> forall q sq cq c qq r n e (d := redivp_rec_loop (eval_poly e q) sq (eval e cq) c (eval_poly e qq) (eval_poly e r) n), qf_eval e (redivp_rec_loopT q sq cq c qq r n k) = qf_eval e (k (d.1.1, lift d.1.2, lift d.2)).",
+            "VernacStartTheoremProof",
+            "7b233e3f70877c667353d997ba6d1f4cc596a0c9"
+        ],
+        [
+            "move=> Pk q sq cq c qq r n e /=.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "elim: n c qq r k Pk e => [|n Pn] c qq r k Pk e; rewrite sizeTP.",
+            "VernacExtend",
+            "de65c8193056a36f6dbb91fe21357bd770b140db"
+        ],
+        [
+            "case ltrq : (_ < _); first by rewrite /= ltrq /= -Pk.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "rewrite lead_coefTP => [|a p]; rewrite Pk.",
+            "VernacExtend",
+            "82d53976234637e3f0907eb36cddf61d028c6306"
+        ],
+        [
+            "rewrite ?(eval_mulpT,eval_amulXnT,eval_sumpT,eval_opppT) //=.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "by rewrite ltrq //= mul_polyC ?(mul0r,add0r).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "by symmetry; rewrite Pk ?(eval_mulpT,eval_amulXnT,eval_sumpT, eval_opppT).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "case ltrq : (_<_); first by rewrite /= ltrq Pk.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "rewrite lead_coefTP.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "rewrite Pn ?(eval_mulpT,eval_amulXnT,eval_sumpT,eval_opppT) //=.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "by rewrite ltrq //= mul_polyC ?(mul0r,add0r).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "rewrite -/redivp_rec_loopT => x e'.",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "rewrite Pn; last by move=> *; rewrite Pk.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "symmetry; rewrite Pn; last by move=> *; rewrite Pk.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "rewrite Pk ?(eval_lift,eval_mulpT,eval_amulXnT,eval_sumpT,eval_opppT).",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "by rewrite mul_polyC ?(mul0r,add0r).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma redivp_rec_loopT_qf (q : polyF) (sq : nat) (cq : tF) (c : nat) (qq r : polyF) (n : nat) : rpoly q -> rterm cq -> rpoly qq -> rpoly r -> qf_cps (fun x => [&& rpoly x.1.2 & rpoly x.2]) (redivp_rec_loopT q sq cq c qq r n).",
+            "VernacStartTheoremProof",
+            "011f92d350c831819fcaf57cde6d204b4252b08b"
+        ],
+        [
+            "do ![move=>x/(pair x){x}] => rw; elim: n => [|n IHn]//= in q sq cq c qq r rw *; apply: qf_cps_bind; do ?[by apply: sizeT_qf; rewrite !rw] => sr _; case: ifPn => // _; do ?[by apply: qf_cps_ret; rewrite //= ?rw]; apply: qf_cps_bind; do ?[by apply: lead_coefT_qf; rewrite !rw] => lr /= rlr; [apply: qf_cps_ret|apply: IHn]; by do !rewrite ?(rsumpT,rmulpT,ramulXnT,rpoly_map_mul,rlr,rw) //=.",
+            "VernacExtend",
+            "a289ebee67029f2722402afc75abcda90ed75f79"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition redivpT (p : polyF) (q : polyF) : cps (nat * polyF * polyF) := 'let b <- isnull q; if b then ret (0%N, [::0%T], p) else 'let sq <- sizeT q; 'let sp <- sizeT p; 'let lq <- lead_coefT q; redivp_rec_loopT q sq lq 0 [::0%T] p sp.",
+            "VernacDefinition",
+            "44bc3c074bffcb79da5532d386b46ff41c61b5d7"
+        ],
+        [
+            "Lemma redivp_rec_loopP (q : {poly F}) (c : nat) (qq r : {poly F}) (n : nat) : redivp_rec q c qq r n = redivp_rec_loop q (size q) (lead_coef q) c qq r n.",
+            "VernacStartTheoremProof",
+            "4fe7a676e2f1c300d3c777713aa072f662024e01"
+        ],
+        [
+            "by elim: n c qq r => [| n Pn] c qq r //=; rewrite Pn.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma redivpTP (k : nat * polyF * polyF -> fF) : (forall c qq r e, qf_eval e (k (c,qq,r)) = qf_eval e (k (c, lift (eval_poly e qq), lift (eval_poly e r)))) -> forall p q e (d := redivp (eval_poly e p) (eval_poly e q)), qf_eval e (redivpT p q k) = qf_eval e (k (d.1.1, lift d.1.2, lift d.2)).",
+            "VernacStartTheoremProof",
+            "09c42d9b55bc1c46c229ede6fc28cdabd38ac69e"
+        ],
+        [
+            "move=> Pk p q e /=; rewrite isnullP unlock /=.",
+            "VernacExtend",
+            "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+        ],
+        [
+            "case q0 : (eval_poly e q == 0) => /=; first by rewrite Pk /= mul0r add0r polyC0.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "rewrite !sizeTP lead_coefTP /=; last by move=> *; rewrite !redivp_rec_loopTP.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "rewrite redivp_rec_loopTP /=; last by move=> *; rewrite Pk.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "by rewrite mul0r add0r polyC0 redivp_rec_loopP.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma redivpT_qf (p : polyF) (q : polyF) : rpoly p -> rpoly q -> qf_cps (fun x => [&& rpoly x.1.2 & rpoly x.2]) (redivpT p q).",
+            "VernacStartTheoremProof",
+            "af00540f786a604ff58bdd8b6ae6b74b9349d0e6"
+        ],
+        [
+            "move=> rp rq; apply: qf_cps_bind => [|[] _]; first exact: isnull_qf.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "by apply: qf_cps_ret.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "apply: qf_cps_bind => [|sp _]; first exact: sizeT_qf.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "apply: qf_cps_bind => [|sq _]; first exact: sizeT_qf.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "apply: qf_cps_bind => [|lq rlq]; first exact: lead_coefT_qf.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "by apply: redivp_rec_loopT_qf => //=.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition rmodpT (p : polyF) (q : polyF) : cps polyF := 'let d <- redivpT p q; ret d.2.",
+            "VernacDefinition",
+            "2f9ec085b1fc4e5fbd93bc875594fa5ce544b10b"
+        ],
+        [
+            "Definition rdivpT (p : polyF) (q : polyF) : cps polyF := 'let d <- redivpT p q; ret d.1.2.",
+            "VernacDefinition",
+            "f83885a48b4d146ccb86bcb37d0114d560d1d806"
+        ],
+        [
+            "Definition rscalpT (p : polyF) (q : polyF) : cps nat := 'let d <- redivpT p q; ret d.1.1.",
+            "VernacDefinition",
+            "112c15e6337e48d1e70fc217fa63950033f3a0ad"
+        ],
+        [
+            "Definition rdvdpT (p : polyF) (q : polyF) : cps bool := 'let d <- rmodpT p q; isnull d.",
+            "VernacDefinition",
+            "664012275d7f8f76d797082f747cae49f9143648"
+        ],
+        [
+            "Fixpoint rgcdp_loop n (pp qq : {poly F}) {struct n} := let rr := rmodp pp qq in if rr == 0 then qq else if n is n1.+1 then rgcdp_loop n1 qq rr else rr.",
+            "VernacFixpoint",
+            "267bb86772240916bfbe4e90270d06f437820fdc"
+        ],
+        [
+            "Fixpoint rgcdp_loopT n (pp : polyF) (qq : polyF) : cps polyF := 'let rr <- rmodpT pp qq; 'let nrr <- isnull rr; if nrr then ret qq else if n is n1.+1 then rgcdp_loopT n1 qq rr else ret rr.",
+            "VernacFixpoint",
+            "4f915a8e2c4dbda1971297ee0fc2a8ee9b9654b4"
+        ],
+        [
+            "Lemma rgcdp_loopP (k : polyF -> fF) : (forall p e, qf_eval e (k p) = qf_eval e (k (lift (eval_poly e p)))) -> forall n p q e, qf_eval e (rgcdp_loopT n p q k) = qf_eval e (k (lift (rgcdp_loop n (eval_poly e p) (eval_poly e q)))).",
+            "VernacStartTheoremProof",
+            "40bec33163b53d98085cff7470fbdf8b706ef677"
+        ],
+        [
+            "move=> Pk n p q e; elim: n => /= [| m IHm] in p q e *; rewrite redivpTP /==> *; rewrite ?isnullP ?eval_lift -/(rmodp _ _); by case: (_ == _); do ?by rewrite -?Pk ?IHm ?eval_lift.",
+            "VernacExtend",
+            "2904e413e57034f3d42759ef788a1397079825a8"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma rgcdp_loopT_qf (n : nat) (p : polyF) (q : polyF) : rpoly p -> rpoly q -> qf_cps rpoly (rgcdp_loopT n p q).",
+            "VernacStartTheoremProof",
+            "807e9c173ae0a095552ac36bde1ea018e708e939"
+        ],
+        [
+            "elim: n => [|n IHn] in p q * => rp rq /=; (apply: qf_cps_bind=> [|rr rrr]; [ apply: qf_cps_bind => [|[[a u] v]]; do ?exact: redivpT_qf; by move=> /andP[/= ??]; apply: (@qf_cps_ret _ rpoly)| apply: qf_cps_bind => [|[] _]; by [apply: isnull_qf|apply: qf_cps_ret|apply: IHn]]).",
+            "VernacExtend",
+            "18a51f6e5ccd6b9057ef734ef338a35674ada84a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition rgcdpT (p : polyF) (q : polyF) : cps polyF := let aux p1 q1 : cps polyF := 'let b <- isnull p1; if b then ret q1 else 'let n <- sizeT p1; rgcdp_loopT n p1 q1 in 'let b <- lt_sizeT p q; if b then aux q p else aux p q.",
+            "VernacDefinition",
+            "6ac91d942ece8d9146141008158cb23d963f29af"
+        ],
+        [
+            "Lemma rgcdpTP (k : polyF -> fF) : (forall p e, qf_eval e (k p) = qf_eval e (k (lift (eval_poly e p)))) -> forall p q e, qf_eval e (rgcdpT p q k) = qf_eval e (k (lift (rgcdp (eval_poly e p) (eval_poly e q)))).",
+            "VernacStartTheoremProof",
+            "cd3d989a1cb037ed6141b105c1303893dab8cd5b"
+        ],
+        [
+            "move=> Pk p q e; rewrite /rgcdpT /rgcdp !sizeTP /=.",
+            "VernacExtend",
+            "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+        ],
+        [
+            "case: (_ < _); rewrite !isnullP /=; case: (_ == _); rewrite -?Pk ?sizeTP; by rewrite ?rgcdp_loopP.",
+            "VernacExtend",
+            "59798faaebae7012b1c16fed47d7251bb4d91ac0"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma rgcdpT_qf (p : polyF) (q : polyF) : rpoly p -> rpoly q -> qf_cps rpoly (rgcdpT p q).",
+            "VernacStartTheoremProof",
+            "9fabba570f7173c13929dbd34a305687bb66c034"
+        ],
+        [
+            "move=> rp rq k kP; rewrite /rgcdpT /=; do ![rewrite sizeT_qf => // ? _].",
+            "VernacExtend",
+            "bd8d44165cb21962b117a388f2e859c3cd5f2d5b"
+        ],
+        [
+            "case: (_ < _); rewrite ?isnull_qf // => -[]; rewrite ?kP // => _; by rewrite sizeT_qf => // ? _; rewrite rgcdp_loopT_qf.",
+            "VernacExtend",
+            "4b176d40a24974ea60782fdf0e6995f40a104ca9"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Fixpoint rgcdpTs (ps : seq polyF) : cps polyF := if ps is p :: pr then 'let pr <- rgcdpTs pr; rgcdpT p pr else ret [::0%T].",
+            "VernacFixpoint",
+            "9e80ebbeabf321e511dbd09cdfb06ea78231cfac"
+        ],
+        [
+            "Lemma rgcdpTsP (k : polyF -> fF) : (forall p e, qf_eval e (k p) = qf_eval e (k (lift (eval_poly e p)))) -> forall ps e, qf_eval e (rgcdpTs ps k) = qf_eval e (k (lift (\\big[@rgcdp _/0%:P]_(i <- ps)(eval_poly e i)))).",
+            "VernacStartTheoremProof",
+            "00f8cb8f28a2ef32dbfa37710181ad79db7f90a1"
+        ],
+        [
+            "move=> Pk ps e; elim: ps k Pk => [|p ps Pps] /= k Pk.",
+            "VernacExtend",
+            "06880003f1108b2eb418688c7bc6bf1013cf0e4c"
+        ],
+        [
+            "by rewrite /= big_nil Pk /= mul0r add0r.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "by rewrite big_cons Pps => *; rewrite !rgcdpTP // !eval_lift -?Pk.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma rgcdpTs_qf (ps : seq polyF) : all rpoly ps -> qf_cps rpoly (rgcdpTs ps).",
+            "VernacStartTheoremProof",
+            "f58d46f31dd048598fc5b4e39da7d9187130e126"
+        ],
+        [
+            "elim: ps => [_|c p ihp /andP[rc rp]] //=; first exact: qf_cps_ret.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "by apply: qf_cps_bind => [|r rr]; [apply: ihp|apply: rgcdpT_qf].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Fixpoint rgdcop_recT n (q : polyF) (p : polyF) := if n is m.+1 then 'let g <- rgcdpT p q; 'let sg <- sizeT g; if sg == 1%N then ret p else 'let r <- rdivpT p g; rgdcop_recT m q r else 'let b <- isnull q; ret [::b%:R%T].",
+            "VernacFixpoint",
+            "939f3c0174a13662fb83e2d04c92305ee4bb3b49"
+        ],
+        [
+            "Lemma rgdcop_recTP (k : polyF -> fF) : (forall p e, qf_eval e (k p) = qf_eval e (k (lift (eval_poly e p)))) -> forall p q n e, qf_eval e (rgdcop_recT n p q k) = qf_eval e (k (lift (rgdcop_rec (eval_poly e p) (eval_poly e q) n))).",
+            "VernacStartTheoremProof",
+            "039d1824a61f4a5c8f780d2d76bbcdc895344a56"
+        ],
+        [
+            "move=> Pk p q n e; elim: n => [|n Pn] /= in k Pk p q e *.",
+            "VernacExtend",
+            "06880003f1108b2eb418688c7bc6bf1013cf0e4c"
+        ],
+        [
+            "rewrite isnullP /=.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "by case: (_ == _); rewrite Pk /= mul0r add0r ?(polyC0, polyC1).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "rewrite /rcoprimep rgcdpTP ?sizeTP ?eval_lift => * /=.",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "case: (_ == _); by do ?[rewrite /= ?(=^~Pk, redivpTP, rgcdpTP, sizeTP, Pn, eval_lift) //==> *].",
+            "VernacExtend",
+            "14b141a2d70f00681f703015bc169478d399fe62"
+        ],
+        [
+            "do ?[rewrite /= ?(=^~Pk, redivpTP, rgcdpTP, sizeTP, Pn, eval_lift) //==> *].",
+            "VernacExtend",
+            "2ed5ae5c7a1513e882f170a2462d7a7c3c1ca435"
+        ],
+        [
+            "case: (_ == _); by do ?[rewrite /= ?(=^~Pk, redivpTP, rgcdpTP, sizeTP, Pn, eval_lift) //==> *].",
+            "VernacExtend",
+            "14b141a2d70f00681f703015bc169478d399fe62"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma rgdcop_recT_qf (n : nat) (p : polyF) (q : polyF) : rpoly p -> rpoly q -> qf_cps rpoly (rgdcop_recT n p q).",
+            "VernacStartTheoremProof",
+            "3e83732eff3a31d9ab0d9b61c252aac93580d9ad"
+        ],
+        [
+            "elim: n => [|n ihn] in p q * => k kP rp rq /=.",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "by rewrite isnull_qf => //*; rewrite rq.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "rewrite rgcdpT_qf=> //*; rewrite sizeT_qf=> //*.",
+            "VernacExtend",
+            "fbaa61af20867a5dfb8bb5213ca8048b258f8f3a"
+        ],
+        [
+            "case: (_ == _); rewrite ?kP ?rq //= redivpT_qf=> //= ? /andP[??].",
+            "VernacExtend",
+            "ba44c9d0281a02110ce54645304e6d990debd9c0"
+        ],
+        [
+            "by rewrite ihn.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition rgdcopT q p := 'let sp <- sizeT p; rgdcop_recT sp q p.",
+            "VernacDefinition",
+            "2a6d19916430f219b26d1acba1b57a966c0ad1b7"
+        ],
+        [
+            "Lemma rgdcopTP (k : polyF -> fF) : (forall p e, qf_eval e (k p) = qf_eval e (k (lift (eval_poly e p)))) -> forall p q e, qf_eval e (rgdcopT p q k) = qf_eval e (k (lift (rgdcop (eval_poly e p) (eval_poly e q)))).",
+            "VernacStartTheoremProof",
+            "d1a9d5a76a1af2cc5731dec462c088ec8460dcf9"
+        ],
+        [
+            "by move=> *; rewrite sizeTP rgdcop_recTP 1?Pk.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma rgdcopT_qf (p : polyF) (q : polyF) : rpoly p -> rpoly q -> qf_cps rpoly (rgdcopT p q).",
+            "VernacStartTheoremProof",
+            "1b038846953450518022ab8a3a502e4e48c4f129"
+        ],
+        [
+            "by move=> rp rq k kP; rewrite sizeT_qf => //*; rewrite rgdcop_recT_qf.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition ex_elim_seq (ps : seq polyF) (q : polyF) : fF := ('let g <- rgcdpTs ps; 'let d <- rgdcopT q g; 'let n <- sizeT d; ret (n != 1%N)) GRing.Bool.",
+            "VernacDefinition",
+            "d5ff591304e48b4d010e8c343298cc8a7409af96"
+        ],
+        [
+            "Lemma ex_elim_seqP (ps : seq polyF) (q : polyF) (e : seq F) : let gp := (\\big[@rgcdp _/0%:P]_(p <- ps)(eval_poly e p)) in qf_eval e (ex_elim_seq ps q) = (size (rgdcop (eval_poly e q) gp) != 1%N).",
+            "VernacStartTheoremProof",
+            "b7847da989f1e2c664e9cd612a67957e63166041"
+        ],
+        [
+            "by do ![rewrite (rgcdpTsP,rgdcopTP,sizeTP,eval_lift) //= | move=> * //=].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma ex_elim_seq_qf (ps : seq polyF) (q : polyF) : all rpoly ps -> rpoly q -> qf (ex_elim_seq ps q).",
+            "VernacStartTheoremProof",
+            "ca8aeb098cd72000871f3c3b41188868e8f54418"
+        ],
+        [
+            "move=> rps rq; apply: rgcdpTs_qf=> // g rg; apply: rgdcopT_qf=> // d rd.",
+            "VernacExtend",
+            "e374b6c583d80c9d8b579c06df7953342f99f751"
+        ],
+        [
+            "exact : sizeT_qf.",
+            "VernacExtend",
+            "ce637ff86bafca5d8359473e8c02af644dcbdc43"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Fixpoint abstrX (i : nat) (t : tF) := match t with | 'X_n => if n == i then [::0; 1] else [::t] | - x => opppT (abstrX i x) | x + y => sumpT (abstrX i x) (abstrX i y) | x * y => mulpT (abstrX i x) (abstrX i y) | x *+ n => natmulpT n (abstrX i x) | x ^+ n => let ax := (abstrX i x) in iter n (mulpT ax) [::1] | _ => [::t] end%T.",
+            "VernacFixpoint",
+            "fb82f47106351f1fa7bd7a513a2bb2a653306d25"
+        ],
+        [
+            "Lemma abstrXP (i : nat) (t : tF) (e : seq F) (x : F) : rterm t -> (eval_poly e (abstrX i t)).[x] = eval (set_nth 0 e i x) t.",
+            "VernacStartTheoremProof",
+            "2480c928c493590860029cc9ed11cc89e9a7ddc8"
+        ],
+        [
+            "elim: t => [n | r | n | t tP s sP | t tP | t tP n | t tP s sP | t tP | t tP n] h.",
+            "VernacExtend",
+            "e686a1895f1799b840b76242f931100819a9ad6c"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "move=> /=; case ni: (_ == _); rewrite //= ?(mul0r,add0r,addr0,polyC1,mul1r,hornerX,hornerC); by rewrite // nth_set_nth /= ni.",
+            "VernacExtend",
+            "9081aff772d6340ec1a7fe9256e17f3f0638c9e8"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by rewrite /= mul0r add0r hornerC.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by rewrite /= mul0r add0r hornerC.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by case/andP: h => *; rewrite /= eval_sumpT hornerD tP ?sP.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by rewrite /= eval_opppT hornerN tP.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by rewrite /= eval_natmulpT hornerMn tP.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by case/andP: h => *; rewrite /= eval_mulpT hornerM tP ?sP.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by [].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "elim: n h => [|n ihn] rt; first by rewrite /= expr0 mul0r add0r hornerC.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "by rewrite /= eval_mulpT exprSr hornerM ihn // mulrC tP.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma rabstrX (i : nat) (t : tF) : rterm t -> rpoly (abstrX i t).",
+            "VernacStartTheoremProof",
+            "5ff7ced634a7439a20bf78262d29e18f667133be"
+        ],
+        [
+            "elim: t; do ?[ by move=> * //=; do ?case: (_ == _)].",
+            "VernacExtend",
+            "76a5e31afa9f762ef77303567a3381de5e93bd22"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "move=> t irt s irs /=; case/andP=> rt rs.",
+            "VernacExtend",
+            "a01b3d93f426ff68d360351709a5fa5af822af32"
+        ],
+        [
+            "by apply: rsumpT; rewrite ?irt ?irs //.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by move=> t irt /= rt; rewrite rpoly_map_mul ?irt //.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by move=> t irt /= n rt; rewrite rpoly_map_mul ?irt //.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "move=> t irt s irs /=; case/andP=> rt rs.",
+            "VernacExtend",
+            "a01b3d93f426ff68d360351709a5fa5af822af32"
+        ],
+        [
+            "by apply: rmulpT; rewrite ?irt ?irs //.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "move=> t irt /= n rt; move: (irt rt)=> {rt} rt; elim: n => [|n ihn] //=.",
+            "VernacExtend",
+            "27dd79782d4dac000e026463cc092239fdb0e0df"
+        ],
+        [
+            "exact: rmulpT.",
+            "VernacExtend",
+            "ce637ff86bafca5d8359473e8c02af644dcbdc43"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Implicit Types tx ty : tF.",
+            "VernacReserve",
+            "76122db2e96fb3b7400fed14c99e1823d74b1c36"
+        ],
+        [
+            "Lemma abstrX_mulM (i : nat) : {morph abstrX i : x y / x * y >-> mulpT x y}%T.",
+            "VernacStartTheoremProof",
+            "f77f67243e83733f0d780490f8e00c6859dcc830"
+        ],
+        [
+            "by [].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma abstrX1 (i : nat) : abstrX i 1%T = [::1%T].",
+            "VernacStartTheoremProof",
+            "07f51125b635b25be8eca17602fe423330d91c1e"
+        ],
+        [
+            "done.",
+            "VernacExtend",
+            "095062641163274af3d1e226cbd993f0dbb6e000"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma eval_poly_mulM e : {morph eval_poly e : x y / mulpT x y >-> x * y}.",
+            "VernacStartTheoremProof",
+            "758fdb7adef7ac7e5c2ddb66066766abfb794bff"
+        ],
+        [
+            "by move=> x y; rewrite eval_mulpT.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma eval_poly1 e : eval_poly e [::1%T] = 1.",
+            "VernacStartTheoremProof",
+            "6dd6b05541c07f87c462c15a26f556c72ce521f0"
+        ],
+        [
+            "by rewrite /= mul0r add0r.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Notation abstrX_bigmul := (big_morph _ (abstrX_mulM _) (abstrX1 _)).",
+            "VernacSyntacticDefinition",
+            "be882a7be0d56cceb472aca9b8c50134e1b48782"
+        ],
+        [
+            "Notation eval_bigmul := (big_morph _ (eval_poly_mulM _) (eval_poly1 _)).",
+            "VernacSyntacticDefinition",
+            "e61f98b5fa8630d3eefad6db9bce68e9acddef0b"
+        ],
+        [
+            "Notation bigmap_id := (big_map _ (fun _ => true) id).",
+            "VernacSyntacticDefinition",
+            "87617b2a01b7901295b850ec543dc3583eeb9f11"
+        ],
+        [
+            "Lemma rseq_poly_map (x : nat) (ts : seq tF) : all (@rterm _) ts -> all rpoly (map (abstrX x) ts).",
+            "VernacStartTheoremProof",
+            "606d083199960af5456cd8ed7c5a8b55dccf2d63"
+        ],
+        [
+            "by elim: ts => //= t ts iht; case/andP=> rt rts; rewrite rabstrX // iht.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition ex_elim (x : nat) (pqs : seq tF * seq tF) := ex_elim_seq (map (abstrX x) pqs.1) (abstrX x (\\big[GRing.Mul/1%T]_(q <- pqs.2) q)).",
+            "VernacDefinition",
+            "9b6c19635fd17cec6ef32b88c643b3bec448447a"
+        ],
+        [
+            "Lemma ex_elim_qf (x : nat) (pqs : seq tF * seq tF) : GRing.dnf_rterm pqs -> qf (ex_elim x pqs).",
+            "VernacStartTheoremProof",
+            "a55c89e6664d739559f89f6a5f82cf96e2b04391"
+        ],
+        [
+            "case: pqs => ps qs; case/andP=> /= rps rqs.",
+            "VernacExtend",
+            "5887f8022a4f6389ac249140364feb69c4f18799"
+        ],
+        [
+            "apply: ex_elim_seq_qf; first exact: rseq_poly_map.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "apply: rabstrX=> /=.",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "elim: qs rqs=> [|t ts iht] //=; first by rewrite big_nil.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "by case/andP=> rt rts; rewrite big_cons /= rt /= iht.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma holds_conj : forall e i x ps, all (@rterm _) ps -> (GRing.holds (set_nth 0 e i x) (foldr (fun t : tF => GRing.And (t == 0)) GRing.True%T ps) <-> all ((@root _)^~ x) (map (eval_poly e \\o abstrX i) ps)).",
+            "VernacStartTheoremProof",
+            "f46d413f9423ac503aa8168cd8fd359b71b37f1d"
+        ],
+        [
+            "move=> e i x; elim=> [|p ps ihps] //=.",
+            "VernacExtend",
+            "06880003f1108b2eb418688c7bc6bf1013cf0e4c"
+        ],
+        [
+            "case/andP=> rp rps; rewrite rootE abstrXP //.",
+            "VernacExtend",
+            "90a2acb29b7a5304b0ab6ba5269c420638ddef63"
+        ],
+        [
+            "constructor; first by case=> -> hps; rewrite eqxx /=; apply/ihps.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "by case/andP; move/eqP=> -> psr; split=> //; apply/ihps.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma holds_conjn (e : seq F) (i : nat) (x : F) (ps : seq tF) : all (@rterm _) ps -> (GRing.holds (set_nth 0 e i x) (foldr (fun t : tF => GRing.And (t != 0)) GRing.True ps) <-> all (fun p => ~~root p x) (map (eval_poly e \\o abstrX i) ps)).",
+            "VernacStartTheoremProof",
+            "ebea8555ea50b653ff89dfa265cccfd1104486eb"
+        ],
+        [
+            "elim: ps => [|p ps ihps] //=.",
+            "VernacExtend",
+            "e686a1895f1799b840b76242f931100819a9ad6c"
+        ],
+        [
+            "case/andP=> rp rps; rewrite rootE abstrXP //.",
+            "VernacExtend",
+            "90a2acb29b7a5304b0ab6ba5269c420638ddef63"
+        ],
+        [
+            "constructor; first by case=> /eqP-> hps /=; apply/ihps.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "by case/andP=> pr psr; split; first apply/eqP=> //; apply/ihps.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma holds_ex_elim: GRing.valid_QE_proj ex_elim.",
+            "VernacStartTheoremProof",
+            "781e67715ab5518a31a1c4c2a1228f65a0bd0f5f"
+        ],
+        [
+            "move=> i [ps qs] /= e; case/andP=> /= rps rqs.",
+            "VernacExtend",
+            "a01b3d93f426ff68d360351709a5fa5af822af32"
+        ],
+        [
+            "rewrite ex_elim_seqP big_map.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "have -> : \\big[@rgcdp _/0%:P]_(j <- ps) eval_poly e (abstrX i j) = \\big[@rgcdp _/0%:P]_(j <- (map (eval_poly e) (map (abstrX i) (ps)))) j.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by rewrite !big_map.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "rewrite -!map_comp.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "have aux I (l : seq I) (P : I -> {poly F}) : \\big[(@gcdp F)/0]_(j <- l) P j %= \\big[(@rgcdp F)/0]_(j <- l) P j.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "elim: l => [| u l ihl] /=; first by rewrite !big_nil eqpxx.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "rewrite !big_cons; move: ihl; move/(eqp_gcdr (P u)) => h.",
+            "VernacExtend",
+            "c7c6b04948d79e6319f20eded75ce409c4b19c77"
+        ],
+        [
+            "by apply: eqp_trans h _; rewrite eqp_sym; apply: eqp_rgcd_gcd.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "case g0: (\\big[(@rgcdp F)/0%:P]_(j <- map (eval_poly e \\o abstrX i) ps) j == 0).",
+            "VernacExtend",
+            "e00fff71ff314c991514fc71c41a3556702e444a"
+        ],
+        [
+            "rewrite (eqP g0) rgdcop0.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "case m0 : (_ == 0)=> //=; rewrite ?(size_poly1,size_poly0) //=.",
+            "VernacExtend",
+            "90a2acb29b7a5304b0ab6ba5269c420638ddef63"
+        ],
+        [
+            "rewrite abstrX_bigmul eval_bigmul -bigmap_id in m0.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "constructor=> [[x] // []] //.",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "case=> _; move/holds_conjn=> hc; move/hc:rqs.",
+            "VernacExtend",
+            "ad9703cddf270cbbe68f7e9fd9d34355dc053bfe"
+        ],
+        [
+            "by rewrite -root_bigmul //= (eqP m0) root0.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "constructor; move/negP:m0; move/negP=>m0.",
+            "VernacExtend",
+            "925f20434f0385408497658f3a039ad1370ab462"
+        ],
+        [
+            "case: (closed_nonrootP F_closed _ m0) => x {m0}.",
+            "VernacExtend",
+            "e00fff71ff314c991514fc71c41a3556702e444a"
+        ],
+        [
+            "rewrite abstrX_bigmul eval_bigmul -bigmap_id root_bigmul=> m0.",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "exists x; do 2?constructor=> //; last by apply/holds_conjn.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "apply/holds_conj; rewrite //= -root_biggcd.",
+            "VernacExtend",
+            "56c014161b39aecfb3c54301c2409dba4e8e1857"
+        ],
+        [
+            "by rewrite (eqp_root (aux _ _ _ )) (eqP g0) root0.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "apply: (iffP (closed_rootP F_closed _)) => -[x Px]; exists x; move: Px => //=.",
+            "VernacExtend",
+            "21e5ac0191bde67d08a793bcadadbe801d031288"
+        ],
+        [
+            "rewrite (eqp_root (eqp_rgdco_gdco _ _)) root_gdco ?g0 //.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "rewrite -(eqp_root (aux _ _ _ )) root_biggcd abstrX_bigmul eval_bigmul.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "rewrite -bigmap_id root_bigmul; case/andP=> psr qsr.",
+            "VernacExtend",
+            "712d339e99ee17eb7d5033e19ac614eb3ca6b532"
+        ],
+        [
+            "do 2?constructor; first by apply/holds_conj.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "by apply/holds_conjn.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "rewrite (eqp_root (eqp_rgdco_gdco _ _)) root_gdco ?g0 // -(eqp_root (aux _ _ _)).",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "rewrite root_biggcd abstrX_bigmul eval_bigmul -bigmap_id.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "rewrite root_bigmul=> [[] // [hps hqs]]; apply/andP.",
+            "VernacExtend",
+            "2855640502da0a3b2cfdfcd02ea9662c049d9a24"
+        ],
+        [
+            "constructor; first by apply/holds_conj.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "by apply/holds_conjn.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma wf_ex_elim : GRing.wf_QE_proj ex_elim.",
+            "VernacStartTheoremProof",
+            "8b84560584d81011cfed7d563a20aab937e4ed3a"
+        ],
+        [
+            "by move=> i bc /= rbc; apply: ex_elim_qf.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition Mixin := QEdecFieldMixin wf_ex_elim holds_ex_elim.",
+            "VernacDefinition",
+            "74a98fd23d42d1683843abb1351cd59363481cbd"
+        ],
+        [
+            "End ClosedFieldQE.",
+            "VernacEndSegment",
+            "b0d94e41e23021948d93ac312de97c99ae97ca7e"
+        ],
+        [
+            "End ClosedFieldQE.",
+            "VernacEndSegment",
+            "b0d94e41e23021948d93ac312de97c99ae97ca7e"
+        ],
+        [
+            "Notation closed_field_QEMixin := ClosedFieldQE.Mixin.",
+            "VernacSyntacticDefinition",
+            "104ce4e04854e2b96bd40f3020a22091613bb5b3"
+        ],
+        [
+            "Import CodeSeq.",
+            "VernacImport",
+            "d61890e04adcf7c0d0a0a44cb7d113320d65be0d"
+        ],
+        [
+            "Lemma countable_field_extension (F : countFieldType) (p : {poly F}) : size p > 1 -> {E : countFieldType & {FtoE : {rmorphism F -> E} & {w : E | root (map_poly FtoE p) w & forall u : E, exists q, u = (map_poly FtoE q).[w]}}}.",
+            "VernacStartTheoremProof",
+            "ce2d501a67f9636de5c3eddb75c6a5492529bea6"
+        ],
+        [
+            "pose fix d i := if i is i1.+1 then let d1 := oapp (gcdp (d i1)) 0 (unpickle i1) in if size d1 > 1 then d1 else d i1 else p.",
+            "VernacExtend",
+            "be59184aeceac70e4255bd58cff677d981339a6d"
+        ],
+        [
+            "move=> p_gt1; have sz_d i: size (d i) > 1 by elim: i => //= i IHi; case: ifP.",
+            "VernacExtend",
+            "ccd83c252dcbae3d56f3d057fcb8217878b51901"
+        ],
+        [
+            "have dv_d i j: i <= j -> d j %| d i.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "move/subnK <-; elim: {j}(j - i)%N => //= j IHj; case: ifP => //=.",
+            "VernacExtend",
+            "53a7dfe848427ada56073de8798ac1e02152d78a"
+        ],
+        [
+            "case: (unpickle _) => /= [q _|]; last by rewrite size_poly0.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "exact: dvdp_trans (dvdp_gcdl _ _) IHj.",
+            "VernacExtend",
+            "ce637ff86bafca5d8359473e8c02af644dcbdc43"
+        ],
+        [
+            "pose I : pred {poly F} := [pred q | d (pickle q).+1 %| q].",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "have I'co q i: q \\notin I -> i > pickle q -> coprimep q (d i).",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "rewrite inE => I'q /dv_d/coprimep_dvdl-> //; apply: contraR I'q.",
+            "VernacExtend",
+            "2855640502da0a3b2cfdfcd02ea9662c049d9a24"
+        ],
+        [
+            "rewrite coprimep_sym /coprimep /= pickleK /= neq_ltn.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "case: ifP => [_ _| ->]; first exact: dvdp_gcdr.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "rewrite orbF ltnS leqn0 size_poly_eq0 gcdp_eq0 -size_poly_eq0.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "by rewrite -leqn0 leqNgt ltnW //.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have memI q: reflect (exists i, d i %| q) (q \\in I).",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "apply: (iffP idP) => [|[i dv_di_q]]; first by exists (pickle q).+1.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "have [le_i_q | /I'co i_co_q] := leqP i (pickle q).",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "rewrite inE /= pickleK /=; case: ifP => _; first exact: dvdp_gcdr.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "exact: dvdp_trans (dv_d _ _ le_i_q) dv_di_q.",
+            "VernacExtend",
+            "ce637ff86bafca5d8359473e8c02af644dcbdc43"
+        ],
+        [
+            "apply: contraR i_co_q _.",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "by rewrite /coprimep (eqp_size (dvdp_gcd_idr dv_di_q)) neq_ltn sz_d orbT.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have I_ideal : idealr_closed I.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "split=> [||a q1 q2 Iq1 Iq2]; first exact: dvdp0.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "by apply/memI=> [[i /idPn[]]]; rewrite dvdp1 neq_ltn sz_d orbT.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "apply/memI; exists (maxn (pickle q1).+1 (pickle q2).+1); apply: dvdp_add.",
+            "VernacExtend",
+            "91f31cfdd28fb0d6ae032bc965604f5f5355c00c"
+        ],
+        [
+            "by apply: dvdp_mull; apply: dvdp_trans Iq1; apply/dv_d/leq_maxl.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "by apply: dvdp_trans Iq2; apply/dv_d/leq_maxr.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "pose Iaddkey := GRing.Pred.Add (DefaultPredKey I) I_ideal.",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "pose Iidkey := MkIdeal (GRing.Pred.Zmod Iaddkey I_ideal) I_ideal.",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "pose E := ComRingType _ (@Quotient.mulqC _ _ _ (KeyedPred Iidkey)).",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "pose PtoE : {rmorphism {poly F} -> E} := [rmorphism of \\pi_E%qT : {poly F} -> E].",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "have PtoEd i: PtoE (d i) = 0.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by apply/eqP; rewrite piE Quotient.equivE subr0; apply/memI; exists i.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "pose Einv (z : E) (q := repr z) (dq := d (pickle q).+1) := let q_unitP := Bezout_eq1_coprimepP q dq in if q_unitP is ReflectT ex_uv then PtoE (sval (sig_eqW ex_uv)).1 else 0.",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "have Einv0: Einv 0 = 0.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "rewrite /Einv; case: Bezout_eq1_coprimepP => // ex_uv.",
+            "VernacExtend",
+            "712d339e99ee17eb7d5033e19ac614eb3ca6b532"
+        ],
+        [
+            "case/negP: (oner_neq0 E); rewrite piE -[_ 1]/(PtoE 1); have [uv <-] := ex_uv.",
+            "VernacExtend",
+            "a1ce0aa09dc9308fac06d8d2afb70c8f94962ce3"
+        ],
+        [
+            "by rewrite rmorphD !rmorphM PtoEd /= reprK !mulr0 addr0.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have EmulV: GRing.Field.axiom Einv.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "rewrite /Einv=> z nz_z; case: Bezout_eq1_coprimepP => [ex_uv |]; last first.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "move/Bezout_eq1_coprimepP; rewrite I'co //.",
+            "VernacExtend",
+            "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+        ],
+        [
+            "by rewrite piE -{1}[z]reprK -Quotient.idealrBE subr0 in nz_z.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "apply/eqP; case: sig_eqW => {ex_uv} [uv uv1]; set i := _.+1 in uv1 *.",
+            "VernacExtend",
+            "ce7704f86c8835c718c26f7119a0cb26c7cb4f8f"
+        ],
+        [
+            "rewrite piE /= -[z]reprK -(rmorphM PtoE) -Quotient.idealrBE.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "by rewrite -uv1 opprD addNKr -mulNr; apply/memI; exists i; apply: dvdp_mull.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "pose Efield := FieldType _ (FieldMixin EmulV Einv0).",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "pose Ecount := CountType Efield (CanCountMixin reprK).",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "pose FtoE := [rmorphism of PtoE \\o polyC]; pose w : E := PtoE 'X.",
+            "VernacExtend",
+            "311b833fadff89b2f7ed817d3cd7cb6971c96a1e"
+        ],
+        [
+            "have defPtoE q: (map_poly FtoE q).[w] = PtoE q.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by rewrite map_poly_comp horner_map [_.['X]]comp_polyXr.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "exists [countFieldType of Ecount], FtoE, w => [|u].",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "by rewrite /root defPtoE (PtoEd 0%N).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "by exists (repr u); rewrite defPtoE /= reprK.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma countable_algebraic_closure (F : countFieldType) : {K : countClosedFieldType & {FtoK : {rmorphism F -> K} | integralRange FtoK}}.",
+            "VernacStartTheoremProof",
+            "38bae4e273249b9c855376a80a0d9efd13e020d1"
+        ],
+        [
+            "pose minXp (R : ringType) (p : {poly R}) := if size p > 1 then p else 'X.",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "have minXp_gt1 R p: size (minXp R p) > 1.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by rewrite /minXp; case: ifP => // _; rewrite size_polyX.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have minXpE (R : ringType) (p : {poly R}) : size p > 1 -> minXp R p = p.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by rewrite /minXp => ->.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have ext1 p := countable_field_extension (minXp_gt1 _ p).",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "pose ext1fT E p := tag (ext1 E p).",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "pose ext1to E p : {rmorphism _ -> ext1fT E p} := tag (tagged (ext1 E p)).",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "pose ext1w E p : ext1fT E p := s2val (tagged (tagged (ext1 E p))).",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "have ext1root E p: root (map_poly (ext1to E p) (minXp E p)) (ext1w E p).",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by rewrite /ext1w; case: (tagged (tagged (ext1 E p))).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have ext1gen E p u: {q | u = (map_poly (ext1to E p) q).[ext1w E p]}.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by apply: sig_eqW; rewrite /ext1w; case: (tagged (tagged (ext1 E p))) u.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "pose pExtEnum (E : countFieldType) := nat -> {poly E}.",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "pose Ext := {E : countFieldType & pExtEnum E}; pose MkExt : Ext := Tagged _ _.",
+            "VernacExtend",
+            "311b833fadff89b2f7ed817d3cd7cb6971c96a1e"
+        ],
+        [
+            "pose EtoInc (E : Ext) i := ext1to (tag E) (tagged E i).",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "pose incEp E i j := let v := map_poly (EtoInc E i) (tagged E j) in if decode j is [:: i1; k] then if i1 == i then odflt v (unpickle k) else v else v.",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "pose fix E_ i := if i is i1.+1 then MkExt _ (incEp (E_ i1) i1) else MkExt F \\0.",
+            "VernacExtend",
+            "be59184aeceac70e4255bd58cff677d981339a6d"
+        ],
+        [
+            "pose E i := tag (E_ i); pose Krep := {i : nat & E i}.",
+            "VernacExtend",
+            "311b833fadff89b2f7ed817d3cd7cb6971c96a1e"
+        ],
+        [
+            "pose fix toEadd i k : {rmorphism E i -> E (k + i)%N} := if k is k1.+1 then [rmorphism of EtoInc _ (k1 + i)%N \\o toEadd _ _] else [rmorphism of idfun].",
+            "VernacExtend",
+            "be59184aeceac70e4255bd58cff677d981339a6d"
+        ],
+        [
+            "pose toE i j (le_ij : i <= j) := ecast j {rmorphism E i -> E j} (subnK le_ij) (toEadd i (j - i)%N).",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "have toEeq i le_ii: toE i i le_ii =1 id.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by rewrite /toE; move: (subnK _); rewrite subnn => ?; rewrite eq_axiomK.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have toEleS i j leij leiSj z: toE i j.+1 leiSj z = EtoInc _ _ (toE i j leij z).",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "rewrite /toE; move: (j - i)%N {leij leiSj}(subnK _) (subnK _) => k.",
+            "VernacExtend",
+            "7e529e80bb2879787ee6d9466056f19f0215c721"
+        ],
+        [
+            "by case: j /; rewrite (addnK i k.+1) => eq_kk; rewrite [eq_kk]eq_axiomK.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have toEirr := congr1 ((toE _ _)^~ _) (bool_irrelevance _ _).",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "have toEtrans j i k leij lejk leik z: toE i k leik z = toE j k lejk (toE i j leij z).",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "elim: k leik lejk => [|k IHk] leiSk lejSk.",
+            "VernacExtend",
+            "e686a1895f1799b840b76242f931100819a9ad6c"
+        ],
+        [
+            "by case: j => // in leij lejSk *; rewrite toEeq.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have:= lejSk; rewrite {1}leq_eqVlt ltnS => /predU1P[Dk | lejk].",
+            "VernacExtend",
+            "8431fc4d2460f7908baa11892c1b26797a3f17b8"
+        ],
+        [
+            "by rewrite -Dk in leiSk lejSk *; rewrite toEeq.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "by have leik := leq_trans leij lejk; rewrite !toEleS -IHk.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have [leMl leMr] := (leq_maxl, leq_maxr); pose le_max := (leq_max, leqnn, orbT).",
+            "VernacExtend",
+            "fa6ff0c3d4595d45015144bd8c25fb5ac62ed42b"
+        ],
+        [
+            "pose pairK (x y : Krep) (m := maxn _ _) := (toE _ m (leMl _ _) (tagged x), toE _ m (leMr _ _) (tagged y)).",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "pose eqKrep x y := prod_curry (@eq_op _) (pairK x y).",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "have eqKrefl : reflexive eqKrep by move=> z; apply/eqP; apply: toEirr.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "have eqKsym : symmetric eqKrep.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "move=> z1 z2; rewrite {1}/eqKrep /= eq_sym; move: (leMl _ _) (leMr _ _).",
+            "VernacExtend",
+            "40075a671b142e70c4190413219df8981418e910"
+        ],
+        [
+            "by rewrite maxnC => lez1m lez2m; congr (_ == _); apply: toEirr.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have eqKtrans : transitive eqKrep.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "rewrite /eqKrep /= => z2 z1 z3 /eqP eq_z12 /eqP eq_z23.",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "rewrite -(inj_eq (fmorph_inj (toE _ _ (leMr (tag z2) _)))).",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "rewrite -!toEtrans ?le_max // maxnCA maxnA => lez3m lez1m.",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "rewrite {lez1m}(toEtrans (maxn (tag z1) (tag z2))) // {}eq_z12.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "do [rewrite -toEtrans ?le_max // -maxnA => lez2m] in lez3m *.",
+            "VernacExtend",
+            "2ed5ae5c7a1513e882f170a2462d7a7c3c1ca435"
+        ],
+        [
+            "by rewrite (toEtrans (maxn (tag z2) (tag z3))) // eq_z23 -toEtrans.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "pose K := {eq_quot (EquivRel _ eqKrefl eqKsym eqKtrans)}%qT.",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "have cntK : Countable.mixin_of K := CanCountMixin reprK.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "pose EtoKrep i (x : E i) : K := \\pi%qT (Tagged E x).",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "have [EtoK piEtoK]: {EtoK | forall i, EtoKrep i =1 EtoK i} by exists EtoKrep.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "pose FtoK := EtoK 0%N; rewrite {}/EtoKrep in piEtoK.",
+            "VernacExtend",
+            "de7a4b42b1ef81b17722dd81c9c5b9378b46a6e7"
+        ],
+        [
+            "have eqEtoK i j x y: toE i _ (leMl i j) x = toE j _ (leMr i j) y -> EtoK i x = EtoK j y.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by move/eqP=> eq_xy; rewrite -!piEtoK; apply/eqmodP.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have toEtoK j i leij x : EtoK j (toE i j leij x) = EtoK i x.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by apply: eqEtoK; rewrite -toEtrans.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have EtoK_0 i: EtoK i 0 = FtoK 0 by apply: eqEtoK; rewrite !rmorph0.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "have EtoK_1 i: EtoK i 1 = FtoK 1 by apply: eqEtoK; rewrite !rmorph1.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "have EtoKeq0 i x: (EtoK i x == FtoK 0) = (x == 0).",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by rewrite /FtoK -!piEtoK eqmodE /= /eqKrep /= rmorph0 fmorph_eq0.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have toErepr m i leim x lerm: toE _ m lerm (tagged (repr (EtoK i x))) = toE i m leim x.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "have: (Tagged E x == repr (EtoK i x) %[mod K])%qT by rewrite reprK piEtoK.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "rewrite eqmodE /= /eqKrep; case: (repr _) => j y /= in lerm * => /eqP /=.",
+            "VernacExtend",
+            "80e7cce19c53eb5d5a21aafd83e552d37e23084a"
+        ],
+        [
+            "have leijm: maxn i j <= m by rewrite geq_max leim.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by move/(congr1 (toE _ _ leijm)); rewrite -!toEtrans.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "pose Kadd (x y : K) := EtoK _ (prod_curry +%R (pairK (repr x) (repr y))).",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "pose Kopp (x : K) := EtoK _ (- tagged (repr x)).",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "pose Kmul (x y : K) := EtoK _ (prod_curry *%R (pairK (repr x) (repr y))).",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "pose Kinv (x : K) := EtoK _ (tagged (repr x))^-1.",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "have EtoK_D i: {morph EtoK i : x y / x + y >-> Kadd x y}.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "move=> x y; apply: eqEtoK; set j := maxn (tag _) _; rewrite !rmorphD.",
+            "VernacExtend",
+            "e90dbf769d1697a3a5e9220121619c02338ef367"
+        ],
+        [
+            "by rewrite -!toEtrans ?le_max // => lexm leym; rewrite !toErepr.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have EtoK_N i: {morph EtoK i : x / - x >-> Kopp x}.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by move=> x; apply: eqEtoK; set j := tag _; rewrite !rmorphN toErepr.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have EtoK_M i: {morph EtoK i : x y / x * y >-> Kmul x y}.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "move=> x y; apply: eqEtoK; set j := maxn (tag _) _; rewrite !rmorphM.",
+            "VernacExtend",
+            "e90dbf769d1697a3a5e9220121619c02338ef367"
+        ],
+        [
+            "by rewrite -!toEtrans ?le_max // => lexm leym; rewrite !toErepr.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have EtoK_V i: {morph EtoK i : x / x^-1 >-> Kinv x}.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by move=> x; apply: eqEtoK; set j := tag _; rewrite !fmorphV toErepr.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "case: {toErepr}I in (Kadd) (Kopp) (Kmul) (Kinv) EtoK_D EtoK_N EtoK_M EtoK_V.",
+            "VernacExtend",
+            "e00fff71ff314c991514fc71c41a3556702e444a"
+        ],
+        [
+            "pose inEi i z := {x : E i | z = EtoK i x}; have KtoE z: {i : nat & inEi i z}.",
+            "VernacExtend",
+            "c09d1274557abc8857ed64eb3450db2da906c185"
+        ],
+        [
+            "by elim/quotW: z => [[i x] /=]; exists i, x; rewrite piEtoK.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have inEle i j z: i <= j -> inEi i z -> inEi j z.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by move=> leij [x ->]; exists (toE i j leij x); rewrite toEtoK.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have KtoE2 z1 z2: {i : nat & inEi i z1 & inEi i z2}.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "have [[i1 Ez1] [i2 Ez2]] := (KtoE z1, KtoE z2).",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by exists (maxn i1 i2); [apply: inEle Ez1 | apply: inEle Ez2].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have KtoE3 z1 z2 z3: {i : nat & inEi i z1 & inEi i z2 * inEi i z3}%type.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "have [[i1 Ez1] [i2 Ez2 Ez3]] := (KtoE z1, KtoE2 z2 z3).",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by exists (maxn i1 i2); [apply: inEle Ez1 | split; apply: inEle (leMr _ _) _].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have KaddC: commutative Kadd.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by move=> u v; have [i [x ->] [y ->]] := KtoE2 u v; rewrite -!EtoK_D addrC.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have KaddA: associative Kadd.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "move=> u v w; have [i [x ->] [[y ->] [z ->]]] := KtoE3 u v w.",
+            "VernacExtend",
+            "ccd83c252dcbae3d56f3d057fcb8217878b51901"
+        ],
+        [
+            "by rewrite -!EtoK_D addrA.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have Kadd0: left_id (FtoK 0) Kadd.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by move=> u; have [i [x ->]] := KtoE u; rewrite -(EtoK_0 i) -EtoK_D add0r.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have KaddN: left_inverse (FtoK 0) Kopp Kadd.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by move=> u; have [i [x ->]] := KtoE u; rewrite -EtoK_N -EtoK_D addNr EtoK_0.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "pose Kzmod := ZmodType K (ZmodMixin KaddA KaddC Kadd0 KaddN).",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "have KmulC: commutative Kmul.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by move=> u v; have [i [x ->] [y ->]] := KtoE2 u v; rewrite -!EtoK_M mulrC.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have KmulA: @associative Kzmod Kmul.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "move=> u v w; have [i [x ->] [[y ->] [z ->]]] := KtoE3 u v w.",
+            "VernacExtend",
+            "ccd83c252dcbae3d56f3d057fcb8217878b51901"
+        ],
+        [
+            "by rewrite -!EtoK_M mulrA.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have Kmul1: left_id (FtoK 1) Kmul.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by move=> u; have [i [x ->]] := KtoE u; rewrite -(EtoK_1 i) -EtoK_M mul1r.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have KmulD: left_distributive Kmul Kadd.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "move=> u v w; have [i [x ->] [[y ->] [z ->]]] := KtoE3 u v w.",
+            "VernacExtend",
+            "ccd83c252dcbae3d56f3d057fcb8217878b51901"
+        ],
+        [
+            "by rewrite -!(EtoK_M, EtoK_D) mulrDl.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have Kone_nz: FtoK 1 != FtoK 0 by rewrite EtoKeq0 oner_neq0.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "pose KringMixin := ComRingMixin KmulA KmulC Kmul1 KmulD Kone_nz.",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "pose Kring := ComRingType (RingType Kzmod KringMixin) KmulC.",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "have KmulV: @GRing.Field.axiom Kring Kinv.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "move=> u; have [i [x ->]] := KtoE u; rewrite EtoKeq0 => nz_x.",
+            "VernacExtend",
+            "607ef7ae8426c7af043bed1740cc4d7c951b3085"
+        ],
+        [
+            "by rewrite -EtoK_V -[_ * _]EtoK_M mulVf ?EtoK_1.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "have Kinv0: Kinv (FtoK 0) = FtoK 0 by rewrite -EtoK_V invr0.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "pose Kuring := [comUnitRingType of UnitRingType _ (FieldUnitMixin KmulV Kinv0)].",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "pose KfieldMixin := @FieldMixin _ _ KmulV Kinv0.",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "pose Kidomain := IdomainType Kuring (FieldIdomainMixin KfieldMixin).",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "pose Kfield := FieldType Kidomain KfieldMixin.",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "have EtoKrmorphism i: rmorphism (EtoK i : E i -> Kfield).",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by do 2?split=> [x y|]; rewrite ?EtoK_D ?EtoK_N ?EtoK_M ?EtoK_1.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "pose EtoKM := RMorphism (EtoKrmorphism _); have EtoK_E: EtoK _ = EtoKM _ by [].",
+            "VernacExtend",
+            "c09d1274557abc8857ed64eb3450db2da906c185"
+        ],
+        [
+            "have toEtoKp := @eq_map_poly _ Kring _ _(toEtoK _ _ _).",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "have Kclosed: GRing.ClosedField.axiom Kfield.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "move=> n pK n_gt0; pose m0 := \\max_(i < n) tag (KtoE (pK i)); pose m := m0.+1.",
+            "VernacExtend",
+            "81927515fc3ecfba885b46cf7f9013852021d404"
+        ],
+        [
+            "have /fin_all_exists[pE DpE] (i : 'I_n): exists y, EtoK m y = pK i.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "pose u := KtoE (pK i); have leum0: tag u <= m0 by rewrite (bigmax_sup i).",
+            "VernacExtend",
+            "c09d1274557abc8857ed64eb3450db2da906c185"
+        ],
+        [
+            "by have [y ->] := tagged u; exists (toE _ _ (leqW leum0) y); rewrite toEtoK.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "pose p := 'X^n - rVpoly (\\row_i pE i); pose j := code [:: m0; pickle p].",
+            "VernacExtend",
+            "311b833fadff89b2f7ed817d3cd7cb6971c96a1e"
+        ],
+        [
+            "pose pj := tagged (E_ j) j; pose w : E j.+1 := ext1w (E j) pj.",
+            "VernacExtend",
+            "311b833fadff89b2f7ed817d3cd7cb6971c96a1e"
+        ],
+        [
+            "have lemj: m <= j by rewrite (allP (ltn_code _)) ?mem_head.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "exists (EtoKM j.+1 w); apply/eqP; rewrite -subr_eq0; apply/eqP.",
+            "VernacExtend",
+            "1c45e9e6aa728350334b84f95f7b8a1add1bd045"
+        ],
+        [
+            "transitivity (EtoKM j.+1 (map_poly (toE m j.+1 (leqW lemj)) p).[w]).",
+            "VernacExtend",
+            "0d5a0a7af733099e7de26570937349449126540d"
+        ],
+        [
+            "rewrite -horner_map -map_poly_comp toEtoKp EtoK_E; move/EtoKM: w => w.",
+            "VernacExtend",
+            "7e529e80bb2879787ee6d9466056f19f0215c721"
+        ],
+        [
+            "rewrite rmorphB [_ 'X^n]map_polyXn !hornerE hornerXn; congr (_ - _ : Kring).",
+            "VernacExtend",
+            "a0279e71fd23ac6bde2b8b4402981a70ea719044"
+        ],
+        [
+            "rewrite (@horner_coef_wide _ n) ?size_map_poly ?size_poly //.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "by apply: eq_bigr => i _; rewrite coef_map coef_rVpoly valK mxE /= DpE.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "suffices Dpj: map_poly (toE m j lemj) p = pj.",
+            "VernacExtend",
+            "290ed488b5562e885aa2cac56f3a69b4faa0eaa6"
+        ],
+        [
+            "apply/eqP; rewrite EtoKeq0 (eq_map_poly (toEleS _ _ _ _)) map_poly_comp Dpj.",
+            "VernacExtend",
+            "56c014161b39aecfb3c54301c2409dba4e8e1857"
+        ],
+        [
+            "rewrite -rootE -[pj]minXpE ?ext1root // -Dpj size_map_poly.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "by rewrite size_addl ?size_polyXn ltnS ?size_opp ?size_poly.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "rewrite {w}/pj; elim: {-9}j lemj => // k IHk lemSk.",
+            "VernacExtend",
+            "44a8e3b453c9376c468b4e3e0046f5ac33e11d6d"
+        ],
+        [
+            "move: lemSk (lemSk); rewrite {1}leq_eqVlt ltnS => /predU1P[<- | lemk] lemSk.",
+            "VernacExtend",
+            "8261237f0cda1915a4077c28869831c5329103ce"
+        ],
+        [
+            "rewrite {k IHk lemSk}(eq_map_poly (toEeq m _)) map_poly_id //= /incEp.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "by rewrite codeK eqxx pickleK.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "rewrite (eq_map_poly (toEleS _ _ _ _)) map_poly_comp {}IHk //= /incEp codeK.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "by rewrite -if_neg neq_ltn lemk.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "suffices{Kclosed} algF_K: {FtoK : {rmorphism F -> Kfield} | integralRange FtoK}.",
+            "VernacExtend",
+            "290ed488b5562e885aa2cac56f3a69b4faa0eaa6"
+        ],
+        [
+            "pose Kdec := DecFieldType Kfield (closed_field_QEMixin Kclosed).",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "pose KclosedField := ClosedFieldType Kdec Kclosed.",
+            "VernacExtend",
+            "3c5f04de94609049d978298aa02ff35fb35ea7c7"
+        ],
+        [
+            "by exists [countClosedFieldType of CountType KclosedField cntK].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "exists (EtoKM 0%N) => /= z; have [i [{z}z ->]] := KtoE z.",
+            "VernacExtend",
+            "d2991b7607b6316c9d43d28c85f87ca601299ca6"
+        ],
+        [
+            "suffices{z} /(_ z)[p mon_p]: integralRange (toE 0%N i isT).",
+            "VernacExtend",
+            "290ed488b5562e885aa2cac56f3a69b4faa0eaa6"
+        ],
+        [
+            "by rewrite -(fmorph_root (EtoKM i)) -map_poly_comp toEtoKp; exists p.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "rewrite /toE /E; clear - minXp_gt1 ext1root ext1gen.",
+            "VernacExtend",
+            "97ac31b3e26353dc9591be80463e713376b37703"
+        ],
+        [
+            "move: (i - 0)%N (subnK _) => n; case: i /.",
+            "VernacExtend",
+            "a01b3d93f426ff68d360351709a5fa5af822af32"
+        ],
+        [
+            "elim: n => [|n IHn] /= z; first exact: integral_id.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "have{z} [q ->] := ext1gen _ _ z; set pn := tagged (E_ _) _.",
+            "VernacExtend",
+            "81881a093b2294c76be3b432fbe83612064d7bc9"
+        ],
+        [
+            "apply: integral_horner.",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "by apply/integral_poly=> i; rewrite coef_map; apply: integral_rmorph.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "apply: integral_root (ext1root _ _) _.",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "by rewrite map_poly_eq0 -size_poly_gt0 ltnW.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "by apply/integral_poly=> i; rewrite coef_map; apply: integral_rmorph.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "qf_simpl",
+            "line_nb": 17,
+            "steps": [
+                {
+                    "command": [
+                        "by split=> /andP[].",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "qf_cps_ret",
+            "line_nb": 38,
+            "steps": [
+                {
+                    "command": [
+                        "move=> ??; exact.",
+                        "VernacExtend",
+                        "53efbfe17e30ebe8184b27eedef8dafaaf3f855d"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "qf_cps_bind",
+            "line_nb": 42,
+            "steps": [
+                {
+                    "command": [
+                        "by move=> xP fP k kP /=; apply: xP => y ?; apply: fP.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "qf_cps_if",
+            "line_nb": 45,
+            "steps": [
+                {
+                    "command": [
+                        "move=> qfc Dt De k kP /=; have [qft qfe] := (kP _ Dt, kP _ De).",
+                        "VernacExtend",
+                        "ccd83c252dcbae3d56f3d057fcb8217878b51901"
+                    ]
+                },
+                {
+                    "command": [
+                        "by do !rewrite qf_simpl //.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "sizeTP",
+            "line_nb": 49,
+            "steps": [
+                {
+                    "command": [
+                        "elim: pf=> [|c qf qfP /=]; first by rewrite /= size_poly0.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "move=> e k; rewrite size_MXaddC qfP -(size_poly_eq0 (eval_poly _ _)).",
+                        "VernacExtend",
+                        "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+                    ]
+                },
+                {
+                    "command": [
+                        "by case: (size (eval_poly e qf))=> //=; case: eqP; rewrite // orbF.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "isnullP",
+            "line_nb": 61,
+            "steps": [
+                {
+                    "command": [
+                        "by move=> e k; rewrite sizeTP size_poly_eq0.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "eval_lift",
+            "line_nb": 70,
+            "steps": [
+                {
+                    "command": [
+                        "elim/poly_ind: p => [|p c]; first by rewrite /lift polyseq0.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite -cons_poly_def /lift polyseq_cons /nilp.",
+                        "VernacExtend",
+                        "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+                    ]
+                },
+                {
+                    "command": [
+                        "case pn0: (_ == _) => /=; last by move->; rewrite -cons_poly_def.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "move=> _; rewrite polyseqC.",
+                        "VernacExtend",
+                        "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+                    ]
+                },
+                {
+                    "command": [
+                        "case c0: (_==_)=> /=.",
+                        "VernacExtend",
+                        "e00fff71ff314c991514fc71c41a3556702e444a"
+                    ]
+                },
+                {
+                    "command": [
+                        "move: pn0; rewrite (eqP c0) size_poly_eq0; move/eqP->.",
+                        "VernacExtend",
+                        "3a65ea1b6b22307e89e32603f079817b80e7bf25"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply: val_inj=> /=; rewrite polyseq_cons // polyseq0.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite mul0r add0r; apply: val_inj=> /=; rewrite polyseq_cons // /nilp pn0.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "lead_coefTP",
+            "line_nb": 81,
+            "steps": [
+                {
+                    "command": [
+                        "move=> kP p e; elim: p => [|a p IHp]/= in k kP e *.",
+                        "VernacExtend",
+                        "06880003f1108b2eb418688c7bc6bf1013cf0e4c"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite lead_coef0 kP.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite IHp; last by move=> *; rewrite //= -kP.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite GRing.eval_If /= lead_coef_eq0.",
+                        "VernacExtend",
+                        "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+                    ]
+                },
+                {
+                    "command": [
+                        "case p'0: (_ == _); first by rewrite (eqP p'0) mul0r add0r lead_coefC -kP.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite lead_coefDl ?lead_coefMX // polyseqC size_mul ?p'0 //; last first.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite -size_poly_eq0 size_polyX.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite size_polyX addnC /=; case: (_ == _)=> //=.",
+                        "VernacExtend",
+                        "712d339e99ee17eb7d5033e19ac614eb3ca6b532"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite ltnS lt0n size_poly_eq0 p'0.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "lead_coefT_qf",
+            "line_nb": 92,
+            "steps": [
+                {
+                    "command": [
+                        "elim: p => [_|c q ihp //= /andP[rc rq]]; first by apply: qf_cps_ret.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply: qf_cps_bind => [|y ty]; first exact: ihp.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply: qf_cps_if; rewrite //= ty.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "eval_amulXnT",
+            "line_nb": 98,
+            "steps": [
+                {
+                    "command": [
+                        "elim: n=> [|n] /=; first by rewrite expr0 mulr1 mul0r add0r.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "by move->; rewrite addr0 -mulrA -exprSr.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ramulXnT",
+            "line_nb": 102,
+            "steps": [
+                {
+                    "command": [
+                        "by move=> a n; elim: n a=> [a /= -> //|n ihn a ra]; apply: ihn.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "eval_sumpT",
+            "line_nb": 106,
+            "steps": [
+                {
+                    "command": [
+                        "elim: p q => [|a p Hp] q /=; first by rewrite add0r.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "case: q => [|b q] /=; first by rewrite addr0.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Hp mulrDl -!addrA; congr (_ + _); rewrite polyC_add addrC -addrA.",
+                        "VernacExtend",
+                        "9d78117f9fa00d8b79d08aff717709f8d084ba84"
+                    ]
+                },
+                {
+                    "command": [
+                        "by congr (_ + _); rewrite addrC.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "rsumpT",
+            "line_nb": 112,
+            "steps": [
+                {
+                    "command": [
+                        "elim: p q=> [|a p ihp] q rp rq //; move: rp; case/andP=> ra rp.",
+                        "VernacExtend",
+                        "a73255e8827e489ce91d85f6e3bf952e27d3b50a"
+                    ]
+                },
+                {
+                    "command": [
+                        "case: q rq => [|b q]; rewrite /= ?ra ?rp //=.",
+                        "VernacExtend",
+                        "90a2acb29b7a5304b0ab6ba5269c420638ddef63"
+                    ]
+                },
+                {
+                    "command": [
+                        "by case/andP=> -> rq //=; apply: ihp.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "rpoly_map_mul",
+            "line_nb": 124,
+            "steps": [
+                {
+                    "command": [
+                        "by rewrite /rpoly all_map /= (@eq_all _ _ (@rterm _)) // => x; rewrite /= rt.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "eval_opppT",
+            "line_nb": 133,
+            "steps": [
+                {
+                    "command": [
+                        "by elim: p; rewrite /= ?oppr0 // => ? ? ->; rewrite !mulNr opprD polyC_opp mul1r.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "redivp_rec_loopTP",
+            "line_nb": 144,
+            "steps": [
+                {
+                    "command": [
+                        "move=> Pk q sq cq c qq r n e /=.",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "elim: n c qq r k Pk e => [|n Pn] c qq r k Pk e; rewrite sizeTP.",
+                        "VernacExtend",
+                        "de65c8193056a36f6dbb91fe21357bd770b140db"
+                    ]
+                },
+                {
+                    "command": [
+                        "case ltrq : (_ < _); first by rewrite /= ltrq /= -Pk.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite lead_coefTP => [|a p]; rewrite Pk.",
+                        "VernacExtend",
+                        "82d53976234637e3f0907eb36cddf61d028c6306"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite ?(eval_mulpT,eval_amulXnT,eval_sumpT,eval_opppT) //=.",
+                        "VernacExtend",
+                        "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite ltrq //= mul_polyC ?(mul0r,add0r).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "by symmetry; rewrite Pk ?(eval_mulpT,eval_amulXnT,eval_sumpT, eval_opppT).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "case ltrq : (_<_); first by rewrite /= ltrq Pk.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite lead_coefTP.",
+                        "VernacExtend",
+                        "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Pn ?(eval_mulpT,eval_amulXnT,eval_sumpT,eval_opppT) //=.",
+                        "VernacExtend",
+                        "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite ltrq //= mul_polyC ?(mul0r,add0r).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite -/redivp_rec_loopT => x e'.",
+                        "VernacExtend",
+                        "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Pn; last by move=> *; rewrite Pk.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "symmetry; rewrite Pn; last by move=> *; rewrite Pk.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Pk ?(eval_lift,eval_mulpT,eval_amulXnT,eval_sumpT,eval_opppT).",
+                        "VernacExtend",
+                        "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite mul_polyC ?(mul0r,add0r).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "redivp_rec_loopT_qf",
+            "line_nb": 162,
+            "steps": [
+                {
+                    "command": [
+                        "do ![move=>x/(pair x){x}] => rw; elim: n => [|n IHn]//= in q sq cq c qq r rw *; apply: qf_cps_bind; do ?[by apply: sizeT_qf; rewrite !rw] => sr _; case: ifPn => // _; do ?[by apply: qf_cps_ret; rewrite //= ?rw]; apply: qf_cps_bind; do ?[by apply: lead_coefT_qf; rewrite !rw] => lr /= rlr; [apply: qf_cps_ret|apply: IHn]; by do !rewrite ?(rsumpT,rmulpT,ramulXnT,rpoly_map_mul,rlr,rw) //=.",
+                        "VernacExtend",
+                        "a289ebee67029f2722402afc75abcda90ed75f79"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "redivp_rec_loopP",
+            "line_nb": 166,
+            "steps": [
+                {
+                    "command": [
+                        "by elim: n c qq r => [| n Pn] c qq r //=; rewrite Pn.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "redivpTP",
+            "line_nb": 169,
+            "steps": [
+                {
+                    "command": [
+                        "move=> Pk p q e /=; rewrite isnullP unlock /=.",
+                        "VernacExtend",
+                        "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+                    ]
+                },
+                {
+                    "command": [
+                        "case q0 : (eval_poly e q == 0) => /=; first by rewrite Pk /= mul0r add0r polyC0.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite !sizeTP lead_coefTP /=; last by move=> *; rewrite !redivp_rec_loopTP.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite redivp_rec_loopTP /=; last by move=> *; rewrite Pk.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite mul0r add0r polyC0 redivp_rec_loopP.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "redivpT_qf",
+            "line_nb": 176,
+            "steps": [
+                {
+                    "command": [
+                        "move=> rp rq; apply: qf_cps_bind => [|[] _]; first exact: isnull_qf.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply: qf_cps_ret.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply: qf_cps_bind => [|sp _]; first exact: sizeT_qf.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply: qf_cps_bind => [|sq _]; first exact: sizeT_qf.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply: qf_cps_bind => [|lq rlq]; first exact: lead_coefT_qf.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply: redivp_rec_loopT_qf => //=.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "rgcdp_loopP",
+            "line_nb": 190,
+            "steps": [
+                {
+                    "command": [
+                        "move=> Pk n p q e; elim: n => /= [| m IHm] in p q e *; rewrite redivpTP /==> *; rewrite ?isnullP ?eval_lift -/(rmodp _ _); by case: (_ == _); do ?by rewrite -?Pk ?IHm ?eval_lift.",
+                        "VernacExtend",
+                        "2904e413e57034f3d42759ef788a1397079825a8"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "rgcdp_loopT_qf",
+            "line_nb": 193,
+            "steps": [
+                {
+                    "command": [
+                        "elim: n => [|n IHn] in p q * => rp rq /=; (apply: qf_cps_bind=> [|rr rrr]; [ apply: qf_cps_bind => [|[[a u] v]]; do ?exact: redivpT_qf; by move=> /andP[/= ??]; apply: (@qf_cps_ret _ rpoly)| apply: qf_cps_bind => [|[] _]; by [apply: isnull_qf|apply: qf_cps_ret|apply: IHn]]).",
+                        "VernacExtend",
+                        "18a51f6e5ccd6b9057ef734ef338a35674ada84a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "rgcdpTP",
+            "line_nb": 197,
+            "steps": [
+                {
+                    "command": [
+                        "move=> Pk p q e; rewrite /rgcdpT /rgcdp !sizeTP /=.",
+                        "VernacExtend",
+                        "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+                    ]
+                },
+                {
+                    "command": [
+                        "case: (_ < _); rewrite !isnullP /=; case: (_ == _); rewrite -?Pk ?sizeTP; by rewrite ?rgcdp_loopP.",
+                        "VernacExtend",
+                        "59798faaebae7012b1c16fed47d7251bb4d91ac0"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "rgcdpT_qf",
+            "line_nb": 201,
+            "steps": [
+                {
+                    "command": [
+                        "move=> rp rq k kP; rewrite /rgcdpT /=; do ![rewrite sizeT_qf => // ? _].",
+                        "VernacExtend",
+                        "bd8d44165cb21962b117a388f2e859c3cd5f2d5b"
+                    ]
+                },
+                {
+                    "command": [
+                        "case: (_ < _); rewrite ?isnull_qf // => -[]; rewrite ?kP // => _; by rewrite sizeT_qf => // ? _; rewrite rgcdp_loopT_qf.",
+                        "VernacExtend",
+                        "4b176d40a24974ea60782fdf0e6995f40a104ca9"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "rgcdpTsP",
+            "line_nb": 206,
+            "steps": [
+                {
+                    "command": [
+                        "move=> Pk ps e; elim: ps k Pk => [|p ps Pps] /= k Pk.",
+                        "VernacExtend",
+                        "06880003f1108b2eb418688c7bc6bf1013cf0e4c"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite /= big_nil Pk /= mul0r add0r.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite big_cons Pps => *; rewrite !rgcdpTP // !eval_lift -?Pk.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "rgcdpTs_qf",
+            "line_nb": 211,
+            "steps": [
+                {
+                    "command": [
+                        "elim: ps => [_|c p ihp /andP[rc rp]] //=; first exact: qf_cps_ret.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply: qf_cps_bind => [|r rr]; [apply: ihp|apply: rgcdpT_qf].",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "rgdcop_recTP",
+            "line_nb": 216,
+            "steps": [
+                {
+                    "command": [
+                        "move=> Pk p q n e; elim: n => [|n Pn] /= in k Pk p q e *.",
+                        "VernacExtend",
+                        "06880003f1108b2eb418688c7bc6bf1013cf0e4c"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite isnullP /=.",
+                        "VernacExtend",
+                        "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+                    ]
+                },
+                {
+                    "command": [
+                        "by case: (_ == _); rewrite Pk /= mul0r add0r ?(polyC0, polyC1).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite /rcoprimep rgcdpTP ?sizeTP ?eval_lift => * /=.",
+                        "VernacExtend",
+                        "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+                    ]
+                },
+                {
+                    "command": [
+                        "case: (_ == _); by do ?[rewrite /= ?(=^~Pk, redivpTP, rgcdpTP, sizeTP, Pn, eval_lift) //==> *].",
+                        "VernacExtend",
+                        "14b141a2d70f00681f703015bc169478d399fe62"
+                    ]
+                },
+                {
+                    "command": [
+                        "do ?[rewrite /= ?(=^~Pk, redivpTP, rgcdpTP, sizeTP, Pn, eval_lift) //==> *].",
+                        "VernacExtend",
+                        "2ed5ae5c7a1513e882f170a2462d7a7c3c1ca435"
+                    ]
+                },
+                {
+                    "command": [
+                        "case: (_ == _); by do ?[rewrite /= ?(=^~Pk, redivpTP, rgcdpTP, sizeTP, Pn, eval_lift) //==> *].",
+                        "VernacExtend",
+                        "14b141a2d70f00681f703015bc169478d399fe62"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "rgdcop_recT_qf",
+            "line_nb": 225,
+            "steps": [
+                {
+                    "command": [
+                        "elim: n => [|n ihn] in p q * => k kP rp rq /=.",
+                        "VernacExtend",
+                        "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite isnull_qf => //*; rewrite rq.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite rgcdpT_qf=> //*; rewrite sizeT_qf=> //*.",
+                        "VernacExtend",
+                        "fbaa61af20867a5dfb8bb5213ca8048b258f8f3a"
+                    ]
+                },
+                {
+                    "command": [
+                        "case: (_ == _); rewrite ?kP ?rq //= redivpT_qf=> //= ? /andP[??].",
+                        "VernacExtend",
+                        "ba44c9d0281a02110ce54645304e6d990debd9c0"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite ihn.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "rgdcopTP",
+            "line_nb": 233,
+            "steps": [
+                {
+                    "command": [
+                        "by move=> *; rewrite sizeTP rgdcop_recTP 1?Pk.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "rgdcopT_qf",
+            "line_nb": 236,
+            "steps": [
+                {
+                    "command": [
+                        "by move=> rp rq k kP; rewrite sizeT_qf => //*; rewrite rgdcop_recT_qf.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ex_elim_seqP",
+            "line_nb": 240,
+            "steps": [
+                {
+                    "command": [
+                        "by do ![rewrite (rgcdpTsP,rgdcopTP,sizeTP,eval_lift) //= | move=> * //=].",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ex_elim_seq_qf",
+            "line_nb": 243,
+            "steps": [
+                {
+                    "command": [
+                        "move=> rps rq; apply: rgcdpTs_qf=> // g rg; apply: rgdcopT_qf=> // d rd.",
+                        "VernacExtend",
+                        "e374b6c583d80c9d8b579c06df7953342f99f751"
+                    ]
+                },
+                {
+                    "command": [
+                        "exact : sizeT_qf.",
+                        "VernacExtend",
+                        "ce637ff86bafca5d8359473e8c02af644dcbdc43"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "abstrXP",
+            "line_nb": 248,
+            "steps": [
+                {
+                    "command": [
+                        "elim: t => [n | r | n | t tP s sP | t tP | t tP n | t tP s sP | t tP | t tP n] h.",
+                        "VernacExtend",
+                        "e686a1895f1799b840b76242f931100819a9ad6c"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "move=> /=; case ni: (_ == _); rewrite //= ?(mul0r,add0r,addr0,polyC1,mul1r,hornerX,hornerC); by rewrite // nth_set_nth /= ni.",
+                        "VernacExtend",
+                        "9081aff772d6340ec1a7fe9256e17f3f0638c9e8"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite /= mul0r add0r hornerC.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite /= mul0r add0r hornerC.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "by case/andP: h => *; rewrite /= eval_sumpT hornerD tP ?sP.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite /= eval_opppT hornerN tP.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite /= eval_natmulpT hornerMn tP.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "by case/andP: h => *; rewrite /= eval_mulpT hornerM tP ?sP.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "by [].",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "elim: n h => [|n ihn] rt; first by rewrite /= expr0 mul0r add0r hornerC.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite /= eval_mulpT exprSr hornerM ihn // mulrC tP.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "rabstrX",
+            "line_nb": 270,
+            "steps": [
+                {
+                    "command": [
+                        "elim: t; do ?[ by move=> * //=; do ?case: (_ == _)].",
+                        "VernacExtend",
+                        "76a5e31afa9f762ef77303567a3381de5e93bd22"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "move=> t irt s irs /=; case/andP=> rt rs.",
+                        "VernacExtend",
+                        "a01b3d93f426ff68d360351709a5fa5af822af32"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply: rsumpT; rewrite ?irt ?irs //.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "by move=> t irt /= rt; rewrite rpoly_map_mul ?irt //.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "by move=> t irt /= n rt; rewrite rpoly_map_mul ?irt //.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "move=> t irt s irs /=; case/andP=> rt rs.",
+                        "VernacExtend",
+                        "a01b3d93f426ff68d360351709a5fa5af822af32"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply: rmulpT; rewrite ?irt ?irs //.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "move=> t irt /= n rt; move: (irt rt)=> {rt} rt; elim: n => [|n ihn] //=.",
+                        "VernacExtend",
+                        "27dd79782d4dac000e026463cc092239fdb0e0df"
+                    ]
+                },
+                {
+                    "command": [
+                        "exact: rmulpT.",
+                        "VernacExtend",
+                        "ce637ff86bafca5d8359473e8c02af644dcbdc43"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "abstrX_mulM",
+            "line_nb": 287,
+            "steps": [
+                {
+                    "command": [
+                        "by [].",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "abstrX1",
+            "line_nb": 290,
+            "steps": [
+                {
+                    "command": [
+                        "done.",
+                        "VernacExtend",
+                        "095062641163274af3d1e226cbd993f0dbb6e000"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "eval_poly_mulM",
+            "line_nb": 293,
+            "steps": [
+                {
+                    "command": [
+                        "by move=> x y; rewrite eval_mulpT.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "eval_poly1",
+            "line_nb": 296,
+            "steps": [
+                {
+                    "command": [
+                        "by rewrite /= mul0r add0r.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "rseq_poly_map",
+            "line_nb": 302,
+            "steps": [
+                {
+                    "command": [
+                        "by elim: ts => //= t ts iht; case/andP=> rt rts; rewrite rabstrX // iht.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "holds_conj",
+            "line_nb": 313,
+            "steps": [
+                {
+                    "command": [
+                        "move=> e i x; elim=> [|p ps ihps] //=.",
+                        "VernacExtend",
+                        "06880003f1108b2eb418688c7bc6bf1013cf0e4c"
+                    ]
+                },
+                {
+                    "command": [
+                        "case/andP=> rp rps; rewrite rootE abstrXP //.",
+                        "VernacExtend",
+                        "90a2acb29b7a5304b0ab6ba5269c420638ddef63"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; first by case=> -> hps; rewrite eqxx /=; apply/ihps.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "by case/andP; move/eqP=> -> psr; split=> //; apply/ihps.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "holds_conjn",
+            "line_nb": 319,
+            "steps": [
+                {
+                    "command": [
+                        "elim: ps => [|p ps ihps] //=.",
+                        "VernacExtend",
+                        "e686a1895f1799b840b76242f931100819a9ad6c"
+                    ]
+                },
+                {
+                    "command": [
+                        "case/andP=> rp rps; rewrite rootE abstrXP //.",
+                        "VernacExtend",
+                        "90a2acb29b7a5304b0ab6ba5269c420638ddef63"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; first by case=> /eqP-> hps /=; apply/ihps.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "by case/andP=> pr psr; split; first apply/eqP=> //; apply/ihps.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "wf_ex_elim",
+            "line_nb": 360,
+            "steps": [
+                {
+                    "command": [
+                        "by move=> i bc /= rbc; apply: ex_elim_qf.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

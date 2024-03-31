@@ -1,0 +1,443 @@
+{
+    "filename": "backend/Debugvar.v",
+    "coq_project": "CompCert",
+    "vernac_cmds": [
+        [
+            "Require Import Axioms Coqlib Maps Iteration Errors.",
+            "VernacRequire",
+            "76e006ec4aeadbf67de2bdc2bf4fed4b0e74ca06"
+        ],
+        [
+            "Require Import Integers Floats AST.",
+            "VernacRequire",
+            "00394f288dfb9a7de2ca20e9bf7fd936b9143485"
+        ],
+        [
+            "Require Import Machregs Locations Conventions Linear.",
+            "VernacRequire",
+            "143233548da955d901602f1b89663fb0b74f29b9"
+        ],
+        [
+            "Fixpoint safe_builtin_arg {A: Type} (a: builtin_arg A) : Prop := match a with | BA _ | BA_int _ | BA_long _ | BA_float _ | BA_single _ => True | BA_splitlong hi lo => safe_builtin_arg hi /\\ safe_builtin_arg lo | _ => False end.",
+            "VernacFixpoint",
+            "2bd35658f6e54784f75727db42b518015f799292"
+        ],
+        [
+            "Definition debuginfo := { a : builtin_arg loc | safe_builtin_arg a }.",
+            "VernacDefinition",
+            "fd806ad2421127df64a3e8a4239f8af1a6ddb045"
+        ],
+        [
+            "Definition normalize_debug_1 (a: builtin_arg loc) : option debuginfo := match a with | BA x => Some (exist _ (BA x) I) | BA_int n => Some (exist _ (BA_int n) I) | BA_long n => Some (exist _ (BA_long n) I) | BA_float n => Some (exist _ (BA_float n) I) | BA_single n => Some (exist _ (BA_single n) I) | BA_splitlong (BA hi) (BA lo) => Some (exist _ (BA_splitlong (BA hi) (BA lo)) (conj I I)) | _ => None end.",
+            "VernacDefinition",
+            "ba60a5d473a05515f7c953c4ce7cea3ac4fad2c4"
+        ],
+        [
+            "Fixpoint normalize_debug (l: list (builtin_arg loc)) : option debuginfo := match l with | nil => None | a :: l' => match a with | BA_int _ | BA_long _ | BA_float _ | BA_single _ => match normalize_debug l' with | Some i => Some i | None => normalize_debug_1 a end | _ => normalize_debug_1 a end end.",
+            "VernacFixpoint",
+            "114c7ae7db3df13ba02d9683c2a169b8458ba52a"
+        ],
+        [
+            "Definition avail : Type := list (ident * debuginfo).",
+            "VernacDefinition",
+            "a295d60d127001551bc21402107752239b776813"
+        ],
+        [
+            "Fixpoint set_state (v: ident) (i: debuginfo) (s: avail) : avail := match s with | nil => (v, i) :: nil | (v', i') as vi' :: s' => match Pos.compare v v' with | Eq => (v, i) :: s' | Lt => (v, i) :: s | Gt => vi' :: set_state v i s' end end.",
+            "VernacFixpoint",
+            "0507e7b42e668e7c5557a99f266db580749cd6ab"
+        ],
+        [
+            "Fixpoint remove_state (v: ident) (s: avail) : avail := match s with | nil => nil | (v', i') as vi' :: s' => match Pos.compare v v' with | Eq => s' | Lt => s | Gt => vi' :: remove_state v s' end end.",
+            "VernacFixpoint",
+            "d642aaf313ebe72ee2fbe419ed06317888408047"
+        ],
+        [
+            "Fixpoint set_debug_info (v: ident) (info: list (builtin_arg loc)) (s: avail) := match normalize_debug info with | Some a => set_state v a s | None => remove_state v s end.",
+            "VernacFixpoint",
+            "3cb2f8410fe844575aaeeab9d299f8645d19ee35"
+        ],
+        [
+            "Fixpoint arg_no_overlap (a: builtin_arg loc) (l: loc) : bool := match a with | BA l' => Loc.diff_dec l' l | BA_splitlong hi lo => arg_no_overlap hi l && arg_no_overlap lo l | _ => true end.",
+            "VernacFixpoint",
+            "89b2cf2b0d15224d7217a46fa2478a2ea280e920"
+        ],
+        [
+            "Definition kill (l: loc) (s: avail) : avail := List.filter (fun vi => arg_no_overlap (proj1_sig (snd vi)) l) s.",
+            "VernacDefinition",
+            "c23699b5e215d716a76dfdd5e13b97ecac6779f9"
+        ],
+        [
+            "Fixpoint kill_res (r: builtin_res mreg) (s: avail) : avail := match r with | BR r => kill (R r) s | BR_none => s | BR_splitlong hi lo => kill_res hi (kill_res lo s) end.",
+            "VernacFixpoint",
+            "3a3c21a598ea1d9cf554cf6a032ad4be93befee2"
+        ],
+        [
+            "Fixpoint arg_preserved (a: builtin_arg loc) : bool := match a with | BA (R r) => negb (List.In_dec mreg_eq r destroyed_at_call) | BA (S _ _ _) => true | BA_splitlong hi lo => arg_preserved hi && arg_preserved lo | _ => true end.",
+            "VernacFixpoint",
+            "45f8a80fbe8590fbc356b05de305efe8e369c967"
+        ],
+        [
+            "Definition kill_at_call (s: avail) : avail := List.filter (fun vi => arg_preserved (proj1_sig(snd vi))) s.",
+            "VernacDefinition",
+            "2697299c0bdeedb0c14b1c598d19defc889584d5"
+        ],
+        [
+            "Definition eq_arg (a1 a2: builtin_arg loc) : {a1=a2} + {a1<>a2}.",
+            "VernacDefinition",
+            "bddbf35877d474022b8b78e032e7943fbae1b660"
+        ],
+        [
+            "generalize Loc.eq ident_eq Int.eq_dec Int64.eq_dec Ptrofs.eq_dec Float.eq_dec Float32.eq_dec chunk_eq; decide equality.",
+            "VernacExtend",
+            "1f84b34bcc994e921e7377d68b5e909050866b91"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Global Opaque eq_arg.",
+            "VernacSetOpacity",
+            "2f934a140ec180ce74781025d9ffca79bb903e12"
+        ],
+        [
+            "Definition eq_debuginfo (i1 i2: debuginfo) : {i1=i2} + {i1 <> i2}.",
+            "VernacDefinition",
+            "26605d49b18144ced6b3ff38c4246985c9ea3a64"
+        ],
+        [
+            "destruct (eq_arg (proj1_sig i1) (proj1_sig i2)).",
+            "VernacExtend",
+            "28ac8810c288aeb358674fd8d039435c9a3c43d9"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "destruct i1, i2; simpl in *.",
+            "VernacExtend",
+            "b31b263977fc68016194d9b2220d1820b23ae469"
+        ],
+        [
+            "subst x0.",
+            "VernacExtend",
+            "7f80304cc4342916667b94e1d535d0a72ca10dd6"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "apply proof_irr.",
+            "VernacExtend",
+            "10d46e46974f89c2b3a9463c04a06ee6c39cd171"
+        ],
+        [
+            "right.",
+            "VernacExtend",
+            "27e417a3497755767e1a1d6ba87753ecddaee6b7"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Global Opaque eq_debuginfo.",
+            "VernacSetOpacity",
+            "e029000d65e6ef9da659a82cb35972f1647dd3bd"
+        ],
+        [
+            "Fixpoint join (s1: avail) (s2: avail) {struct s1} : avail := match s1 with | nil => nil | (v1, i1) as vi1 :: s1' => let fix join2 (s2: avail) : avail := match s2 with | nil => nil | (v2, i2) as vi2 :: s2' => match Pos.compare v1 v2 with | Eq => if eq_debuginfo i1 i2 then vi1 :: join s1' s2' else join s1' s2' | Lt => join s1' s2 | Gt => join2 s2' end end in join2 s2 end.",
+            "VernacFixpoint",
+            "f8d23b3a4ccb519a2536ac74e047e5bcd8203b99"
+        ],
+        [
+            "Definition eq_state (s1 s2: avail) : {s1=s2} + {s1<>s2}.",
+            "VernacDefinition",
+            "72e3fe140edb772ca76292b200eeee35b280d881"
+        ],
+        [
+            "apply list_eq_dec.",
+            "VernacExtend",
+            "0910ad082c3bb5554479f3d1955a37027a54dcee"
+        ],
+        [
+            "decide equality.",
+            "VernacExtend",
+            "10aba07d521545accbb51a4c2e0695a9ddce3199"
+        ],
+        [
+            "apply eq_debuginfo.",
+            "VernacExtend",
+            "f22ede8703b8efdfef139cc42e3033d1f9225c61"
+        ],
+        [
+            "apply ident_eq.",
+            "VernacExtend",
+            "b91a48324edef966c2f2d818c3b267259d7490ff"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Global Opaque eq_state.",
+            "VernacSetOpacity",
+            "e2bcb4f4dc114e8b92055a1cca6a7e9efb7e8de8"
+        ],
+        [
+            "Definition top : avail := nil.",
+            "VernacDefinition",
+            "59d2208957f57f2276bf9773e50799c8d72f89ec"
+        ],
+        [
+            "Definition labelmap := (PTree.t avail * bool)%type.",
+            "VernacDefinition",
+            "d2496a7d9942557e0a76ffe370e2b93ec5ba1c35"
+        ],
+        [
+            "Definition get_label (lbl: label) (lm: labelmap) : option avail := PTree.get lbl (fst lm).",
+            "VernacDefinition",
+            "5e8a75942f27bc7cbbd8ea3ba504675d207dd18e"
+        ],
+        [
+            "Definition update_label (lbl: label) (s1: avail) (lm: labelmap) : labelmap * avail := match get_label lbl lm with | None => ((PTree.set lbl s1 (fst lm), true), s1) | Some s2 => let s := join s1 s2 in if eq_state s s2 then (lm, s2) else ((PTree.set lbl s (fst lm), true), s) end.",
+            "VernacDefinition",
+            "fe2edf5d204a89d282036a8e3e416c692ba70f17"
+        ],
+        [
+            "Fixpoint update_labels (lbls: list label) (s: avail) (lm: labelmap) : labelmap := match lbls with | nil => lm | lbl1 :: lbls => update_labels lbls s (fst (update_label lbl1 s lm)) end.",
+            "VernacFixpoint",
+            "f594d262d17d92f3ffb004e9c4c6ff12685ff6e5"
+        ],
+        [
+            "Definition is_debug_setvar (ef: external_function) := match ef with | EF_debug 2%positive txt targs => Some txt | _ => None end.",
+            "VernacDefinition",
+            "726fab3ea26d378363ca16cfb368b0130e3be84d"
+        ],
+        [
+            "Definition is_builtin_debug_setvar (i: instruction) := match i with | Lbuiltin ef args BR_none => is_debug_setvar ef | _ => None end.",
+            "VernacDefinition",
+            "eb54c90aad402d6629311dac7fce78d9fb1f3d1e"
+        ],
+        [
+            "Definition transfer (lm: labelmap) (before: option avail) (i: instruction): labelmap * option avail := match before with | None => match i with | Llabel lbl => (lm, get_label lbl lm) | _ => (lm, None) end | Some s => match i with | Lgetstack sl ofs ty rd => (lm, Some (kill (R rd) s)) | Lsetstack rs sl ofs ty => (lm, Some (kill (S sl ofs ty) s)) | Lop op args dst => (lm, Some (kill (R dst) s)) | Lload chunk addr args dst => (lm, Some (kill (R dst) s)) | Lstore chunk addr args src => (lm, before) | Lcall sg ros => (lm, Some (kill_at_call s)) | Ltailcall sg ros => (lm, None) | Lbuiltin ef args res => let s' := match is_debug_setvar ef with | Some v => set_debug_info v args s | None => s end in (lm, Some (kill_res res s')) | Llabel lbl => let (lm1, s1) := update_label lbl s lm in (lm1, Some s1) | Lgoto lbl => let (lm1, s1) := update_label lbl s lm in (lm1, None) | Lcond cond args lbl => let (lm1, s1) := update_label lbl s lm in (lm1, before) | Ljumptable r lbls => (update_labels lbls s lm, None) | Lreturn => (lm, None) end end.",
+            "VernacDefinition",
+            "d922b0818b93c3492d907a8e88797cb4b40a7ba7"
+        ],
+        [
+            "Fixpoint ana_code (lm: labelmap) (before: option avail) (c: code) : labelmap := match c with | nil => lm | i :: c => let (lm1, after) := transfer lm before i in ana_code lm1 after c end.",
+            "VernacFixpoint",
+            "656840eaad75c08d95bda819d2271f1a082cb0c1"
+        ],
+        [
+            "Definition ana_iter (c: code) (lm: labelmap) : labelmap + labelmap := let lm' := ana_code (fst lm, false) (Some top) c in if snd lm' then inr _ lm' else inl _ lm.",
+            "VernacDefinition",
+            "b9002ea86d8438a2c2f46fb5130d320233fc93d7"
+        ],
+        [
+            "Definition ana_function (f: function) : option labelmap := PrimIter.iterate _ _ (ana_iter f.(fn_code)) (PTree.empty _, false).",
+            "VernacDefinition",
+            "e4e9c491cc5b0a52da74818224eaa9d017c8a4e9"
+        ],
+        [
+            "Fixpoint diff (s1 s2: avail) {struct s1} : avail := match s1 with | nil => nil | (v1, i1) as vi1 :: s1' => let fix diff2 (s2: avail) : avail := match s2 with | nil => s1 | (v2, i2) :: s2' => match Pos.compare v1 v2 with | Eq => if eq_debuginfo i1 i2 then diff s1' s2' else vi1 :: diff s1' s2' | Lt => vi1 :: diff s1' s2 | Gt => diff2 s2' end end in diff2 s2 end.",
+            "VernacFixpoint",
+            "d19193285e2b6d8632f8e5152eb047768d2e6164"
+        ],
+        [
+            "Definition delta_state (before after: option avail) : avail * avail := match before, after with | None, None => (nil, nil) | Some b, None => (b, nil) | None, Some a => (nil, a) | Some b, Some a => (diff b a, diff a b) end.",
+            "VernacDefinition",
+            "2d729442c9eaa860f0e0e8de126889cd8127b3f2"
+        ],
+        [
+            "Definition add_start_range (vi: ident * debuginfo) (c: code) : code := let (v, i) := vi in Lbuiltin (EF_debug 3%positive v nil) (proj1_sig i :: nil) BR_none :: c.",
+            "VernacDefinition",
+            "b7ba4a3fc36cb0f711132a232fadfe4828ee0341"
+        ],
+        [
+            "Definition add_end_range (vi: ident * debuginfo) (c: code) : code := let (v, i) := vi in Lbuiltin (EF_debug 4%positive v nil) nil BR_none :: c.",
+            "VernacDefinition",
+            "fd586307cbeeab11e66f057a7524a25f11b87eee"
+        ],
+        [
+            "Definition add_delta_ranges (before after: option avail) (c: code) : code := let (killed, born) := delta_state before after in List.fold_right add_end_range (List.fold_right add_start_range c born) killed.",
+            "VernacDefinition",
+            "105c989291c9f66744500aeddd66296a61845e63"
+        ],
+        [
+            "Fixpoint skip_debug_setvar (lm: labelmap) (before: option avail) (c: code) := match c with | nil => before | i :: c' => match is_builtin_debug_setvar i with | Some _ => skip_debug_setvar lm (snd (transfer lm before i)) c' | None => before end end.",
+            "VernacFixpoint",
+            "dd845e8a9c4c3a4251b358c27132956432bd9125"
+        ],
+        [
+            "Fixpoint transf_code (lm: labelmap) (before: option avail) (c: code) : code := match c with | nil => nil | Lgoto lbl1 :: Llabel lbl2 :: c' => let after := get_label lbl2 lm in Lgoto lbl1 :: Llabel lbl2 :: add_delta_ranges before after (transf_code lm after c') | i :: c' => let after := skip_debug_setvar lm (snd (transfer lm before i)) c' in i :: add_delta_ranges before after (transf_code lm after c') end.",
+            "VernacFixpoint",
+            "2d382cd26337184db9a7e93b4fb6ec07ade21adb"
+        ],
+        [
+            "Local Open Scope string_scope.",
+            "VernacOpenCloseScope",
+            "347f91aff322dccfab9c81382e495d8430d8e803"
+        ],
+        [
+            "Definition transf_function (f: function) : res function := match ana_function f with | None => Error (msg \"Debugvar: analysis diverges\") | Some lm => OK (mkfunction f.(fn_sig) f.(fn_stacksize) (transf_code lm (Some top) f.(fn_code))) end.",
+            "VernacDefinition",
+            "1ce2c1173b5f561e2642fb918ebfa7c4eac8c1a7"
+        ],
+        [
+            "Definition transf_fundef (fd: fundef) : res fundef := AST.transf_partial_fundef transf_function fd.",
+            "VernacDefinition",
+            "42be6198287510f2501710916642a999c9a555bb"
+        ],
+        [
+            "Definition transf_program (p: program) : res program := transform_partial_program transf_fundef p.",
+            "VernacDefinition",
+            "e9babdc496115b581dadab736900052c711f9c97"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "eq_arg",
+            "line_nb": 16,
+            "steps": [
+                {
+                    "command": [
+                        "generalize Loc.eq ident_eq Int.eq_dec Int64.eq_dec Ptrofs.eq_dec Float.eq_dec Float32.eq_dec chunk_eq; decide equality.",
+                        "VernacExtend",
+                        "1f84b34bcc994e921e7377d68b5e909050866b91"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "eq_debuginfo",
+            "line_nb": 20,
+            "steps": [
+                {
+                    "command": [
+                        "destruct (eq_arg (proj1_sig i1) (proj1_sig i2)).",
+                        "VernacExtend",
+                        "28ac8810c288aeb358674fd8d039435c9a3c43d9"
+                    ]
+                },
+                {
+                    "command": [
+                        "left.",
+                        "VernacExtend",
+                        "06dad9fc5698018f3f1213205145fec906c612b1"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct i1, i2; simpl in *.",
+                        "VernacExtend",
+                        "b31b263977fc68016194d9b2220d1820b23ae469"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst x0.",
+                        "VernacExtend",
+                        "7f80304cc4342916667b94e1d535d0a72ca10dd6"
+                    ]
+                },
+                {
+                    "command": [
+                        "f_equal.",
+                        "VernacExtend",
+                        "dfce814d1efcef60f8330516ad88155a3a5ec317"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply proof_irr.",
+                        "VernacExtend",
+                        "10d46e46974f89c2b3a9463c04a06ee6c39cd171"
+                    ]
+                },
+                {
+                    "command": [
+                        "right.",
+                        "VernacExtend",
+                        "27e417a3497755767e1a1d6ba87753ecddaee6b7"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "eq_state",
+            "line_nb": 32,
+            "steps": [
+                {
+                    "command": [
+                        "apply list_eq_dec.",
+                        "VernacExtend",
+                        "0910ad082c3bb5554479f3d1955a37027a54dcee"
+                    ]
+                },
+                {
+                    "command": [
+                        "decide equality.",
+                        "VernacExtend",
+                        "10aba07d521545accbb51a4c2e0695a9ddce3199"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply eq_debuginfo.",
+                        "VernacExtend",
+                        "f22ede8703b8efdfef139cc42e3033d1f9225c61"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply ident_eq.",
+                        "VernacExtend",
+                        "b91a48324edef966c2f2d818c3b267259d7490ff"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        }
+    ]
+}

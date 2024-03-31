@@ -1,0 +1,1337 @@
+{
+    "filename": "Examples/Calculator/SimpleCalculatorServers.v",
+    "coq_project": "disel",
+    "vernac_cmds": [
+        [
+            "From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq.",
+            "VernacRequire",
+            "037d2ffdc90053d89d1b918c36daaeab721d2d83"
+        ],
+        [
+            "From mathcomp Require Import path.",
+            "VernacRequire",
+            "7c70f445c754a2a74114416d587d02e512c693e2"
+        ],
+        [
+            "Require Import Eqdep.",
+            "VernacRequire",
+            "a499933d0898d4c0e235af789d9252f633426d20"
+        ],
+        [
+            "Require Import Relation_Operators.",
+            "VernacRequire",
+            "5c09f52be79db9d019c350cc3153659920102fbb"
+        ],
+        [
+            "From fcsl Require Import pred prelude ordtype finmap pcm unionmap heap.",
+            "VernacRequire",
+            "41347af8188b8bd95ca7fa1d9e375300903274c8"
+        ],
+        [
+            "From DiSeL Require Import Freshness State EqTypeX DepMaps Protocols Worlds NetworkSem Rely.",
+            "VernacRequire",
+            "6c33e6a9f60f6493eef47870959de533dbb9d6c8"
+        ],
+        [
+            "From DiSeL Require Import Actions Injection Process Always HoareTriples InferenceRules.",
+            "VernacRequire",
+            "7ad4d509680a53857edde447eef7d606efef38a6"
+        ],
+        [
+            "From DiSeL Require Import InductiveInv While.",
+            "VernacRequire",
+            "b2799acd5c83a73c348fbe294fc708727612ded1"
+        ],
+        [
+            "From DiSeL Require Import CalculatorProtocol CalculatorInvariant.",
+            "VernacRequire",
+            "18a39cf581095939d4d0eb2c7378de0e5e5bd410"
+        ],
+        [
+            "From DiSeL Require Import CalculatorClientLib CalculatorServerLib.",
+            "VernacRequire",
+            "61e42808c7d33d8e0fabaa3cbc74f4dde868e077"
+        ],
+        [
+            "Export CalculatorProtocol.",
+            "VernacImport",
+            "d9b2275b4d2985a1300577d66ebaabc676df3699"
+        ],
+        [
+            "Section CalculatorServers.",
+            "VernacBeginSection",
+            "53a031e61e09ded2b349d10c2b0ae6e010a36fb1"
+        ],
+        [
+            "Variable l : Label.",
+            "VernacAssumption",
+            "aca5957ed38b3e3b45d48e71df1841eb1fc9d5f0"
+        ],
+        [
+            "Variable f : input -> option nat.",
+            "VernacAssumption",
+            "7d6ed1dcc87974f361ab4da38798ed33b492e0b4"
+        ],
+        [
+            "Variable prec : input -> bool.",
+            "VernacAssumption",
+            "9233668e2a8a42a88ffb16b02b647817c44a74e6"
+        ],
+        [
+            "Variables (cs cls : seq nid).",
+            "VernacAssumption",
+            "632ed5b803e1ae19ac7a01a2a14acec34a7a6f20"
+        ],
+        [
+            "Notation nodes := (cs ++ cls).",
+            "VernacSyntacticDefinition",
+            "d77e9f1bb6c9e287d5336ff16eaedcecf8990e04"
+        ],
+        [
+            "Hypothesis Huniq : uniq nodes.",
+            "VernacAssumption",
+            "1faa976fa582f3221263ad98e03da35018e1cef6"
+        ],
+        [
+            "Notation cal := (CalculatorProtocol f prec cs cls l).",
+            "VernacSyntacticDefinition",
+            "fcbee21bed7171924d08b8662188055b6494046f"
+        ],
+        [
+            "Notation sts := (snd_trans cal).",
+            "VernacSyntacticDefinition",
+            "0d8aa6a0ed746c64d0da4836ccdb462c6dd5d477"
+        ],
+        [
+            "Notation rts := (rcv_trans cal).",
+            "VernacSyntacticDefinition",
+            "1b48a8d4000a1da718ae3dbe969d46aa0b8f755f"
+        ],
+        [
+            "Notation W := (mkWorld cal).",
+            "VernacSyntacticDefinition",
+            "032bc1fc00ec78329192e7d4d8262b206bd26003"
+        ],
+        [
+            "Variable sv : nid.",
+            "VernacAssumption",
+            "1761f6896e0be33b9c39830325c43d5f3e528a83"
+        ],
+        [
+            "Hypothesis Hs : sv \\in cs.",
+            "VernacAssumption",
+            "d23f56a0cb73fee8a835d111a61c232b2408169d"
+        ],
+        [
+            "Notation loc i := (getLocal sv (getStatelet i l)).",
+            "VernacSyntacticDefinition",
+            "06b2dc23db56ee4ea4aacd75d138fade92a1d41f"
+        ],
+        [
+            "Section CalculatorServerLoop.",
+            "VernacBeginSection",
+            "5008a11b4f6c6631e1e27e00c5ef3865e122091b"
+        ],
+        [
+            "Variable Sstate : Type.",
+            "VernacAssumption",
+            "2b8bbf51fa3fe4a2ac79bbccc5b0b0c24badb18d"
+        ],
+        [
+            "Variable state_wf : Pred Sstate.",
+            "VernacAssumption",
+            "57860b5673737dd03d7fd93ca5d5e3eb43a4b855"
+        ],
+        [
+            "Variable state0 : Sstate.",
+            "VernacAssumption",
+            "66a0018ec4074beaa74dc7939064fe44d6cabbe1"
+        ],
+        [
+            "Hypothesis state0_wf : state_wf state0.",
+            "VernacAssumption",
+            "b75aa0826b998d6ba3b9dae2345381d84fa02a14"
+        ],
+        [
+            "Definition server_loop_body_spec (s : Sstate) := DHT [sv, W] (fun i => loc i = st :-> ([::]:reqs) /\\ state_wf s, fun (r : Sstate) m => [/\\ loc m = st :-> ([::]:reqs) & state_wf r]).",
+            "VernacDefinition",
+            "1700609f633842966a1b02669891a0eac7a378a9"
+        ],
+        [
+            "Variable server_body : forall s, server_loop_body_spec s.",
+            "VernacAssumption",
+            "96699acce51cba822e3bb598ccf9bb30c3eff154"
+        ],
+        [
+            "Definition server_loop_cond (res : Sstate) := true.",
+            "VernacDefinition",
+            "06f81f99c86b55787cbbdc60d6fdef15f7822cab"
+        ],
+        [
+            "Definition server_loop_inv := fun (_ r : Sstate) i => loc i = st :-> ([::]:reqs) /\\ state_wf r.",
+            "VernacDefinition",
+            "8454d2f367300d67500349baf49c85b581ead716"
+        ],
+        [
+            "Program Definition server_loop : DHT [sv, W] (fun i => loc i = st :-> ([::]:reqs), fun (r : Sstate) m => False) := Do _ (@while sv W _ _ server_loop_cond server_loop_inv _ (fun r => Do _ (server_body r))) state0.",
+            "VernacDefinition",
+            "12bbff9d9406fd9f4d40e48b51dd72ca519aecde"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "by apply: with_spec (x x0).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "by move:H; rewrite /server_loop_inv (rely_loc' _ H0).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "by apply: with_spec x.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "by apply: ghC=>i1 s[H1 H2] C1/=; apply: call_rule.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "move=>i/=E1; apply: call_rule'=>//.",
+            "VernacExtend",
+            "d6ebf3361f380a12d5c2c9bbb7ea363132c48b36"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by move=>C1; exists state0=>//.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "by move=>s' m/(_ s')/=; case.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End CalculatorServerLoop.",
+            "VernacEndSegment",
+            "a6f8882744a553e1f1432d8b51535a0749a536a1"
+        ],
+        [
+            "End CalculatorServers.",
+            "VernacEndSegment",
+            "3bbbb8dfdbae5141f8c33a17ae76fe700ffd0c62"
+        ],
+        [
+            "Module OneShotServer.",
+            "VernacDefineModule",
+            "3ed3b499f05c41fe3de6d2ec8f7443e7c1485b7f"
+        ],
+        [
+            "Section OneShotServer.",
+            "VernacBeginSection",
+            "d94c88f43ac7132e324cae1aab2c2179aee2526a"
+        ],
+        [
+            "Variable l : Label.",
+            "VernacAssumption",
+            "aca5957ed38b3e3b45d48e71df1841eb1fc9d5f0"
+        ],
+        [
+            "Variable f : input -> option nat.",
+            "VernacAssumption",
+            "7d6ed1dcc87974f361ab4da38798ed33b492e0b4"
+        ],
+        [
+            "Variable prec : input -> bool.",
+            "VernacAssumption",
+            "9233668e2a8a42a88ffb16b02b647817c44a74e6"
+        ],
+        [
+            "Hypothesis prec_valid : forall i, prec i -> exists v, f i = Some v.",
+            "VernacAssumption",
+            "1241c374d0ceffb180f67e82b1d3e858dcbbf00e"
+        ],
+        [
+            "Variables (cs cls : seq nid).",
+            "VernacAssumption",
+            "632ed5b803e1ae19ac7a01a2a14acec34a7a6f20"
+        ],
+        [
+            "Notation nodes := (cs ++ cls).",
+            "VernacSyntacticDefinition",
+            "d77e9f1bb6c9e287d5336ff16eaedcecf8990e04"
+        ],
+        [
+            "Hypothesis Huniq : uniq nodes.",
+            "VernacAssumption",
+            "1faa976fa582f3221263ad98e03da35018e1cef6"
+        ],
+        [
+            "Notation cal := (CalculatorProtocol f prec cs cls l).",
+            "VernacSyntacticDefinition",
+            "fcbee21bed7171924d08b8662188055b6494046f"
+        ],
+        [
+            "Notation sts := (snd_trans cal).",
+            "VernacSyntacticDefinition",
+            "0d8aa6a0ed746c64d0da4836ccdb462c6dd5d477"
+        ],
+        [
+            "Notation rts := (rcv_trans cal).",
+            "VernacSyntacticDefinition",
+            "1b48a8d4000a1da718ae3dbe969d46aa0b8f755f"
+        ],
+        [
+            "Notation W := (mkWorld cal).",
+            "VernacSyntacticDefinition",
+            "032bc1fc00ec78329192e7d4d8262b206bd26003"
+        ],
+        [
+            "Variable sv : nid.",
+            "VernacAssumption",
+            "1761f6896e0be33b9c39830325c43d5f3e528a83"
+        ],
+        [
+            "Hypothesis Hs : sv \\in cs.",
+            "VernacAssumption",
+            "d23f56a0cb73fee8a835d111a61c232b2408169d"
+        ],
+        [
+            "Notation loc i := (getLocal sv (getStatelet i l)).",
+            "VernacSyntacticDefinition",
+            "06b2dc23db56ee4ea4aacd75d138fade92a1d41f"
+        ],
+        [
+            "Notation Sstate := unit.",
+            "VernacSyntacticDefinition",
+            "1d9d1b31821cc1d342b1d5b3deb627c2e080e827"
+        ],
+        [
+            "Definition state_wf := fun _ : unit => True.",
+            "VernacDefinition",
+            "08997bd3404c2d94429eb7820f2eca9daa7bb0e7"
+        ],
+        [
+            "Definition state0 := tt.",
+            "VernacDefinition",
+            "494a3c35d37d6d35b5d4b3ef092e38bf4a66d1e9"
+        ],
+        [
+            "Lemma state0_wf : state_wf state0.",
+            "VernacStartTheoremProof",
+            "97158073530b2c56326b0747d55af0e71fa0dded"
+        ],
+        [
+            "done.",
+            "VernacExtend",
+            "095062641163274af3d1e226cbd993f0dbb6e000"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Program Definition one_shot_body : forall _ : unit, server_loop_body_spec l f prec cs cls sv _ state_wf state0 := fun _ => Do _ ( r <-- blocking_receive_req l f prec cs cls _ Hs; let: (from, args) := r in let r := if f args is Some v then v else 0 in send_answer l f prec cs cls _ Hs from args r;; ret _ _ tt).",
+            "VernacDefinition",
+            "d2501a1841b9f9d454f8e3c90c2bdbf3f93d0bf7"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "move=>i1/=[L1]_; apply: step; apply: (gh_ex (g:=[::])).",
+            "VernacExtend",
+            "e374b6c583d80c9d8b579c06df7953342f99f751"
+        ],
+        [
+            "apply: call_rule=>//[[from args]] i2/=[L2]H1 H2 C2.",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "case: (prec_valid _ H2)=>ans F.",
+            "VernacExtend",
+            "e00fff71ff314c991514fc71c41a3556702e444a"
+        ],
+        [
+            "move: (erefl (f args))=>e.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "have X: (match f args as anonymous' return (anonymous' = f args -> nat) with | Some v => fun _ : Some v = f args => v | None => fun _ : None = f args => 0 end e) = ans by move: e; rewrite F.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "rewrite X=>{X}; apply: step; apply: (gh_ex (g:=[:: (from, sv, args)])).",
+            "VernacExtend",
+            "c03c49ee818673107bc66d70827b13050eb69520"
+        ],
+        [
+            "apply: call_rule=>//; first by move=>_; split=>//; rewrite inE eqxx.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "move=>x i3/=; rewrite eqxx=> L3 C3.",
+            "VernacExtend",
+            "8261237f0cda1915a4077c28869831c5329103ce"
+        ],
+        [
+            "apply: ret_rule=>i4 R3 _; split=>//.",
+            "VernacExtend",
+            "5fce7e5361004176d6b434b36b4623c7387f70bb"
+        ],
+        [
+            "by rewrite (rely_loc' _ R3); case: L3.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition one_shot_server := server_loop _ _ _ _ _ _ _ _ _ state0_wf one_shot_body.",
+            "VernacDefinition",
+            "ab0fe0f8c50565a371c99f3c02d9e432c705c20b"
+        ],
+        [
+            "End OneShotServer.",
+            "VernacEndSegment",
+            "0f9d165db8f55953a2d7fce397e030b31713cf90"
+        ],
+        [
+            "End OneShotServer.",
+            "VernacEndSegment",
+            "0f9d165db8f55953a2d7fce397e030b31713cf90"
+        ],
+        [
+            "Module BatchingServer.",
+            "VernacDefineModule",
+            "956bf2fc34a8917dd53d2fabc0d876ca6f3cf08e"
+        ],
+        [
+            "Section BatchingServer.",
+            "VernacBeginSection",
+            "29daf9c770d0138c71040148a3eb4ea6d6522db7"
+        ],
+        [
+            "Variable l : Label.",
+            "VernacAssumption",
+            "aca5957ed38b3e3b45d48e71df1841eb1fc9d5f0"
+        ],
+        [
+            "Variable f : input -> option nat.",
+            "VernacAssumption",
+            "7d6ed1dcc87974f361ab4da38798ed33b492e0b4"
+        ],
+        [
+            "Variable prec : input -> bool.",
+            "VernacAssumption",
+            "9233668e2a8a42a88ffb16b02b647817c44a74e6"
+        ],
+        [
+            "Hypothesis prec_valid : forall i, prec i -> exists v, f i = Some v.",
+            "VernacAssumption",
+            "1241c374d0ceffb180f67e82b1d3e858dcbbf00e"
+        ],
+        [
+            "Variables (cs cls : seq nid).",
+            "VernacAssumption",
+            "632ed5b803e1ae19ac7a01a2a14acec34a7a6f20"
+        ],
+        [
+            "Notation nodes := (cs ++ cls).",
+            "VernacSyntacticDefinition",
+            "d77e9f1bb6c9e287d5336ff16eaedcecf8990e04"
+        ],
+        [
+            "Hypothesis Huniq : uniq nodes.",
+            "VernacAssumption",
+            "1faa976fa582f3221263ad98e03da35018e1cef6"
+        ],
+        [
+            "Notation cal := (CalculatorProtocol f prec cs cls l).",
+            "VernacSyntacticDefinition",
+            "fcbee21bed7171924d08b8662188055b6494046f"
+        ],
+        [
+            "Notation sts := (snd_trans cal).",
+            "VernacSyntacticDefinition",
+            "0d8aa6a0ed746c64d0da4836ccdb462c6dd5d477"
+        ],
+        [
+            "Notation rts := (rcv_trans cal).",
+            "VernacSyntacticDefinition",
+            "1b48a8d4000a1da718ae3dbe969d46aa0b8f755f"
+        ],
+        [
+            "Notation W := (mkWorld cal).",
+            "VernacSyntacticDefinition",
+            "032bc1fc00ec78329192e7d4d8262b206bd26003"
+        ],
+        [
+            "Variable sv : nid.",
+            "VernacAssumption",
+            "1761f6896e0be33b9c39830325c43d5f3e528a83"
+        ],
+        [
+            "Hypothesis Hs : sv \\in cs.",
+            "VernacAssumption",
+            "d23f56a0cb73fee8a835d111a61c232b2408169d"
+        ],
+        [
+            "Notation loc i := (getLocal sv (getStatelet i l)).",
+            "VernacSyntacticDefinition",
+            "06b2dc23db56ee4ea4aacd75d138fade92a1d41f"
+        ],
+        [
+            "Notation Sstate := unit.",
+            "VernacSyntacticDefinition",
+            "1d9d1b31821cc1d342b1d5b3deb627c2e080e827"
+        ],
+        [
+            "Definition state_wf := fun _ : unit => True.",
+            "VernacDefinition",
+            "08997bd3404c2d94429eb7820f2eca9daa7bb0e7"
+        ],
+        [
+            "Definition state0 := tt.",
+            "VernacDefinition",
+            "494a3c35d37d6d35b5d4b3ef092e38bf4a66d1e9"
+        ],
+        [
+            "Lemma state0_wf : state_wf state0.",
+            "VernacStartTheoremProof",
+            "97158073530b2c56326b0747d55af0e71fa0dded"
+        ],
+        [
+            "done.",
+            "VernacExtend",
+            "095062641163274af3d1e226cbd993f0dbb6e000"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Variable bsize : nat.",
+            "VernacAssumption",
+            "27bceb9612a67e942d527694c94087ac7b26a6fd"
+        ],
+        [
+            "Definition batch_recv_loop_spec := forall (nsa : nat * Sstate * reqs), DHT [sv, W] (fun i => let: (n, s, acc) := nsa in [/\\ loc i = st :-> acc, size acc + n = bsize, (forall e, e \\in acc -> [/\\ e.1.1 \\in cls, e.1.2 = sv & prec e.2]) & state_wf s], fun (r : (reqs * Sstate)) m => [/\\ loc m = st :-> r.1, size r.1 = bsize, (forall e, e \\in r.1 -> [/\\ e.1.1 \\in cls, e.1.2 = sv & prec e.2]) & state_wf r.2]).",
+            "VernacDefinition",
+            "0d8f888b3b29f2a04c41fba3e2ad4b2502626293"
+        ],
+        [
+            "Program Definition receive_req_loop s : DHT [sv, W] (fun i => loc i = st :-> ([::]:reqs) /\\ state_wf s, fun (r : (reqs * Sstate)) m => [/\\ loc m = st :-> r.1, size r.1 = bsize, (forall e, e \\in r.1 -> [/\\ e.1.1 \\in cls, e.1.2 = sv & prec e.2]) & state_wf r.2]) := Do (ffix (fun (rec : batch_recv_loop_spec) nsa => Do _ (let: (n, s, acc) := nsa in if n is n'.+1 then r <-- blocking_receive_req l f prec cs cls _ Hs; let: (from, args) := r in let: acc' := (from, sv, args) :: acc in rec (n', s, acc') else ret _ _ (acc, s))) (bsize, tt, [::])).",
+            "VernacDefinition",
+            "30dd6c45687d52f183131839552501e632376a98"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "move=>i1/=[L1]S P _; case: n S=>//[|n]S.",
+            "VernacExtend",
+            "a01b3d93f426ff68d360351709a5fa5af822af32"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by apply: ret_rule=>i2 R1/=; rewrite (rely_loc' _ R1) addn0.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "apply: step; apply: (gh_ex (g:=r)).",
+            "VernacExtend",
+            "8d9dae45eeb3a769b8a865cef8ae476451f63802"
+        ],
+        [
+            "apply: call_rule=>//[[from args]]i2/=[L2]H1 H2 C2.",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "apply: call_rule=>// _; split=>//; first by rewrite addSnnS.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "move=>e; rewrite inE=>/orP; case; last by apply: P.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "by move/eqP=>Z; subst e.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "by move=>i1/=[L1]_; apply: call_rule.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition batch_send_loop_spec := forall (acc : reqs), DHT [sv, W] (fun i => [/\\ loc i = st :-> acc & (forall e, e \\in acc -> [/\\ e.1.1 \\in cls, e.1.2 = sv & prec e.2])], fun (r : Sstate) m => [/\\ loc m = st :-> ([::]:reqs) & state_wf r]).",
+            "VernacDefinition",
+            "d5bf9c277f2a4897302420e7bb633caff7f5dcb9"
+        ],
+        [
+            "Program Definition send_ans_loop (acc : reqs) : DHT [sv, W] (fun i => loc i = st :-> acc /\\ (forall e, e \\in acc -> [/\\ e.1.1 \\in cls, e.1.2 = sv & prec e.2]), fun (r : Sstate) m => [/\\ loc m = st :-> ([::]:reqs) & state_wf r]) := ffix (fun (rec : batch_send_loop_spec) acc => Do _ (if acc is (from, _, args) :: acc' then let r := if f args is Some v then v else 0 in send_answer l f prec cs cls _ Hs from args r;; rec acc' else ret _ _ tt)) acc.",
+            "VernacDefinition",
+            "005e0f31b1bb22619517e2b576a5a6328c49fb68"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "move=>i1/=[L1]P1; case: acc L1 P1=>[|[[from b]]args acc] L1 P1.",
+            "VernacExtend",
+            "a01b3d93f426ff68d360351709a5fa5af822af32"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by apply: ret_rule=>i2 R1[H1]_; rewrite (rely_loc' _ R1).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "apply: step.",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "move: (P1 (from, b, args)).",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "rewrite inE eqxx/==>/(_ is_true_true)[X1]Z /prec_valid [v]F; subst b.",
+            "VernacExtend",
+            "040fbce44d45f5b35775e10d386d77ca4166a9f7"
+        ],
+        [
+            "move: (erefl (f args))=>e.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "have X: (match f args as anonymous' return (anonymous' = f args -> nat) with | Some v => fun _ : Some v = f args => v | None => fun _ : None = f args => 0 end e) = v by move: e; rewrite F.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "rewrite X=>{X e}.",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "apply: (gh_ex (g:=((from, sv, args) :: acc))).",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "apply: call_rule; first by move=>_; split=>//; rewrite inE eqxx.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "move=>x i2/= [L2 H2] C2; apply: call_rule=>//_.",
+            "VernacExtend",
+            "d6ebf3361f380a12d5c2c9bbb7ea363132c48b36"
+        ],
+        [
+            "rewrite eqxx in L2; split=>//e A; apply: P1.",
+            "VernacExtend",
+            "b6a6e2560678dcfd8f1a5f2ca82748c79b5f92ee"
+        ],
+        [
+            "by rewrite inE A orbC.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Program Definition batched_body : forall _ : unit, server_loop_body_spec l f prec cs cls sv _ state_wf state0 := fun _ => Do _ ( sr <-- receive_req_loop tt; send_ans_loop sr.1).",
+            "VernacDefinition",
+            "6f2da617fd81f07e9fe3e72c7f13c9e1acb639f6"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "move=>i1/=[L1]_; apply: step.",
+            "VernacExtend",
+            "d6ebf3361f380a12d5c2c9bbb7ea363132c48b36"
+        ],
+        [
+            "apply: call_rule=>//[[acc _]]/= i2[L2 H2]P2 _ C2.",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "by apply: call_rule.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition batched_server := server_loop _ _ _ _ _ _ _ _ _ state0_wf batched_body.",
+            "VernacDefinition",
+            "1ba6bd07bf5f46af9d5cd67c0f4abc9e3eab01f7"
+        ],
+        [
+            "End BatchingServer.",
+            "VernacEndSegment",
+            "8e2252995b86e5c2491e9de2793c7a6175d4b2e6"
+        ],
+        [
+            "End BatchingServer.",
+            "VernacEndSegment",
+            "8e2252995b86e5c2491e9de2793c7a6175d4b2e6"
+        ],
+        [
+            "Module MemoizingServer.",
+            "VernacDefineModule",
+            "ae025d2fcb5d2523a799ff3d04c1a5bbdc4c3e36"
+        ],
+        [
+            "Section MemoizingServer.",
+            "VernacBeginSection",
+            "73fe85b6c0890d0f631917298427124562fa8556"
+        ],
+        [
+            "Variable l : Label.",
+            "VernacAssumption",
+            "aca5957ed38b3e3b45d48e71df1841eb1fc9d5f0"
+        ],
+        [
+            "Variable f : input -> option nat.",
+            "VernacAssumption",
+            "7d6ed1dcc87974f361ab4da38798ed33b492e0b4"
+        ],
+        [
+            "Variable prec : input -> bool.",
+            "VernacAssumption",
+            "9233668e2a8a42a88ffb16b02b647817c44a74e6"
+        ],
+        [
+            "Hypothesis prec_valid : forall i, prec i -> exists v, f i = Some v.",
+            "VernacAssumption",
+            "1241c374d0ceffb180f67e82b1d3e858dcbbf00e"
+        ],
+        [
+            "Variables (cs cls : seq nid).",
+            "VernacAssumption",
+            "632ed5b803e1ae19ac7a01a2a14acec34a7a6f20"
+        ],
+        [
+            "Notation nodes := (cs ++ cls).",
+            "VernacSyntacticDefinition",
+            "d77e9f1bb6c9e287d5336ff16eaedcecf8990e04"
+        ],
+        [
+            "Hypothesis Huniq : uniq nodes.",
+            "VernacAssumption",
+            "1faa976fa582f3221263ad98e03da35018e1cef6"
+        ],
+        [
+            "Notation cal := (CalculatorProtocol f prec cs cls l).",
+            "VernacSyntacticDefinition",
+            "fcbee21bed7171924d08b8662188055b6494046f"
+        ],
+        [
+            "Notation sts := (snd_trans cal).",
+            "VernacSyntacticDefinition",
+            "0d8aa6a0ed746c64d0da4836ccdb462c6dd5d477"
+        ],
+        [
+            "Notation rts := (rcv_trans cal).",
+            "VernacSyntacticDefinition",
+            "1b48a8d4000a1da718ae3dbe969d46aa0b8f755f"
+        ],
+        [
+            "Notation W := (mkWorld cal).",
+            "VernacSyntacticDefinition",
+            "032bc1fc00ec78329192e7d4d8262b206bd26003"
+        ],
+        [
+            "Variable sv : nid.",
+            "VernacAssumption",
+            "1761f6896e0be33b9c39830325c43d5f3e528a83"
+        ],
+        [
+            "Hypothesis Hs : sv \\in cs.",
+            "VernacAssumption",
+            "d23f56a0cb73fee8a835d111a61c232b2408169d"
+        ],
+        [
+            "Notation loc i := (getLocal sv (getStatelet i l)).",
+            "VernacSyntacticDefinition",
+            "06b2dc23db56ee4ea4aacd75d138fade92a1d41f"
+        ],
+        [
+            "Notation Sstate := (seq ((seq nat) * nat)).",
+            "VernacSyntacticDefinition",
+            "a04e594f2de0120be363ed7e4daf42f75b886e15"
+        ],
+        [
+            "Definition state_wf (s : Sstate) := forall e, e \\in s -> f e.1 = Some e.2.",
+            "VernacDefinition",
+            "539bdb559d3905554884eb9f59e20fabd01e63e9"
+        ],
+        [
+            "Definition state0 : Sstate := [::].",
+            "VernacDefinition",
+            "f4886c2e49b97d83da0dddedd512b89cfc9b193e"
+        ],
+        [
+            "Lemma state0_wf : state_wf state0.",
+            "VernacStartTheoremProof",
+            "97158073530b2c56326b0747d55af0e71fa0dded"
+        ],
+        [
+            "by [].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition update_mem_table (s : Sstate) args v := (args, v) :: s.",
+            "VernacDefinition",
+            "46d3997cda34124fb8ee2c11958c215febc5be61"
+        ],
+        [
+            "Fixpoint lookup_mem_table (s : Sstate) args : option nat := match s with | x :: xs => if x.1 == args then Some x.2 else lookup_mem_table xs args | [::] => None end.",
+            "VernacFixpoint",
+            "554be600dc58b08739516910074a010ef483bd83"
+        ],
+        [
+            "Lemma lookup_valid' s args : state_wf s -> forall v, lookup_mem_table s args = Some v -> f args = Some v.",
+            "VernacStartTheoremProof",
+            "44f640467f116eae1b00381d75f0f671badaaeb0"
+        ],
+        [
+            "elim:s=>//[[args' v']]s Hi H1 v/=.",
+            "VernacExtend",
+            "e686a1895f1799b840b76242f931100819a9ad6c"
+        ],
+        [
+            "case: ifP=>X.",
+            "VernacExtend",
+            "e00fff71ff314c991514fc71c41a3556702e444a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "move/eqP: X=>X;subst args'; case=>Z; subst v'.",
+            "VernacExtend",
+            "9e4f470c8387b24dcbb8bc0307f85d52e13643f1"
+        ],
+        [
+            "by move:(H1 (args, v)); rewrite inE eqxx/==>/(_ is_true_true).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "suff Y: state_wf s by apply: Hi.",
+            "VernacExtend",
+            "d07fc8b2103f140554938023774bf3f75d04ba99"
+        ],
+        [
+            "by move=>e H; move: (H1 e); rewrite inE H orbC/==>/(_ is_true_true).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma lookup_valid s args : state_wf s -> if lookup_mem_table s args is Some v then f args = Some v else True.",
+            "VernacStartTheoremProof",
+            "68b4ad4ad7d15449f91c03a6b6ed083be60b2350"
+        ],
+        [
+            "move/(lookup_valid' s args).",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "by case: (lookup_mem_table s args)=>//v H; apply: (H v).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Program Definition memoized_body : forall s : Sstate, server_loop_body_spec l f prec cs cls sv _ state_wf s := fun s => Do _ ( r <-- blocking_receive_req l f prec cs cls _ Hs; let: (from, args) := r in if lookup_mem_table s args is Some v then send_answer l f prec cs cls _ Hs from args v;; ret _ _ s else let r := if f args is Some v then v else 0 in let s' := update_mem_table s args r in send_answer l f prec cs cls _ Hs from args r;; ret _ _ s').",
+            "VernacDefinition",
+            "5efb006622ec1c3fb149df0ade91bc6a1e05a85a"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "move=>i1/=[L1]Hw; apply: step; apply: (gh_ex (g:=[::])).",
+            "VernacExtend",
+            "e374b6c583d80c9d8b579c06df7953342f99f751"
+        ],
+        [
+            "apply: call_rule=>//[[from args]] i2/=[L2]H1 H2 C2.",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "move: (lookup_valid s args Hw).",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "case: (lookup_mem_table s args)=>[v F|_].",
+            "VernacExtend",
+            "e00fff71ff314c991514fc71c41a3556702e444a"
+        ],
+        [
+            "apply: step; apply: (gh_ex (g:=[:: (from, sv, args)])).",
+            "VernacExtend",
+            "8d9dae45eeb3a769b8a865cef8ae476451f63802"
+        ],
+        [
+            "apply: call_rule=>//; first by move=>_; split=>//; rewrite inE eqxx.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "move=>x i3/=; rewrite eqxx=> L3 C3.",
+            "VernacExtend",
+            "8261237f0cda1915a4077c28869831c5329103ce"
+        ],
+        [
+            "apply: ret_rule=>i4 R3 _; split=>//.",
+            "VernacExtend",
+            "5fce7e5361004176d6b434b36b4623c7387f70bb"
+        ],
+        [
+            "by rewrite (rely_loc' _ R3); case: L3.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "case: (prec_valid _ H2)=>ans F.",
+            "VernacExtend",
+            "e00fff71ff314c991514fc71c41a3556702e444a"
+        ],
+        [
+            "move: (erefl (f args))=>e.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "have X: (match f args as anonymous' return (anonymous' = f args -> nat) with | Some v => fun _ : Some v = f args => v | None => fun _ : None = f args => 0 end e) = ans by move: e; rewrite F.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "rewrite X=>{X}; apply: step; apply: (gh_ex (g:=[:: (from, sv, args)])).",
+            "VernacExtend",
+            "c03c49ee818673107bc66d70827b13050eb69520"
+        ],
+        [
+            "apply: call_rule=>//; first by move=>_; split=>//; rewrite inE eqxx.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "move=>x i3/=; rewrite eqxx=> L3 C3.",
+            "VernacExtend",
+            "8261237f0cda1915a4077c28869831c5329103ce"
+        ],
+        [
+            "apply: ret_rule=>i4 R3 _; split; first by rewrite (rely_loc' _ R3); case: L3.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "move=>z; rewrite/update_mem_table inE/==>/orP.",
+            "VernacExtend",
+            "8261237f0cda1915a4077c28869831c5329103ce"
+        ],
+        [
+            "case; last by move/Hw.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "by move/eqP=>->.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition memoizing_server := server_loop _ _ _ _ _ _ _ _ _ state0_wf memoized_body.",
+            "VernacDefinition",
+            "d04e5882e29815021f121728562e1b0ad5d3f6e4"
+        ],
+        [
+            "End MemoizingServer.",
+            "VernacEndSegment",
+            "693da594e387723d4b3062be5ca19c781cde711d"
+        ],
+        [
+            "End MemoizingServer.",
+            "VernacEndSegment",
+            "693da594e387723d4b3062be5ca19c781cde711d"
+        ],
+        [
+            "Export OneShotServer.",
+            "VernacImport",
+            "2ac931926640232b8f367e80d6143c2877eb6322"
+        ],
+        [
+            "Export BatchingServer.",
+            "VernacImport",
+            "af093ef4e2e0be19b6d201ba4c8710fac023620e"
+        ],
+        [
+            "Export MemoizingServer.",
+            "VernacImport",
+            "0330663ad15d29364c93d5a0f5783491f1d3b18f"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "server_loop_obligation_1",
+            "line_nb": 35,
+            "steps": [
+                {
+                    "command": [
+                        "by apply: with_spec (x x0).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "server_loop_obligation_2",
+            "line_nb": 38,
+            "steps": [
+                {
+                    "command": [
+                        "by move:H; rewrite /server_loop_inv (rely_loc' _ H0).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "server_loop_obligation_3",
+            "line_nb": 41,
+            "steps": [
+                {
+                    "command": [
+                        "by apply: with_spec x.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "server_loop_obligation_4",
+            "line_nb": 44,
+            "steps": [
+                {
+                    "command": [
+                        "by apply: ghC=>i1 s[H1 H2] C1/=; apply: call_rule.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "state0_wf",
+            "line_nb": 74,
+            "steps": [
+                {
+                    "command": [
+                        "done.",
+                        "VernacExtend",
+                        "095062641163274af3d1e226cbd993f0dbb6e000"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "receive_req_loop_obligation_4",
+            "line_nb": 128,
+            "steps": [
+                {
+                    "command": [
+                        "by move=>i1/=[L1]_; apply: call_rule.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "lookup_valid'",
+            "line_nb": 182,
+            "steps": [
+                {
+                    "command": [
+                        "elim:s=>//[[args' v']]s Hi H1 v/=.",
+                        "VernacExtend",
+                        "e686a1895f1799b840b76242f931100819a9ad6c"
+                    ]
+                },
+                {
+                    "command": [
+                        "case: ifP=>X.",
+                        "VernacExtend",
+                        "e00fff71ff314c991514fc71c41a3556702e444a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "move/eqP: X=>X;subst args'; case=>Z; subst v'.",
+                        "VernacExtend",
+                        "9e4f470c8387b24dcbb8bc0307f85d52e13643f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "by move:(H1 (args, v)); rewrite inE eqxx/==>/(_ is_true_true).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "suff Y: state_wf s by apply: Hi.",
+                        "VernacExtend",
+                        "d07fc8b2103f140554938023774bf3f75d04ba99"
+                    ]
+                },
+                {
+                    "command": [
+                        "by move=>e H; move: (H1 e); rewrite inE H orbC/==>/(_ is_true_true).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "lookup_valid",
+            "line_nb": 191,
+            "steps": [
+                {
+                    "command": [
+                        "move/(lookup_valid' s args).",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "by case: (lookup_mem_table s args)=>//v H; apply: (H v).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

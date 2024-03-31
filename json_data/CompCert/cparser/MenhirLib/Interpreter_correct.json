@@ -1,0 +1,718 @@
+{
+    "filename": "cparser/MenhirLib/Interpreter_correct.v",
+    "coq_project": "CompCert",
+    "vernac_cmds": [
+        [
+            "Require Import Streams.",
+            "VernacRequire",
+            "a5434de7332fb37ff7339d156041eb614016dee2"
+        ],
+        [
+            "Require Import List.",
+            "VernacRequire",
+            "d9bcce4a390afeb160107bf87c6f7abe3d82c6d6"
+        ],
+        [
+            "Require Import Syntax.",
+            "VernacRequire",
+            "f7333e1bc90f5c9993df336e6bf762d9d566cbfe"
+        ],
+        [
+            "Require Import Equality.",
+            "VernacRequire",
+            "a9ca6ef4d37d26f9652230a7202252051bf9ebf7"
+        ],
+        [
+            "Require Import Alphabet.",
+            "VernacRequire",
+            "319f2088e96907602758beab43ff96f8fdb554b7"
+        ],
+        [
+            "Require Grammar.",
+            "VernacRequire",
+            "92fc01aba52a6fd52138561977941637609c55ad"
+        ],
+        [
+            "Require Automaton.",
+            "VernacRequire",
+            "2a0cbee8eee90ef23660cd2aaf73b263992155b4"
+        ],
+        [
+            "Require Interpreter.",
+            "VernacRequire",
+            "29de65c2b002d4b1469d8140d3ea63750ffa2bcd"
+        ],
+        [
+            "Module Make(Import A:Automaton.T) (Import Inter:Interpreter.T A).",
+            "VernacDefineModule",
+            "32bf62f5a73315f2e0f450006f74f01c2e8a6255"
+        ],
+        [
+            "Section Init.",
+            "VernacBeginSection",
+            "c06dfb0c56d9fe9e0c0d717bed78ead1330ea6b7"
+        ],
+        [
+            "Variable init:initstate.",
+            "VernacAssumption",
+            "6ac82c73d0d5e65173bb7d8dcef28295cadcb7ed"
+        ],
+        [
+            "Inductive word_has_stack_semantics: forall (word:list token) (stack:stack), Prop := | Nil_stack_whss: word_has_stack_semantics [] [] | Cons_stack_whss: forall (wordq:list token) (stackq:stack), word_has_stack_semantics wordq stackq -> forall (wordt:list token) (s:noninitstate) (semantic_valuet:_), inhabited (parse_tree (last_symb_of_non_init_state s) wordt semantic_valuet) -> word_has_stack_semantics (wordq++wordt) (existT noninitstate_type s semantic_valuet::stackq).",
+            "VernacInductive",
+            "441969fcc89b462158f0102fc9602a4411096259"
+        ],
+        [
+            "Lemma pop_invariant_converter: forall A symbols_to_pop symbols_popped, arrows_left (map symbol_semantic_type (rev_append symbols_to_pop symbols_popped)) A = arrows_left (map symbol_semantic_type symbols_popped) (arrows_right A (map symbol_semantic_type symbols_to_pop)).",
+            "VernacStartTheoremProof",
+            "b06af4510e5b1636a27ce3549468de4145556a88"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold arrows_right, arrows_left.",
+            "VernacExtend",
+            "0656ef970602fc58e9c03985a9ed7d05364bb03f"
+        ],
+        [
+            "rewrite rev_append_rev, map_app, map_rev, fold_left_app.",
+            "VernacExtend",
+            "be81fddba3ba310c826e45e83afd69512584e407"
+        ],
+        [
+            "apply f_equal.",
+            "VernacExtend",
+            "ba856cbef3c8e84dcef77c91c8515b497874875b"
+        ],
+        [
+            "rewrite <- fold_left_rev_right, rev_involutive.",
+            "VernacExtend",
+            "ad6978d5a6297c0ea3be9091510a475adff66fe8"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma pop_invariant: forall (symbols_to_pop symbols_popped:list symbol) (stack_cur:stack) (A:Type) (action:arrows_left (map symbol_semantic_type (rev_append symbols_to_pop symbols_popped)) A), forall word_stack word_popped, forall sem_popped, word_has_stack_semantics word_stack stack_cur -> inhabited (parse_tree_list symbols_popped word_popped sem_popped) -> let action' := eq_rect _ (fun x=>x) action _ (pop_invariant_converter _ _ _) in match pop symbols_to_pop stack_cur (uncurry action' sem_popped) with | OK (stack_new, sem) => exists word1res word2res sem_full, (word_stack = word1res ++ word2res)%list /\\ word_has_stack_semantics word1res stack_new /\\ sem = uncurry action sem_full /\\ inhabited ( parse_tree_list (rev_append symbols_to_pop symbols_popped) (word2res++word_popped) sem_full) | Err => True end.",
+            "VernacStartTheoremProof",
+            "22036e34f661d24f6dec7f3837e83c69c4692900"
+        ],
+        [
+            "induction symbols_to_pop; intros; unfold pop; fold pop.",
+            "VernacExtend",
+            "ede75c17836b423064a25df2408962f930aed475"
+        ],
+        [
+            "exists word_stack, ([]:list token), sem_popped; intuition.",
+            "VernacExtend",
+            "e174b2bc5f8e2f1d34836cb0a970d92d7260f850"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "apply JMeq_eq, JMeq_eqrect with (P:=(fun x => x)).",
+            "VernacExtend",
+            "de970e1f6eeb3adc144a24626fb2e327d9fb308c"
+        ],
+        [
+            "destruct stack_cur as [|[]]; eauto.",
+            "VernacExtend",
+            "3b6a94be13e66eb927671771a4c1f2871d77bd5e"
+        ],
+        [
+            "destruct (compare_eqdec (last_symb_of_non_init_state x) a); eauto.",
+            "VernacExtend",
+            "49553bb9df78777d42ce2f8d97400080b26c4c43"
+        ],
+        [
+            "destruct e; simpl.",
+            "VernacExtend",
+            "6ffc61466ff058b612edb5249160815869003a8b"
+        ],
+        [
+            "dependent destruction H.",
+            "VernacExtend",
+            "aa467d5bab5414111c19e5da19f9b65501471344"
+        ],
+        [
+            "destruct H0, H1.",
+            "VernacExtend",
+            "b4443f537ba3c1386bfc30cfd9a503a7df7eedb6"
+        ],
+        [
+            "apply (Cons_ptl X), inhabits in X0.",
+            "VernacExtend",
+            "72696bec7aa45bdb9adc10fba8958758e5e43d53"
+        ],
+        [
+            "specialize (IHsymbols_to_pop _ _ _ action0 _ _ _ H X0).",
+            "VernacExtend",
+            "d47b0a4ce125baf966d50a5d94200c6ee7a67f39"
+        ],
+        [
+            "match goal with IHsymbols_to_pop:match ?p1 with Err => _ | OK _ => _ end |- match ?p2 with Err => _ | OK _ => _ end => replace p2 with p1; [destruct p1 as [|[]]|]; intuition end.",
+            "VernacExtend",
+            "eaa934f942aace106b1861096b3d332e3bf6dcce"
+        ],
+        [
+            "destruct IHsymbols_to_pop as [word1res [word2res [sem_full []]]]; intuition; subst.",
+            "VernacExtend",
+            "85447fd16c1ba17e61a65dfae7445d397534c570"
+        ],
+        [
+            "exists word1res.",
+            "VernacExtend",
+            "b06c50475db982e666c45d750810a32d30f2d0ac"
+        ],
+        [
+            "eexists.",
+            "VernacExtend",
+            "bab8b1d1a3889cd604eb78d9fc8d0c299d5c3fd6"
+        ],
+        [
+            "exists sem_full.",
+            "VernacExtend",
+            "90ce085be7ef868bbb341cb95191546909b04a94"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "rewrite <- app_assoc; assumption.",
+            "VernacExtend",
+            "068b9dad7a6d7b5ad5fe597c6cb007b6e545539c"
+        ],
+        [
+            "simpl; f_equal; f_equal.",
+            "VernacExtend",
+            "99a2e47926a201d502a54b5d3db4dd4c08757f70"
+        ],
+        [
+            "apply JMeq_eq.",
+            "VernacExtend",
+            "f9144ba53760411fdf5835dc5f32f0afc6eece41"
+        ],
+        [
+            "etransitivity.",
+            "VernacExtend",
+            "be6e37ea1161f59d4c906a2d8011256577b6109b"
+        ],
+        [
+            "apply JMeq_eqrect with (P:=(fun x => x)).",
+            "VernacExtend",
+            "a4db486bdc68cbaf0672c4158270442036fd1ca8"
+        ],
+        [
+            "symmetry.",
+            "VernacExtend",
+            "a08fc0dc04bba893008bded8181f393e2d8db167"
+        ],
+        [
+            "apply JMeq_eqrect with (P:=(fun x => x)).",
+            "VernacExtend",
+            "a4db486bdc68cbaf0672c4158270442036fd1ca8"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma reduce_step_invariant (stack:stack) (prod:production): forall word buffer, word_has_stack_semantics word stack -> match reduce_step init stack prod buffer with | OK (Accept_sr sem buffer_new) => buffer = buffer_new /\\ inhabited (parse_tree (NT (start_nt init)) word sem) | OK (Progress_sr stack_new buffer_new) => buffer = buffer_new /\\ word_has_stack_semantics word stack_new | Err | OK Fail_sr => True end.",
+            "VernacStartTheoremProof",
+            "af499c6fbd8e7b671ccca39d53e842e91a751a5d"
+        ],
+        [
+            "Proof with eauto.",
+            "VernacProof",
+            "12721c224a5e1fa232c2328aabfe1f5101d235c4"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold reduce_step.",
+            "VernacExtend",
+            "121a8708fbd406b3bedc85e55c15c7d593fbe398"
+        ],
+        [
+            "pose proof (pop_invariant (prod_rhs_rev prod) [] stack (symbol_semantic_type (NT (prod_lhs prod)))).",
+            "VernacExtend",
+            "4e8b1086dc9cfcad387839071718b51553636549"
+        ],
+        [
+            "revert H0.",
+            "VernacExtend",
+            "de3e4fca453928a41c450906d5d5626d573cfb55"
+        ],
+        [
+            "generalize (pop_invariant_converter (symbol_semantic_type (NT (prod_lhs prod))) (prod_rhs_rev prod) []).",
+            "VernacExtend",
+            "63bfbbc03095294ee74efa46c4b76c6e04453050"
+        ],
+        [
+            "rewrite <- rev_alt.",
+            "VernacExtend",
+            "60322088aa491dd84231943703ef6967178b1327"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "specialize (H0 (prod_action prod) _ [] () H (inhabits Nil_ptl)).",
+            "VernacExtend",
+            "9889b2c418f8f4bb9e83af4f4a46429148e64158"
+        ],
+        [
+            "match goal with H0:let action' := ?a in _ |- _ => replace a with (prod_action' prod) in H0 end.",
+            "VernacExtend",
+            "dcaaa931a1e0ff9f4016c988ce8a330e20d60b9a"
+        ],
+        [
+            "simpl in H0.",
+            "VernacExtend",
+            "a4a6a8421870dbf7255f8d031744eec32f12a941"
+        ],
+        [
+            "destruct (pop (prod_rhs_rev prod) stack (prod_action' prod)) as [|[]]; intuition.",
+            "VernacExtend",
+            "74f8beeb3eb6bfd9475ce1dcef91c44c46838b2c"
+        ],
+        [
+            "destruct H0 as [word1res [word2res [sem_full]]]; intuition.",
+            "VernacExtend",
+            "cf376a0215a402fae6f3fc6a8a41b6da7957c0b9"
+        ],
+        [
+            "destruct H4; apply Non_terminal_pt, inhabits in X.",
+            "VernacExtend",
+            "aa527650fc4d6d8f8728590ba9d6a3d93cb13f79"
+        ],
+        [
+            "match goal with X:inhabited (parse_tree _ _ ?u) |- _ => replace u with s0 in X end.",
+            "VernacExtend",
+            "3f99456b2fa8b941316c1d7d91ee49fc815da676"
+        ],
+        [
+            "clear sem_full H2.",
+            "VernacExtend",
+            "d0c0e8597e627bb5730ea4bd4361e527ff41e3d7"
+        ],
+        [
+            "simpl; destruct (goto_table (state_of_stack init s) (prod_lhs prod)) as [[]|]; intuition; subst.",
+            "VernacExtend",
+            "032d5bd95263097731b5c2dd12dc6b1c382424d6"
+        ],
+        [
+            "rewrite app_nil_r in X; revert s0 X; rewrite e0; intro; simpl.",
+            "VernacExtend",
+            "52fb82bcecc40c89b4c609c02770da01e242084f"
+        ],
+        [
+            "constructor...",
+            "VernacExtend",
+            "d0bfc36e567ee0d04a38f60d9c877ab81f264de4"
+        ],
+        [
+            "destruct s; intuition.",
+            "VernacExtend",
+            "436e9074a3339a2c1b817545bc089f1f9a290885"
+        ],
+        [
+            "destruct (compare_eqdec (prod_lhs prod) (start_nt init)); intuition.",
+            "VernacExtend",
+            "2e3eff522aa0b6ce968162985b10c5fe35f39b21"
+        ],
+        [
+            "rewrite app_nil_r in X.",
+            "VernacExtend",
+            "e1a27246d738ff45c5dfec78b4a3911559a65427"
+        ],
+        [
+            "rewrite <- e0.",
+            "VernacExtend",
+            "c21a587b75402cf321856b7c985a90ed8d31bdfd"
+        ],
+        [
+            "inversion H0.",
+            "VernacExtend",
+            "38a13882efcff2ae2c6c07fc8055d56c6c1776f2"
+        ],
+        [
+            "destruct X; constructor...",
+            "VernacExtend",
+            "c30d89ea1381ec0a9fe0f2c55aa1bd8d82042d0a"
+        ],
+        [
+            "apply JMeq_eq.",
+            "VernacExtend",
+            "f9144ba53760411fdf5835dc5f32f0afc6eece41"
+        ],
+        [
+            "etransitivity.",
+            "VernacExtend",
+            "be6e37ea1161f59d4c906a2d8011256577b6109b"
+        ],
+        [
+            "apply JMeq_eqrect with (P:=(fun x => x)).",
+            "VernacExtend",
+            "a4db486bdc68cbaf0672c4158270442036fd1ca8"
+        ],
+        [
+            "symmetry.",
+            "VernacExtend",
+            "a08fc0dc04bba893008bded8181f393e2d8db167"
+        ],
+        [
+            "apply JMeq_eqrect with (P:=(fun x => x)).",
+            "VernacExtend",
+            "a4db486bdc68cbaf0672c4158270442036fd1ca8"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma step_invariant (stack:stack) (buffer:Stream token): forall buffer_tmp, (exists word_old, buffer = word_old ++ buffer_tmp /\\ word_has_stack_semantics word_old stack) -> match step init stack buffer_tmp with | OK (Accept_sr sem buffer_new) => exists word_new, buffer = word_new ++ buffer_new /\\ inhabited (parse_tree (NT (start_nt init)) word_new sem) | OK (Progress_sr stack_new buffer_new) => exists word_new, buffer = word_new ++ buffer_new /\\ word_has_stack_semantics word_new stack_new | Err | OK Fail_sr => True end.",
+            "VernacStartTheoremProof",
+            "1b347d764431ed3d4d817220aff11ff02eac240c"
+        ],
+        [
+            "Proof with eauto.",
+            "VernacProof",
+            "12721c224a5e1fa232c2328aabfe1f5101d235c4"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct H, H.",
+            "VernacExtend",
+            "82bf14091a5685ba62e55955b8ab802f9f0076f9"
+        ],
+        [
+            "unfold step.",
+            "VernacExtend",
+            "269f560ac59b066a6926b1cfe0106d1b6bd8ed52"
+        ],
+        [
+            "destruct (action_table (state_of_stack init stack)).",
+            "VernacExtend",
+            "d78b1d18eaca08f6b0a4037937d45a88f7619316"
+        ],
+        [
+            "pose proof (reduce_step_invariant stack p x buffer_tmp).",
+            "VernacExtend",
+            "a053caec3019bc75f801abd1586b2009776f6960"
+        ],
+        [
+            "destruct (reduce_step init stack p buffer_tmp) as [|[]]; intuition; subst...",
+            "VernacExtend",
+            "ff9669fe1ddd82d552901bfd45b81d3d48385513"
+        ],
+        [
+            "destruct buffer_tmp.",
+            "VernacExtend",
+            "1fab9a60112ee2910ea4ce1cd9baccb84ee29a49"
+        ],
+        [
+            "unfold Streams.hd.",
+            "VernacExtend",
+            "1e26ba13f76070feda811c7fece6bda585ebc34f"
+        ],
+        [
+            "destruct t.",
+            "VernacExtend",
+            "03d3fc39431171b40684d8dff6748881af772fc7"
+        ],
+        [
+            "destruct (l x0); intuition.",
+            "VernacExtend",
+            "144a0dbf21f85ab177057591d7072274cd56c0bd"
+        ],
+        [
+            "exists (x ++ [existT (fun t => symbol_semantic_type (T t)) x0 s])%list.",
+            "VernacExtend",
+            "6ebf6c73b05eee18191a5472b57cff8cbedf2a20"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "now rewrite <- app_str_app_assoc; intuition.",
+            "VernacExtend",
+            "725ce778139c98f43cee7a5612302e984e4b8d60"
+        ],
+        [
+            "apply Cons_stack_whss; intuition.",
+            "VernacExtend",
+            "0a1c15a4fad9e7cff48e02bd58c7155553aee9f4"
+        ],
+        [
+            "destruct e; simpl.",
+            "VernacExtend",
+            "6ffc61466ff058b612edb5249160815869003a8b"
+        ],
+        [
+            "now exact (inhabits (Terminal_pt _ _)).",
+            "VernacExtend",
+            "383f2a071ad7e46dac2b6f1aafb0f6d3455e5ef3"
+        ],
+        [
+            "match goal with |- (match reduce_step init stack p ?buff with Err => _ | OK _ => _ end) => pose proof (reduce_step_invariant stack p x buff); destruct (reduce_step init stack p buff) as [|[]]; intuition; subst end...",
+            "VernacExtend",
+            "d7ccea28145384c12bd74b5ba243aa6a5d05a95d"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem parse_correct buffer n_steps: match parse init buffer n_steps with | OK (Parsed_pr sem buffer_new) => exists word_new, buffer = word_new ++ buffer_new /\\ inhabited (parse_tree (NT (start_nt init)) word_new sem) | _ => True end.",
+            "VernacStartTheoremProof",
+            "329aeb737fe282ca7ac445ac85b453904b79e4e3"
+        ],
+        [
+            "unfold parse.",
+            "VernacExtend",
+            "fd943d97046765cb1c99272cab4f4e6d4a19f64b"
+        ],
+        [
+            "assert (exists w, buffer = w ++ buffer /\\ word_has_stack_semantics w []).",
+            "VernacExtend",
+            "89b60aca71340498bfe3b6872f7a207de6a1171f"
+        ],
+        [
+            "exists ([]:list token); intuition.",
+            "VernacExtend",
+            "144594009eec46556d697fbccf02373b1f158e85"
+        ],
+        [
+            "now apply Nil_stack_whss.",
+            "VernacExtend",
+            "7b9ecdb0aaf63bfb8322afe697fe2652e11847f2"
+        ],
+        [
+            "revert H.",
+            "VernacExtend",
+            "6842e040dd98a07b1eb54bbabc9c3f1076566a9a"
+        ],
+        [
+            "generalize ([]:stack), buffer at 2 3.",
+            "VernacExtend",
+            "d035972ee6626d583dc484b24984fcdc0be5cc2f"
+        ],
+        [
+            "induction n_steps; simpl; intuition.",
+            "VernacExtend",
+            "7d763e30805a9d7eb990a2f104bb051ed9ec4edc"
+        ],
+        [
+            "pose proof (step_invariant _ _ _ H).",
+            "VernacExtend",
+            "5de141228831ff1e0f9a995d6c80cd33b162ce02"
+        ],
+        [
+            "destruct (step init s buffer0); simpl; intuition.",
+            "VernacExtend",
+            "71f69bb297d3fd1f79831761101c0c124481854c"
+        ],
+        [
+            "destruct s0; intuition.",
+            "VernacExtend",
+            "94a69a1951422aeecbe7a32dcc1bc97b3503452d"
+        ],
+        [
+            "apply IHn_steps; intuition.",
+            "VernacExtend",
+            "ee0b799d047f28c2ec6671640b1bf7d518f55f85"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End Init.",
+            "VernacEndSegment",
+            "57fd3e49285e9807924d0d302839677d0bce5184"
+        ],
+        [
+            "End Make.",
+            "VernacEndSegment",
+            "158dcf795fe84f422408437686b9ec9e7417690b"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "pop_invariant_converter",
+            "line_nb": 12,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold arrows_right, arrows_left.",
+                        "VernacExtend",
+                        "0656ef970602fc58e9c03985a9ed7d05364bb03f"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite rev_append_rev, map_app, map_rev, fold_left_app.",
+                        "VernacExtend",
+                        "be81fddba3ba310c826e45e83afd69512584e407"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply f_equal.",
+                        "VernacExtend",
+                        "ba856cbef3c8e84dcef77c91c8515b497874875b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- fold_left_rev_right, rev_involutive.",
+                        "VernacExtend",
+                        "ad6978d5a6297c0ea3be9091510a475adff66fe8"
+                    ]
+                },
+                {
+                    "command": [
+                        "reflexivity.",
+                        "VernacExtend",
+                        "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "parse_correct",
+            "line_nb": 98,
+            "steps": [
+                {
+                    "command": [
+                        "unfold parse.",
+                        "VernacExtend",
+                        "fd943d97046765cb1c99272cab4f4e6d4a19f64b"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (exists w, buffer = w ++ buffer /\\ word_has_stack_semantics w []).",
+                        "VernacExtend",
+                        "89b60aca71340498bfe3b6872f7a207de6a1171f"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists ([]:list token); intuition.",
+                        "VernacExtend",
+                        "144594009eec46556d697fbccf02373b1f158e85"
+                    ]
+                },
+                {
+                    "command": [
+                        "now apply Nil_stack_whss.",
+                        "VernacExtend",
+                        "7b9ecdb0aaf63bfb8322afe697fe2652e11847f2"
+                    ]
+                },
+                {
+                    "command": [
+                        "revert H.",
+                        "VernacExtend",
+                        "6842e040dd98a07b1eb54bbabc9c3f1076566a9a"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize ([]:stack), buffer at 2 3.",
+                        "VernacExtend",
+                        "d035972ee6626d583dc484b24984fcdc0be5cc2f"
+                    ]
+                },
+                {
+                    "command": [
+                        "induction n_steps; simpl; intuition.",
+                        "VernacExtend",
+                        "7d763e30805a9d7eb990a2f104bb051ed9ec4edc"
+                    ]
+                },
+                {
+                    "command": [
+                        "pose proof (step_invariant _ _ _ H).",
+                        "VernacExtend",
+                        "5de141228831ff1e0f9a995d6c80cd33b162ce02"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (step init s buffer0); simpl; intuition.",
+                        "VernacExtend",
+                        "71f69bb297d3fd1f79831761101c0c124481854c"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct s0; intuition.",
+                        "VernacExtend",
+                        "94a69a1951422aeecbe7a32dcc1bc97b3503452d"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply IHn_steps; intuition.",
+                        "VernacExtend",
+                        "ee0b799d047f28c2ec6671640b1bf7d518f55f85"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

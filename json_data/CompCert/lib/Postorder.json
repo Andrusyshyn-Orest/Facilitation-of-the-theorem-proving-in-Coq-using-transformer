@@ -1,0 +1,3059 @@
+{
+    "filename": "lib/Postorder.v",
+    "coq_project": "CompCert",
+    "vernac_cmds": [
+        [
+            "Require Import Wellfounded.",
+            "VernacRequire",
+            "6687451ef88f0d514375eb4efafa232dc3b84756"
+        ],
+        [
+            "Require Import Permutation.",
+            "VernacRequire",
+            "24483a56a7bd56238bc4fd9692efc17fe0758d88"
+        ],
+        [
+            "Require Import Mergesort.",
+            "VernacRequire",
+            "9fe6de7ca4a6fe5fc9fd904c1a53a2f5744ca933"
+        ],
+        [
+            "Require Import Coqlib.",
+            "VernacRequire",
+            "bbbe15041aca3a03300067f7acd445b462d537cc"
+        ],
+        [
+            "Require Import Maps.",
+            "VernacRequire",
+            "f9a27637102e60e06a3c1ceb5a01819e80b9f645"
+        ],
+        [
+            "Require Import Iteration.",
+            "VernacRequire",
+            "a5afa18857efb10ce7c524ebc231f33ad3c3053f"
+        ],
+        [
+            "Definition node: Type := positive.",
+            "VernacDefinition",
+            "a5658ed237342fb82555ce2a6c218856e2c7f52b"
+        ],
+        [
+            "Definition graph: Type := PTree.t (list node).",
+            "VernacDefinition",
+            "c7302befc95fe71fc842e3c8cb8db47fc760f8ef"
+        ],
+        [
+            "Module PositiveOrd.",
+            "VernacDefineModule",
+            "5372093521b60245f2d777e257d518cd0c9151ae"
+        ],
+        [
+            "Definition t := positive.",
+            "VernacDefinition",
+            "f9e815330069bad0d2e4c90337c0dc484f5fad38"
+        ],
+        [
+            "Definition leb (x y: t): bool := if plt y x then false else true.",
+            "VernacDefinition",
+            "80d4118e327caf1ca9b30a161f839e6126ac2827"
+        ],
+        [
+            "Theorem leb_total : forall x y, is_true (leb x y) \\/ is_true (leb y x).",
+            "VernacStartTheoremProof",
+            "fca0cee0767b960cf86f0ca0e54bd19de62a7229"
+        ],
+        [
+            "unfold leb, is_true; intros.",
+            "VernacExtend",
+            "4d984da8d622e67d3e6449aca8e5804dd98f8346"
+        ],
+        [
+            "destruct (plt x y); auto.",
+            "VernacExtend",
+            "23c415ca3401a346466ddf84b9ce2268c7067773"
+        ],
+        [
+            "destruct (plt y x); auto.",
+            "VernacExtend",
+            "9d0b6e93db892f52267b1a3bf6bbb73be64deb80"
+        ],
+        [
+            "elim (Plt_strict x).",
+            "VernacExtend",
+            "9052ade646af2597084682b85b14b790beb78999"
+        ],
+        [
+            "eapply Plt_trans; eauto.",
+            "VernacExtend",
+            "ab9f6a33d4c2276989e133c4c1a0d2f08199d21e"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End PositiveOrd.",
+            "VernacEndSegment",
+            "575b93a16f5ed1151a6c7590ed5cd24afab2daf2"
+        ],
+        [
+            "Module Sort := Mergesort.Sort(PositiveOrd).",
+            "VernacDefineModule",
+            "0991fd4eb1c3d9240025737b610ee46cd4b5c241"
+        ],
+        [
+            "Record state : Type := mkstate { gr: graph; wrk: list (node * list node); map: PTree.t positive; next: positive }.",
+            "VernacInductive",
+            "ec0ee8440bf82cc38a74d13ed7326f39a0a532ca"
+        ],
+        [
+            "Definition init_state (g: graph) (root: node) := match g!root with | Some succs => {| gr := PTree.remove root g; wrk := (root, Sort.sort succs) :: nil; map := PTree.empty positive; next := 1%positive |} | None => {| gr := g; wrk := nil; map := PTree.empty positive; next := 1%positive |} end.",
+            "VernacDefinition",
+            "2f2c5ea90a22cce1f642257a5fd5b5ae2c836baa"
+        ],
+        [
+            "Definition transition (s: state) : PTree.t positive + state := match s.(wrk) with | nil => inl _ s.(map) | (x, nil) :: l => inr _ {| gr := s.(gr); wrk := l; map := PTree.set x s.(next) s.(map); next := Pos.succ s.(next) |} | (x, y :: succs_x) :: l => match s.(gr)!y with | None => inr _ {| gr := s.(gr); wrk := (x, succs_x) :: l; map := s.(map); next := s.(next) |} | Some succs_y => inr _ {| gr := PTree.remove y s.(gr); wrk := (y, Sort.sort succs_y) :: (x, succs_x) :: l; map := s.(map); next := s.(next) |} end end.",
+            "VernacDefinition",
+            "a1e5f5d5ee05ce3a1b732af775ad7210395607a5"
+        ],
+        [
+            "Section POSTORDER.",
+            "VernacBeginSection",
+            "6d1e2f9ea0cbf881c608bed7036dab6a4b181139"
+        ],
+        [
+            "Variable ginit: graph.",
+            "VernacAssumption",
+            "c1f882c9dab7bb2205e6ef4ea367349ea07b3d6d"
+        ],
+        [
+            "Variable root: node.",
+            "VernacAssumption",
+            "d0ed10bff995539569e56ca206dfe60371e819bf"
+        ],
+        [
+            "Inductive invariant (s: state) : Prop := Invariant (SUB: forall x y, s.(gr)!x = Some y -> ginit!x = Some y) (ROOT: s.(gr)!root = None) (BELOW: forall x y, s.(map)!x = Some y -> Plt y s.(next)) (INJ: forall x1 x2 y, s.(map)!x1 = Some y -> s.(map)!x2 = Some y -> x1 = x2) (REM: forall x y, s.(gr)!x = Some y -> s.(map)!x = None) (COLOR: forall x succs n y, ginit!x = Some succs -> s.(map)!x = Some n -> In y succs -> s.(gr)!y = None) (WKLIST: forall x l, In (x, l) s.(wrk) -> s.(gr)!x = None /\\ exists l', ginit!x = Some l' /\\ forall y, In y l' -> ~In y l -> s.(gr)!y = None) (GREY: forall x, ginit!x <> None -> s.(gr)!x = None -> s.(map)!x = None -> exists l, In (x,l) s.(wrk)).",
+            "VernacInductive",
+            "cd71abb21cbc32abfc27d17d42d616c52d76dcc5"
+        ],
+        [
+            "Inductive postcondition (map: PTree.t positive) : Prop := Postcondition (INJ: forall x1 x2 y, map!x1 = Some y -> map!x2 = Some y -> x1 = x2) (ROOT: ginit!root <> None -> map!root <> None) (SUCCS: forall x succs y, ginit!x = Some succs -> map!x <> None -> In y succs -> ginit!y <> None -> map!y <> None).",
+            "VernacInductive",
+            "908569fb1312afe9767be1688971fdf840f24186"
+        ],
+        [
+            "Remark In_sort: forall x l, In x l <-> In x (Sort.sort l).",
+            "VernacStartTheoremProof",
+            "bbfb2df130f1c5a66067340b0b4dcd7c44e13445"
+        ],
+        [
+            "intros; split; intros.",
+            "VernacExtend",
+            "c2ba330b9c2c5e22fd554cd9ccb5c9ade0d6123e"
+        ],
+        [
+            "apply Permutation_in with l.",
+            "VernacExtend",
+            "df625a9339699449336b18e844b2d17d88e4906a"
+        ],
+        [
+            "apply Sort.Permuted_sort.",
+            "VernacExtend",
+            "41246d85e5384ecb516c6fd03d38cbd1e5ffb393"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "apply Permutation_in with (Sort.sort l).",
+            "VernacExtend",
+            "dd33ce0d4e42c83b46352b3fee4c795cb3367fd9"
+        ],
+        [
+            "apply Permutation_sym.",
+            "VernacExtend",
+            "94262274c360805dd9834746f95363628f0dc4c6"
+        ],
+        [
+            "apply Sort.Permuted_sort.",
+            "VernacExtend",
+            "41246d85e5384ecb516c6fd03d38cbd1e5ffb393"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma transition_spec: forall s, invariant s -> match transition s with inr s' => invariant s' | inl m => postcondition m end.",
+            "VernacStartTheoremProof",
+            "72020e52c7594280e7dc5eaec1291fe1ca8b8e0d"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "unfold transition.",
+            "VernacExtend",
+            "98081c95afd094b739dc105c7996335f4a1b036c"
+        ],
+        [
+            "destruct (wrk s) as [ | [x succ_x] l].",
+            "VernacExtend",
+            "17defe4f954a0cc1f254b07ef55778ad8f8b2787"
+        ],
+        [
+            "constructor; intros.",
+            "VernacExtend",
+            "6563c593bcf639ae667d436a08cab59e1ac2dcce"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "caseEq (s.(map)!root); intros.",
+            "VernacExtend",
+            "66ee9efb1154cee5d11cca79a48f5676a58a0cbe"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "exploit GREY; eauto.",
+            "VernacExtend",
+            "6bb337e12fc534eadcecfe9c0ab966e810adedd1"
+        ],
+        [
+            "intros [? ?]; contradiction.",
+            "VernacExtend",
+            "3081302b125a212ea87c1c8066096534c2c4691e"
+        ],
+        [
+            "destruct (s.(map)!x) eqn:?; try congruence.",
+            "VernacExtend",
+            "4422f14cdc2ee4f0cf93bdb51a257cfa89adac5d"
+        ],
+        [
+            "destruct (s.(map)!y) eqn:?; try congruence.",
+            "VernacExtend",
+            "0f5b0ccf69dcf6b14bf12665df9a115ba75832ea"
+        ],
+        [
+            "exploit COLOR; eauto.",
+            "VernacExtend",
+            "123cc6f71de3bf529d83bf7445031fb2fec4ac5f"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "exploit GREY; eauto.",
+            "VernacExtend",
+            "6bb337e12fc534eadcecfe9c0ab966e810adedd1"
+        ],
+        [
+            "intros [? ?]; contradiction.",
+            "VernacExtend",
+            "3081302b125a212ea87c1c8066096534c2c4691e"
+        ],
+        [
+            "destruct succ_x as [ | y succ_x ].",
+            "VernacExtend",
+            "71b48f7cb6f1a08f538238cf337ba1818ae32526"
+        ],
+        [
+            "constructor; simpl; intros.",
+            "VernacExtend",
+            "dcd76c351204acf8d4b7d76eea612fabf67729fc"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "rewrite PTree.gsspec in H.",
+            "VernacExtend",
+            "518375dbd290af7ea46f909026713f2cbfc67dd9"
+        ],
+        [
+            "destruct (peq x0 x).",
+            "VernacExtend",
+            "f5d4439b7b7326c4959f8ca8cb5bb790c5069dd5"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "apply Plt_succ.",
+            "VernacExtend",
+            "3925586d900ea8530f139977c6fc5c26f2e2ca64"
+        ],
+        [
+            "apply Plt_trans_succ.",
+            "VernacExtend",
+            "7d8723f92ee4303723305bc143d93eecf471d64e"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "rewrite PTree.gsspec in H.",
+            "VernacExtend",
+            "518375dbd290af7ea46f909026713f2cbfc67dd9"
+        ],
+        [
+            "rewrite PTree.gsspec in H0.",
+            "VernacExtend",
+            "f15ab141a0f37cb2185b3c521b085865fefc908b"
+        ],
+        [
+            "destruct (peq x1 x); destruct (peq x2 x); subst.",
+            "VernacExtend",
+            "f977d0a63b2483aa86b5da6ddffd8a86fcc2281c"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "exploit BELOW; eauto.",
+            "VernacExtend",
+            "36e49a08b8ae2c998437db136153f555c35f5257"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "eelim Plt_strict; eauto.",
+            "VernacExtend",
+            "5c6404876065c3d5879d139ab23f6387a4346e8e"
+        ],
+        [
+            "inv H0.",
+            "VernacExtend",
+            "52c34ef20c88d5292e2350aff94f149a3968b772"
+        ],
+        [
+            "exploit BELOW; eauto.",
+            "VernacExtend",
+            "36e49a08b8ae2c998437db136153f555c35f5257"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "eelim Plt_strict; eauto.",
+            "VernacExtend",
+            "5c6404876065c3d5879d139ab23f6387a4346e8e"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite PTree.gso; eauto.",
+            "VernacExtend",
+            "1fa75408fc0eac8c8d4a170b78ce8ee6712dc525"
+        ],
+        [
+            "red; intros; subst x0.",
+            "VernacExtend",
+            "9e0b4f941ac6d9aae5c4f35228a67ee91885ec10"
+        ],
+        [
+            "exploit (WKLIST x nil); auto with coqlib.",
+            "VernacExtend",
+            "94c37cd3c31a09601e9c8e529b362a1efe5d4604"
+        ],
+        [
+            "intros [A B].",
+            "VernacExtend",
+            "269ecc1b12a78cad85161d58003fb0ebdea8ebc3"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "rewrite PTree.gsspec in H0.",
+            "VernacExtend",
+            "f15ab141a0f37cb2185b3c521b085865fefc908b"
+        ],
+        [
+            "destruct (peq x0 x).",
+            "VernacExtend",
+            "f5d4439b7b7326c4959f8ca8cb5bb790c5069dd5"
+        ],
+        [
+            "inv H0.",
+            "VernacExtend",
+            "52c34ef20c88d5292e2350aff94f149a3968b772"
+        ],
+        [
+            "exploit (WKLIST x nil); auto with coqlib.",
+            "VernacExtend",
+            "94c37cd3c31a09601e9c8e529b362a1efe5d4604"
+        ],
+        [
+            "intros [A [l' [B C]]].",
+            "VernacExtend",
+            "909d3711c5440940640f4f484372726e6953269d"
+        ],
+        [
+            "assert (l' = succs) by congruence.",
+            "VernacExtend",
+            "3b90031c7e2783655ef02783f855a64d8ae1305d"
+        ],
+        [
+            "subst l'.",
+            "VernacExtend",
+            "ed86cbc0cd72b623cc50b20f35ce3b79f312decd"
+        ],
+        [
+            "apply C; auto.",
+            "VernacExtend",
+            "ed3626e4f5861c9fd86f5c8245dea5f4ff771be8"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "apply WKLIST.",
+            "VernacExtend",
+            "2454889e861382559a241b06625ae55c27307113"
+        ],
+        [
+            "auto with coqlib.",
+            "VernacExtend",
+            "bf4be239b4d8868fa0ff9785d68d66d28f74c632"
+        ],
+        [
+            "rewrite PTree.gsspec in H1.",
+            "VernacExtend",
+            "b07d984bf774d7087296184b242e1da29344ed5c"
+        ],
+        [
+            "destruct (peq x0 x).",
+            "VernacExtend",
+            "f5d4439b7b7326c4959f8ca8cb5bb790c5069dd5"
+        ],
+        [
+            "inv H1.",
+            "VernacExtend",
+            "2c43d1971eb5aa98166f6ec686cc2a4f1886b0a4"
+        ],
+        [
+            "exploit GREY; eauto.",
+            "VernacExtend",
+            "6bb337e12fc534eadcecfe9c0ab966e810adedd1"
+        ],
+        [
+            "intros [l' A].",
+            "VernacExtend",
+            "e02f480b57b55151179a63d6d6c2596bf054561c"
+        ],
+        [
+            "simpl in A; destruct A.",
+            "VernacExtend",
+            "3d0c18215a2f4f5707f7965bac562fee733df629"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "exists l'; auto.",
+            "VernacExtend",
+            "0b43626a9dfae11997b69b8666a729e04c000972"
+        ],
+        [
+            "destruct ((gr s)!y) as [ succs_y | ] eqn:?.",
+            "VernacExtend",
+            "9a5c3880ed09280b8027c01a3908bffd88b4b152"
+        ],
+        [
+            "constructor; simpl; intros.",
+            "VernacExtend",
+            "dcd76c351204acf8d4b7d76eea612fabf67729fc"
+        ],
+        [
+            "rewrite PTree.grspec in H.",
+            "VernacExtend",
+            "18f20d8297149928a1a5d4c160fc60837823604d"
+        ],
+        [
+            "destruct (PTree.elt_eq x0 y); eauto.",
+            "VernacExtend",
+            "533ec1efa8aa9543c870b521870233a4d04b0029"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "rewrite PTree.gro.",
+            "VernacExtend",
+            "25f1abcccc85db51210920fc203131406c7ecb87"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "rewrite PTree.grspec in H.",
+            "VernacExtend",
+            "18f20d8297149928a1a5d4c160fc60837823604d"
+        ],
+        [
+            "destruct (PTree.elt_eq x0 y); eauto.",
+            "VernacExtend",
+            "533ec1efa8aa9543c870b521870233a4d04b0029"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "rewrite PTree.grspec.",
+            "VernacExtend",
+            "a95a2b49bc4988014f7a03242480236b4c95401b"
+        ],
+        [
+            "destruct (PTree.elt_eq y0 y); eauto.",
+            "VernacExtend",
+            "2bdf55cb664a376e1c4acafc88a5de426d4d0855"
+        ],
+        [
+            "destruct H.",
+            "VernacExtend",
+            "8b2bca015429da94c456243b461e17a2a0582c40"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "apply PTree.grs.",
+            "VernacExtend",
+            "8130040c7b8af6a4a2d271abaa2ae80c7b16ccd2"
+        ],
+        [
+            "exists succs_y; split.",
+            "VernacExtend",
+            "25821dcba3cc7c2561d85bff860e0baf6ebbe7d2"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite In_sort in H.",
+            "VernacExtend",
+            "88337cc4a741664f37b68beb4b316d1a8fc74842"
+        ],
+        [
+            "tauto.",
+            "VernacExtend",
+            "9bfafe84fb6724789bdf6cfd21cd721dd63fdabd"
+        ],
+        [
+            "destruct H.",
+            "VernacExtend",
+            "8b2bca015429da94c456243b461e17a2a0582c40"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "exploit WKLIST; eauto with coqlib.",
+            "VernacExtend",
+            "fbf5b4c14ba8f9a464a7e2f3335bfc4dd0d41bf4"
+        ],
+        [
+            "intros [A [l' [B C]]].",
+            "VernacExtend",
+            "909d3711c5440940640f4f484372726e6953269d"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "rewrite PTree.grspec.",
+            "VernacExtend",
+            "a95a2b49bc4988014f7a03242480236b4c95401b"
+        ],
+        [
+            "destruct (PTree.elt_eq x0 y); auto.",
+            "VernacExtend",
+            "4f853904f21cf29a6d3f7a1bfb3e50f8b7b1913a"
+        ],
+        [
+            "exists l'; split.",
+            "VernacExtend",
+            "d63233d93359c413e693e0069b46c7e380eb8c6a"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite PTree.grspec.",
+            "VernacExtend",
+            "a95a2b49bc4988014f7a03242480236b4c95401b"
+        ],
+        [
+            "destruct (PTree.elt_eq y0 y); auto.",
+            "VernacExtend",
+            "7f71be5ccad4be55091b0bbea473b9e017bafbba"
+        ],
+        [
+            "apply C; auto.",
+            "VernacExtend",
+            "ed3626e4f5861c9fd86f5c8245dea5f4ff771be8"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "intuition congruence.",
+            "VernacExtend",
+            "2cba3542847e3f4ea52f3f62375adc6e8f8f04bc"
+        ],
+        [
+            "exploit (WKLIST x0 l0); eauto with coqlib.",
+            "VernacExtend",
+            "b66c54fce3091f199d02b875654269f73c0d6687"
+        ],
+        [
+            "intros [A [l' [B C]]].",
+            "VernacExtend",
+            "909d3711c5440940640f4f484372726e6953269d"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "rewrite PTree.grspec.",
+            "VernacExtend",
+            "a95a2b49bc4988014f7a03242480236b4c95401b"
+        ],
+        [
+            "destruct (PTree.elt_eq x0 y); auto.",
+            "VernacExtend",
+            "4f853904f21cf29a6d3f7a1bfb3e50f8b7b1913a"
+        ],
+        [
+            "exists l'; split; auto.",
+            "VernacExtend",
+            "da011f9ebd0390e20fa877bc193bab1cacb43212"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite PTree.grspec.",
+            "VernacExtend",
+            "a95a2b49bc4988014f7a03242480236b4c95401b"
+        ],
+        [
+            "destruct (PTree.elt_eq y0 y); auto.",
+            "VernacExtend",
+            "7f71be5ccad4be55091b0bbea473b9e017bafbba"
+        ],
+        [
+            "rewrite PTree.grspec in H0.",
+            "VernacExtend",
+            "347a22565d3fdf163b2f2d77d3d197182ca8e02f"
+        ],
+        [
+            "destruct (PTree.elt_eq x0 y) in H0.",
+            "VernacExtend",
+            "c1d12016576d8af792253c6e822b91a502865735"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "exists (Sort.sort succs_y); auto with coqlib.",
+            "VernacExtend",
+            "fba87a7374f7e8790bc4262e23936d9789176b75"
+        ],
+        [
+            "exploit GREY; eauto.",
+            "VernacExtend",
+            "6bb337e12fc534eadcecfe9c0ab966e810adedd1"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "intros [l1 A].",
+            "VernacExtend",
+            "18c55037af08a6e9b489db3cbfc1d5ef68536b31"
+        ],
+        [
+            "destruct A.",
+            "VernacExtend",
+            "0f975e57337711bcb9af8ef6166251e7035574a3"
+        ],
+        [
+            "inv H2.",
+            "VernacExtend",
+            "6144021562e950304ba8e947fdc2423691182458"
+        ],
+        [
+            "exists succ_x; auto.",
+            "VernacExtend",
+            "c4feb6ca6653ee21ad4d5e1f36b131ffa448842a"
+        ],
+        [
+            "exists l1; auto.",
+            "VernacExtend",
+            "e0f45e8715a10c20ffe9bc8326a1f4a098493e9d"
+        ],
+        [
+            "constructor; simpl; intros; eauto.",
+            "VernacExtend",
+            "02907380de86bbb2346e66b6ccb5bb02a98a627a"
+        ],
+        [
+            "destruct H.",
+            "VernacExtend",
+            "8b2bca015429da94c456243b461e17a2a0582c40"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "exploit (WKLIST x0); eauto with coqlib.",
+            "VernacExtend",
+            "87700c10a2a66b5873377e019cafd94396626514"
+        ],
+        [
+            "intros [A [l' [B C]]].",
+            "VernacExtend",
+            "909d3711c5440940640f4f484372726e6953269d"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "exists l'; split.",
+            "VernacExtend",
+            "d63233d93359c413e693e0069b46c7e380eb8c6a"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct (peq y y0).",
+            "VernacExtend",
+            "983b527da00d5954b0e4dfb5391d2de918c7d158"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "apply C; auto.",
+            "VernacExtend",
+            "ed3626e4f5861c9fd86f5c8245dea5f4ff771be8"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "intuition congruence.",
+            "VernacExtend",
+            "2cba3542847e3f4ea52f3f62375adc6e8f8f04bc"
+        ],
+        [
+            "eapply WKLIST; eauto with coqlib.",
+            "VernacExtend",
+            "a9c31de9fb56df82dd7d55370f9b9e43fd2cc443"
+        ],
+        [
+            "exploit GREY; eauto.",
+            "VernacExtend",
+            "6bb337e12fc534eadcecfe9c0ab966e810adedd1"
+        ],
+        [
+            "intros [l1 A].",
+            "VernacExtend",
+            "18c55037af08a6e9b489db3cbfc1d5ef68536b31"
+        ],
+        [
+            "simpl in A.",
+            "VernacExtend",
+            "dc9254dda65038a8da985f434d9893d4e6e0f31e"
+        ],
+        [
+            "destruct A.",
+            "VernacExtend",
+            "0f975e57337711bcb9af8ef6166251e7035574a3"
+        ],
+        [
+            "inv H2.",
+            "VernacExtend",
+            "6144021562e950304ba8e947fdc2423691182458"
+        ],
+        [
+            "exists succ_x; auto.",
+            "VernacExtend",
+            "c4feb6ca6653ee21ad4d5e1f36b131ffa448842a"
+        ],
+        [
+            "exists l1; auto.",
+            "VernacExtend",
+            "e0f45e8715a10c20ffe9bc8326a1f4a098493e9d"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma initial_state_spec: invariant (init_state ginit root).",
+            "VernacStartTheoremProof",
+            "e6fd247fd030ac6688725816b75c1799171659e8"
+        ],
+        [
+            "unfold init_state.",
+            "VernacExtend",
+            "4c9b710a76bc53f23dfec5f33fd7893cb6947f37"
+        ],
+        [
+            "destruct (ginit!root) as [succs|] eqn:?.",
+            "VernacExtend",
+            "4a9e8e37bb6708c2403355c1bdc66d428569b638"
+        ],
+        [
+            "constructor; simpl; intros.",
+            "VernacExtend",
+            "dcd76c351204acf8d4b7d76eea612fabf67729fc"
+        ],
+        [
+            "rewrite PTree.grspec in H.",
+            "VernacExtend",
+            "18f20d8297149928a1a5d4c160fc60837823604d"
+        ],
+        [
+            "destruct (PTree.elt_eq x root).",
+            "VernacExtend",
+            "4be6d884d4273929586b363577f4153fc682247c"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "apply PTree.grs.",
+            "VernacExtend",
+            "8130040c7b8af6a4a2d271abaa2ae80c7b16ccd2"
+        ],
+        [
+            "rewrite PTree.gempty in H; inv H.",
+            "VernacExtend",
+            "b12098c01d93e9cb01588bbe1e297a0fdc898fc2"
+        ],
+        [
+            "rewrite PTree.gempty in H; inv H.",
+            "VernacExtend",
+            "b12098c01d93e9cb01588bbe1e297a0fdc898fc2"
+        ],
+        [
+            "apply PTree.gempty.",
+            "VernacExtend",
+            "dbe505a41ab4e1d466fbd0ed0206761a607d13e5"
+        ],
+        [
+            "rewrite PTree.gempty in H0; inv H0.",
+            "VernacExtend",
+            "028c93c56154b0f5f22a1a25e06edd7fa8818634"
+        ],
+        [
+            "destruct H; inv H.",
+            "VernacExtend",
+            "9c81634aeca8f8eff01c035adae0175c110065f6"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "apply PTree.grs.",
+            "VernacExtend",
+            "8130040c7b8af6a4a2d271abaa2ae80c7b16ccd2"
+        ],
+        [
+            "exists succs; split; auto.",
+            "VernacExtend",
+            "881a300615de53f9ae314db3754fc0d2e11d6c75"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite In_sort in H.",
+            "VernacExtend",
+            "88337cc4a741664f37b68beb4b316d1a8fc74842"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "rewrite PTree.grspec in H0.",
+            "VernacExtend",
+            "347a22565d3fdf163b2f2d77d3d197182ca8e02f"
+        ],
+        [
+            "destruct (PTree.elt_eq x root).",
+            "VernacExtend",
+            "4be6d884d4273929586b363577f4153fc682247c"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "exists (Sort.sort succs); auto.",
+            "VernacExtend",
+            "8ee4da8b01658b13a2c3359277176a7262e72e83"
+        ],
+        [
+            "contradiction.",
+            "VernacExtend",
+            "9b6a5c45e1144cbbccd544effb2a97082518704a"
+        ],
+        [
+            "constructor; simpl; intros.",
+            "VernacExtend",
+            "dcd76c351204acf8d4b7d76eea612fabf67729fc"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "rewrite PTree.gempty in H; inv H.",
+            "VernacExtend",
+            "b12098c01d93e9cb01588bbe1e297a0fdc898fc2"
+        ],
+        [
+            "rewrite PTree.gempty in H; inv H.",
+            "VernacExtend",
+            "b12098c01d93e9cb01588bbe1e297a0fdc898fc2"
+        ],
+        [
+            "apply PTree.gempty.",
+            "VernacExtend",
+            "dbe505a41ab4e1d466fbd0ed0206761a607d13e5"
+        ],
+        [
+            "rewrite PTree.gempty in H0; inv H0.",
+            "VernacExtend",
+            "028c93c56154b0f5f22a1a25e06edd7fa8818634"
+        ],
+        [
+            "contradiction.",
+            "VernacExtend",
+            "9b6a5c45e1144cbbccd544effb2a97082518704a"
+        ],
+        [
+            "contradiction.",
+            "VernacExtend",
+            "9b6a5c45e1144cbbccd544effb2a97082518704a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Fixpoint size_worklist (w: list (positive * list positive)) : nat := match w with | nil => 0%nat | (x, succs) :: w' => (S (List.length succs) + size_worklist w')%nat end.",
+            "VernacFixpoint",
+            "fb3ef109d134c04f9655ce5148ba8f901cdf8bda"
+        ],
+        [
+            "Definition lt_state (s1 s2: state) : Prop := lex_ord lt lt (PTree_Properties.cardinal s1.(gr), size_worklist s1.(wrk)) (PTree_Properties.cardinal s2.(gr), size_worklist s2.(wrk)).",
+            "VernacDefinition",
+            "770811cd8c869fc2d20ff2438fbb58f898867f0a"
+        ],
+        [
+            "Lemma lt_state_wf: well_founded lt_state.",
+            "VernacStartTheoremProof",
+            "c96f071237afb11d93071ec01f02c7472fe2427b"
+        ],
+        [
+            "set (f := fun s => (PTree_Properties.cardinal s.(gr), size_worklist s.(wrk))).",
+            "VernacExtend",
+            "7480781e6ca4e871e93fd33c878cbe4867b4f908"
+        ],
+        [
+            "change (well_founded (fun s1 s2 => lex_ord lt lt (f s1) (f s2))).",
+            "VernacExtend",
+            "0c087fcc628c1fa01df16449118fc822519a5729"
+        ],
+        [
+            "apply wf_inverse_image.",
+            "VernacExtend",
+            "11e070bf7d2e0cf9f36a387a6f5ca827c032b9de"
+        ],
+        [
+            "apply wf_lex_ord.",
+            "VernacExtend",
+            "ef57770c714942685c10431c16ab1b86dd2a2bf2"
+        ],
+        [
+            "apply lt_wf.",
+            "VernacExtend",
+            "b02ed6b1b9b0f5e569a9e95fbb799f31ca941c75"
+        ],
+        [
+            "apply lt_wf.",
+            "VernacExtend",
+            "b02ed6b1b9b0f5e569a9e95fbb799f31ca941c75"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma transition_decreases: forall s s', transition s = inr _ s' -> lt_state s' s.",
+            "VernacStartTheoremProof",
+            "9e7edc47f0fb087721a42911d2f14e7e1bca6a40"
+        ],
+        [
+            "unfold transition, lt_state; intros.",
+            "VernacExtend",
+            "7a17fcee44c678194129b750997969f8898ec66f"
+        ],
+        [
+            "destruct (wrk s) as [ | [x succs] l].",
+            "VernacExtend",
+            "6749ee53deced872d1ea5f9b796a618bbdb805c3"
+        ],
+        [
+            "discriminate.",
+            "VernacExtend",
+            "66ca81b65e1a53372a2515fdfdd2a6b0677cb9c8"
+        ],
+        [
+            "destruct succs as [ | y succs ].",
+            "VernacExtend",
+            "ca3bc338c034e5d05e74496ecff9cff711fcab0c"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "apply lex_ord_right.",
+            "VernacExtend",
+            "5463924b6c0509b501a9fbd1014970311a150677"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "destruct ((gr s)!y) as [succs'|] eqn:?.",
+            "VernacExtend",
+            "55e7dabe6c7366329c4ba03012c95f5c2935c79f"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "apply lex_ord_left.",
+            "VernacExtend",
+            "10d80a52223e79e33da9d9b2e693de8b53a31aa6"
+        ],
+        [
+            "eapply PTree_Properties.cardinal_remove; eauto.",
+            "VernacExtend",
+            "88f3b02124b0414cbaf34cc23d1a6b8a7b75e87d"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "apply lex_ord_right.",
+            "VernacExtend",
+            "5463924b6c0509b501a9fbd1014970311a150677"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End POSTORDER.",
+            "VernacEndSegment",
+            "6bb26a3a75ac5f8cc70b2155ea31e39cbde5a6a8"
+        ],
+        [
+            "Definition postorder (g: graph) (root: node) := WfIter.iterate _ _ transition lt_state lt_state_wf transition_decreases (init_state g root).",
+            "VernacDefinition",
+            "0d8fbab236a6a69bf9beb1387c6e47851764a09b"
+        ],
+        [
+            "Inductive reachable (g: graph) (root: positive) : positive -> Prop := | reachable_root: reachable g root root | reachable_succ: forall x succs y, reachable g root x -> g!x = Some succs -> In y succs -> reachable g root y.",
+            "VernacInductive",
+            "d0cb3f5f2c5c4f361fb8ea31d3b7f37d789fda61"
+        ],
+        [
+            "Theorem postorder_correct: forall g root, let m := postorder g root in (forall x1 x2 y, m!x1 = Some y -> m!x2 = Some y -> x1 = x2) /\\ (forall x, reachable g root x -> g!x <> None -> m!x <> None).",
+            "VernacStartTheoremProof",
+            "8a644e2011ecbe81d6bb07ae1f4712d94c6c756f"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "assert (postcondition g root m).",
+            "VernacExtend",
+            "cca050631b611d5beb42c913dcb0b29b8d5c8cc6"
+        ],
+        [
+            "unfold m.",
+            "VernacExtend",
+            "d8ebcad17c946ddc6f7a233ab999ae013ea9d454"
+        ],
+        [
+            "unfold postorder.",
+            "VernacExtend",
+            "0a8030440dca559b12b3a18dd4fad7b3cf09e790"
+        ],
+        [
+            "apply WfIter.iterate_prop with (P := invariant g root).",
+            "VernacExtend",
+            "e52bc0818e1c262d27effa58305e3667fe5c134a"
+        ],
+        [
+            "apply transition_spec.",
+            "VernacExtend",
+            "81db0bc7f3c858720d5e403a2f60574cbe31a985"
+        ],
+        [
+            "apply initial_state_spec.",
+            "VernacExtend",
+            "6ad15f803821b0899b4167619d34a13d672ee684"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "induction 1; intros.",
+            "VernacExtend",
+            "176684f910d62ec20fbc75549575bf1cd34fa8ec"
+        ],
+        [
+            "apply ROOT; auto.",
+            "VernacExtend",
+            "6576246ff8b74f27476f5bd6bcfe10c933985c5f"
+        ],
+        [
+            "eapply SUCCS; eauto.",
+            "VernacExtend",
+            "1a8fc298cd43f12a81bc85067f03add6cb13de93"
+        ],
+        [
+            "apply IHreachable.",
+            "VernacExtend",
+            "4893a7a2cf7c36cc653561b5caed5cd4013e3c48"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "leb_total",
+            "line_nb": 11,
+            "steps": [
+                {
+                    "command": [
+                        "unfold leb, is_true; intros.",
+                        "VernacExtend",
+                        "4d984da8d622e67d3e6449aca8e5804dd98f8346"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (plt x y); auto.",
+                        "VernacExtend",
+                        "23c415ca3401a346466ddf84b9ce2268c7067773"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (plt y x); auto.",
+                        "VernacExtend",
+                        "9d0b6e93db892f52267b1a3bf6bbb73be64deb80"
+                    ]
+                },
+                {
+                    "command": [
+                        "elim (Plt_strict x).",
+                        "VernacExtend",
+                        "9052ade646af2597084682b85b14b790beb78999"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply Plt_trans; eauto.",
+                        "VernacExtend",
+                        "ab9f6a33d4c2276989e133c4c1a0d2f08199d21e"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "In_sort",
+            "line_nb": 28,
+            "steps": [
+                {
+                    "command": [
+                        "intros; split; intros.",
+                        "VernacExtend",
+                        "c2ba330b9c2c5e22fd554cd9ccb5c9ade0d6123e"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Permutation_in with l.",
+                        "VernacExtend",
+                        "df625a9339699449336b18e844b2d17d88e4906a"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Sort.Permuted_sort.",
+                        "VernacExtend",
+                        "41246d85e5384ecb516c6fd03d38cbd1e5ffb393"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Permutation_in with (Sort.sort l).",
+                        "VernacExtend",
+                        "dd33ce0d4e42c83b46352b3fee4c795cb3367fd9"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Permutation_sym.",
+                        "VernacExtend",
+                        "94262274c360805dd9834746f95363628f0dc4c6"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Sort.Permuted_sort.",
+                        "VernacExtend",
+                        "41246d85e5384ecb516c6fd03d38cbd1e5ffb393"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "transition_spec",
+            "line_nb": 38,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold transition.",
+                        "VernacExtend",
+                        "98081c95afd094b739dc105c7996335f4a1b036c"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (wrk s) as [ | [x succ_x] l].",
+                        "VernacExtend",
+                        "17defe4f954a0cc1f254b07ef55778ad8f8b2787"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; intros.",
+                        "VernacExtend",
+                        "6563c593bcf639ae667d436a08cab59e1ac2dcce"
+                    ]
+                },
+                {
+                    "command": [
+                        "eauto.",
+                        "VernacExtend",
+                        "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+                    ]
+                },
+                {
+                    "command": [
+                        "caseEq (s.(map)!root); intros.",
+                        "VernacExtend",
+                        "66ee9efb1154cee5d11cca79a48f5676a58a0cbe"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit GREY; eauto.",
+                        "VernacExtend",
+                        "6bb337e12fc534eadcecfe9c0ab966e810adedd1"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [? ?]; contradiction.",
+                        "VernacExtend",
+                        "3081302b125a212ea87c1c8066096534c2c4691e"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (s.(map)!x) eqn:?; try congruence.",
+                        "VernacExtend",
+                        "4422f14cdc2ee4f0cf93bdb51a257cfa89adac5d"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (s.(map)!y) eqn:?; try congruence.",
+                        "VernacExtend",
+                        "0f5b0ccf69dcf6b14bf12665df9a115ba75832ea"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit COLOR; eauto.",
+                        "VernacExtend",
+                        "123cc6f71de3bf529d83bf7445031fb2fec4ac5f"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit GREY; eauto.",
+                        "VernacExtend",
+                        "6bb337e12fc534eadcecfe9c0ab966e810adedd1"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [? ?]; contradiction.",
+                        "VernacExtend",
+                        "3081302b125a212ea87c1c8066096534c2c4691e"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct succ_x as [ | y succ_x ].",
+                        "VernacExtend",
+                        "71b48f7cb6f1a08f538238cf337ba1818ae32526"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; simpl; intros.",
+                        "VernacExtend",
+                        "dcd76c351204acf8d4b7d76eea612fabf67729fc"
+                    ]
+                },
+                {
+                    "command": [
+                        "eauto.",
+                        "VernacExtend",
+                        "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+                    ]
+                },
+                {
+                    "command": [
+                        "eauto.",
+                        "VernacExtend",
+                        "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.gsspec in H.",
+                        "VernacExtend",
+                        "518375dbd290af7ea46f909026713f2cbfc67dd9"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (peq x0 x).",
+                        "VernacExtend",
+                        "f5d4439b7b7326c4959f8ca8cb5bb790c5069dd5"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Plt_succ.",
+                        "VernacExtend",
+                        "3925586d900ea8530f139977c6fc5c26f2e2ca64"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Plt_trans_succ.",
+                        "VernacExtend",
+                        "7d8723f92ee4303723305bc143d93eecf471d64e"
+                    ]
+                },
+                {
+                    "command": [
+                        "eauto.",
+                        "VernacExtend",
+                        "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.gsspec in H.",
+                        "VernacExtend",
+                        "518375dbd290af7ea46f909026713f2cbfc67dd9"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.gsspec in H0.",
+                        "VernacExtend",
+                        "f15ab141a0f37cb2185b3c521b085865fefc908b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (peq x1 x); destruct (peq x2 x); subst.",
+                        "VernacExtend",
+                        "f977d0a63b2483aa86b5da6ddffd8a86fcc2281c"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit BELOW; eauto.",
+                        "VernacExtend",
+                        "36e49a08b8ae2c998437db136153f555c35f5257"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "eelim Plt_strict; eauto.",
+                        "VernacExtend",
+                        "5c6404876065c3d5879d139ab23f6387a4346e8e"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H0.",
+                        "VernacExtend",
+                        "52c34ef20c88d5292e2350aff94f149a3968b772"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit BELOW; eauto.",
+                        "VernacExtend",
+                        "36e49a08b8ae2c998437db136153f555c35f5257"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "eelim Plt_strict; eauto.",
+                        "VernacExtend",
+                        "5c6404876065c3d5879d139ab23f6387a4346e8e"
+                    ]
+                },
+                {
+                    "command": [
+                        "eauto.",
+                        "VernacExtend",
+                        "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.gso; eauto.",
+                        "VernacExtend",
+                        "1fa75408fc0eac8c8d4a170b78ce8ee6712dc525"
+                    ]
+                },
+                {
+                    "command": [
+                        "red; intros; subst x0.",
+                        "VernacExtend",
+                        "9e0b4f941ac6d9aae5c4f35228a67ee91885ec10"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit (WKLIST x nil); auto with coqlib.",
+                        "VernacExtend",
+                        "94c37cd3c31a09601e9c8e529b362a1efe5d4604"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [A B].",
+                        "VernacExtend",
+                        "269ecc1b12a78cad85161d58003fb0ebdea8ebc3"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.gsspec in H0.",
+                        "VernacExtend",
+                        "f15ab141a0f37cb2185b3c521b085865fefc908b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (peq x0 x).",
+                        "VernacExtend",
+                        "f5d4439b7b7326c4959f8ca8cb5bb790c5069dd5"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H0.",
+                        "VernacExtend",
+                        "52c34ef20c88d5292e2350aff94f149a3968b772"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit (WKLIST x nil); auto with coqlib.",
+                        "VernacExtend",
+                        "94c37cd3c31a09601e9c8e529b362a1efe5d4604"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [A [l' [B C]]].",
+                        "VernacExtend",
+                        "909d3711c5440940640f4f484372726e6953269d"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (l' = succs) by congruence.",
+                        "VernacExtend",
+                        "3b90031c7e2783655ef02783f855a64d8ae1305d"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst l'.",
+                        "VernacExtend",
+                        "ed86cbc0cd72b623cc50b20f35ce3b79f312decd"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply C; auto.",
+                        "VernacExtend",
+                        "ed3626e4f5861c9fd86f5c8245dea5f4ff771be8"
+                    ]
+                },
+                {
+                    "command": [
+                        "eauto.",
+                        "VernacExtend",
+                        "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply WKLIST.",
+                        "VernacExtend",
+                        "2454889e861382559a241b06625ae55c27307113"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto with coqlib.",
+                        "VernacExtend",
+                        "bf4be239b4d8868fa0ff9785d68d66d28f74c632"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.gsspec in H1.",
+                        "VernacExtend",
+                        "b07d984bf774d7087296184b242e1da29344ed5c"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (peq x0 x).",
+                        "VernacExtend",
+                        "f5d4439b7b7326c4959f8ca8cb5bb790c5069dd5"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H1.",
+                        "VernacExtend",
+                        "2c43d1971eb5aa98166f6ec686cc2a4f1886b0a4"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit GREY; eauto.",
+                        "VernacExtend",
+                        "6bb337e12fc534eadcecfe9c0ab966e810adedd1"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [l' A].",
+                        "VernacExtend",
+                        "e02f480b57b55151179a63d6d6c2596bf054561c"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in A; destruct A.",
+                        "VernacExtend",
+                        "3d0c18215a2f4f5707f7965bac562fee733df629"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists l'; auto.",
+                        "VernacExtend",
+                        "0b43626a9dfae11997b69b8666a729e04c000972"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct ((gr s)!y) as [ succs_y | ] eqn:?.",
+                        "VernacExtend",
+                        "9a5c3880ed09280b8027c01a3908bffd88b4b152"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; simpl; intros.",
+                        "VernacExtend",
+                        "dcd76c351204acf8d4b7d76eea612fabf67729fc"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.grspec in H.",
+                        "VernacExtend",
+                        "18f20d8297149928a1a5d4c160fc60837823604d"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (PTree.elt_eq x0 y); eauto.",
+                        "VernacExtend",
+                        "533ec1efa8aa9543c870b521870233a4d04b0029"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.gro.",
+                        "VernacExtend",
+                        "25f1abcccc85db51210920fc203131406c7ecb87"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "eauto.",
+                        "VernacExtend",
+                        "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+                    ]
+                },
+                {
+                    "command": [
+                        "eauto.",
+                        "VernacExtend",
+                        "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.grspec in H.",
+                        "VernacExtend",
+                        "18f20d8297149928a1a5d4c160fc60837823604d"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (PTree.elt_eq x0 y); eauto.",
+                        "VernacExtend",
+                        "533ec1efa8aa9543c870b521870233a4d04b0029"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.grspec.",
+                        "VernacExtend",
+                        "a95a2b49bc4988014f7a03242480236b4c95401b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (PTree.elt_eq y0 y); eauto.",
+                        "VernacExtend",
+                        "2bdf55cb664a376e1c4acafc88a5de426d4d0855"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H.",
+                        "VernacExtend",
+                        "8b2bca015429da94c456243b461e17a2a0582c40"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "split.",
+                        "VernacExtend",
+                        "55abc140132bd88981001ac656020469a8d503eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply PTree.grs.",
+                        "VernacExtend",
+                        "8130040c7b8af6a4a2d271abaa2ae80c7b16ccd2"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists succs_y; split.",
+                        "VernacExtend",
+                        "25821dcba3cc7c2561d85bff860e0baf6ebbe7d2"
+                    ]
+                },
+                {
+                    "command": [
+                        "eauto.",
+                        "VernacExtend",
+                        "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite In_sort in H.",
+                        "VernacExtend",
+                        "88337cc4a741664f37b68beb4b316d1a8fc74842"
+                    ]
+                },
+                {
+                    "command": [
+                        "tauto.",
+                        "VernacExtend",
+                        "9bfafe84fb6724789bdf6cfd21cd721dd63fdabd"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H.",
+                        "VernacExtend",
+                        "8b2bca015429da94c456243b461e17a2a0582c40"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit WKLIST; eauto with coqlib.",
+                        "VernacExtend",
+                        "fbf5b4c14ba8f9a464a7e2f3335bfc4dd0d41bf4"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [A [l' [B C]]].",
+                        "VernacExtend",
+                        "909d3711c5440940640f4f484372726e6953269d"
+                    ]
+                },
+                {
+                    "command": [
+                        "split.",
+                        "VernacExtend",
+                        "55abc140132bd88981001ac656020469a8d503eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.grspec.",
+                        "VernacExtend",
+                        "a95a2b49bc4988014f7a03242480236b4c95401b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (PTree.elt_eq x0 y); auto.",
+                        "VernacExtend",
+                        "4f853904f21cf29a6d3f7a1bfb3e50f8b7b1913a"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists l'; split.",
+                        "VernacExtend",
+                        "d63233d93359c413e693e0069b46c7e380eb8c6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.grspec.",
+                        "VernacExtend",
+                        "a95a2b49bc4988014f7a03242480236b4c95401b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (PTree.elt_eq y0 y); auto.",
+                        "VernacExtend",
+                        "7f71be5ccad4be55091b0bbea473b9e017bafbba"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply C; auto.",
+                        "VernacExtend",
+                        "ed3626e4f5861c9fd86f5c8245dea5f4ff771be8"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition congruence.",
+                        "VernacExtend",
+                        "2cba3542847e3f4ea52f3f62375adc6e8f8f04bc"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit (WKLIST x0 l0); eauto with coqlib.",
+                        "VernacExtend",
+                        "b66c54fce3091f199d02b875654269f73c0d6687"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [A [l' [B C]]].",
+                        "VernacExtend",
+                        "909d3711c5440940640f4f484372726e6953269d"
+                    ]
+                },
+                {
+                    "command": [
+                        "split.",
+                        "VernacExtend",
+                        "55abc140132bd88981001ac656020469a8d503eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.grspec.",
+                        "VernacExtend",
+                        "a95a2b49bc4988014f7a03242480236b4c95401b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (PTree.elt_eq x0 y); auto.",
+                        "VernacExtend",
+                        "4f853904f21cf29a6d3f7a1bfb3e50f8b7b1913a"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists l'; split; auto.",
+                        "VernacExtend",
+                        "da011f9ebd0390e20fa877bc193bab1cacb43212"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.grspec.",
+                        "VernacExtend",
+                        "a95a2b49bc4988014f7a03242480236b4c95401b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (PTree.elt_eq y0 y); auto.",
+                        "VernacExtend",
+                        "7f71be5ccad4be55091b0bbea473b9e017bafbba"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.grspec in H0.",
+                        "VernacExtend",
+                        "347a22565d3fdf163b2f2d77d3d197182ca8e02f"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (PTree.elt_eq x0 y) in H0.",
+                        "VernacExtend",
+                        "c1d12016576d8af792253c6e822b91a502865735"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst.",
+                        "VernacExtend",
+                        "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists (Sort.sort succs_y); auto with coqlib.",
+                        "VernacExtend",
+                        "fba87a7374f7e8790bc4262e23936d9789176b75"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit GREY; eauto.",
+                        "VernacExtend",
+                        "6bb337e12fc534eadcecfe9c0ab966e810adedd1"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [l1 A].",
+                        "VernacExtend",
+                        "18c55037af08a6e9b489db3cbfc1d5ef68536b31"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct A.",
+                        "VernacExtend",
+                        "0f975e57337711bcb9af8ef6166251e7035574a3"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H2.",
+                        "VernacExtend",
+                        "6144021562e950304ba8e947fdc2423691182458"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists succ_x; auto.",
+                        "VernacExtend",
+                        "c4feb6ca6653ee21ad4d5e1f36b131ffa448842a"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists l1; auto.",
+                        "VernacExtend",
+                        "e0f45e8715a10c20ffe9bc8326a1f4a098493e9d"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; simpl; intros; eauto.",
+                        "VernacExtend",
+                        "02907380de86bbb2346e66b6ccb5bb02a98a627a"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H.",
+                        "VernacExtend",
+                        "8b2bca015429da94c456243b461e17a2a0582c40"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit (WKLIST x0); eauto with coqlib.",
+                        "VernacExtend",
+                        "87700c10a2a66b5873377e019cafd94396626514"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [A [l' [B C]]].",
+                        "VernacExtend",
+                        "909d3711c5440940640f4f484372726e6953269d"
+                    ]
+                },
+                {
+                    "command": [
+                        "split.",
+                        "VernacExtend",
+                        "55abc140132bd88981001ac656020469a8d503eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists l'; split.",
+                        "VernacExtend",
+                        "d63233d93359c413e693e0069b46c7e380eb8c6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (peq y y0).",
+                        "VernacExtend",
+                        "983b527da00d5954b0e4dfb5391d2de918c7d158"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply C; auto.",
+                        "VernacExtend",
+                        "ed3626e4f5861c9fd86f5c8245dea5f4ff771be8"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition congruence.",
+                        "VernacExtend",
+                        "2cba3542847e3f4ea52f3f62375adc6e8f8f04bc"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply WKLIST; eauto with coqlib.",
+                        "VernacExtend",
+                        "a9c31de9fb56df82dd7d55370f9b9e43fd2cc443"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit GREY; eauto.",
+                        "VernacExtend",
+                        "6bb337e12fc534eadcecfe9c0ab966e810adedd1"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [l1 A].",
+                        "VernacExtend",
+                        "18c55037af08a6e9b489db3cbfc1d5ef68536b31"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in A.",
+                        "VernacExtend",
+                        "dc9254dda65038a8da985f434d9893d4e6e0f31e"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct A.",
+                        "VernacExtend",
+                        "0f975e57337711bcb9af8ef6166251e7035574a3"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H2.",
+                        "VernacExtend",
+                        "6144021562e950304ba8e947fdc2423691182458"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists succ_x; auto.",
+                        "VernacExtend",
+                        "c4feb6ca6653ee21ad4d5e1f36b131ffa448842a"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists l1; auto.",
+                        "VernacExtend",
+                        "e0f45e8715a10c20ffe9bc8326a1f4a098493e9d"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "initial_state_spec",
+            "line_nb": 186,
+            "steps": [
+                {
+                    "command": [
+                        "unfold init_state.",
+                        "VernacExtend",
+                        "4c9b710a76bc53f23dfec5f33fd7893cb6947f37"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (ginit!root) as [succs|] eqn:?.",
+                        "VernacExtend",
+                        "4a9e8e37bb6708c2403355c1bdc66d428569b638"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; simpl; intros.",
+                        "VernacExtend",
+                        "dcd76c351204acf8d4b7d76eea612fabf67729fc"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.grspec in H.",
+                        "VernacExtend",
+                        "18f20d8297149928a1a5d4c160fc60837823604d"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (PTree.elt_eq x root).",
+                        "VernacExtend",
+                        "4be6d884d4273929586b363577f4153fc682247c"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply PTree.grs.",
+                        "VernacExtend",
+                        "8130040c7b8af6a4a2d271abaa2ae80c7b16ccd2"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.gempty in H; inv H.",
+                        "VernacExtend",
+                        "b12098c01d93e9cb01588bbe1e297a0fdc898fc2"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.gempty in H; inv H.",
+                        "VernacExtend",
+                        "b12098c01d93e9cb01588bbe1e297a0fdc898fc2"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply PTree.gempty.",
+                        "VernacExtend",
+                        "dbe505a41ab4e1d466fbd0ed0206761a607d13e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.gempty in H0; inv H0.",
+                        "VernacExtend",
+                        "028c93c56154b0f5f22a1a25e06edd7fa8818634"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; inv H.",
+                        "VernacExtend",
+                        "9c81634aeca8f8eff01c035adae0175c110065f6"
+                    ]
+                },
+                {
+                    "command": [
+                        "split.",
+                        "VernacExtend",
+                        "55abc140132bd88981001ac656020469a8d503eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply PTree.grs.",
+                        "VernacExtend",
+                        "8130040c7b8af6a4a2d271abaa2ae80c7b16ccd2"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists succs; split; auto.",
+                        "VernacExtend",
+                        "881a300615de53f9ae314db3754fc0d2e11d6c75"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite In_sort in H.",
+                        "VernacExtend",
+                        "88337cc4a741664f37b68beb4b316d1a8fc74842"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition.",
+                        "VernacExtend",
+                        "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.grspec in H0.",
+                        "VernacExtend",
+                        "347a22565d3fdf163b2f2d77d3d197182ca8e02f"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (PTree.elt_eq x root).",
+                        "VernacExtend",
+                        "4be6d884d4273929586b363577f4153fc682247c"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst.",
+                        "VernacExtend",
+                        "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists (Sort.sort succs); auto.",
+                        "VernacExtend",
+                        "8ee4da8b01658b13a2c3359277176a7262e72e83"
+                    ]
+                },
+                {
+                    "command": [
+                        "contradiction.",
+                        "VernacExtend",
+                        "9b6a5c45e1144cbbccd544effb2a97082518704a"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; simpl; intros.",
+                        "VernacExtend",
+                        "dcd76c351204acf8d4b7d76eea612fabf67729fc"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.gempty in H; inv H.",
+                        "VernacExtend",
+                        "b12098c01d93e9cb01588bbe1e297a0fdc898fc2"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.gempty in H; inv H.",
+                        "VernacExtend",
+                        "b12098c01d93e9cb01588bbe1e297a0fdc898fc2"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply PTree.gempty.",
+                        "VernacExtend",
+                        "dbe505a41ab4e1d466fbd0ed0206761a607d13e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.gempty in H0; inv H0.",
+                        "VernacExtend",
+                        "028c93c56154b0f5f22a1a25e06edd7fa8818634"
+                    ]
+                },
+                {
+                    "command": [
+                        "contradiction.",
+                        "VernacExtend",
+                        "9b6a5c45e1144cbbccd544effb2a97082518704a"
+                    ]
+                },
+                {
+                    "command": [
+                        "contradiction.",
+                        "VernacExtend",
+                        "9b6a5c45e1144cbbccd544effb2a97082518704a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "lt_state_wf",
+            "line_nb": 223,
+            "steps": [
+                {
+                    "command": [
+                        "set (f := fun s => (PTree_Properties.cardinal s.(gr), size_worklist s.(wrk))).",
+                        "VernacExtend",
+                        "7480781e6ca4e871e93fd33c878cbe4867b4f908"
+                    ]
+                },
+                {
+                    "command": [
+                        "change (well_founded (fun s1 s2 => lex_ord lt lt (f s1) (f s2))).",
+                        "VernacExtend",
+                        "0c087fcc628c1fa01df16449118fc822519a5729"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply wf_inverse_image.",
+                        "VernacExtend",
+                        "11e070bf7d2e0cf9f36a387a6f5ca827c032b9de"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply wf_lex_ord.",
+                        "VernacExtend",
+                        "ef57770c714942685c10431c16ab1b86dd2a2bf2"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply lt_wf.",
+                        "VernacExtend",
+                        "b02ed6b1b9b0f5e569a9e95fbb799f31ca941c75"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply lt_wf.",
+                        "VernacExtend",
+                        "b02ed6b1b9b0f5e569a9e95fbb799f31ca941c75"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "transition_decreases",
+            "line_nb": 231,
+            "steps": [
+                {
+                    "command": [
+                        "unfold transition, lt_state; intros.",
+                        "VernacExtend",
+                        "7a17fcee44c678194129b750997969f8898ec66f"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (wrk s) as [ | [x succs] l].",
+                        "VernacExtend",
+                        "6749ee53deced872d1ea5f9b796a618bbdb805c3"
+                    ]
+                },
+                {
+                    "command": [
+                        "discriminate.",
+                        "VernacExtend",
+                        "66ca81b65e1a53372a2515fdfdd2a6b0677cb9c8"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct succs as [ | y succs ].",
+                        "VernacExtend",
+                        "ca3bc338c034e5d05e74496ecff9cff711fcab0c"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply lex_ord_right.",
+                        "VernacExtend",
+                        "5463924b6c0509b501a9fbd1014970311a150677"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct ((gr s)!y) as [succs'|] eqn:?.",
+                        "VernacExtend",
+                        "55e7dabe6c7366329c4ba03012c95f5c2935c79f"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply lex_ord_left.",
+                        "VernacExtend",
+                        "10d80a52223e79e33da9d9b2e693de8b53a31aa6"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply PTree_Properties.cardinal_remove; eauto.",
+                        "VernacExtend",
+                        "88f3b02124b0414cbaf34cc23d1a6b8a7b75e87d"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply lex_ord_right.",
+                        "VernacExtend",
+                        "5463924b6c0509b501a9fbd1014970311a150677"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "postorder_correct",
+            "line_nb": 253,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (postcondition g root m).",
+                        "VernacExtend",
+                        "cca050631b611d5beb42c913dcb0b29b8d5c8cc6"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold m.",
+                        "VernacExtend",
+                        "d8ebcad17c946ddc6f7a233ab999ae013ea9d454"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold postorder.",
+                        "VernacExtend",
+                        "0a8030440dca559b12b3a18dd4fad7b3cf09e790"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply WfIter.iterate_prop with (P := invariant g root).",
+                        "VernacExtend",
+                        "e52bc0818e1c262d27effa58305e3667fe5c134a"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply transition_spec.",
+                        "VernacExtend",
+                        "81db0bc7f3c858720d5e403a2f60574cbe31a985"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply initial_state_spec.",
+                        "VernacExtend",
+                        "6ad15f803821b0899b4167619d34a13d672ee684"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "split.",
+                        "VernacExtend",
+                        "55abc140132bd88981001ac656020469a8d503eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "induction 1; intros.",
+                        "VernacExtend",
+                        "176684f910d62ec20fbc75549575bf1cd34fa8ec"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply ROOT; auto.",
+                        "VernacExtend",
+                        "6576246ff8b74f27476f5bd6bcfe10c933985c5f"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply SUCCS; eauto.",
+                        "VernacExtend",
+                        "1a8fc298cd43f12a81bc85067f03add6cb13de93"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply IHreachable.",
+                        "VernacExtend",
+                        "4893a7a2cf7c36cc653561b5caed5cd4013e3c48"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

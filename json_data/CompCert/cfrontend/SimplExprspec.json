@@ -1,0 +1,4166 @@
+{
+    "filename": "cfrontend/SimplExprspec.v",
+    "coq_project": "CompCert",
+    "vernac_cmds": [
+        [
+            "Require Import Coqlib Maps Errors Integers Floats.",
+            "VernacRequire",
+            "5c54c8a56a22f67835c56bd487cce25a4b9b12f7"
+        ],
+        [
+            "Require Import AST Linking Memory.",
+            "VernacRequire",
+            "19b3079a64a69d0b71c28d9e989534d61a12457e"
+        ],
+        [
+            "Require Import Ctypes Cop Csyntax Clight SimplExpr.",
+            "VernacRequire",
+            "85f93b4afe94afe6789d3d29b9f4e16466bd3a54"
+        ],
+        [
+            "Section SPEC.",
+            "VernacBeginSection",
+            "403e7ac759aff9324150a3aab7c3ca82399237c3"
+        ],
+        [
+            "Local Open Scope gensym_monad_scope.",
+            "VernacOpenCloseScope",
+            "33da05ae441c357749befca49a10341e52909508"
+        ],
+        [
+            "Definition final (dst: destination) (a: expr) : list statement := match dst with | For_val => nil | For_effects => nil | For_set sd => do_set sd a end.",
+            "VernacDefinition",
+            "75063564f8751c2eaa2c08712e831bb48905c4ca"
+        ],
+        [
+            "Inductive tr_rvalof: type -> expr -> list statement -> expr -> list ident -> Prop := | tr_rvalof_nonvol: forall ty a tmp, type_is_volatile ty = false -> tr_rvalof ty a nil a tmp | tr_rvalof_vol: forall ty a t tmp, type_is_volatile ty = true -> In t tmp -> tr_rvalof ty a (make_set t a :: nil) (Etempvar t ty) tmp.",
+            "VernacInductive",
+            "3054956656d349823f1cf22e86910e822028ee84"
+        ],
+        [
+            "Inductive tr_expr: temp_env -> destination -> Csyntax.expr -> list statement -> expr -> list ident -> Prop := | tr_var: forall le dst id ty tmp, tr_expr le dst (Csyntax.Evar id ty) (final dst (Evar id ty)) (Evar id ty) tmp | tr_deref: forall le dst e1 ty sl1 a1 tmp, tr_expr le For_val e1 sl1 a1 tmp -> tr_expr le dst (Csyntax.Ederef e1 ty) (sl1 ++ final dst (Ederef' a1 ty)) (Ederef' a1 ty) tmp | tr_field: forall le dst e1 f ty sl1 a1 tmp, tr_expr le For_val e1 sl1 a1 tmp -> tr_expr le dst (Csyntax.Efield e1 f ty) (sl1 ++ final dst (Efield a1 f ty)) (Efield a1 f ty) tmp | tr_val_effect: forall le v ty any tmp, tr_expr le For_effects (Csyntax.Eval v ty) nil any tmp | tr_val_value: forall le v ty a tmp, typeof a = ty -> (forall tge e le' m, (forall id, In id tmp -> le'!id = le!id) -> eval_expr tge e le' m a v) -> tr_expr le For_val (Csyntax.Eval v ty) nil a tmp | tr_val_set: forall le sd v ty a any tmp, typeof a = ty -> (forall tge e le' m, (forall id, In id tmp -> le'!id = le!id) -> eval_expr tge e le' m a v) -> tr_expr le (For_set sd) (Csyntax.Eval v ty) (do_set sd a) any tmp | tr_sizeof: forall le dst ty' ty tmp, tr_expr le dst (Csyntax.Esizeof ty' ty) (final dst (Esizeof ty' ty)) (Esizeof ty' ty) tmp | tr_alignof: forall le dst ty' ty tmp, tr_expr le dst (Csyntax.Ealignof ty' ty) (final dst (Ealignof ty' ty)) (Ealignof ty' ty) tmp | tr_valof: forall le dst e1 ty tmp sl1 a1 tmp1 sl2 a2 tmp2, tr_expr le For_val e1 sl1 a1 tmp1 -> tr_rvalof (Csyntax.typeof e1) a1 sl2 a2 tmp2 -> list_disjoint tmp1 tmp2 -> incl tmp1 tmp -> incl tmp2 tmp -> tr_expr le dst (Csyntax.Evalof e1 ty) (sl1 ++ sl2 ++ final dst a2) a2 tmp | tr_addrof: forall le dst e1 ty tmp sl1 a1, tr_expr le For_val e1 sl1 a1 tmp -> tr_expr le dst (Csyntax.Eaddrof e1 ty) (sl1 ++ final dst (Eaddrof' a1 ty)) (Eaddrof' a1 ty) tmp | tr_unop: forall le dst op e1 ty tmp sl1 a1, tr_expr le For_val e1 sl1 a1 tmp -> tr_expr le dst (Csyntax.Eunop op e1 ty) (sl1 ++ final dst (Eunop op a1 ty)) (Eunop op a1 ty) tmp | tr_binop: forall le dst op e1 e2 ty sl1 a1 tmp1 sl2 a2 tmp2 tmp, tr_expr le For_val e1 sl1 a1 tmp1 -> tr_expr le For_val e2 sl2 a2 tmp2 -> list_disjoint tmp1 tmp2 -> incl tmp1 tmp -> incl tmp2 tmp -> tr_expr le dst (Csyntax.Ebinop op e1 e2 ty) (sl1 ++ sl2 ++ final dst (Ebinop op a1 a2 ty)) (Ebinop op a1 a2 ty) tmp | tr_cast: forall le dst e1 ty sl1 a1 tmp, tr_expr le For_val e1 sl1 a1 tmp -> tr_expr le dst (Csyntax.Ecast e1 ty) (sl1 ++ final dst (Ecast a1 ty)) (Ecast a1 ty) tmp | tr_seqand_val: forall le e1 e2 ty sl1 a1 tmp1 t sl2 a2 tmp2 tmp, tr_expr le For_val e1 sl1 a1 tmp1 -> tr_expr le (For_set (sd_seqbool_val t ty)) e2 sl2 a2 tmp2 -> list_disjoint tmp1 tmp2 -> incl tmp1 tmp -> incl tmp2 tmp -> In t tmp -> tr_expr le For_val (Csyntax.Eseqand e1 e2 ty) (sl1 ++ makeif a1 (makeseq sl2) (Sset t (Econst_int Int.zero ty)) :: nil) (Etempvar t ty) tmp | tr_seqand_effects: forall le e1 e2 ty sl1 a1 tmp1 sl2 a2 tmp2 any tmp, tr_expr le For_val e1 sl1 a1 tmp1 -> tr_expr le For_effects e2 sl2 a2 tmp2 -> list_disjoint tmp1 tmp2 -> incl tmp1 tmp -> incl tmp2 tmp -> tr_expr le For_effects (Csyntax.Eseqand e1 e2 ty) (sl1 ++ makeif a1 (makeseq sl2) Sskip :: nil) any tmp | tr_seqand_set: forall le sd e1 e2 ty sl1 a1 tmp1 sl2 a2 tmp2 any tmp, tr_expr le For_val e1 sl1 a1 tmp1 -> tr_expr le (For_set (sd_seqbool_set ty sd)) e2 sl2 a2 tmp2 -> list_disjoint tmp1 tmp2 -> incl tmp1 tmp -> incl tmp2 tmp -> In (sd_temp sd) tmp -> tr_expr le (For_set sd) (Csyntax.Eseqand e1 e2 ty) (sl1 ++ makeif a1 (makeseq sl2) (makeseq (do_set sd (Econst_int Int.zero ty))) :: nil) any tmp | tr_seqor_val: forall le e1 e2 ty sl1 a1 tmp1 t sl2 a2 tmp2 tmp, tr_expr le For_val e1 sl1 a1 tmp1 -> tr_expr le (For_set (sd_seqbool_val t ty)) e2 sl2 a2 tmp2 -> list_disjoint tmp1 tmp2 -> incl tmp1 tmp -> incl tmp2 tmp -> In t tmp -> tr_expr le For_val (Csyntax.Eseqor e1 e2 ty) (sl1 ++ makeif a1 (Sset t (Econst_int Int.one ty)) (makeseq sl2) :: nil) (Etempvar t ty) tmp | tr_seqor_effects: forall le e1 e2 ty sl1 a1 tmp1 sl2 a2 tmp2 any tmp, tr_expr le For_val e1 sl1 a1 tmp1 -> tr_expr le For_effects e2 sl2 a2 tmp2 -> list_disjoint tmp1 tmp2 -> incl tmp1 tmp -> incl tmp2 tmp -> tr_expr le For_effects (Csyntax.Eseqor e1 e2 ty) (sl1 ++ makeif a1 Sskip (makeseq sl2) :: nil) any tmp | tr_seqor_set: forall le sd e1 e2 ty sl1 a1 tmp1 sl2 a2 tmp2 any tmp, tr_expr le For_val e1 sl1 a1 tmp1 -> tr_expr le (For_set (sd_seqbool_set ty sd)) e2 sl2 a2 tmp2 -> list_disjoint tmp1 tmp2 -> incl tmp1 tmp -> incl tmp2 tmp -> In (sd_temp sd) tmp -> tr_expr le (For_set sd) (Csyntax.Eseqor e1 e2 ty) (sl1 ++ makeif a1 (makeseq (do_set sd (Econst_int Int.one ty))) (makeseq sl2) :: nil) any tmp | tr_condition_val: forall le e1 e2 e3 ty sl1 a1 tmp1 sl2 a2 tmp2 sl3 a3 tmp3 t tmp, tr_expr le For_val e1 sl1 a1 tmp1 -> tr_expr le (For_set (SDbase ty ty t)) e2 sl2 a2 tmp2 -> tr_expr le (For_set (SDbase ty ty t)) e3 sl3 a3 tmp3 -> list_disjoint tmp1 tmp2 -> list_disjoint tmp1 tmp3 -> incl tmp1 tmp -> incl tmp2 tmp -> incl tmp3 tmp -> In t tmp -> tr_expr le For_val (Csyntax.Econdition e1 e2 e3 ty) (sl1 ++ makeif a1 (makeseq sl2) (makeseq sl3) :: nil) (Etempvar t ty) tmp | tr_condition_effects: forall le e1 e2 e3 ty sl1 a1 tmp1 sl2 a2 tmp2 sl3 a3 tmp3 any tmp, tr_expr le For_val e1 sl1 a1 tmp1 -> tr_expr le For_effects e2 sl2 a2 tmp2 -> tr_expr le For_effects e3 sl3 a3 tmp3 -> list_disjoint tmp1 tmp2 -> list_disjoint tmp1 tmp3 -> incl tmp1 tmp -> incl tmp2 tmp -> incl tmp3 tmp -> tr_expr le For_effects (Csyntax.Econdition e1 e2 e3 ty) (sl1 ++ makeif a1 (makeseq sl2) (makeseq sl3) :: nil) any tmp | tr_condition_set: forall le sd t e1 e2 e3 ty sl1 a1 tmp1 sl2 a2 tmp2 sl3 a3 tmp3 any tmp, tr_expr le For_val e1 sl1 a1 tmp1 -> tr_expr le (For_set (SDcons ty ty t sd)) e2 sl2 a2 tmp2 -> tr_expr le (For_set (SDcons ty ty t sd)) e3 sl3 a3 tmp3 -> list_disjoint tmp1 tmp2 -> list_disjoint tmp1 tmp3 -> incl tmp1 tmp -> incl tmp2 tmp -> incl tmp3 tmp -> In t tmp -> tr_expr le (For_set sd) (Csyntax.Econdition e1 e2 e3 ty) (sl1 ++ makeif a1 (makeseq sl2) (makeseq sl3) :: nil) any tmp | tr_assign_effects: forall le e1 e2 ty sl1 a1 tmp1 sl2 a2 tmp2 any tmp, tr_expr le For_val e1 sl1 a1 tmp1 -> tr_expr le For_val e2 sl2 a2 tmp2 -> list_disjoint tmp1 tmp2 -> incl tmp1 tmp -> incl tmp2 tmp -> tr_expr le For_effects (Csyntax.Eassign e1 e2 ty) (sl1 ++ sl2 ++ make_assign a1 a2 :: nil) any tmp | tr_assign_val: forall le dst e1 e2 ty sl1 a1 tmp1 sl2 a2 tmp2 t tmp ty1 ty2, tr_expr le For_val e1 sl1 a1 tmp1 -> tr_expr le For_val e2 sl2 a2 tmp2 -> incl tmp1 tmp -> incl tmp2 tmp -> list_disjoint tmp1 tmp2 -> In t tmp -> ~In t tmp1 -> ~In t tmp2 -> ty1 = Csyntax.typeof e1 -> ty2 = Csyntax.typeof e2 -> tr_expr le dst (Csyntax.Eassign e1 e2 ty) (sl1 ++ sl2 ++ Sset t (Ecast a2 ty1) :: make_assign a1 (Etempvar t ty1) :: final dst (Etempvar t ty1)) (Etempvar t ty1) tmp | tr_assignop_effects: forall le op e1 e2 tyres ty ty1 sl1 a1 tmp1 sl2 a2 tmp2 sl3 a3 tmp3 any tmp, tr_expr le For_val e1 sl1 a1 tmp1 -> tr_expr le For_val e2 sl2 a2 tmp2 -> ty1 = Csyntax.typeof e1 -> tr_rvalof ty1 a1 sl3 a3 tmp3 -> list_disjoint tmp1 tmp2 -> list_disjoint tmp1 tmp3 -> list_disjoint tmp2 tmp3 -> incl tmp1 tmp -> incl tmp2 tmp -> incl tmp3 tmp -> tr_expr le For_effects (Csyntax.Eassignop op e1 e2 tyres ty) (sl1 ++ sl2 ++ sl3 ++ make_assign a1 (Ebinop op a3 a2 tyres) :: nil) any tmp | tr_assignop_val: forall le dst op e1 e2 tyres ty sl1 a1 tmp1 sl2 a2 tmp2 sl3 a3 tmp3 t tmp ty1, tr_expr le For_val e1 sl1 a1 tmp1 -> tr_expr le For_val e2 sl2 a2 tmp2 -> tr_rvalof ty1 a1 sl3 a3 tmp3 -> list_disjoint tmp1 tmp2 -> list_disjoint tmp1 tmp3 -> list_disjoint tmp2 tmp3 -> incl tmp1 tmp -> incl tmp2 tmp -> incl tmp3 tmp -> In t tmp -> ~In t tmp1 -> ~In t tmp2 -> ~In t tmp3 -> ty1 = Csyntax.typeof e1 -> tr_expr le dst (Csyntax.Eassignop op e1 e2 tyres ty) (sl1 ++ sl2 ++ sl3 ++ Sset t (Ecast (Ebinop op a3 a2 tyres) ty1) :: make_assign a1 (Etempvar t ty1) :: final dst (Etempvar t ty1)) (Etempvar t ty1) tmp | tr_postincr_effects: forall le id e1 ty ty1 sl1 a1 tmp1 sl2 a2 tmp2 any tmp, tr_expr le For_val e1 sl1 a1 tmp1 -> tr_rvalof ty1 a1 sl2 a2 tmp2 -> ty1 = Csyntax.typeof e1 -> incl tmp1 tmp -> incl tmp2 tmp -> list_disjoint tmp1 tmp2 -> tr_expr le For_effects (Csyntax.Epostincr id e1 ty) (sl1 ++ sl2 ++ make_assign a1 (transl_incrdecr id a2 ty1) :: nil) any tmp | tr_postincr_val: forall le dst id e1 ty sl1 a1 tmp1 t ty1 tmp, tr_expr le For_val e1 sl1 a1 tmp1 -> incl tmp1 tmp -> In t tmp -> ~In t tmp1 -> ty1 = Csyntax.typeof e1 -> tr_expr le dst (Csyntax.Epostincr id e1 ty) (sl1 ++ make_set t a1 :: make_assign a1 (transl_incrdecr id (Etempvar t ty1) ty1) :: final dst (Etempvar t ty1)) (Etempvar t ty1) tmp | tr_comma: forall le dst e1 e2 ty sl1 a1 tmp1 sl2 a2 tmp2 tmp, tr_expr le For_effects e1 sl1 a1 tmp1 -> tr_expr le dst e2 sl2 a2 tmp2 -> list_disjoint tmp1 tmp2 -> incl tmp1 tmp -> incl tmp2 tmp -> tr_expr le dst (Csyntax.Ecomma e1 e2 ty) (sl1 ++ sl2) a2 tmp | tr_call_effects: forall le e1 el2 ty sl1 a1 tmp1 sl2 al2 tmp2 any tmp, tr_expr le For_val e1 sl1 a1 tmp1 -> tr_exprlist le el2 sl2 al2 tmp2 -> list_disjoint tmp1 tmp2 -> incl tmp1 tmp -> incl tmp2 tmp -> tr_expr le For_effects (Csyntax.Ecall e1 el2 ty) (sl1 ++ sl2 ++ Scall None a1 al2 :: nil) any tmp | tr_call_val: forall le dst e1 el2 ty sl1 a1 tmp1 sl2 al2 tmp2 t tmp, dst <> For_effects -> tr_expr le For_val e1 sl1 a1 tmp1 -> tr_exprlist le el2 sl2 al2 tmp2 -> list_disjoint tmp1 tmp2 -> In t tmp -> incl tmp1 tmp -> incl tmp2 tmp -> tr_expr le dst (Csyntax.Ecall e1 el2 ty) (sl1 ++ sl2 ++ Scall (Some t) a1 al2 :: final dst (Etempvar t ty)) (Etempvar t ty) tmp | tr_builtin_effects: forall le ef tyargs el ty sl al tmp1 any tmp, tr_exprlist le el sl al tmp1 -> incl tmp1 tmp -> tr_expr le For_effects (Csyntax.Ebuiltin ef tyargs el ty) (sl ++ Sbuiltin None ef tyargs al :: nil) any tmp | tr_builtin_val: forall le dst ef tyargs el ty sl al tmp1 t tmp, dst <> For_effects -> tr_exprlist le el sl al tmp1 -> In t tmp -> incl tmp1 tmp -> tr_expr le dst (Csyntax.Ebuiltin ef tyargs el ty) (sl ++ Sbuiltin (Some t) ef tyargs al :: final dst (Etempvar t ty)) (Etempvar t ty) tmp | tr_paren_val: forall le e1 tycast ty sl1 a1 t tmp, tr_expr le (For_set (SDbase tycast ty t)) e1 sl1 a1 tmp -> In t tmp -> tr_expr le For_val (Csyntax.Eparen e1 tycast ty) sl1 (Etempvar t ty) tmp | tr_paren_effects: forall le e1 tycast ty sl1 a1 tmp any, tr_expr le For_effects e1 sl1 a1 tmp -> tr_expr le For_effects (Csyntax.Eparen e1 tycast ty) sl1 any tmp | tr_paren_set: forall le t sd e1 tycast ty sl1 a1 tmp any, tr_expr le (For_set (SDcons tycast ty t sd)) e1 sl1 a1 tmp -> In t tmp -> tr_expr le (For_set sd) (Csyntax.Eparen e1 tycast ty) sl1 any tmp with tr_exprlist: temp_env -> Csyntax.exprlist -> list statement -> list expr -> list ident -> Prop := | tr_nil: forall le tmp, tr_exprlist le Csyntax.Enil nil nil tmp | tr_cons: forall le e1 el2 sl1 a1 tmp1 sl2 al2 tmp2 tmp, tr_expr le For_val e1 sl1 a1 tmp1 -> tr_exprlist le el2 sl2 al2 tmp2 -> list_disjoint tmp1 tmp2 -> incl tmp1 tmp -> incl tmp2 tmp -> tr_exprlist le (Csyntax.Econs e1 el2) (sl1 ++ sl2) (a1 :: al2) tmp.",
+            "VernacInductive",
+            "c44f208914519e5c737a51c1adaa2c9a5c20df12"
+        ],
+        [
+            "Scheme tr_expr_ind2 := Minimality for tr_expr Sort Prop with tr_exprlist_ind2 := Minimality for tr_exprlist Sort Prop.",
+            "VernacScheme",
+            "7e4dc392fcab1c7028b8f1dbf67f5e75c5b42ce0"
+        ],
+        [
+            "Combined Scheme tr_expr_exprlist from tr_expr_ind2, tr_exprlist_ind2.",
+            "VernacCombinedScheme",
+            "8898e08a012bbaa933e6f7e592068804a25a36f6"
+        ],
+        [
+            "Lemma tr_expr_invariant: forall le dst r sl a tmps, tr_expr le dst r sl a tmps -> forall le', (forall x, In x tmps -> le'!x = le!x) -> tr_expr le' dst r sl a tmps with tr_exprlist_invariant: forall le rl sl al tmps, tr_exprlist le rl sl al tmps -> forall le', (forall x, In x tmps -> le'!x = le!x) -> tr_exprlist le' rl sl al tmps.",
+            "VernacStartTheoremProof",
+            "262d0d3308b7263c2214a150d86f6accc6a15b59"
+        ],
+        [
+            "induction 1; intros; econstructor; eauto.",
+            "VernacExtend",
+            "436efd66ce3f14eb7a86295b56b2319c52371471"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply H0.",
+            "VernacExtend",
+            "c75b3371fc84f2aae811de7e80b1bdb43e4d249a"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "transitivity (le'!id); auto.",
+            "VernacExtend",
+            "6d95deaaab2cf3955d73c7e86f6cb4864a956a03"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply H0.",
+            "VernacExtend",
+            "c75b3371fc84f2aae811de7e80b1bdb43e4d249a"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "transitivity (le'!id); auto.",
+            "VernacExtend",
+            "6d95deaaab2cf3955d73c7e86f6cb4864a956a03"
+        ],
+        [
+            "induction 1; intros; econstructor; eauto.",
+            "VernacExtend",
+            "436efd66ce3f14eb7a86295b56b2319c52371471"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma tr_rvalof_monotone: forall ty a sl b tmps, tr_rvalof ty a sl b tmps -> forall tmps', incl tmps tmps' -> tr_rvalof ty a sl b tmps'.",
+            "VernacStartTheoremProof",
+            "2d20147e36a86cfd7d27f5ccc1c7e8f4f29af91a"
+        ],
+        [
+            "induction 1; intros; econstructor; unfold incl in *; eauto.",
+            "VernacExtend",
+            "08cba1cd7e595c854394669666ba476409fbadd4"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma tr_expr_monotone: forall le dst r sl a tmps, tr_expr le dst r sl a tmps -> forall tmps', incl tmps tmps' -> tr_expr le dst r sl a tmps' with tr_exprlist_monotone: forall le rl sl al tmps, tr_exprlist le rl sl al tmps -> forall tmps', incl tmps tmps' -> tr_exprlist le rl sl al tmps'.",
+            "VernacStartTheoremProof",
+            "73cc173a8922270ca795b2cc0ab11f35df93de72"
+        ],
+        [
+            "specialize tr_rvalof_monotone.",
+            "VernacExtend",
+            "e5269fefa9632c81ec736ac3fb8aba3adab0ce5c"
+        ],
+        [
+            "intros RVALOF.",
+            "VernacExtend",
+            "47f314296e224f568ddcd79f8695694a20942da3"
+        ],
+        [
+            "induction 1; intros; econstructor; unfold incl in *; eauto.",
+            "VernacExtend",
+            "08cba1cd7e595c854394669666ba476409fbadd4"
+        ],
+        [
+            "induction 1; intros; econstructor; unfold incl in *; eauto.",
+            "VernacExtend",
+            "08cba1cd7e595c854394669666ba476409fbadd4"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Section TR_TOP.",
+            "VernacBeginSection",
+            "3ed559da0c6dfffb29c32f7fd498f558f842ef13"
+        ],
+        [
+            "Variable ge: genv.",
+            "VernacAssumption",
+            "5dcbd76196753bb6e2da03561ae76151d62a94d8"
+        ],
+        [
+            "Variable e: env.",
+            "VernacAssumption",
+            "246a24d9eb5be930b928cc64176ad206a11440ce"
+        ],
+        [
+            "Variable le: temp_env.",
+            "VernacAssumption",
+            "55298db91d5953a0d60ef6e261f9593a31bf172e"
+        ],
+        [
+            "Variable m: mem.",
+            "VernacAssumption",
+            "253337f404928b0a16b3940626ec20c52cfd3aad"
+        ],
+        [
+            "Inductive tr_top: destination -> Csyntax.expr -> list statement -> expr -> list ident -> Prop := | tr_top_val_val: forall v ty a tmp, typeof a = ty -> eval_expr ge e le m a v -> tr_top For_val (Csyntax.Eval v ty) nil a tmp | tr_top_base: forall dst r sl a tmp, tr_expr le dst r sl a tmp -> tr_top dst r sl a tmp.",
+            "VernacInductive",
+            "3b79f6fbdb83261b651563c4d3f83b830358cf8a"
+        ],
+        [
+            "End TR_TOP.",
+            "VernacEndSegment",
+            "eb63f1f03f1bc941aea3993e532b4a41ca18a3a6"
+        ],
+        [
+            "Inductive tr_expression: Csyntax.expr -> statement -> expr -> Prop := | tr_expression_intro: forall r sl a tmps, (forall ge e le m, tr_top ge e le m For_val r sl a tmps) -> tr_expression r (makeseq sl) a.",
+            "VernacInductive",
+            "3913d49d44318e89b6070ce0ab3e0ffd2c83d38a"
+        ],
+        [
+            "Inductive tr_expr_stmt: Csyntax.expr -> statement -> Prop := | tr_expr_stmt_intro: forall r sl a tmps, (forall ge e le m, tr_top ge e le m For_effects r sl a tmps) -> tr_expr_stmt r (makeseq sl).",
+            "VernacInductive",
+            "f5632fe848260a75a0d32229b401b4b338071d2d"
+        ],
+        [
+            "Inductive tr_if: Csyntax.expr -> statement -> statement -> statement -> Prop := | tr_if_intro: forall r s1 s2 sl a tmps, (forall ge e le m, tr_top ge e le m For_val r sl a tmps) -> tr_if r s1 s2 (makeseq (sl ++ makeif a s1 s2 :: nil)).",
+            "VernacInductive",
+            "7d7173e9dfbe3a32530dcd55b259293c95b32d79"
+        ],
+        [
+            "Inductive tr_stmt: Csyntax.statement -> statement -> Prop := | tr_skip: tr_stmt Csyntax.Sskip Sskip | tr_do: forall r s, tr_expr_stmt r s -> tr_stmt (Csyntax.Sdo r) s | tr_seq: forall s1 s2 ts1 ts2, tr_stmt s1 ts1 -> tr_stmt s2 ts2 -> tr_stmt (Csyntax.Ssequence s1 s2) (Ssequence ts1 ts2) | tr_ifthenelse_empty: forall r s' a, tr_expression r s' a -> tr_stmt (Csyntax.Sifthenelse r Csyntax.Sskip Csyntax.Sskip) (Ssequence s' Sskip) | tr_ifthenelse: forall r s1 s2 s' a ts1 ts2, tr_expression r s' a -> tr_stmt s1 ts1 -> tr_stmt s2 ts2 -> tr_stmt (Csyntax.Sifthenelse r s1 s2) (Ssequence s' (Sifthenelse a ts1 ts2)) | tr_while: forall r s1 s' ts1, tr_if r Sskip Sbreak s' -> tr_stmt s1 ts1 -> tr_stmt (Csyntax.Swhile r s1) (Sloop (Ssequence s' ts1) Sskip) | tr_dowhile: forall r s1 s' ts1, tr_if r Sskip Sbreak s' -> tr_stmt s1 ts1 -> tr_stmt (Csyntax.Sdowhile r s1) (Sloop ts1 s') | tr_for_1: forall r s3 s4 s' ts3 ts4, tr_if r Sskip Sbreak s' -> tr_stmt s3 ts3 -> tr_stmt s4 ts4 -> tr_stmt (Csyntax.Sfor Csyntax.Sskip r s3 s4) (Sloop (Ssequence s' ts4) ts3) | tr_for_2: forall s1 r s3 s4 s' ts1 ts3 ts4, tr_if r Sskip Sbreak s' -> s1 <> Csyntax.Sskip -> tr_stmt s1 ts1 -> tr_stmt s3 ts3 -> tr_stmt s4 ts4 -> tr_stmt (Csyntax.Sfor s1 r s3 s4) (Ssequence ts1 (Sloop (Ssequence s' ts4) ts3)) | tr_break: tr_stmt Csyntax.Sbreak Sbreak | tr_continue: tr_stmt Csyntax.Scontinue Scontinue | tr_return_none: tr_stmt (Csyntax.Sreturn None) (Sreturn None) | tr_return_some: forall r s' a, tr_expression r s' a -> tr_stmt (Csyntax.Sreturn (Some r)) (Ssequence s' (Sreturn (Some a))) | tr_switch: forall r ls s' a tls, tr_expression r s' a -> tr_lblstmts ls tls -> tr_stmt (Csyntax.Sswitch r ls) (Ssequence s' (Sswitch a tls)) | tr_label: forall lbl s ts, tr_stmt s ts -> tr_stmt (Csyntax.Slabel lbl s) (Slabel lbl ts) | tr_goto: forall lbl, tr_stmt (Csyntax.Sgoto lbl) (Sgoto lbl) with tr_lblstmts: Csyntax.labeled_statements -> labeled_statements -> Prop := | tr_ls_nil: tr_lblstmts Csyntax.LSnil LSnil | tr_ls_cons: forall c s ls ts tls, tr_stmt s ts -> tr_lblstmts ls tls -> tr_lblstmts (Csyntax.LScons c s ls) (LScons c ts tls).",
+            "VernacInductive",
+            "a334f36b5df187203d525e84deda79e88cd56948"
+        ],
+        [
+            "Remark bind_inversion: forall (A B: Type) (f: mon A) (g: A -> mon B) (y: B) (z1 z3: generator) I, bind f g z1 = Res y z3 I -> exists x, exists z2, exists I1, exists I2, f z1 = Res x z2 I1 /\\ g x z2 = Res y z3 I2.",
+            "VernacStartTheoremProof",
+            "2f0c0f0f4b7128fa19c2fb8a2cb4170a53f3627a"
+        ],
+        [
+            "intros until I.",
+            "VernacExtend",
+            "4873b928f43bd319ba9e56eafa8d3858022b9263"
+        ],
+        [
+            "unfold bind.",
+            "VernacExtend",
+            "92681da8eee126803006dd670c74799566b9f60d"
+        ],
+        [
+            "destruct (f z1).",
+            "VernacExtend",
+            "e6463e72876d3ca93f00430ccdebc1dff02d726c"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "caseEq (g a g'); intros; inv H0.",
+            "VernacExtend",
+            "de40e3d57c5f9f6d9e5a49e3a19d25698c951ebf"
+        ],
+        [
+            "econstructor; econstructor; econstructor; econstructor; eauto.",
+            "VernacExtend",
+            "12229e240b18d4d0bd46f9348d0617d3ab9bc573"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Remark bind2_inversion: forall (A B Csyntax: Type) (f: mon (A*B)) (g: A -> B -> mon Csyntax) (y: Csyntax) (z1 z3: generator) I, bind2 f g z1 = Res y z3 I -> exists x1, exists x2, exists z2, exists I1, exists I2, f z1 = Res (x1,x2) z2 I1 /\\ g x1 x2 z2 = Res y z3 I2.",
+            "VernacStartTheoremProof",
+            "f6bcd1147ec5d8eeabe0df84c01c08f8366d16ec"
+        ],
+        [
+            "unfold bind2.",
+            "VernacExtend",
+            "7c5aadeeb54bb8d1852037adfff078be129262b4"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "exploit bind_inversion; eauto.",
+            "VernacExtend",
+            "aa663124c65fbf524e2cde6602ecd303b6a9d7dc"
+        ],
+        [
+            "intros [[x1 x2] [z2 [I1 [I2 [P Q]]]]].",
+            "VernacExtend",
+            "642f29014f3c60db44d686bfc74bb016c2a493df"
+        ],
+        [
+            "simpl in Q.",
+            "VernacExtend",
+            "14a47d62db49da93d3c69465ec8a6c586ee6bc72"
+        ],
+        [
+            "exists x1; exists x2; exists z2; exists I1; exists I2; auto.",
+            "VernacExtend",
+            "fddac41e7d7eb716912f83d8f3d4c4ac544ffc47"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Ltac monadInv1 H := match type of H with | (Res _ _ _ = Res _ _ _) => inversion H; clear H; try subst | (@ret _ _ _ = Res _ _ _) => inversion H; clear H; try subst | (@error _ _ _ = Res _ _ _) => inversion H | (bind ?F ?G ?Z = Res ?X ?Z' ?I) => let x := fresh \"x\" in ( let z := fresh \"z\" in ( let I1 := fresh \"I\" in ( let I2 := fresh \"I\" in ( let EQ1 := fresh \"EQ\" in ( let EQ2 := fresh \"EQ\" in ( destruct (bind_inversion _ _ F G X Z Z' I H) as [x [z [I1 [I2 [EQ1 EQ2]]]]]; clear H; try (monadInv1 EQ2))))))) | (bind2 ?F ?G ?Z = Res ?X ?Z' ?I) => let x := fresh \"x\" in ( let y := fresh \"y\" in ( let z := fresh \"z\" in ( let I1 := fresh \"I\" in ( let I2 := fresh \"I\" in ( let EQ1 := fresh \"EQ\" in ( let EQ2 := fresh \"EQ\" in ( destruct (bind2_inversion _ _ _ F G X Z Z' I H) as [x [y [z [I1 [I2 [EQ1 EQ2]]]]]]; clear H; try (monadInv1 EQ2)))))))) end.",
+            "VernacExtend",
+            "8882894b9dbad8362f9c7a19eacf65d3776a915e"
+        ],
+        [
+            "Ltac monadInv H := match type of H with | (@ret _ _ _ = Res _ _ _) => monadInv1 H | (@error _ _ _ = Res _ _ _) => monadInv1 H | (bind ?F ?G ?Z = Res ?X ?Z' ?I) => monadInv1 H | (bind2 ?F ?G ?Z = Res ?X ?Z' ?I) => monadInv1 H | (?F _ _ _ _ _ _ _ _ = Res _ _ _) => ((progress simpl in H) || unfold F in H); monadInv1 H | (?F _ _ _ _ _ _ _ = Res _ _ _) => ((progress simpl in H) || unfold F in H); monadInv1 H | (?F _ _ _ _ _ _ = Res _ _ _) => ((progress simpl in H) || unfold F in H); monadInv1 H | (?F _ _ _ _ _ = Res _ _ _) => ((progress simpl in H) || unfold F in H); monadInv1 H | (?F _ _ _ _ = Res _ _ _) => ((progress simpl in H) || unfold F in H); monadInv1 H | (?F _ _ _ = Res _ _ _) => ((progress simpl in H) || unfold F in H); monadInv1 H | (?F _ _ = Res _ _ _) => ((progress simpl in H) || unfold F in H); monadInv1 H | (?F _ = Res _ _ _) => ((progress simpl in H) || unfold F in H); monadInv1 H end.",
+            "VernacExtend",
+            "e70bb7ea253f930f1c6b4a301ad904ecc471f68e"
+        ],
+        [
+            "Definition within (id: ident) (g1 g2: generator) : Prop := Ple (gen_next g1) id /\\ Plt id (gen_next g2).",
+            "VernacDefinition",
+            "ef63e9972e5759991d3892e25b046a6de8ede052"
+        ],
+        [
+            "Lemma gensym_within: forall ty g1 id g2 I, gensym ty g1 = Res id g2 I -> within id g1 g2.",
+            "VernacStartTheoremProof",
+            "b42c2822288461eecf2ac15902be7a31a5775ead"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "monadInv H.",
+            "VernacExtend",
+            "3fc57761693b3f6ae9cb0dcb646a83c40e34f7f1"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "apply Ple_refl.",
+            "VernacExtend",
+            "0db71fbfe63d06b179db3d07fbb0dd1fc300f9f0"
+        ],
+        [
+            "apply Plt_succ.",
+            "VernacExtend",
+            "3925586d900ea8530f139977c6fc5c26f2e2ca64"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma within_widen: forall id g1 g2 g1' g2', within id g1 g2 -> Ple (gen_next g1') (gen_next g1) -> Ple (gen_next g2) (gen_next g2') -> within id g1' g2'.",
+            "VernacStartTheoremProof",
+            "e014e8667f0e7dbcc78a9a928cf43e90d9887549"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct H.",
+            "VernacExtend",
+            "8b2bca015429da94c456243b461e17a2a0582c40"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "eapply Ple_trans; eauto.",
+            "VernacExtend",
+            "4f7cbd975fc75a24ab34a1c0c5e0645767893c9a"
+        ],
+        [
+            "eapply Plt_Ple_trans; eauto.",
+            "VernacExtend",
+            "14879e203cd410fe12bc19ef2ffe194a54a63079"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition contained (l: list ident) (g1 g2: generator) : Prop := forall id, In id l -> within id g1 g2.",
+            "VernacDefinition",
+            "73a75300f3e2f12cf18d7d619995eb4e2d54b0a3"
+        ],
+        [
+            "Lemma contained_nil: forall g1 g2, contained nil g1 g2.",
+            "VernacStartTheoremProof",
+            "4537345a4c50fcea6d3c9130b029c048726dbe11"
+        ],
+        [
+            "intros; red; intros; contradiction.",
+            "VernacExtend",
+            "f2a9a694148c8f76653e82abfca4a6574ff75f92"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma contained_widen: forall l g1 g2 g1' g2', contained l g1 g2 -> Ple (gen_next g1') (gen_next g1) -> Ple (gen_next g2) (gen_next g2') -> contained l g1' g2'.",
+            "VernacStartTheoremProof",
+            "2db26416797948e6ee32fcf9773385b4b556594e"
+        ],
+        [
+            "intros; red; intros.",
+            "VernacExtend",
+            "51aeefe3bf0889d494d662b4f3305dd8bbc97324"
+        ],
+        [
+            "eapply within_widen; eauto.",
+            "VernacExtend",
+            "477dd247654013f073c0e0dedb8ff5f20ba7a37d"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma contained_cons: forall id l g1 g2, within id g1 g2 -> contained l g1 g2 -> contained (id :: l) g1 g2.",
+            "VernacStartTheoremProof",
+            "b776c9361259465009435cd1f20872c4d488efa2"
+        ],
+        [
+            "intros; red; intros.",
+            "VernacExtend",
+            "51aeefe3bf0889d494d662b4f3305dd8bbc97324"
+        ],
+        [
+            "simpl in H1; destruct H1.",
+            "VernacExtend",
+            "397048af7a827585f273e194515a6d98089ac637"
+        ],
+        [
+            "subst id0.",
+            "VernacExtend",
+            "0662917266f2712bf75113b24610d52121f1b741"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma contained_app: forall l1 l2 g1 g2, contained l1 g1 g2 -> contained l2 g1 g2 -> contained (l1 ++ l2) g1 g2.",
+            "VernacStartTheoremProof",
+            "19c14c7081479efe4825d9032ab0fc8a16396780"
+        ],
+        [
+            "intros; red; intros.",
+            "VernacExtend",
+            "51aeefe3bf0889d494d662b4f3305dd8bbc97324"
+        ],
+        [
+            "destruct (in_app_or _ _ _ H1); auto.",
+            "VernacExtend",
+            "58739b51ab7d69cb7161a9348859742b37038d81"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma contained_disjoint: forall g1 l1 g2 l2 g3, contained l1 g1 g2 -> contained l2 g2 g3 -> list_disjoint l1 l2.",
+            "VernacStartTheoremProof",
+            "032ae311ecd28329d6160c089e1dc58b6276b435"
+        ],
+        [
+            "intros; red; intros.",
+            "VernacExtend",
+            "51aeefe3bf0889d494d662b4f3305dd8bbc97324"
+        ],
+        [
+            "red; intro; subst y.",
+            "VernacExtend",
+            "3143cb0af395b9da4ee2d8a41629ca9a2d4fa871"
+        ],
+        [
+            "exploit H; eauto.",
+            "VernacExtend",
+            "e4042976bceeb1e0a2b61f377ada9badc4c146f3"
+        ],
+        [
+            "intros [A B].",
+            "VernacExtend",
+            "269ecc1b12a78cad85161d58003fb0ebdea8ebc3"
+        ],
+        [
+            "exploit H0; eauto.",
+            "VernacExtend",
+            "e2bb62237be4af6f3df33a06be0bda055849b007"
+        ],
+        [
+            "intros [Csyntax D].",
+            "VernacExtend",
+            "bd98c8f6cda2aebab9cd574831bed0b74e0527a4"
+        ],
+        [
+            "elim (Plt_strict x).",
+            "VernacExtend",
+            "9052ade646af2597084682b85b14b790beb78999"
+        ],
+        [
+            "apply Plt_Ple_trans with (gen_next g2); auto.",
+            "VernacExtend",
+            "007d6d5a752c8354d265e6fd1969cfb40adef821"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma contained_notin: forall g1 l g2 id g3, contained l g1 g2 -> within id g2 g3 -> ~In id l.",
+            "VernacStartTheoremProof",
+            "155c5d8dd990bf98c2eca92dc479a5a2785b1e26"
+        ],
+        [
+            "intros; red; intros.",
+            "VernacExtend",
+            "51aeefe3bf0889d494d662b4f3305dd8bbc97324"
+        ],
+        [
+            "exploit H; eauto.",
+            "VernacExtend",
+            "e4042976bceeb1e0a2b61f377ada9badc4c146f3"
+        ],
+        [
+            "intros [Csyntax D].",
+            "VernacExtend",
+            "bd98c8f6cda2aebab9cd574831bed0b74e0527a4"
+        ],
+        [
+            "destruct H0 as [A B].",
+            "VernacExtend",
+            "92096e0821589a7f41c5326c51bcb6270c44b88e"
+        ],
+        [
+            "elim (Plt_strict id).",
+            "VernacExtend",
+            "9b37bd64be05f688c41636f119f4368d30f7cee9"
+        ],
+        [
+            "apply Plt_Ple_trans with (gen_next g2); auto.",
+            "VernacExtend",
+            "007d6d5a752c8354d265e6fd1969cfb40adef821"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition dest_below (dst: destination) (g: generator) : Prop := match dst with | For_set sd => Plt (sd_temp sd) g.(gen_next) | _ => True end.",
+            "VernacDefinition",
+            "6b15daa543d807b0a87c358fef61f0c744ba6e91"
+        ],
+        [
+            "Remark dest_for_val_below: forall g, dest_below For_val g.",
+            "VernacStartTheoremProof",
+            "c79cb488e51f2e4149104f14e64f6cbac9584f87"
+        ],
+        [
+            "intros; simpl; auto.",
+            "VernacExtend",
+            "bb993ce5970cef2c88f7bd735f72830b79b9dc0c"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Remark dest_for_effect_below: forall g, dest_below For_effects g.",
+            "VernacStartTheoremProof",
+            "c854055654e56a14b67c7554dec9a13613350da9"
+        ],
+        [
+            "intros; simpl; auto.",
+            "VernacExtend",
+            "bb993ce5970cef2c88f7bd735f72830b79b9dc0c"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma dest_for_set_seqbool_val: forall tmp ty g1 g2, within tmp g1 g2 -> dest_below (For_set (sd_seqbool_val tmp ty)) g2.",
+            "VernacStartTheoremProof",
+            "edfa8f47839793da2303174970e2d8f9eec525d1"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct H.",
+            "VernacExtend",
+            "8b2bca015429da94c456243b461e17a2a0582c40"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma dest_for_set_seqbool_set: forall sd ty g, dest_below (For_set sd) g -> dest_below (For_set (sd_seqbool_set ty sd)) g.",
+            "VernacStartTheoremProof",
+            "0f6c01f569d69741bb108cd95cc535b5d48820d1"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "assumption.",
+            "VernacExtend",
+            "41f0308313ff87e6ab2782f90d6021ec4b55d932"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma dest_for_set_condition_val: forall tmp tycast ty g1 g2, within tmp g1 g2 -> dest_below (For_set (SDbase tycast ty tmp)) g2.",
+            "VernacStartTheoremProof",
+            "b7903a3051e7bd8b985fb7f601bc688e5e261a1d"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct H.",
+            "VernacExtend",
+            "8b2bca015429da94c456243b461e17a2a0582c40"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma dest_for_set_condition_set: forall sd tmp tycast ty g1 g2, dest_below (For_set sd) g2 -> within tmp g1 g2 -> dest_below (For_set (SDcons tycast ty tmp sd)) g2.",
+            "VernacStartTheoremProof",
+            "2f253363fb5bb8be61b12bf55a276175662f536e"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct H0.",
+            "VernacExtend",
+            "5c8f6cb3dc303d56935d6ec271a1de04f6790225"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma sd_temp_notin: forall sd g1 g2 l, dest_below (For_set sd) g1 -> contained l g1 g2 -> ~In (sd_temp sd) l.",
+            "VernacStartTheoremProof",
+            "f8a47950f804b61831baddccd69e6df0854a2129"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "simpl in H.",
+            "VernacExtend",
+            "78dad51b2bb1130f71851d1e55489020824f59f6"
+        ],
+        [
+            "red; intros.",
+            "VernacExtend",
+            "cac589df0c867c7c46c31951b6da5495d0153212"
+        ],
+        [
+            "exploit H0; eauto.",
+            "VernacExtend",
+            "e2bb62237be4af6f3df33a06be0bda055849b007"
+        ],
+        [
+            "intros [A B].",
+            "VernacExtend",
+            "269ecc1b12a78cad85161d58003fb0ebdea8ebc3"
+        ],
+        [
+            "elim (Plt_strict (sd_temp sd)).",
+            "VernacExtend",
+            "dc564912a34122ffd4ed139446dc38a6708b05ac"
+        ],
+        [
+            "apply Plt_Ple_trans with (gen_next g1); auto.",
+            "VernacExtend",
+            "5624e04232c7e96a7a4e5ded33689e8d53042b49"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma dest_below_le: forall dst g1 g2, dest_below dst g1 -> Ple g1.(gen_next) g2.(gen_next) -> dest_below dst g2.",
+            "VernacStartTheoremProof",
+            "5c5bb5858997983674e11361f321b9fc0ab32c26"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct dst; simpl in *; auto.",
+            "VernacExtend",
+            "de968f4c966b04bf02d1ea7e63f5e924ad901532"
+        ],
+        [
+            "eapply Plt_Ple_trans; eauto.",
+            "VernacExtend",
+            "14879e203cd410fe12bc19ef2ffe194a54a63079"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Hint Resolve gensym_within within_widen contained_widen contained_cons contained_app contained_disjoint contained_notin contained_nil dest_for_set_seqbool_val dest_for_set_seqbool_set dest_for_set_condition_val dest_for_set_condition_set sd_temp_notin dest_below_le incl_refl incl_tl incl_app incl_appl incl_appr incl_same_head in_eq in_cons Ple_trans Ple_refl: gensym.",
+            "VernacHints",
+            "67fe9fdac5337d9ac2330923875db219c5e920ac"
+        ],
+        [
+            "Hint Resolve dest_for_val_below dest_for_effect_below.",
+            "VernacHints",
+            "c83fc3524e34799de76ca2cd752d469b7de07d55"
+        ],
+        [
+            "Lemma finish_meets_spec_1: forall dst sl a sl' a', finish dst sl a = (sl', a') -> sl' = sl ++ final dst a.",
+            "VernacStartTheoremProof",
+            "dfa904d86b9166261854309929129854d857eb04"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct dst; simpl in *; inv H.",
+            "VernacExtend",
+            "75a828961d9abec90ac63551820946062cc92374"
+        ],
+        [
+            "apply app_nil_end.",
+            "VernacExtend",
+            "3221fdb59498f8e19e67dd95c8c5a8bf30515cbc"
+        ],
+        [
+            "apply app_nil_end.",
+            "VernacExtend",
+            "3221fdb59498f8e19e67dd95c8c5a8bf30515cbc"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma finish_meets_spec_2: forall dst sl a sl' a', finish dst sl a = (sl', a') -> a' = a.",
+            "VernacStartTheoremProof",
+            "428db1aef33f5fa47c1795353aab647f9080096a"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct dst; simpl in *; inv H; auto.",
+            "VernacExtend",
+            "2d25831b19d2c4a6ae0e854a77080e07ba23d5cc"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Ltac UseFinish := match goal with | [ H: finish _ _ _ = (_, _) |- _ ] => try (rewrite (finish_meets_spec_2 _ _ _ _ _ H)); try (rewrite (finish_meets_spec_1 _ _ _ _ _ H)); repeat rewrite app_ass end.",
+            "VernacExtend",
+            "84fec5205f32878f4a91bc1be87a0d391834fd3f"
+        ],
+        [
+            "Definition add_dest (dst: destination) (tmps: list ident) := match dst with | For_set sd => sd_temp sd :: tmps | _ => tmps end.",
+            "VernacDefinition",
+            "2b03eb807153ffd5fb8970c318175500ec96d2c5"
+        ],
+        [
+            "Lemma add_dest_incl: forall dst tmps, incl tmps (add_dest dst tmps).",
+            "VernacStartTheoremProof",
+            "8ad5eca769d975cb4447967bdefbe4a140ab5b4b"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct dst; simpl; eauto with coqlib.",
+            "VernacExtend",
+            "200efbf6d5e385ad99a4ed3bf73ee0610ab43b32"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma tr_expr_add_dest: forall le dst r sl a tmps, tr_expr le dst r sl a tmps -> tr_expr le dst r sl a (add_dest dst tmps).",
+            "VernacStartTheoremProof",
+            "6187f6cb297dc3c0805d6897865b76c0e1b5436a"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply tr_expr_monotone with tmps; auto.",
+            "VernacExtend",
+            "25439a9eef60de5482708a6d04faf66264c15c50"
+        ],
+        [
+            "apply add_dest_incl.",
+            "VernacExtend",
+            "61d77b9b7638b56ef9c2a31c6a767b689b0ccb91"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma transl_valof_meets_spec: forall ty a g sl b g' I, transl_valof ty a g = Res (sl, b) g' I -> exists tmps, tr_rvalof ty a sl b tmps /\\ contained tmps g g'.",
+            "VernacStartTheoremProof",
+            "36508dfd69d354986e6cf608127647e1c21cfc4d"
+        ],
+        [
+            "unfold transl_valof; intros.",
+            "VernacExtend",
+            "1c9e2050464d16459b4c1b3a2b1832b955ec4d5a"
+        ],
+        [
+            "destruct (type_is_volatile ty) eqn:?; monadInv H.",
+            "VernacExtend",
+            "1aeb860e3219edbdbcc0c2dc8f42907cb7fcb502"
+        ],
+        [
+            "exists (x :: nil); split; eauto with gensym.",
+            "VernacExtend",
+            "17a1a64e43cba709327dc6944cb7a79c604ba41a"
+        ],
+        [
+            "econstructor; eauto with coqlib.",
+            "VernacExtend",
+            "16e114cab580d38bfe03daa0436d5d4987d2c0d2"
+        ],
+        [
+            "exists (@nil ident); split; eauto with gensym.",
+            "VernacExtend",
+            "656b727ff17de4d8988d1f3fbf824a2723768037"
+        ],
+        [
+            "constructor; auto.",
+            "VernacExtend",
+            "686f227fe0f57af60032eb35216aef1e62d0c0e5"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Scheme expr_ind2 := Induction for Csyntax.expr Sort Prop with exprlist_ind2 := Induction for Csyntax.exprlist Sort Prop.",
+            "VernacScheme",
+            "ab63c3566a0088f05448c6a0dc8eac1782d04b2d"
+        ],
+        [
+            "Combined Scheme expr_exprlist_ind from expr_ind2, exprlist_ind2.",
+            "VernacCombinedScheme",
+            "652f1c2589cfabf6ac9b0d8874a9787fdd642151"
+        ],
+        [
+            "Lemma transl_meets_spec: (forall r dst g sl a g' I, transl_expr dst r g = Res (sl, a) g' I -> dest_below dst g -> exists tmps, (forall le, tr_expr le dst r sl a (add_dest dst tmps)) /\\ contained tmps g g') /\\ (forall rl g sl al g' I, transl_exprlist rl g = Res (sl, al) g' I -> exists tmps, (forall le, tr_exprlist le rl sl al tmps) /\\ contained tmps g g').",
+            "VernacStartTheoremProof",
+            "b44a678bed77bd09a5c65222d4140642873c31cb"
+        ],
+        [
+            "apply expr_exprlist_ind; simpl add_dest; intros.",
+            "VernacExtend",
+            "ba0fe42f84feb811ac05f9b639d48cf1afb61cc9"
+        ],
+        [
+            "simpl in H.",
+            "VernacExtend",
+            "78dad51b2bb1130f71851d1e55489020824f59f6"
+        ],
+        [
+            "destruct v; monadInv H; exists (@nil ident); split; auto with gensym.",
+            "VernacExtend",
+            "d2d39c6d293effb10a50b6037c1e8722a836b3bd"
+        ],
+        [
+            "Opaque makeif.",
+            "VernacSetOpacity",
+            "d04b8cc8bc21f97382994717def3ec3f92e502ae"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct dst; simpl in *; inv H2.",
+            "VernacExtend",
+            "d13f3f881e0217a665d81e7f7daee85a0b0d3dc4"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "intros; constructor.",
+            "VernacExtend",
+            "6060146ed8617d8b0251c9efb816acd480d86b70"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "intros; constructor.",
+            "VernacExtend",
+            "6060146ed8617d8b0251c9efb816acd480d86b70"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct dst; simpl in *; inv H2.",
+            "VernacExtend",
+            "d13f3f881e0217a665d81e7f7daee85a0b0d3dc4"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "intros; constructor.",
+            "VernacExtend",
+            "6060146ed8617d8b0251c9efb816acd480d86b70"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "intros; constructor.",
+            "VernacExtend",
+            "6060146ed8617d8b0251c9efb816acd480d86b70"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct dst; simpl in *; inv H2.",
+            "VernacExtend",
+            "d13f3f881e0217a665d81e7f7daee85a0b0d3dc4"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "intros; constructor.",
+            "VernacExtend",
+            "6060146ed8617d8b0251c9efb816acd480d86b70"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "intros; constructor.",
+            "VernacExtend",
+            "6060146ed8617d8b0251c9efb816acd480d86b70"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct dst; simpl in *; inv H2.",
+            "VernacExtend",
+            "d13f3f881e0217a665d81e7f7daee85a0b0d3dc4"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "intros; constructor.",
+            "VernacExtend",
+            "6060146ed8617d8b0251c9efb816acd480d86b70"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "intros; constructor.",
+            "VernacExtend",
+            "6060146ed8617d8b0251c9efb816acd480d86b70"
+        ],
+        [
+            "monadInv H; econstructor; split; auto with gensym.",
+            "VernacExtend",
+            "4483ac9e751c127f8f59eeacfe3a3c12be142601"
+        ],
+        [
+            "UseFinish.",
+            "VernacExtend",
+            "0e722f199355cf39dbe56d768a378390ecc71bfd"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "monadInv H0.",
+            "VernacExtend",
+            "f821ae7ac784bd8dd2effb1f6b5bf0636fbc375f"
+        ],
+        [
+            "exploit H; eauto.",
+            "VernacExtend",
+            "e4042976bceeb1e0a2b61f377ada9badc4c146f3"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "intros [tmp [A B]].",
+            "VernacExtend",
+            "b68f8bf2273ef6622d1acd2b336c2a63ba6fc6af"
+        ],
+        [
+            "UseFinish.",
+            "VernacExtend",
+            "0e722f199355cf39dbe56d768a378390ecc71bfd"
+        ],
+        [
+            "econstructor; split; eauto.",
+            "VernacExtend",
+            "0207be75c79a815ad7d6b5b147064fcca7bc6c34"
+        ],
+        [
+            "intros; apply tr_expr_add_dest.",
+            "VernacExtend",
+            "6e38104d27660104a20360edc7b6c6e9b16649d8"
+        ],
+        [
+            "constructor; auto.",
+            "VernacExtend",
+            "686f227fe0f57af60032eb35216aef1e62d0c0e5"
+        ],
+        [
+            "monadInv H0.",
+            "VernacExtend",
+            "f821ae7ac784bd8dd2effb1f6b5bf0636fbc375f"
+        ],
+        [
+            "exploit H; eauto.",
+            "VernacExtend",
+            "e4042976bceeb1e0a2b61f377ada9badc4c146f3"
+        ],
+        [
+            "intros [tmp1 [A B]].",
+            "VernacExtend",
+            "edb9c0888d99d5b6bb6df2f406365fffc263c7a4"
+        ],
+        [
+            "exploit transl_valof_meets_spec; eauto.",
+            "VernacExtend",
+            "ae9e9c056ae6d236ef6e834e27eddab629503cbe"
+        ],
+        [
+            "intros [tmp2 [Csyntax D]].",
+            "VernacExtend",
+            "70ef7542345ebce9bb105119e77c38abf8d59bf0"
+        ],
+        [
+            "UseFinish.",
+            "VernacExtend",
+            "0e722f199355cf39dbe56d768a378390ecc71bfd"
+        ],
+        [
+            "exists (tmp1 ++ tmp2); split.",
+            "VernacExtend",
+            "51bd739d4834b74ba8bd7f3926497b8d72743eb3"
+        ],
+        [
+            "intros; apply tr_expr_add_dest.",
+            "VernacExtend",
+            "6e38104d27660104a20360edc7b6c6e9b16649d8"
+        ],
+        [
+            "econstructor; eauto with gensym.",
+            "VernacExtend",
+            "642269a646db85ff01bbcc2d521ad5aad1c60c0b"
+        ],
+        [
+            "eauto with gensym.",
+            "VernacExtend",
+            "e3cd6cfd577ac141cd10a47631254fabe2193736"
+        ],
+        [
+            "monadInv H0.",
+            "VernacExtend",
+            "f821ae7ac784bd8dd2effb1f6b5bf0636fbc375f"
+        ],
+        [
+            "exploit H; eauto.",
+            "VernacExtend",
+            "e4042976bceeb1e0a2b61f377ada9badc4c146f3"
+        ],
+        [
+            "intros [tmp [A B]].",
+            "VernacExtend",
+            "b68f8bf2273ef6622d1acd2b336c2a63ba6fc6af"
+        ],
+        [
+            "UseFinish.",
+            "VernacExtend",
+            "0e722f199355cf39dbe56d768a378390ecc71bfd"
+        ],
+        [
+            "econstructor; split; eauto.",
+            "VernacExtend",
+            "0207be75c79a815ad7d6b5b147064fcca7bc6c34"
+        ],
+        [
+            "intros; apply tr_expr_add_dest.",
+            "VernacExtend",
+            "6e38104d27660104a20360edc7b6c6e9b16649d8"
+        ],
+        [
+            "constructor; auto.",
+            "VernacExtend",
+            "686f227fe0f57af60032eb35216aef1e62d0c0e5"
+        ],
+        [
+            "monadInv H0.",
+            "VernacExtend",
+            "f821ae7ac784bd8dd2effb1f6b5bf0636fbc375f"
+        ],
+        [
+            "exploit H; eauto.",
+            "VernacExtend",
+            "e4042976bceeb1e0a2b61f377ada9badc4c146f3"
+        ],
+        [
+            "intros [tmp [A B]].",
+            "VernacExtend",
+            "b68f8bf2273ef6622d1acd2b336c2a63ba6fc6af"
+        ],
+        [
+            "UseFinish.",
+            "VernacExtend",
+            "0e722f199355cf39dbe56d768a378390ecc71bfd"
+        ],
+        [
+            "econstructor; split; eauto.",
+            "VernacExtend",
+            "0207be75c79a815ad7d6b5b147064fcca7bc6c34"
+        ],
+        [
+            "intros; apply tr_expr_add_dest.",
+            "VernacExtend",
+            "6e38104d27660104a20360edc7b6c6e9b16649d8"
+        ],
+        [
+            "econstructor; eauto.",
+            "VernacExtend",
+            "faa93781fb8bbf289e651728c4588af1c4169d34"
+        ],
+        [
+            "monadInv H0.",
+            "VernacExtend",
+            "f821ae7ac784bd8dd2effb1f6b5bf0636fbc375f"
+        ],
+        [
+            "exploit H; eauto.",
+            "VernacExtend",
+            "e4042976bceeb1e0a2b61f377ada9badc4c146f3"
+        ],
+        [
+            "intros [tmp [A B]].",
+            "VernacExtend",
+            "b68f8bf2273ef6622d1acd2b336c2a63ba6fc6af"
+        ],
+        [
+            "UseFinish.",
+            "VernacExtend",
+            "0e722f199355cf39dbe56d768a378390ecc71bfd"
+        ],
+        [
+            "econstructor; split; eauto.",
+            "VernacExtend",
+            "0207be75c79a815ad7d6b5b147064fcca7bc6c34"
+        ],
+        [
+            "intros; apply tr_expr_add_dest.",
+            "VernacExtend",
+            "6e38104d27660104a20360edc7b6c6e9b16649d8"
+        ],
+        [
+            "constructor; auto.",
+            "VernacExtend",
+            "686f227fe0f57af60032eb35216aef1e62d0c0e5"
+        ],
+        [
+            "monadInv H1.",
+            "VernacExtend",
+            "eaa68f4f24f59de964f4d7c9da1a19ddf2c9e1e5"
+        ],
+        [
+            "exploit H; eauto.",
+            "VernacExtend",
+            "e4042976bceeb1e0a2b61f377ada9badc4c146f3"
+        ],
+        [
+            "intros [tmp1 [A B]].",
+            "VernacExtend",
+            "edb9c0888d99d5b6bb6df2f406365fffc263c7a4"
+        ],
+        [
+            "exploit H0; eauto.",
+            "VernacExtend",
+            "e2bb62237be4af6f3df33a06be0bda055849b007"
+        ],
+        [
+            "intros [tmp2 [Csyntax D]].",
+            "VernacExtend",
+            "70ef7542345ebce9bb105119e77c38abf8d59bf0"
+        ],
+        [
+            "UseFinish.",
+            "VernacExtend",
+            "0e722f199355cf39dbe56d768a378390ecc71bfd"
+        ],
+        [
+            "exists (tmp1 ++ tmp2); split.",
+            "VernacExtend",
+            "51bd739d4834b74ba8bd7f3926497b8d72743eb3"
+        ],
+        [
+            "intros; apply tr_expr_add_dest.",
+            "VernacExtend",
+            "6e38104d27660104a20360edc7b6c6e9b16649d8"
+        ],
+        [
+            "econstructor; eauto with gensym.",
+            "VernacExtend",
+            "642269a646db85ff01bbcc2d521ad5aad1c60c0b"
+        ],
+        [
+            "eauto with gensym.",
+            "VernacExtend",
+            "e3cd6cfd577ac141cd10a47631254fabe2193736"
+        ],
+        [
+            "monadInv H0.",
+            "VernacExtend",
+            "f821ae7ac784bd8dd2effb1f6b5bf0636fbc375f"
+        ],
+        [
+            "exploit H; eauto.",
+            "VernacExtend",
+            "e4042976bceeb1e0a2b61f377ada9badc4c146f3"
+        ],
+        [
+            "intros [tmp [A B]].",
+            "VernacExtend",
+            "b68f8bf2273ef6622d1acd2b336c2a63ba6fc6af"
+        ],
+        [
+            "UseFinish.",
+            "VernacExtend",
+            "0e722f199355cf39dbe56d768a378390ecc71bfd"
+        ],
+        [
+            "econstructor; split; eauto.",
+            "VernacExtend",
+            "0207be75c79a815ad7d6b5b147064fcca7bc6c34"
+        ],
+        [
+            "intros; apply tr_expr_add_dest.",
+            "VernacExtend",
+            "6e38104d27660104a20360edc7b6c6e9b16649d8"
+        ],
+        [
+            "constructor; auto.",
+            "VernacExtend",
+            "686f227fe0f57af60032eb35216aef1e62d0c0e5"
+        ],
+        [
+            "monadInv H1.",
+            "VernacExtend",
+            "eaa68f4f24f59de964f4d7c9da1a19ddf2c9e1e5"
+        ],
+        [
+            "exploit H; eauto.",
+            "VernacExtend",
+            "e4042976bceeb1e0a2b61f377ada9badc4c146f3"
+        ],
+        [
+            "intros [tmp1 [A B]].",
+            "VernacExtend",
+            "edb9c0888d99d5b6bb6df2f406365fffc263c7a4"
+        ],
+        [
+            "destruct dst; monadInv EQ0.",
+            "VernacExtend",
+            "f4f279757772a13b8b5ead0db042554ebdf4f794"
+        ],
+        [
+            "exploit H0; eauto with gensym.",
+            "VernacExtend",
+            "7db69097a29aa3986d93a9f51027d56237977a6a"
+        ],
+        [
+            "intros [tmp2 [C D]].",
+            "VernacExtend",
+            "3975ee63d0c983d64f01d08411828a2b78c0d921"
+        ],
+        [
+            "simpl add_dest in *.",
+            "VernacExtend",
+            "77fd0b0ca3a19381cd44a18142d5c89e07dfbfe5"
+        ],
+        [
+            "exists (x0 :: tmp1 ++ tmp2); split.",
+            "VernacExtend",
+            "b64c411ebe0dca6af9f5a28771020409bc8f7263"
+        ],
+        [
+            "intros; eapply tr_seqand_val; eauto with gensym.",
+            "VernacExtend",
+            "e157d7d4b802bf16df6992b19f4135606bc6ef5a"
+        ],
+        [
+            "apply list_disjoint_cons_r; eauto with gensym.",
+            "VernacExtend",
+            "26b419f2f7524a0e3b0e99fd8033129a05a05c2b"
+        ],
+        [
+            "apply contained_cons.",
+            "VernacExtend",
+            "fda6b452e2dd97c51df26cdbde47e117a3e55fee"
+        ],
+        [
+            "eauto with gensym.",
+            "VernacExtend",
+            "e3cd6cfd577ac141cd10a47631254fabe2193736"
+        ],
+        [
+            "apply contained_app; eauto with gensym.",
+            "VernacExtend",
+            "14ddee4a336525fd9f0b607bd0a7ba6397c6746e"
+        ],
+        [
+            "exploit H0; eauto with gensym.",
+            "VernacExtend",
+            "7db69097a29aa3986d93a9f51027d56237977a6a"
+        ],
+        [
+            "intros [tmp2 [Csyntax D]].",
+            "VernacExtend",
+            "70ef7542345ebce9bb105119e77c38abf8d59bf0"
+        ],
+        [
+            "simpl add_dest in *.",
+            "VernacExtend",
+            "77fd0b0ca3a19381cd44a18142d5c89e07dfbfe5"
+        ],
+        [
+            "exists (tmp1 ++ tmp2); split.",
+            "VernacExtend",
+            "51bd739d4834b74ba8bd7f3926497b8d72743eb3"
+        ],
+        [
+            "intros; eapply tr_seqand_effects; eauto with gensym.",
+            "VernacExtend",
+            "2f1bc538b557136633f1eb3aa77c77bd77c3a421"
+        ],
+        [
+            "apply contained_app; eauto with gensym.",
+            "VernacExtend",
+            "14ddee4a336525fd9f0b607bd0a7ba6397c6746e"
+        ],
+        [
+            "exploit H0; eauto with gensym.",
+            "VernacExtend",
+            "7db69097a29aa3986d93a9f51027d56237977a6a"
+        ],
+        [
+            "intros [tmp2 [C D]].",
+            "VernacExtend",
+            "3975ee63d0c983d64f01d08411828a2b78c0d921"
+        ],
+        [
+            "simpl add_dest in *.",
+            "VernacExtend",
+            "77fd0b0ca3a19381cd44a18142d5c89e07dfbfe5"
+        ],
+        [
+            "exists (tmp1 ++ tmp2); split.",
+            "VernacExtend",
+            "51bd739d4834b74ba8bd7f3926497b8d72743eb3"
+        ],
+        [
+            "intros; eapply tr_seqand_set; eauto with gensym.",
+            "VernacExtend",
+            "7b2b1d32a83a3eaf96a803851fd9fa6a9246a49a"
+        ],
+        [
+            "apply list_disjoint_cons_r; eauto with gensym.",
+            "VernacExtend",
+            "26b419f2f7524a0e3b0e99fd8033129a05a05c2b"
+        ],
+        [
+            "apply contained_app; eauto with gensym.",
+            "VernacExtend",
+            "14ddee4a336525fd9f0b607bd0a7ba6397c6746e"
+        ],
+        [
+            "monadInv H1.",
+            "VernacExtend",
+            "eaa68f4f24f59de964f4d7c9da1a19ddf2c9e1e5"
+        ],
+        [
+            "exploit H; eauto.",
+            "VernacExtend",
+            "e4042976bceeb1e0a2b61f377ada9badc4c146f3"
+        ],
+        [
+            "intros [tmp1 [A B]].",
+            "VernacExtend",
+            "edb9c0888d99d5b6bb6df2f406365fffc263c7a4"
+        ],
+        [
+            "destruct dst; monadInv EQ0.",
+            "VernacExtend",
+            "f4f279757772a13b8b5ead0db042554ebdf4f794"
+        ],
+        [
+            "exploit H0; eauto with gensym.",
+            "VernacExtend",
+            "7db69097a29aa3986d93a9f51027d56237977a6a"
+        ],
+        [
+            "intros [tmp2 [Csyntax D]].",
+            "VernacExtend",
+            "70ef7542345ebce9bb105119e77c38abf8d59bf0"
+        ],
+        [
+            "simpl add_dest in *.",
+            "VernacExtend",
+            "77fd0b0ca3a19381cd44a18142d5c89e07dfbfe5"
+        ],
+        [
+            "exists (x0 :: tmp1 ++ tmp2); split.",
+            "VernacExtend",
+            "b64c411ebe0dca6af9f5a28771020409bc8f7263"
+        ],
+        [
+            "intros; eapply tr_seqor_val; eauto with gensym.",
+            "VernacExtend",
+            "0b0652e11eb4bd34f72c3771c59c7d50e9d81c10"
+        ],
+        [
+            "apply list_disjoint_cons_r; eauto with gensym.",
+            "VernacExtend",
+            "26b419f2f7524a0e3b0e99fd8033129a05a05c2b"
+        ],
+        [
+            "apply contained_cons.",
+            "VernacExtend",
+            "fda6b452e2dd97c51df26cdbde47e117a3e55fee"
+        ],
+        [
+            "eauto with gensym.",
+            "VernacExtend",
+            "e3cd6cfd577ac141cd10a47631254fabe2193736"
+        ],
+        [
+            "apply contained_app; eauto with gensym.",
+            "VernacExtend",
+            "14ddee4a336525fd9f0b607bd0a7ba6397c6746e"
+        ],
+        [
+            "exploit H0; eauto with gensym.",
+            "VernacExtend",
+            "7db69097a29aa3986d93a9f51027d56237977a6a"
+        ],
+        [
+            "intros [tmp2 [C D]].",
+            "VernacExtend",
+            "3975ee63d0c983d64f01d08411828a2b78c0d921"
+        ],
+        [
+            "simpl add_dest in *.",
+            "VernacExtend",
+            "77fd0b0ca3a19381cd44a18142d5c89e07dfbfe5"
+        ],
+        [
+            "exists (tmp1 ++ tmp2); split.",
+            "VernacExtend",
+            "51bd739d4834b74ba8bd7f3926497b8d72743eb3"
+        ],
+        [
+            "intros; eapply tr_seqor_effects; eauto with gensym.",
+            "VernacExtend",
+            "96e5e504d0e94f25108ebd3a81f76d2a6ab40393"
+        ],
+        [
+            "apply contained_app; eauto with gensym.",
+            "VernacExtend",
+            "14ddee4a336525fd9f0b607bd0a7ba6397c6746e"
+        ],
+        [
+            "exploit H0; eauto with gensym.",
+            "VernacExtend",
+            "7db69097a29aa3986d93a9f51027d56237977a6a"
+        ],
+        [
+            "intros [tmp2 [C D]].",
+            "VernacExtend",
+            "3975ee63d0c983d64f01d08411828a2b78c0d921"
+        ],
+        [
+            "simpl add_dest in *.",
+            "VernacExtend",
+            "77fd0b0ca3a19381cd44a18142d5c89e07dfbfe5"
+        ],
+        [
+            "exists (tmp1 ++ tmp2); split.",
+            "VernacExtend",
+            "51bd739d4834b74ba8bd7f3926497b8d72743eb3"
+        ],
+        [
+            "intros; eapply tr_seqor_set; eauto with gensym.",
+            "VernacExtend",
+            "660687c8bc17e8c069e343d72a58b582392def31"
+        ],
+        [
+            "apply list_disjoint_cons_r; eauto with gensym.",
+            "VernacExtend",
+            "26b419f2f7524a0e3b0e99fd8033129a05a05c2b"
+        ],
+        [
+            "apply contained_app; eauto with gensym.",
+            "VernacExtend",
+            "14ddee4a336525fd9f0b607bd0a7ba6397c6746e"
+        ],
+        [
+            "monadInv H2.",
+            "VernacExtend",
+            "1be6e23a37667694dfcb7d51bf68c6bffe155e50"
+        ],
+        [
+            "exploit H; eauto.",
+            "VernacExtend",
+            "e4042976bceeb1e0a2b61f377ada9badc4c146f3"
+        ],
+        [
+            "intros [tmp1 [A B]].",
+            "VernacExtend",
+            "edb9c0888d99d5b6bb6df2f406365fffc263c7a4"
+        ],
+        [
+            "destruct dst; monadInv EQ0.",
+            "VernacExtend",
+            "f4f279757772a13b8b5ead0db042554ebdf4f794"
+        ],
+        [
+            "exploit H0; eauto with gensym.",
+            "VernacExtend",
+            "7db69097a29aa3986d93a9f51027d56237977a6a"
+        ],
+        [
+            "intros [tmp2 [C D]].",
+            "VernacExtend",
+            "3975ee63d0c983d64f01d08411828a2b78c0d921"
+        ],
+        [
+            "exploit H1; eauto with gensym.",
+            "VernacExtend",
+            "421d9b76adfa5a6663dfbdb8ba6cdf1271e865d2"
+        ],
+        [
+            "intros [tmp3 [E F]].",
+            "VernacExtend",
+            "2f3a836d3ddbf33e0d413629783ef83ffeddc9e0"
+        ],
+        [
+            "simpl add_dest in *.",
+            "VernacExtend",
+            "77fd0b0ca3a19381cd44a18142d5c89e07dfbfe5"
+        ],
+        [
+            "exists (x0 :: tmp1 ++ tmp2 ++ tmp3); split.",
+            "VernacExtend",
+            "a3a60160d8234fb68200da8a1bc3af6d96ed82a2"
+        ],
+        [
+            "simpl; intros; eapply tr_condition_val; eauto with gensym.",
+            "VernacExtend",
+            "e53a5403123a19ca033b22db899317d7e0674be1"
+        ],
+        [
+            "apply list_disjoint_cons_r; eauto with gensym.",
+            "VernacExtend",
+            "26b419f2f7524a0e3b0e99fd8033129a05a05c2b"
+        ],
+        [
+            "apply list_disjoint_cons_r; eauto with gensym.",
+            "VernacExtend",
+            "26b419f2f7524a0e3b0e99fd8033129a05a05c2b"
+        ],
+        [
+            "apply contained_cons.",
+            "VernacExtend",
+            "fda6b452e2dd97c51df26cdbde47e117a3e55fee"
+        ],
+        [
+            "eauto with gensym.",
+            "VernacExtend",
+            "e3cd6cfd577ac141cd10a47631254fabe2193736"
+        ],
+        [
+            "apply contained_app.",
+            "VernacExtend",
+            "91306dd2acfdf0e83b86eb1f953718a3f5d22c74"
+        ],
+        [
+            "eauto with gensym.",
+            "VernacExtend",
+            "e3cd6cfd577ac141cd10a47631254fabe2193736"
+        ],
+        [
+            "apply contained_app; eauto with gensym.",
+            "VernacExtend",
+            "14ddee4a336525fd9f0b607bd0a7ba6397c6746e"
+        ],
+        [
+            "exploit H0; eauto.",
+            "VernacExtend",
+            "e2bb62237be4af6f3df33a06be0bda055849b007"
+        ],
+        [
+            "intros [tmp2 [Csyntax D]].",
+            "VernacExtend",
+            "70ef7542345ebce9bb105119e77c38abf8d59bf0"
+        ],
+        [
+            "exploit H1; eauto.",
+            "VernacExtend",
+            "d1ac7e46a1804b055a0c568a322e1c9a2cd3597d"
+        ],
+        [
+            "intros [tmp3 [E F]].",
+            "VernacExtend",
+            "2f3a836d3ddbf33e0d413629783ef83ffeddc9e0"
+        ],
+        [
+            "simpl add_dest in *.",
+            "VernacExtend",
+            "77fd0b0ca3a19381cd44a18142d5c89e07dfbfe5"
+        ],
+        [
+            "exists (tmp1 ++ tmp2 ++ tmp3); split.",
+            "VernacExtend",
+            "0708600847f06e1b004c88e1b218b500cc92a864"
+        ],
+        [
+            "intros; eapply tr_condition_effects; eauto with gensym.",
+            "VernacExtend",
+            "7708e9c564d833d20a66d80ba1d69cc2d93270ff"
+        ],
+        [
+            "apply contained_app; eauto with gensym.",
+            "VernacExtend",
+            "14ddee4a336525fd9f0b607bd0a7ba6397c6746e"
+        ],
+        [
+            "exploit H0; eauto with gensym.",
+            "VernacExtend",
+            "7db69097a29aa3986d93a9f51027d56237977a6a"
+        ],
+        [
+            "intros [tmp2 [C D]].",
+            "VernacExtend",
+            "3975ee63d0c983d64f01d08411828a2b78c0d921"
+        ],
+        [
+            "exploit H1; eauto 10 with gensym.",
+            "VernacExtend",
+            "f49c81e830331a5a83ff380639bb82d0a2602b5f"
+        ],
+        [
+            "intros [tmp3 [E F]].",
+            "VernacExtend",
+            "2f3a836d3ddbf33e0d413629783ef83ffeddc9e0"
+        ],
+        [
+            "simpl add_dest in *.",
+            "VernacExtend",
+            "77fd0b0ca3a19381cd44a18142d5c89e07dfbfe5"
+        ],
+        [
+            "exists (x0 :: tmp1 ++ tmp2 ++ tmp3); split.",
+            "VernacExtend",
+            "a3a60160d8234fb68200da8a1bc3af6d96ed82a2"
+        ],
+        [
+            "intros; eapply tr_condition_set; eauto with gensym.",
+            "VernacExtend",
+            "356ef67600f8fc036ec103fb93fd52836503766a"
+        ],
+        [
+            "apply list_disjoint_cons_r; eauto with gensym.",
+            "VernacExtend",
+            "26b419f2f7524a0e3b0e99fd8033129a05a05c2b"
+        ],
+        [
+            "apply list_disjoint_cons_r; eauto with gensym.",
+            "VernacExtend",
+            "26b419f2f7524a0e3b0e99fd8033129a05a05c2b"
+        ],
+        [
+            "apply contained_cons; eauto with gensym.",
+            "VernacExtend",
+            "ecae09fa0f6a1268f0ada8ec20e262394f52cae9"
+        ],
+        [
+            "apply contained_app; eauto with gensym.",
+            "VernacExtend",
+            "14ddee4a336525fd9f0b607bd0a7ba6397c6746e"
+        ],
+        [
+            "apply contained_app; eauto with gensym.",
+            "VernacExtend",
+            "14ddee4a336525fd9f0b607bd0a7ba6397c6746e"
+        ],
+        [
+            "monadInv H.",
+            "VernacExtend",
+            "3fc57761693b3f6ae9cb0dcb646a83c40e34f7f1"
+        ],
+        [
+            "UseFinish.",
+            "VernacExtend",
+            "0e722f199355cf39dbe56d768a378390ecc71bfd"
+        ],
+        [
+            "exists (@nil ident); split; auto with gensym.",
+            "VernacExtend",
+            "285d9e5314f35566b0336dff608eb6c0fb9900a3"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "monadInv H.",
+            "VernacExtend",
+            "3fc57761693b3f6ae9cb0dcb646a83c40e34f7f1"
+        ],
+        [
+            "UseFinish.",
+            "VernacExtend",
+            "0e722f199355cf39dbe56d768a378390ecc71bfd"
+        ],
+        [
+            "exists (@nil ident); split; auto with gensym.",
+            "VernacExtend",
+            "285d9e5314f35566b0336dff608eb6c0fb9900a3"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "monadInv H1.",
+            "VernacExtend",
+            "eaa68f4f24f59de964f4d7c9da1a19ddf2c9e1e5"
+        ],
+        [
+            "exploit H; eauto.",
+            "VernacExtend",
+            "e4042976bceeb1e0a2b61f377ada9badc4c146f3"
+        ],
+        [
+            "intros [tmp1 [A B]].",
+            "VernacExtend",
+            "edb9c0888d99d5b6bb6df2f406365fffc263c7a4"
+        ],
+        [
+            "exploit H0; eauto.",
+            "VernacExtend",
+            "e2bb62237be4af6f3df33a06be0bda055849b007"
+        ],
+        [
+            "intros [tmp2 [Csyntax D]].",
+            "VernacExtend",
+            "70ef7542345ebce9bb105119e77c38abf8d59bf0"
+        ],
+        [
+            "destruct dst; monadInv EQ2; simpl add_dest in *.",
+            "VernacExtend",
+            "367eae6f4786a8ed7a7225e42eeb5593528dfc81"
+        ],
+        [
+            "exists (x1 :: tmp1 ++ tmp2); split.",
+            "VernacExtend",
+            "f8a04b8f4029385f8e8d6036ef0db141f015366f"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "eapply tr_assign_val with (dst := For_val); eauto with gensym.",
+            "VernacExtend",
+            "0d7644a9dde75e0af499240c3341b30de6bf8026"
+        ],
+        [
+            "apply contained_cons.",
+            "VernacExtend",
+            "fda6b452e2dd97c51df26cdbde47e117a3e55fee"
+        ],
+        [
+            "eauto with gensym.",
+            "VernacExtend",
+            "e3cd6cfd577ac141cd10a47631254fabe2193736"
+        ],
+        [
+            "apply contained_app; eauto with gensym.",
+            "VernacExtend",
+            "14ddee4a336525fd9f0b607bd0a7ba6397c6746e"
+        ],
+        [
+            "exists (tmp1 ++ tmp2); split.",
+            "VernacExtend",
+            "51bd739d4834b74ba8bd7f3926497b8d72743eb3"
+        ],
+        [
+            "econstructor; eauto with gensym.",
+            "VernacExtend",
+            "642269a646db85ff01bbcc2d521ad5aad1c60c0b"
+        ],
+        [
+            "apply contained_app; eauto with gensym.",
+            "VernacExtend",
+            "14ddee4a336525fd9f0b607bd0a7ba6397c6746e"
+        ],
+        [
+            "exists (x1 :: tmp1 ++ tmp2); split.",
+            "VernacExtend",
+            "f8a04b8f4029385f8e8d6036ef0db141f015366f"
+        ],
+        [
+            "repeat rewrite app_ass.",
+            "VernacExtend",
+            "c5b6ee361540fa0f14fb61b62365b89213ce66af"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "eapply tr_assign_val with (dst := For_set sd); eauto with gensym.",
+            "VernacExtend",
+            "9aa198e851ace97330dc83a1e7dd36d38ee4a74a"
+        ],
+        [
+            "apply contained_cons.",
+            "VernacExtend",
+            "fda6b452e2dd97c51df26cdbde47e117a3e55fee"
+        ],
+        [
+            "eauto with gensym.",
+            "VernacExtend",
+            "e3cd6cfd577ac141cd10a47631254fabe2193736"
+        ],
+        [
+            "apply contained_app; eauto with gensym.",
+            "VernacExtend",
+            "14ddee4a336525fd9f0b607bd0a7ba6397c6746e"
+        ],
+        [
+            "monadInv H1.",
+            "VernacExtend",
+            "eaa68f4f24f59de964f4d7c9da1a19ddf2c9e1e5"
+        ],
+        [
+            "exploit H; eauto.",
+            "VernacExtend",
+            "e4042976bceeb1e0a2b61f377ada9badc4c146f3"
+        ],
+        [
+            "intros [tmp1 [A B]].",
+            "VernacExtend",
+            "edb9c0888d99d5b6bb6df2f406365fffc263c7a4"
+        ],
+        [
+            "exploit H0; eauto.",
+            "VernacExtend",
+            "e2bb62237be4af6f3df33a06be0bda055849b007"
+        ],
+        [
+            "intros [tmp2 [Csyntax D]].",
+            "VernacExtend",
+            "70ef7542345ebce9bb105119e77c38abf8d59bf0"
+        ],
+        [
+            "exploit transl_valof_meets_spec; eauto.",
+            "VernacExtend",
+            "ae9e9c056ae6d236ef6e834e27eddab629503cbe"
+        ],
+        [
+            "intros [tmp3 [E F]].",
+            "VernacExtend",
+            "2f3a836d3ddbf33e0d413629783ef83ffeddc9e0"
+        ],
+        [
+            "destruct dst; monadInv EQ3; simpl add_dest in *.",
+            "VernacExtend",
+            "34f099c297d0001667c10c7fc041b26e92ed0182"
+        ],
+        [
+            "exists (x2 :: tmp1 ++ tmp2 ++ tmp3); split.",
+            "VernacExtend",
+            "3b1712bbf050447bf55d418943a75b80cb53fcbb"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "eapply tr_assignop_val with (dst := For_val); eauto with gensym.",
+            "VernacExtend",
+            "a614c684337e12dd3f5882a5e5be474e3b9bab44"
+        ],
+        [
+            "apply contained_cons.",
+            "VernacExtend",
+            "fda6b452e2dd97c51df26cdbde47e117a3e55fee"
+        ],
+        [
+            "eauto with gensym.",
+            "VernacExtend",
+            "e3cd6cfd577ac141cd10a47631254fabe2193736"
+        ],
+        [
+            "apply contained_app; eauto with gensym.",
+            "VernacExtend",
+            "14ddee4a336525fd9f0b607bd0a7ba6397c6746e"
+        ],
+        [
+            "exists (tmp1 ++ tmp2 ++ tmp3); split.",
+            "VernacExtend",
+            "0708600847f06e1b004c88e1b218b500cc92a864"
+        ],
+        [
+            "econstructor; eauto with gensym.",
+            "VernacExtend",
+            "642269a646db85ff01bbcc2d521ad5aad1c60c0b"
+        ],
+        [
+            "apply contained_app; eauto with gensym.",
+            "VernacExtend",
+            "14ddee4a336525fd9f0b607bd0a7ba6397c6746e"
+        ],
+        [
+            "exists (x2 :: tmp1 ++ tmp2 ++ tmp3); split.",
+            "VernacExtend",
+            "3b1712bbf050447bf55d418943a75b80cb53fcbb"
+        ],
+        [
+            "repeat rewrite app_ass.",
+            "VernacExtend",
+            "c5b6ee361540fa0f14fb61b62365b89213ce66af"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "eapply tr_assignop_val with (dst := For_set sd); eauto with gensym.",
+            "VernacExtend",
+            "e3665b6ca2a18d4d8435930a453911f53eb5b983"
+        ],
+        [
+            "apply contained_cons.",
+            "VernacExtend",
+            "fda6b452e2dd97c51df26cdbde47e117a3e55fee"
+        ],
+        [
+            "eauto with gensym.",
+            "VernacExtend",
+            "e3cd6cfd577ac141cd10a47631254fabe2193736"
+        ],
+        [
+            "apply contained_app; eauto with gensym.",
+            "VernacExtend",
+            "14ddee4a336525fd9f0b607bd0a7ba6397c6746e"
+        ],
+        [
+            "monadInv H0.",
+            "VernacExtend",
+            "f821ae7ac784bd8dd2effb1f6b5bf0636fbc375f"
+        ],
+        [
+            "exploit H; eauto.",
+            "VernacExtend",
+            "e4042976bceeb1e0a2b61f377ada9badc4c146f3"
+        ],
+        [
+            "intros [tmp1 [A B]].",
+            "VernacExtend",
+            "edb9c0888d99d5b6bb6df2f406365fffc263c7a4"
+        ],
+        [
+            "destruct dst; monadInv EQ0; simpl add_dest in *.",
+            "VernacExtend",
+            "8a8cbf4e8e7f0855c4a0e1968a2470b747aaaf17"
+        ],
+        [
+            "exists (x0 :: tmp1); split.",
+            "VernacExtend",
+            "13146972ab90489d70a5439e787a62f97c97c775"
+        ],
+        [
+            "econstructor; eauto with gensym.",
+            "VernacExtend",
+            "642269a646db85ff01bbcc2d521ad5aad1c60c0b"
+        ],
+        [
+            "apply contained_cons; eauto with gensym.",
+            "VernacExtend",
+            "ecae09fa0f6a1268f0ada8ec20e262394f52cae9"
+        ],
+        [
+            "exploit transl_valof_meets_spec; eauto.",
+            "VernacExtend",
+            "ae9e9c056ae6d236ef6e834e27eddab629503cbe"
+        ],
+        [
+            "intros [tmp2 [Csyntax D]].",
+            "VernacExtend",
+            "70ef7542345ebce9bb105119e77c38abf8d59bf0"
+        ],
+        [
+            "exists (tmp1 ++ tmp2); split.",
+            "VernacExtend",
+            "51bd739d4834b74ba8bd7f3926497b8d72743eb3"
+        ],
+        [
+            "econstructor; eauto with gensym.",
+            "VernacExtend",
+            "642269a646db85ff01bbcc2d521ad5aad1c60c0b"
+        ],
+        [
+            "eauto with gensym.",
+            "VernacExtend",
+            "e3cd6cfd577ac141cd10a47631254fabe2193736"
+        ],
+        [
+            "repeat rewrite app_ass; simpl.",
+            "VernacExtend",
+            "a2e04dba19a013120aa2ce4ee3bfc851332f0a79"
+        ],
+        [
+            "exists (x0 :: tmp1); split.",
+            "VernacExtend",
+            "13146972ab90489d70a5439e787a62f97c97c775"
+        ],
+        [
+            "econstructor; eauto with gensym.",
+            "VernacExtend",
+            "642269a646db85ff01bbcc2d521ad5aad1c60c0b"
+        ],
+        [
+            "apply contained_cons; eauto with gensym.",
+            "VernacExtend",
+            "ecae09fa0f6a1268f0ada8ec20e262394f52cae9"
+        ],
+        [
+            "monadInv H1.",
+            "VernacExtend",
+            "eaa68f4f24f59de964f4d7c9da1a19ddf2c9e1e5"
+        ],
+        [
+            "exploit H; eauto.",
+            "VernacExtend",
+            "e4042976bceeb1e0a2b61f377ada9badc4c146f3"
+        ],
+        [
+            "intros [tmp1 [A B]].",
+            "VernacExtend",
+            "edb9c0888d99d5b6bb6df2f406365fffc263c7a4"
+        ],
+        [
+            "exploit H0; eauto with gensym.",
+            "VernacExtend",
+            "7db69097a29aa3986d93a9f51027d56237977a6a"
+        ],
+        [
+            "intros [tmp2 [Csyntax D]].",
+            "VernacExtend",
+            "70ef7542345ebce9bb105119e77c38abf8d59bf0"
+        ],
+        [
+            "exists (tmp1 ++ tmp2); split.",
+            "VernacExtend",
+            "51bd739d4834b74ba8bd7f3926497b8d72743eb3"
+        ],
+        [
+            "econstructor; eauto with gensym.",
+            "VernacExtend",
+            "642269a646db85ff01bbcc2d521ad5aad1c60c0b"
+        ],
+        [
+            "destruct dst; simpl; eauto with gensym.",
+            "VernacExtend",
+            "e2b29330ef6988097bace20abe4292c7431d8c38"
+        ],
+        [
+            "apply list_disjoint_cons_r; eauto with gensym.",
+            "VernacExtend",
+            "26b419f2f7524a0e3b0e99fd8033129a05a05c2b"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "eapply incl_tran.",
+            "VernacExtend",
+            "dde590e8bf82a380333ff89a6a5533848a312d8a"
+        ],
+        [
+            "2: apply add_dest_incl.",
+            "VernacExtend",
+            "5b44fd882efe7f4c11341617029b0318b44ae2ea"
+        ],
+        [
+            "auto with gensym.",
+            "VernacExtend",
+            "d4df22d8def857b8de1a0e077cc3af22ec31d176"
+        ],
+        [
+            "destruct dst; simpl; auto with gensym.",
+            "VernacExtend",
+            "7275ba7d277e9045966eb28203f06410aa97eb0b"
+        ],
+        [
+            "apply contained_app; eauto with gensym.",
+            "VernacExtend",
+            "14ddee4a336525fd9f0b607bd0a7ba6397c6746e"
+        ],
+        [
+            "monadInv H1.",
+            "VernacExtend",
+            "eaa68f4f24f59de964f4d7c9da1a19ddf2c9e1e5"
+        ],
+        [
+            "exploit H; eauto.",
+            "VernacExtend",
+            "e4042976bceeb1e0a2b61f377ada9badc4c146f3"
+        ],
+        [
+            "intros [tmp1 [A B]].",
+            "VernacExtend",
+            "edb9c0888d99d5b6bb6df2f406365fffc263c7a4"
+        ],
+        [
+            "exploit H0; eauto.",
+            "VernacExtend",
+            "e2bb62237be4af6f3df33a06be0bda055849b007"
+        ],
+        [
+            "intros [tmp2 [Csyntax D]].",
+            "VernacExtend",
+            "70ef7542345ebce9bb105119e77c38abf8d59bf0"
+        ],
+        [
+            "destruct dst; monadInv EQ2; simpl add_dest in *.",
+            "VernacExtend",
+            "367eae6f4786a8ed7a7225e42eeb5593528dfc81"
+        ],
+        [
+            "exists (x1 :: tmp1 ++ tmp2); split.",
+            "VernacExtend",
+            "f8a04b8f4029385f8e8d6036ef0db141f015366f"
+        ],
+        [
+            "econstructor; eauto with gensym.",
+            "VernacExtend",
+            "642269a646db85ff01bbcc2d521ad5aad1c60c0b"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "apply contained_cons.",
+            "VernacExtend",
+            "fda6b452e2dd97c51df26cdbde47e117a3e55fee"
+        ],
+        [
+            "eauto with gensym.",
+            "VernacExtend",
+            "e3cd6cfd577ac141cd10a47631254fabe2193736"
+        ],
+        [
+            "apply contained_app; eauto with gensym.",
+            "VernacExtend",
+            "14ddee4a336525fd9f0b607bd0a7ba6397c6746e"
+        ],
+        [
+            "exists (tmp1 ++ tmp2); split.",
+            "VernacExtend",
+            "51bd739d4834b74ba8bd7f3926497b8d72743eb3"
+        ],
+        [
+            "econstructor; eauto with gensym.",
+            "VernacExtend",
+            "642269a646db85ff01bbcc2d521ad5aad1c60c0b"
+        ],
+        [
+            "apply contained_app; eauto with gensym.",
+            "VernacExtend",
+            "14ddee4a336525fd9f0b607bd0a7ba6397c6746e"
+        ],
+        [
+            "exists (x1 :: tmp1 ++ tmp2); split.",
+            "VernacExtend",
+            "f8a04b8f4029385f8e8d6036ef0db141f015366f"
+        ],
+        [
+            "repeat rewrite app_ass.",
+            "VernacExtend",
+            "c5b6ee361540fa0f14fb61b62365b89213ce66af"
+        ],
+        [
+            "econstructor; eauto with gensym.",
+            "VernacExtend",
+            "642269a646db85ff01bbcc2d521ad5aad1c60c0b"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "apply contained_cons.",
+            "VernacExtend",
+            "fda6b452e2dd97c51df26cdbde47e117a3e55fee"
+        ],
+        [
+            "eauto with gensym.",
+            "VernacExtend",
+            "e3cd6cfd577ac141cd10a47631254fabe2193736"
+        ],
+        [
+            "apply contained_app; eauto with gensym.",
+            "VernacExtend",
+            "14ddee4a336525fd9f0b607bd0a7ba6397c6746e"
+        ],
+        [
+            "monadInv H0.",
+            "VernacExtend",
+            "f821ae7ac784bd8dd2effb1f6b5bf0636fbc375f"
+        ],
+        [
+            "exploit H; eauto.",
+            "VernacExtend",
+            "e4042976bceeb1e0a2b61f377ada9badc4c146f3"
+        ],
+        [
+            "intros [tmp1 [A B]].",
+            "VernacExtend",
+            "edb9c0888d99d5b6bb6df2f406365fffc263c7a4"
+        ],
+        [
+            "destruct dst; monadInv EQ0; simpl add_dest in *.",
+            "VernacExtend",
+            "8a8cbf4e8e7f0855c4a0e1968a2470b747aaaf17"
+        ],
+        [
+            "exists (x0 :: tmp1); split.",
+            "VernacExtend",
+            "13146972ab90489d70a5439e787a62f97c97c775"
+        ],
+        [
+            "econstructor; eauto with gensym.",
+            "VernacExtend",
+            "642269a646db85ff01bbcc2d521ad5aad1c60c0b"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "apply contained_cons; eauto with gensym.",
+            "VernacExtend",
+            "ecae09fa0f6a1268f0ada8ec20e262394f52cae9"
+        ],
+        [
+            "exists tmp1; split.",
+            "VernacExtend",
+            "8b36350a22750b3abbbcb6e2e2c13f94c753e0b0"
+        ],
+        [
+            "econstructor; eauto with gensym.",
+            "VernacExtend",
+            "642269a646db85ff01bbcc2d521ad5aad1c60c0b"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "exists (x0 :: tmp1); split.",
+            "VernacExtend",
+            "13146972ab90489d70a5439e787a62f97c97c775"
+        ],
+        [
+            "repeat rewrite app_ass.",
+            "VernacExtend",
+            "c5b6ee361540fa0f14fb61b62365b89213ce66af"
+        ],
+        [
+            "econstructor; eauto with gensym.",
+            "VernacExtend",
+            "642269a646db85ff01bbcc2d521ad5aad1c60c0b"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "apply contained_cons; eauto with gensym.",
+            "VernacExtend",
+            "ecae09fa0f6a1268f0ada8ec20e262394f52cae9"
+        ],
+        [
+            "monadInv H.",
+            "VernacExtend",
+            "3fc57761693b3f6ae9cb0dcb646a83c40e34f7f1"
+        ],
+        [
+            "monadInv H0.",
+            "VernacExtend",
+            "f821ae7ac784bd8dd2effb1f6b5bf0636fbc375f"
+        ],
+        [
+            "monadInv H; exists (@nil ident); split; auto with gensym.",
+            "VernacExtend",
+            "9037ff42db83510b469b4dc67302f7ffd59e9c48"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "monadInv H1.",
+            "VernacExtend",
+            "eaa68f4f24f59de964f4d7c9da1a19ddf2c9e1e5"
+        ],
+        [
+            "exploit H; eauto.",
+            "VernacExtend",
+            "e4042976bceeb1e0a2b61f377ada9badc4c146f3"
+        ],
+        [
+            "intros [tmp1 [A B]].",
+            "VernacExtend",
+            "edb9c0888d99d5b6bb6df2f406365fffc263c7a4"
+        ],
+        [
+            "exploit H0; eauto.",
+            "VernacExtend",
+            "e2bb62237be4af6f3df33a06be0bda055849b007"
+        ],
+        [
+            "intros [tmp2 [Csyntax D]].",
+            "VernacExtend",
+            "70ef7542345ebce9bb105119e77c38abf8d59bf0"
+        ],
+        [
+            "exists (tmp1 ++ tmp2); split.",
+            "VernacExtend",
+            "51bd739d4834b74ba8bd7f3926497b8d72743eb3"
+        ],
+        [
+            "econstructor; eauto with gensym.",
+            "VernacExtend",
+            "642269a646db85ff01bbcc2d521ad5aad1c60c0b"
+        ],
+        [
+            "eauto with gensym.",
+            "VernacExtend",
+            "e3cd6cfd577ac141cd10a47631254fabe2193736"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma transl_expr_meets_spec: forall r dst g sl a g' I, transl_expr dst r g = Res (sl, a) g' I -> dest_below dst g -> exists tmps, forall ge e le m, tr_top ge e le m dst r sl a tmps.",
+            "VernacStartTheoremProof",
+            "57eb2517b376a3285f91a0402baa593e0e65610e"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "exploit (proj1 transl_meets_spec); eauto.",
+            "VernacExtend",
+            "5eba0626ce307357fc8547ceecf5650496d3472f"
+        ],
+        [
+            "intros [tmps [A B]].",
+            "VernacExtend",
+            "1d87b98b9c35e78258e4482c2206e141fa757142"
+        ],
+        [
+            "exists (add_dest dst tmps); intros.",
+            "VernacExtend",
+            "92cc1a4b6082488aa043a150218dc6bdc06140c4"
+        ],
+        [
+            "apply tr_top_base.",
+            "VernacExtend",
+            "1c9c61929b699cd18d17d3da8284f7305610c21b"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma transl_expression_meets_spec: forall r g s a g' I, transl_expression r g = Res (s, a) g' I -> tr_expression r s a.",
+            "VernacStartTheoremProof",
+            "dd3e21602ec44a0085d1bbda765ac0a0a763a778"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "monadInv H.",
+            "VernacExtend",
+            "3fc57761693b3f6ae9cb0dcb646a83c40e34f7f1"
+        ],
+        [
+            "exploit transl_expr_meets_spec; eauto.",
+            "VernacExtend",
+            "6e4a8253737c9a83d2e017d720f22ae0506c4dbf"
+        ],
+        [
+            "intros [tmps A].",
+            "VernacExtend",
+            "843eacce9cb8ce6bef3947afde3fb689c8d4f299"
+        ],
+        [
+            "econstructor; eauto.",
+            "VernacExtend",
+            "faa93781fb8bbf289e651728c4588af1c4169d34"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma transl_expr_stmt_meets_spec: forall r g s g' I, transl_expr_stmt r g = Res s g' I -> tr_expr_stmt r s.",
+            "VernacStartTheoremProof",
+            "4586c52940e353dbd8ad3b986d5d09be65a64fc9"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "monadInv H.",
+            "VernacExtend",
+            "3fc57761693b3f6ae9cb0dcb646a83c40e34f7f1"
+        ],
+        [
+            "exploit transl_expr_meets_spec; eauto.",
+            "VernacExtend",
+            "6e4a8253737c9a83d2e017d720f22ae0506c4dbf"
+        ],
+        [
+            "intros [tmps A].",
+            "VernacExtend",
+            "843eacce9cb8ce6bef3947afde3fb689c8d4f299"
+        ],
+        [
+            "econstructor; eauto.",
+            "VernacExtend",
+            "faa93781fb8bbf289e651728c4588af1c4169d34"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma transl_if_meets_spec: forall r s1 s2 g s g' I, transl_if r s1 s2 g = Res s g' I -> tr_if r s1 s2 s.",
+            "VernacStartTheoremProof",
+            "396ab24d93744b6d50420233d535d11ee4cc9f49"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "monadInv H.",
+            "VernacExtend",
+            "3fc57761693b3f6ae9cb0dcb646a83c40e34f7f1"
+        ],
+        [
+            "exploit transl_expr_meets_spec; eauto.",
+            "VernacExtend",
+            "6e4a8253737c9a83d2e017d720f22ae0506c4dbf"
+        ],
+        [
+            "intros [tmps A].",
+            "VernacExtend",
+            "843eacce9cb8ce6bef3947afde3fb689c8d4f299"
+        ],
+        [
+            "econstructor; eauto.",
+            "VernacExtend",
+            "faa93781fb8bbf289e651728c4588af1c4169d34"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma transl_stmt_meets_spec: forall s g ts g' I, transl_stmt s g = Res ts g' I -> tr_stmt s ts with transl_lblstmt_meets_spec: forall s g ts g' I, transl_lblstmt s g = Res ts g' I -> tr_lblstmts s ts.",
+            "VernacStartTheoremProof",
+            "328e0e044e73e6f751c5d395c8af85abc2c4cdb3"
+        ],
+        [
+            "generalize transl_expression_meets_spec transl_expr_stmt_meets_spec transl_if_meets_spec; intros T1 T2 T3.",
+            "VernacExtend",
+            "160464b5d6abceb348da82f2287adc5ffdb0ed93"
+        ],
+        [
+            "Opaque transl_expression transl_expr_stmt.",
+            "VernacSetOpacity",
+            "ea595a2a89d9f2b13a4be48a08b0ba8c1ed95e0b"
+        ],
+        [
+            "clear transl_stmt_meets_spec.",
+            "VernacExtend",
+            "6c36f7ce5c62b0bab3b92fb57c318c59c71e2090"
+        ],
+        [
+            "induction s; simpl; intros until I; intros TR; try (monadInv TR); try (constructor; eauto).",
+            "VernacExtend",
+            "158c9612065d8fc7324fcad838864c9c1ce99257"
+        ],
+        [
+            "destruct (is_Sskip s1); destruct (is_Sskip s2) eqn:?; monadInv EQ3; try (constructor; eauto).",
+            "VernacExtend",
+            "34b4aca88764c2315360fbdb8489155c7972ed5d"
+        ],
+        [
+            "eapply tr_ifthenelse_empty; eauto.",
+            "VernacExtend",
+            "2b6d4ac8fa865ee5925ad85d596032fc305745a0"
+        ],
+        [
+            "destruct (is_Sskip s1); monadInv EQ4.",
+            "VernacExtend",
+            "a0f372283521fe27d12af492cbae4b0316907872"
+        ],
+        [
+            "apply tr_for_1; eauto.",
+            "VernacExtend",
+            "b86aa91d6e3455c41e378c42b12422e3ce4cae3c"
+        ],
+        [
+            "apply tr_for_2; eauto.",
+            "VernacExtend",
+            "d4579c2c6e3e5c10006cda643ce3759e30a3b606"
+        ],
+        [
+            "destruct o; monadInv TR; constructor; eauto.",
+            "VernacExtend",
+            "32ea1116789b9572a61d309ee0f303ebdb05f517"
+        ],
+        [
+            "clear transl_lblstmt_meets_spec.",
+            "VernacExtend",
+            "32e6dadd073ce62513323250252167080c96c79c"
+        ],
+        [
+            "induction s; simpl; intros until I; intros TR; monadInv TR; constructor; eauto.",
+            "VernacExtend",
+            "8503c5ac06c357eb941b21d917d2e7d9507fac8e"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Inductive tr_function: Csyntax.function -> Clight.function -> Prop := | tr_function_intro: forall f tf, tr_stmt f.(Csyntax.fn_body) tf.(fn_body) -> fn_return tf = Csyntax.fn_return f -> fn_callconv tf = Csyntax.fn_callconv f -> fn_params tf = Csyntax.fn_params f -> fn_vars tf = Csyntax.fn_vars f -> tr_function f tf.",
+            "VernacInductive",
+            "1e9402c87dfabcc616714c0fd30e6c9eb2938ac8"
+        ],
+        [
+            "Inductive tr_fundef: Csyntax.fundef -> Clight.fundef -> Prop := | tr_internal: forall f tf, tr_function f tf -> tr_fundef (Internal f) (Internal tf) | tr_external: forall ef targs tres cconv, tr_fundef (External ef targs tres cconv) (External ef targs tres cconv).",
+            "VernacInductive",
+            "a1abec679aca9b1813efee64c8e43d892f6698c6"
+        ],
+        [
+            "Lemma transl_function_spec: forall f tf, transl_function f = OK tf -> tr_function f tf.",
+            "VernacStartTheoremProof",
+            "9e49ccada902d1bffbdd8719ce88c23370869c3b"
+        ],
+        [
+            "unfold transl_function; intros.",
+            "VernacExtend",
+            "ab0b21778592c185646782748f7c3741a60b7d99"
+        ],
+        [
+            "destruct (transl_stmt (Csyntax.fn_body f) (initial_generator tt)) eqn:T; inv H.",
+            "VernacExtend",
+            "82b3c98122f6db988b3d22a8bc9cc1b78c07b2d0"
+        ],
+        [
+            "constructor; auto.",
+            "VernacExtend",
+            "686f227fe0f57af60032eb35216aef1e62d0c0e5"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "eapply transl_stmt_meets_spec; eauto.",
+            "VernacExtend",
+            "43f290c59879f52b035e0a65de19f1a6cadb54d4"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma transl_fundef_spec: forall fd tfd, transl_fundef fd = OK tfd -> tr_fundef fd tfd.",
+            "VernacStartTheoremProof",
+            "0d1d8c3a60ca9bd2c18b575d4d22f391916cba01"
+        ],
+        [
+            "unfold transl_fundef; intros.",
+            "VernacExtend",
+            "0058420f7150be6ddb08ffc607012067c0e17b31"
+        ],
+        [
+            "destruct fd; Errors.monadInv H.",
+            "VernacExtend",
+            "f28ba1500ed7335008c2b3777df5b89c6ea0c5d9"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "eapply transl_function_spec; eauto.",
+            "VernacExtend",
+            "bda90ddb5f81489083291effaefc16d760334c21"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End SPEC.",
+            "VernacEndSegment",
+            "528a10d6e6f369cc26abff787bd2dee9033029ea"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "tr_rvalof_monotone",
+            "line_nb": 23,
+            "steps": [
+                {
+                    "command": [
+                        "induction 1; intros; econstructor; unfold incl in *; eauto.",
+                        "VernacExtend",
+                        "08cba1cd7e595c854394669666ba476409fbadd4"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "bind_inversion",
+            "line_nb": 43,
+            "steps": [
+                {
+                    "command": [
+                        "intros until I.",
+                        "VernacExtend",
+                        "4873b928f43bd319ba9e56eafa8d3858022b9263"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold bind.",
+                        "VernacExtend",
+                        "92681da8eee126803006dd670c74799566b9f60d"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (f z1).",
+                        "VernacExtend",
+                        "e6463e72876d3ca93f00430ccdebc1dff02d726c"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "caseEq (g a g'); intros; inv H0.",
+                        "VernacExtend",
+                        "de40e3d57c5f9f6d9e5a49e3a19d25698c951ebf"
+                    ]
+                },
+                {
+                    "command": [
+                        "econstructor; econstructor; econstructor; econstructor; eauto.",
+                        "VernacExtend",
+                        "12229e240b18d4d0bd46f9348d0617d3ab9bc573"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "bind2_inversion",
+            "line_nb": 51,
+            "steps": [
+                {
+                    "command": [
+                        "unfold bind2.",
+                        "VernacExtend",
+                        "7c5aadeeb54bb8d1852037adfff078be129262b4"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit bind_inversion; eauto.",
+                        "VernacExtend",
+                        "aa663124c65fbf524e2cde6602ecd303b6a9d7dc"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [[x1 x2] [z2 [I1 [I2 [P Q]]]]].",
+                        "VernacExtend",
+                        "642f29014f3c60db44d686bfc74bb016c2a493df"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in Q.",
+                        "VernacExtend",
+                        "14a47d62db49da93d3c69465ec8a6c586ee6bc72"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists x1; exists x2; exists z2; exists I1; exists I2; auto.",
+                        "VernacExtend",
+                        "fddac41e7d7eb716912f83d8f3d4c4ac544ffc47"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "gensym_within",
+            "line_nb": 62,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "monadInv H.",
+                        "VernacExtend",
+                        "3fc57761693b3f6ae9cb0dcb646a83c40e34f7f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "split.",
+                        "VernacExtend",
+                        "55abc140132bd88981001ac656020469a8d503eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Ple_refl.",
+                        "VernacExtend",
+                        "0db71fbfe63d06b179db3d07fbb0dd1fc300f9f0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Plt_succ.",
+                        "VernacExtend",
+                        "3925586d900ea8530f139977c6fc5c26f2e2ca64"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "within_widen",
+            "line_nb": 69,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H.",
+                        "VernacExtend",
+                        "8b2bca015429da94c456243b461e17a2a0582c40"
+                    ]
+                },
+                {
+                    "command": [
+                        "split.",
+                        "VernacExtend",
+                        "55abc140132bd88981001ac656020469a8d503eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply Ple_trans; eauto.",
+                        "VernacExtend",
+                        "4f7cbd975fc75a24ab34a1c0c5e0645767893c9a"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply Plt_Ple_trans; eauto.",
+                        "VernacExtend",
+                        "14879e203cd410fe12bc19ef2ffe194a54a63079"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "contained_nil",
+            "line_nb": 77,
+            "steps": [
+                {
+                    "command": [
+                        "intros; red; intros; contradiction.",
+                        "VernacExtend",
+                        "f2a9a694148c8f76653e82abfca4a6574ff75f92"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "contained_widen",
+            "line_nb": 80,
+            "steps": [
+                {
+                    "command": [
+                        "intros; red; intros.",
+                        "VernacExtend",
+                        "51aeefe3bf0889d494d662b4f3305dd8bbc97324"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply within_widen; eauto.",
+                        "VernacExtend",
+                        "477dd247654013f073c0e0dedb8ff5f20ba7a37d"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "contained_cons",
+            "line_nb": 84,
+            "steps": [
+                {
+                    "command": [
+                        "intros; red; intros.",
+                        "VernacExtend",
+                        "51aeefe3bf0889d494d662b4f3305dd8bbc97324"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H1; destruct H1.",
+                        "VernacExtend",
+                        "397048af7a827585f273e194515a6d98089ac637"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst id0.",
+                        "VernacExtend",
+                        "0662917266f2712bf75113b24610d52121f1b741"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "contained_app",
+            "line_nb": 91,
+            "steps": [
+                {
+                    "command": [
+                        "intros; red; intros.",
+                        "VernacExtend",
+                        "51aeefe3bf0889d494d662b4f3305dd8bbc97324"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (in_app_or _ _ _ H1); auto.",
+                        "VernacExtend",
+                        "58739b51ab7d69cb7161a9348859742b37038d81"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "contained_disjoint",
+            "line_nb": 95,
+            "steps": [
+                {
+                    "command": [
+                        "intros; red; intros.",
+                        "VernacExtend",
+                        "51aeefe3bf0889d494d662b4f3305dd8bbc97324"
+                    ]
+                },
+                {
+                    "command": [
+                        "red; intro; subst y.",
+                        "VernacExtend",
+                        "3143cb0af395b9da4ee2d8a41629ca9a2d4fa871"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit H; eauto.",
+                        "VernacExtend",
+                        "e4042976bceeb1e0a2b61f377ada9badc4c146f3"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [A B].",
+                        "VernacExtend",
+                        "269ecc1b12a78cad85161d58003fb0ebdea8ebc3"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit H0; eauto.",
+                        "VernacExtend",
+                        "e2bb62237be4af6f3df33a06be0bda055849b007"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [Csyntax D].",
+                        "VernacExtend",
+                        "bd98c8f6cda2aebab9cd574831bed0b74e0527a4"
+                    ]
+                },
+                {
+                    "command": [
+                        "elim (Plt_strict x).",
+                        "VernacExtend",
+                        "9052ade646af2597084682b85b14b790beb78999"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Plt_Ple_trans with (gen_next g2); auto.",
+                        "VernacExtend",
+                        "007d6d5a752c8354d265e6fd1969cfb40adef821"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "contained_notin",
+            "line_nb": 105,
+            "steps": [
+                {
+                    "command": [
+                        "intros; red; intros.",
+                        "VernacExtend",
+                        "51aeefe3bf0889d494d662b4f3305dd8bbc97324"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit H; eauto.",
+                        "VernacExtend",
+                        "e4042976bceeb1e0a2b61f377ada9badc4c146f3"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [Csyntax D].",
+                        "VernacExtend",
+                        "bd98c8f6cda2aebab9cd574831bed0b74e0527a4"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H0 as [A B].",
+                        "VernacExtend",
+                        "92096e0821589a7f41c5326c51bcb6270c44b88e"
+                    ]
+                },
+                {
+                    "command": [
+                        "elim (Plt_strict id).",
+                        "VernacExtend",
+                        "9b37bd64be05f688c41636f119f4368d30f7cee9"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Plt_Ple_trans with (gen_next g2); auto.",
+                        "VernacExtend",
+                        "007d6d5a752c8354d265e6fd1969cfb40adef821"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "dest_for_val_below",
+            "line_nb": 114,
+            "steps": [
+                {
+                    "command": [
+                        "intros; simpl; auto.",
+                        "VernacExtend",
+                        "bb993ce5970cef2c88f7bd735f72830b79b9dc0c"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "dest_for_effect_below",
+            "line_nb": 117,
+            "steps": [
+                {
+                    "command": [
+                        "intros; simpl; auto.",
+                        "VernacExtend",
+                        "bb993ce5970cef2c88f7bd735f72830b79b9dc0c"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "dest_for_set_seqbool_val",
+            "line_nb": 120,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H.",
+                        "VernacExtend",
+                        "8b2bca015429da94c456243b461e17a2a0582c40"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "dest_for_set_seqbool_set",
+            "line_nb": 126,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "assumption.",
+                        "VernacExtend",
+                        "41f0308313ff87e6ab2782f90d6021ec4b55d932"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "dest_for_set_condition_val",
+            "line_nb": 130,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H.",
+                        "VernacExtend",
+                        "8b2bca015429da94c456243b461e17a2a0582c40"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "dest_for_set_condition_set",
+            "line_nb": 136,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H0.",
+                        "VernacExtend",
+                        "5c8f6cb3dc303d56935d6ec271a1de04f6790225"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "sd_temp_notin",
+            "line_nb": 142,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H.",
+                        "VernacExtend",
+                        "78dad51b2bb1130f71851d1e55489020824f59f6"
+                    ]
+                },
+                {
+                    "command": [
+                        "red; intros.",
+                        "VernacExtend",
+                        "cac589df0c867c7c46c31951b6da5495d0153212"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit H0; eauto.",
+                        "VernacExtend",
+                        "e2bb62237be4af6f3df33a06be0bda055849b007"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [A B].",
+                        "VernacExtend",
+                        "269ecc1b12a78cad85161d58003fb0ebdea8ebc3"
+                    ]
+                },
+                {
+                    "command": [
+                        "elim (Plt_strict (sd_temp sd)).",
+                        "VernacExtend",
+                        "dc564912a34122ffd4ed139446dc38a6708b05ac"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Plt_Ple_trans with (gen_next g1); auto.",
+                        "VernacExtend",
+                        "5624e04232c7e96a7a4e5ded33689e8d53042b49"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "dest_below_le",
+            "line_nb": 151,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct dst; simpl in *; auto.",
+                        "VernacExtend",
+                        "de968f4c966b04bf02d1ea7e63f5e924ad901532"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply Plt_Ple_trans; eauto.",
+                        "VernacExtend",
+                        "14879e203cd410fe12bc19ef2ffe194a54a63079"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "finish_meets_spec_1",
+            "line_nb": 158,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct dst; simpl in *; inv H.",
+                        "VernacExtend",
+                        "75a828961d9abec90ac63551820946062cc92374"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply app_nil_end.",
+                        "VernacExtend",
+                        "3221fdb59498f8e19e67dd95c8c5a8bf30515cbc"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply app_nil_end.",
+                        "VernacExtend",
+                        "3221fdb59498f8e19e67dd95c8c5a8bf30515cbc"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "finish_meets_spec_2",
+            "line_nb": 165,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct dst; simpl in *; inv H; auto.",
+                        "VernacExtend",
+                        "2d25831b19d2c4a6ae0e854a77080e07ba23d5cc"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "add_dest_incl",
+            "line_nb": 171,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct dst; simpl; eauto with coqlib.",
+                        "VernacExtend",
+                        "200efbf6d5e385ad99a4ed3bf73ee0610ab43b32"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "tr_expr_add_dest",
+            "line_nb": 175,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply tr_expr_monotone with tmps; auto.",
+                        "VernacExtend",
+                        "25439a9eef60de5482708a6d04faf66264c15c50"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply add_dest_incl.",
+                        "VernacExtend",
+                        "61d77b9b7638b56ef9c2a31c6a767b689b0ccb91"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "transl_valof_meets_spec",
+            "line_nb": 180,
+            "steps": [
+                {
+                    "command": [
+                        "unfold transl_valof; intros.",
+                        "VernacExtend",
+                        "1c9e2050464d16459b4c1b3a2b1832b955ec4d5a"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (type_is_volatile ty) eqn:?; monadInv H.",
+                        "VernacExtend",
+                        "1aeb860e3219edbdbcc0c2dc8f42907cb7fcb502"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists (x :: nil); split; eauto with gensym.",
+                        "VernacExtend",
+                        "17a1a64e43cba709327dc6944cb7a79c604ba41a"
+                    ]
+                },
+                {
+                    "command": [
+                        "econstructor; eauto with coqlib.",
+                        "VernacExtend",
+                        "16e114cab580d38bfe03daa0436d5d4987d2c0d2"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists (@nil ident); split; eauto with gensym.",
+                        "VernacExtend",
+                        "656b727ff17de4d8988d1f3fbf824a2723768037"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; auto.",
+                        "VernacExtend",
+                        "686f227fe0f57af60032eb35216aef1e62d0c0e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "transl_expr_meets_spec",
+            "line_nb": 518,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit (proj1 transl_meets_spec); eauto.",
+                        "VernacExtend",
+                        "5eba0626ce307357fc8547ceecf5650496d3472f"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [tmps [A B]].",
+                        "VernacExtend",
+                        "1d87b98b9c35e78258e4482c2206e141fa757142"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists (add_dest dst tmps); intros.",
+                        "VernacExtend",
+                        "92cc1a4b6082488aa043a150218dc6bdc06140c4"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply tr_top_base.",
+                        "VernacExtend",
+                        "1c9c61929b699cd18d17d3da8284f7305610c21b"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "transl_expression_meets_spec",
+            "line_nb": 526,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "monadInv H.",
+                        "VernacExtend",
+                        "3fc57761693b3f6ae9cb0dcb646a83c40e34f7f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit transl_expr_meets_spec; eauto.",
+                        "VernacExtend",
+                        "6e4a8253737c9a83d2e017d720f22ae0506c4dbf"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [tmps A].",
+                        "VernacExtend",
+                        "843eacce9cb8ce6bef3947afde3fb689c8d4f299"
+                    ]
+                },
+                {
+                    "command": [
+                        "econstructor; eauto.",
+                        "VernacExtend",
+                        "faa93781fb8bbf289e651728c4588af1c4169d34"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "transl_expr_stmt_meets_spec",
+            "line_nb": 533,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "monadInv H.",
+                        "VernacExtend",
+                        "3fc57761693b3f6ae9cb0dcb646a83c40e34f7f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit transl_expr_meets_spec; eauto.",
+                        "VernacExtend",
+                        "6e4a8253737c9a83d2e017d720f22ae0506c4dbf"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [tmps A].",
+                        "VernacExtend",
+                        "843eacce9cb8ce6bef3947afde3fb689c8d4f299"
+                    ]
+                },
+                {
+                    "command": [
+                        "econstructor; eauto.",
+                        "VernacExtend",
+                        "faa93781fb8bbf289e651728c4588af1c4169d34"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "transl_if_meets_spec",
+            "line_nb": 540,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "monadInv H.",
+                        "VernacExtend",
+                        "3fc57761693b3f6ae9cb0dcb646a83c40e34f7f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit transl_expr_meets_spec; eauto.",
+                        "VernacExtend",
+                        "6e4a8253737c9a83d2e017d720f22ae0506c4dbf"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [tmps A].",
+                        "VernacExtend",
+                        "843eacce9cb8ce6bef3947afde3fb689c8d4f299"
+                    ]
+                },
+                {
+                    "command": [
+                        "econstructor; eauto.",
+                        "VernacExtend",
+                        "faa93781fb8bbf289e651728c4588af1c4169d34"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "transl_function_spec",
+            "line_nb": 563,
+            "steps": [
+                {
+                    "command": [
+                        "unfold transl_function; intros.",
+                        "VernacExtend",
+                        "ab0b21778592c185646782748f7c3741a60b7d99"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (transl_stmt (Csyntax.fn_body f) (initial_generator tt)) eqn:T; inv H.",
+                        "VernacExtend",
+                        "82b3c98122f6db988b3d22a8bc9cc1b78c07b2d0"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; auto.",
+                        "VernacExtend",
+                        "686f227fe0f57af60032eb35216aef1e62d0c0e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply transl_stmt_meets_spec; eauto.",
+                        "VernacExtend",
+                        "43f290c59879f52b035e0a65de19f1a6cadb54d4"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "transl_fundef_spec",
+            "line_nb": 570,
+            "steps": [
+                {
+                    "command": [
+                        "unfold transl_fundef; intros.",
+                        "VernacExtend",
+                        "0058420f7150be6ddb08ffc607012067c0e17b31"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct fd; Errors.monadInv H.",
+                        "VernacExtend",
+                        "f28ba1500ed7335008c2b3777df5b89c6ea0c5d9"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor.",
+                        "VernacExtend",
+                        "3c77e6be855b5086df5e918bf2a0537e1010479a"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply transl_function_spec; eauto.",
+                        "VernacExtend",
+                        "bda90ddb5f81489083291effaefc16d760334c21"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor.",
+                        "VernacExtend",
+                        "3c77e6be855b5086df5e918bf2a0537e1010479a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

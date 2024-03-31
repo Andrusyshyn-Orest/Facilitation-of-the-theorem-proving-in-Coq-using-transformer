@@ -1,0 +1,4874 @@
+{
+    "filename": "veric/SequentialClight.v",
+    "coq_project": "VST",
+    "vernac_cmds": [
+        [
+            "Require Import VST.sepcomp.semantics.",
+            "VernacRequire",
+            "a2be15457f8bb984f06f0e1c749919cf8e319def"
+        ],
+        [
+            "Require Import VST.veric.Clight_base.",
+            "VernacRequire",
+            "03391ebcbe352738cbe4d19626ab439bfac7c2e7"
+        ],
+        [
+            "Require Import VST.veric.Clight_new.",
+            "VernacRequire",
+            "2ae3f5ae880c1748dab70e2b63c40995b60bc670"
+        ],
+        [
+            "Require Import VST.veric.Clight_lemmas.",
+            "VernacRequire",
+            "02532b9c71acd440dec2f77aca2af2a0760847e8"
+        ],
+        [
+            "Require Import VST.sepcomp.step_lemmas.",
+            "VernacRequire",
+            "bef7dc85dfb9e72dc09016b7571a9f43c7c62d70"
+        ],
+        [
+            "Require Import VST.sepcomp.event_semantics.",
+            "VernacRequire",
+            "9412515c1bbbb16ebb5808360cd3ae6b1e91dabd"
+        ],
+        [
+            "Require Import VST.veric.SeparationLogic.",
+            "VernacRequire",
+            "b9f4108caaa3f1d0a48cb9109355c3244b7115b6"
+        ],
+        [
+            "Require Import VST.veric.juicy_extspec.",
+            "VernacRequire",
+            "aa1a3d20d1c24cf96c29cb4ebe5c176da44989a3"
+        ],
+        [
+            "Require Import VST.veric.juicy_mem.",
+            "VernacRequire",
+            "f1eecf3ecf80d465588513629a8e6b5706759bd8"
+        ],
+        [
+            "Require VST.veric.NullExtension.",
+            "VernacRequire",
+            "56da539f25b6971a6cc32f744893ca380feb6170"
+        ],
+        [
+            "Require Import VST.veric.Clight_sim.",
+            "VernacRequire",
+            "3254a43901562a1731d2b27289485d72377ce852"
+        ],
+        [
+            "Require Import VST.veric.SeparationLogicSoundness.",
+            "VernacRequire",
+            "3473d76cc312966e689f4d7c377ca9591582257d"
+        ],
+        [
+            "Require Import VST.sepcomp.extspec.",
+            "VernacRequire",
+            "24d2770c0d56f347a534d202b9e8a12e01b32823"
+        ],
+        [
+            "Require Import VST.msl.msl_standard.",
+            "VernacRequire",
+            "bbb3b33b9509ab47eb7418bd6127eafa914382b1"
+        ],
+        [
+            "Import VericSound.",
+            "VernacImport",
+            "d0c119cc78f50009e2bdf6c8e102414397cb62e5"
+        ],
+        [
+            "Import VericMinimumSeparationLogic.",
+            "VernacImport",
+            "10539b1ed7b3f9acc209a9b26d56aea555a93a10"
+        ],
+        [
+            "Import VericMinimumSeparationLogic.CSHL_Def.",
+            "VernacImport",
+            "87226c8fc5798470c126b710730477972bb81ba0"
+        ],
+        [
+            "Import VericMinimumSeparationLogic.CSHL_Defs.",
+            "VernacImport",
+            "497f0f2eb4f085d8e181304fcd15d6bc96121790"
+        ],
+        [
+            "Definition ignores_juice Z (J: external_specification juicy_mem external_function Z) : Prop := (forall e t b tl vl x jm jm', m_dry jm = m_dry jm' -> ext_spec_pre J e t b tl vl x jm -> ext_spec_pre J e t b tl vl x jm') /\\ (forall ef t b ot v x jm jm', m_dry jm = m_dry jm' -> ext_spec_post J ef t b ot v x jm -> ext_spec_post J ef t b ot v x jm') /\\ (forall v x jm jm', m_dry jm = m_dry jm' -> ext_spec_exit J v x jm -> ext_spec_exit J v x jm').",
+            "VernacDefinition",
+            "3af5fc08d0ef30d6035a8b8defbd0b4bf1065e8f"
+        ],
+        [
+            "Import VST.veric.compcert_rmaps.R.",
+            "VernacImport",
+            "5142cb7ec67cdfcaa68908938b8f3ac2790b2ec9"
+        ],
+        [
+            "Definition mem_evolve (m m': mem) : Prop := forall loc, match access_at m loc Cur, access_at m' loc Cur with | None, None => True | None, Some Freeable => True | Some Freeable, None => True | Some Writable, Some p' => p' = Writable | Some p, Some p' => p=p' /\\ access_at m loc Max = access_at m' loc Max | _, _ => False end.",
+            "VernacDefinition",
+            "e2fda92997de4808f58ade348f491384b0545532"
+        ],
+        [
+            "Definition ext_spec_mem_evolve (Z: Type) (D: external_specification mem external_function Z) := forall ef w b tl vl ot v z m z' m', ext_spec_pre D ef w b tl vl z m -> ext_spec_post D ef w b ot v z' m' -> mem_evolve m m'.",
+            "VernacDefinition",
+            "b40864efbafbeb8c49232577dd677a62e52f8d3e"
+        ],
+        [
+            "Definition juicy_dry_ext_spec (Z: Type) (J: external_specification juicy_mem external_function Z) (D: external_specification mem external_function Z) (dessicate: forall ef jm, ext_spec_type J ef -> ext_spec_type D ef) := (forall e t t' b tl vl x jm, dessicate e jm t = t' -> (ext_spec_pre J e t b tl vl x jm -> ext_spec_pre D e t' b tl vl x (m_dry jm))) /\\ (forall ef t t' b ot v x jm0 jm, (exists tl vl x0, dessicate ef jm0 t = t' /\\ ext_spec_pre J ef t b tl vl x0 jm0) -> (level jm <= level jm0)%nat -> resource_at (m_phi jm) = resource_fmap (approx (level jm)) (approx (level jm)) oo juicy_mem_lemmas.rebuild_juicy_mem_fmap jm0 (m_dry jm) -> ghost_of (m_phi jm) = Some (ghost_PCM.ext_ghost x, compcert_rmaps.RML.R.NoneP) :: ghost_fmap (approx (level jm)) (approx (level jm)) (tl (ghost_of (m_phi jm0))) -> (ext_spec_post D ef t' b ot v x (m_dry jm) -> ext_spec_post J ef t b ot v x jm)) /\\ (forall v x jm, ext_spec_exit J v x jm <-> ext_spec_exit D v x (m_dry jm)).",
+            "VernacDefinition",
+            "601259eacaef77d2f257722b69ae34d38d483598"
+        ],
+        [
+            "Definition juicy_dry_ext_spec_make (Z: Type) (J: external_specification juicy_mem external_function Z) : external_specification mem external_function Z.",
+            "VernacDefinition",
+            "809155b5e9244ef68e6523a46d5045d1a67e20bf"
+        ],
+        [
+            "destruct J.",
+            "VernacExtend",
+            "2543d2b2c278760b4df9059d61392e3cb3279e76"
+        ],
+        [
+            "apply Build_external_specification with ext_spec_type.",
+            "VernacExtend",
+            "1673054124d7af19e7200eba8cb0ff709994bfb7"
+        ],
+        [
+            "intros e t b tl vl x m.",
+            "VernacExtend",
+            "3e10421b9eb611754b0b66a769187ff05c23fb94"
+        ],
+        [
+            "apply (forall jm, m_dry jm = m -> ext_spec_pre e t b tl vl x jm).",
+            "VernacExtend",
+            "b5c8f73f04b0802f65c2802917d7ab28dea5b042"
+        ],
+        [
+            "intros e t b ot v x m.",
+            "VernacExtend",
+            "8a797c8914e0875f5310a1f8ce7c87a4ca7368b1"
+        ],
+        [
+            "apply (forall jm, m_dry jm = m -> ext_spec_post e t b ot v x jm).",
+            "VernacExtend",
+            "1a2660d1e8798e87b6ccbc318196d605ef171cbf"
+        ],
+        [
+            "intros v x m.",
+            "VernacExtend",
+            "48a390813c54295aa618ad04cf6ac09dbfe1f177"
+        ],
+        [
+            "apply (forall jm, m_dry jm = m -> ext_spec_exit v x jm).",
+            "VernacExtend",
+            "b29f3b10bed550f9a7bfcd3850869e4363f4e15f"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Definition dessicate_id Z (J: external_specification juicy_mem external_function Z) : forall ef (jm : juicy_mem), ext_spec_type J ef -> ext_spec_type (juicy_dry_ext_spec_make Z J) ef.",
+            "VernacDefinition",
+            "9db00b65f9a01954736f9d05048aad98d9cf0820"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct J; simpl in *.",
+            "VernacExtend",
+            "65e20359d3199910e8d85d03d041a847bb2cc7a0"
+        ],
+        [
+            "apply X.",
+            "VernacExtend",
+            "1a06263bf241d2c272a11be0f0a1522334cc2c93"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Lemma jdes_make_lemma: forall Z J, ignores_juice Z J -> juicy_dry_ext_spec Z J (juicy_dry_ext_spec_make Z J) (dessicate_id Z J).",
+            "VernacStartTheoremProof",
+            "178204cca170d0113409bc5bc676452feec7ce8e"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct H as [? [? ?]], J; split; [ | split3]; simpl in *; intros; auto.",
+            "VernacExtend",
+            "a676ecbd4dc71a1e1a1338d450b5945c19fcebb6"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "subst t'.",
+            "VernacExtend",
+            "fbf96dac500541bc01a531f132a34f424d40e1d9"
+        ],
+        [
+            "eapply H.",
+            "VernacExtend",
+            "cf02e2445d256ebbbf0bbedfdc7f26983e04ec5a"
+        ],
+        [
+            "symmetry; eassumption.",
+            "VernacExtend",
+            "af1af00d0ba5c76613a0ea4948c5b62ae982aa4e"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct H2 as (? & ? & ? & ? & ?).",
+            "VernacExtend",
+            "1d96ec6b81ee524d2f6def5a2f3122f1b17c4c84"
+        ],
+        [
+            "subst t'.",
+            "VernacExtend",
+            "fbf96dac500541bc01a531f132a34f424d40e1d9"
+        ],
+        [
+            "eapply H0; auto.",
+            "VernacExtend",
+            "3d1c260c126511b3d4fa411f782a663bfc53e823"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "eapply H1.",
+            "VernacExtend",
+            "825143ff5ea05ac2ed1d4eae976364feb9c3ba1e"
+        ],
+        [
+            "symmetry; eassumption.",
+            "VernacExtend",
+            "af1af00d0ba5c76613a0ea4948c5b62ae982aa4e"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition mem_rmap_cohere m phi := contents_cohere m phi /\\ access_cohere m phi /\\ max_access_cohere m phi /\\ alloc_cohere m phi.",
+            "VernacDefinition",
+            "12c9877688111312894765a3bdb7feff55c14854"
+        ],
+        [
+            "Lemma age_to_cohere: forall m phi n, mem_rmap_cohere m phi -> mem_rmap_cohere m (age_to.age_to n phi).",
+            "VernacStartTheoremProof",
+            "eac842085bf192f2f44399428784b43a09551e03"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct H as [? [? [? ?]]].",
+            "VernacExtend",
+            "f7c830f4341e5acea7c0e14114c9964685e4dfb7"
+        ],
+        [
+            "split; [ | split3]; hnf; intros.",
+            "VernacExtend",
+            "63a96d6f62b877dd1bf6c1e859eacf9adb8be786"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "hnf in H.",
+            "VernacExtend",
+            "b998e5ae98dd847416f4f194f30407c3597ea052"
+        ],
+        [
+            "rewrite age_to_resource_at.age_to_resource_at in H3.",
+            "VernacExtend",
+            "ac06cbcb39b8578c8424143dc45629a643e244f7"
+        ],
+        [
+            "destruct (phi @ loc) eqn:?H; inv H3.",
+            "VernacExtend",
+            "587e92edcb542e3321a6eb89a3b254875fb1b1b6"
+        ],
+        [
+            "destruct (H _ _ _ _ _ H4); split; subst; auto.",
+            "VernacExtend",
+            "8b7491608d70d88218fd91fb2cb8e38e0e5d232e"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite age_to_resource_at.age_to_resource_at .",
+            "VernacExtend",
+            "82c977257d1aa49d33cf2bcdce832867fbbcd75d"
+        ],
+        [
+            "specialize (H0 loc).",
+            "VernacExtend",
+            "0a70c52d0987e7125c0d2b1d78a3575838b13c27"
+        ],
+        [
+            "rewrite H0.",
+            "VernacExtend",
+            "1a54b13ac1654793174947eafd5c41a3f024eb49"
+        ],
+        [
+            "destruct (phi @ loc); simpl; auto.",
+            "VernacExtend",
+            "c127fc90d360132a1f3235e27eaf873cfd63dca1"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite age_to_resource_at.age_to_resource_at .",
+            "VernacExtend",
+            "82c977257d1aa49d33cf2bcdce832867fbbcd75d"
+        ],
+        [
+            "specialize (H1 loc).",
+            "VernacExtend",
+            "8d64e446d0ff75b87b93e9b255a983cb92a2c810"
+        ],
+        [
+            "destruct (phi @ loc); simpl; auto.",
+            "VernacExtend",
+            "c127fc90d360132a1f3235e27eaf873cfd63dca1"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite age_to_resource_at.age_to_resource_at .",
+            "VernacExtend",
+            "82c977257d1aa49d33cf2bcdce832867fbbcd75d"
+        ],
+        [
+            "specialize (H2 loc H3).",
+            "VernacExtend",
+            "e5d537ca8ae45abcde0e46f421183b97a258b1d4"
+        ],
+        [
+            "rewrite H2.",
+            "VernacExtend",
+            "c34b98a4ea7c987830199fe378bb7a145a0d652e"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma set_ghost_cohere: forall m phi g H, mem_rmap_cohere m phi -> mem_rmap_cohere m (initial_world.set_ghost phi g H).",
+            "VernacStartTheoremProof",
+            "028ba961513e1a0f05ab8a2e52eab362b18053c8"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold initial_world.set_ghost.",
+            "VernacExtend",
+            "f01faed8f54d1adbcc11989fbf44c564cfb9cf3f"
+        ],
+        [
+            "rename H into Hg.",
+            "VernacExtend",
+            "c9e22c935777ce1875d1198c495eb30ec513f38c"
+        ],
+        [
+            "rename H0 into H.",
+            "VernacExtend",
+            "31a94f38353930552253442cfe1821b2d4a29944"
+        ],
+        [
+            "destruct H as [? [? [? ?]]].",
+            "VernacExtend",
+            "f7c830f4341e5acea7c0e14114c9964685e4dfb7"
+        ],
+        [
+            "split; [ | split3]; hnf; intros.",
+            "VernacExtend",
+            "63a96d6f62b877dd1bf6c1e859eacf9adb8be786"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "hnf in H.",
+            "VernacExtend",
+            "b998e5ae98dd847416f4f194f30407c3597ea052"
+        ],
+        [
+            "rewrite resource_at_make_rmap in H3.",
+            "VernacExtend",
+            "49269cfa3b5d20f5d74476728ce5ddfe0420c705"
+        ],
+        [
+            "destruct (phi @ loc) eqn:?H; inv H3.",
+            "VernacExtend",
+            "587e92edcb542e3321a6eb89a3b254875fb1b1b6"
+        ],
+        [
+            "destruct (H _ _ _ _ _ H4); split; subst; auto.",
+            "VernacExtend",
+            "8b7491608d70d88218fd91fb2cb8e38e0e5d232e"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite resource_at_make_rmap.",
+            "VernacExtend",
+            "8c357c8ccf2cc08642a35d18032ae2f7599bca42"
+        ],
+        [
+            "specialize (H0 loc).",
+            "VernacExtend",
+            "0a70c52d0987e7125c0d2b1d78a3575838b13c27"
+        ],
+        [
+            "rewrite H0.",
+            "VernacExtend",
+            "1a54b13ac1654793174947eafd5c41a3f024eb49"
+        ],
+        [
+            "destruct (phi @ loc); simpl; auto.",
+            "VernacExtend",
+            "c127fc90d360132a1f3235e27eaf873cfd63dca1"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite resource_at_make_rmap.",
+            "VernacExtend",
+            "8c357c8ccf2cc08642a35d18032ae2f7599bca42"
+        ],
+        [
+            "specialize (H1 loc).",
+            "VernacExtend",
+            "8d64e446d0ff75b87b93e9b255a983cb92a2c810"
+        ],
+        [
+            "destruct (phi @ loc); simpl; auto.",
+            "VernacExtend",
+            "c127fc90d360132a1f3235e27eaf873cfd63dca1"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite resource_at_make_rmap.",
+            "VernacExtend",
+            "8c357c8ccf2cc08642a35d18032ae2f7599bca42"
+        ],
+        [
+            "specialize (H2 loc H3).",
+            "VernacExtend",
+            "e5d537ca8ae45abcde0e46f421183b97a258b1d4"
+        ],
+        [
+            "rewrite H2.",
+            "VernacExtend",
+            "c34b98a4ea7c987830199fe378bb7a145a0d652e"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma mem_evolve_cohere: forall jm m' phi', mem_evolve (m_dry jm) m' -> compcert_rmaps.RML.R.resource_at phi' = juicy_mem_lemmas.rebuild_juicy_mem_fmap jm m' -> mem_rmap_cohere m' phi'.",
+            "VernacStartTheoremProof",
+            "572679103f10aee6cfdd750081f6b82401e506a1"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct jm.",
+            "VernacExtend",
+            "8795f89844d770dd0654a8ef328b3253248c83f1"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap in H0.",
+            "VernacExtend",
+            "7eb832881a86c4053c8523f630e91822f24c7a76"
+        ],
+        [
+            "simpl in H0.",
+            "VernacExtend",
+            "a4a6a8421870dbf7255f8d031744eec32f12a941"
+        ],
+        [
+            "split; [ | split3].",
+            "VernacExtend",
+            "e845ca83bd9f723409d06aaaf8cf5af52e0a355e"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "hnf; intros; specialize (H loc).",
+            "VernacExtend",
+            "b38255fac081e63376447ab3b05c300310d3ae64"
+        ],
+        [
+            "rewrite (JMaccess loc) in *.",
+            "VernacExtend",
+            "733d89a633854e1d93237e0d8fa6e19ff03bf117"
+        ],
+        [
+            "rewrite H0 in *; clear H0; simpl in *.",
+            "VernacExtend",
+            "eec332bc71452d6158a045157199ff3dfeb7eeac"
+        ],
+        [
+            "destruct (phi @ loc) eqn:?H.",
+            "VernacExtend",
+            "293c5ad111b3a238c90e756cb63d70e8a460280b"
+        ],
+        [
+            "simpl in H.",
+            "VernacExtend",
+            "78dad51b2bb1130f71851d1e55489020824f59f6"
+        ],
+        [
+            "if_tac in H.",
+            "VernacExtend",
+            "37665ad4b9e4ccc2d0c8acd96b43848e24a487f1"
+        ],
+        [
+            "if_tac in H1.",
+            "VernacExtend",
+            "a8b105d3165f67156642f776b75c37a862c34adf"
+        ],
+        [
+            "inv H1; auto.",
+            "VernacExtend",
+            "44e29500ec69b40038c7fe627a3f30e846e26567"
+        ],
+        [
+            "inv H1.",
+            "VernacExtend",
+            "7549fbb600c3af6072a6d21bdcba999a253a2e01"
+        ],
+        [
+            "if_tac in H1.",
+            "VernacExtend",
+            "a8b105d3165f67156642f776b75c37a862c34adf"
+        ],
+        [
+            "inv H1; auto.",
+            "VernacExtend",
+            "44e29500ec69b40038c7fe627a3f30e846e26567"
+        ],
+        [
+            "inv H1.",
+            "VernacExtend",
+            "7549fbb600c3af6072a6d21bdcba999a253a2e01"
+        ],
+        [
+            "destruct k; simpl in *.",
+            "VernacExtend",
+            "ab0991733a9904f10ab886d6963ef1acf1bccbb5"
+        ],
+        [
+            "destruct (perm_of_sh sh0) as [[ | | | ] | ] eqn:?H; try contradiction ;auto.",
+            "VernacExtend",
+            "a3a70baee873ac9e5be54effc6e6f14c82cc0d68"
+        ],
+        [
+            "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try contradiction; try discriminate; auto.",
+            "VernacExtend",
+            "6eab620848a62a825d55bf8bbe8efbd57e3c2a2a"
+        ],
+        [
+            "if_tac in H1; inv H1; auto.",
+            "VernacExtend",
+            "9b9893bd5637674e457a675466fffde3cd711642"
+        ],
+        [
+            "if_tac in H1; inv H1; auto.",
+            "VernacExtend",
+            "9b9893bd5637674e457a675466fffde3cd711642"
+        ],
+        [
+            "if_tac in H1; inv H1; auto.",
+            "VernacExtend",
+            "9b9893bd5637674e457a675466fffde3cd711642"
+        ],
+        [
+            "if_tac in H1; inv H1; auto.",
+            "VernacExtend",
+            "9b9893bd5637674e457a675466fffde3cd711642"
+        ],
+        [
+            "if_tac in H1; inv H1; auto.",
+            "VernacExtend",
+            "9b9893bd5637674e457a675466fffde3cd711642"
+        ],
+        [
+            "if_tac in H1; inv H1; auto.",
+            "VernacExtend",
+            "9b9893bd5637674e457a675466fffde3cd711642"
+        ],
+        [
+            "if_tac in H1; inv H1; auto.",
+            "VernacExtend",
+            "9b9893bd5637674e457a675466fffde3cd711642"
+        ],
+        [
+            "inv H1; auto.",
+            "VernacExtend",
+            "44e29500ec69b40038c7fe627a3f30e846e26567"
+        ],
+        [
+            "inv H1; auto.",
+            "VernacExtend",
+            "44e29500ec69b40038c7fe627a3f30e846e26567"
+        ],
+        [
+            "inv H1; auto.",
+            "VernacExtend",
+            "44e29500ec69b40038c7fe627a3f30e846e26567"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "hnf; intros; specialize (H loc).",
+            "VernacExtend",
+            "b38255fac081e63376447ab3b05c300310d3ae64"
+        ],
+        [
+            "rewrite H0; clear H0.",
+            "VernacExtend",
+            "fabeca7858ebb717928a37dd7ab85d95711cf62f"
+        ],
+        [
+            "rewrite (JMaccess loc) in *.",
+            "VernacExtend",
+            "733d89a633854e1d93237e0d8fa6e19ff03bf117"
+        ],
+        [
+            "destruct (phi @ loc) eqn:?H.",
+            "VernacExtend",
+            "293c5ad111b3a238c90e756cb63d70e8a460280b"
+        ],
+        [
+            "simpl in H.",
+            "VernacExtend",
+            "78dad51b2bb1130f71851d1e55489020824f59f6"
+        ],
+        [
+            "if_tac in H.",
+            "VernacExtend",
+            "37665ad4b9e4ccc2d0c8acd96b43848e24a487f1"
+        ],
+        [
+            "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try contradiction; try discriminate; simpl; auto.",
+            "VernacExtend",
+            "7b78b8bf8c344469c7099f01e3d153e6020fbdb3"
+        ],
+        [
+            "unfold perm_of_sh.",
+            "VernacExtend",
+            "24223f3f3b6bc9da4351c28a97298f62b69ac998"
+        ],
+        [
+            "rewrite if_true by auto.",
+            "VernacExtend",
+            "96c670b25f044d48f2a3c00bd5b1bf4bb99aa88f"
+        ],
+        [
+            "rewrite if_true by auto.",
+            "VernacExtend",
+            "96c670b25f044d48f2a3c00bd5b1bf4bb99aa88f"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "rewrite if_true by auto; auto.",
+            "VernacExtend",
+            "fff72a4253cbdf2a5ffdd07e2fac87ffa93cd77d"
+        ],
+        [
+            "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try contradiction; try discriminate; simpl; auto.",
+            "VernacExtend",
+            "7b78b8bf8c344469c7099f01e3d153e6020fbdb3"
+        ],
+        [
+            "destruct H; discriminate.",
+            "VernacExtend",
+            "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+        ],
+        [
+            "destruct H; discriminate.",
+            "VernacExtend",
+            "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+        ],
+        [
+            "destruct H; discriminate.",
+            "VernacExtend",
+            "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+        ],
+        [
+            "rewrite if_false by auto; auto.",
+            "VernacExtend",
+            "79e721c0823517dcaa34f2c49c109725be37d5b7"
+        ],
+        [
+            "destruct k; simpl in *; auto.",
+            "VernacExtend",
+            "377077cf78d9bb6e0dbd40c363bd344a8b183922"
+        ],
+        [
+            "destruct (perm_of_sh sh) as [[ | | | ] | ] eqn:?H; try contradiction ;auto.",
+            "VernacExtend",
+            "11fd7f83d33f9bf56919770779a49b1a148833e9"
+        ],
+        [
+            "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try solve [contradiction]; try discriminate; auto.",
+            "VernacExtend",
+            "49edb1c975c7bc7ec5179a146ac2794fcbdefcf1"
+        ],
+        [
+            "destruct H; discriminate.",
+            "VernacExtend",
+            "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+        ],
+        [
+            "destruct H; discriminate.",
+            "VernacExtend",
+            "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+        ],
+        [
+            "destruct H; discriminate.",
+            "VernacExtend",
+            "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite if_true; auto.",
+            "VernacExtend",
+            "f3f4d9bdc07f35c6f3b5cd5c24f527f915854764"
+        ],
+        [
+            "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try solve [contradiction]; try discriminate; auto.",
+            "VernacExtend",
+            "49edb1c975c7bc7ec5179a146ac2794fcbdefcf1"
+        ],
+        [
+            "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try solve [contradiction]; try discriminate; auto.",
+            "VernacExtend",
+            "49edb1c975c7bc7ec5179a146ac2794fcbdefcf1"
+        ],
+        [
+            "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try solve [contradiction]; try discriminate; auto.",
+            "VernacExtend",
+            "49edb1c975c7bc7ec5179a146ac2794fcbdefcf1"
+        ],
+        [
+            "destruct H; discriminate.",
+            "VernacExtend",
+            "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+        ],
+        [
+            "destruct H; discriminate.",
+            "VernacExtend",
+            "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+        ],
+        [
+            "destruct H; discriminate.",
+            "VernacExtend",
+            "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+        ],
+        [
+            "elimtype False; clear - r H1.",
+            "VernacExtend",
+            "a1c68994e49dab7a381bcb9d388f8edcd761b3e4"
+        ],
+        [
+            "unfold perm_of_sh in H1.",
+            "VernacExtend",
+            "516374f8fd46596806c30b622f7f54973512acd1"
+        ],
+        [
+            "if_tac in H1.",
+            "VernacExtend",
+            "a8b105d3165f67156642f776b75c37a862c34adf"
+        ],
+        [
+            "if_tac in H1; inv H1.",
+            "VernacExtend",
+            "2197cce5698593586413880e2fb76b35d5b1dbc4"
+        ],
+        [
+            "rewrite if_true in H1 by auto.",
+            "VernacExtend",
+            "2b74498e52cf7ae06f4428151027bf62baf2a9c5"
+        ],
+        [
+            "inv H1.",
+            "VernacExtend",
+            "7549fbb600c3af6072a6d21bdcba999a253a2e01"
+        ],
+        [
+            "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try solve [contradiction]; try discriminate; auto.",
+            "VernacExtend",
+            "49edb1c975c7bc7ec5179a146ac2794fcbdefcf1"
+        ],
+        [
+            "unfold perm_of_sh in H1.",
+            "VernacExtend",
+            "516374f8fd46596806c30b622f7f54973512acd1"
+        ],
+        [
+            "if_tac in H1.",
+            "VernacExtend",
+            "a8b105d3165f67156642f776b75c37a862c34adf"
+        ],
+        [
+            "if_tac in H1; inv H1.",
+            "VernacExtend",
+            "2197cce5698593586413880e2fb76b35d5b1dbc4"
+        ],
+        [
+            "rewrite if_true in H1 by auto.",
+            "VernacExtend",
+            "2b74498e52cf7ae06f4428151027bf62baf2a9c5"
+        ],
+        [
+            "inv H1.",
+            "VernacExtend",
+            "7549fbb600c3af6072a6d21bdcba999a253a2e01"
+        ],
+        [
+            "unfold perm_of_sh in H1.",
+            "VernacExtend",
+            "516374f8fd46596806c30b622f7f54973512acd1"
+        ],
+        [
+            "if_tac in H1.",
+            "VernacExtend",
+            "a8b105d3165f67156642f776b75c37a862c34adf"
+        ],
+        [
+            "if_tac in H1; inv H1.",
+            "VernacExtend",
+            "2197cce5698593586413880e2fb76b35d5b1dbc4"
+        ],
+        [
+            "rewrite if_true in H1 by auto.",
+            "VernacExtend",
+            "2b74498e52cf7ae06f4428151027bf62baf2a9c5"
+        ],
+        [
+            "inv H1.",
+            "VernacExtend",
+            "7549fbb600c3af6072a6d21bdcba999a253a2e01"
+        ],
+        [
+            "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try solve [contradiction]; try discriminate; auto.",
+            "VernacExtend",
+            "49edb1c975c7bc7ec5179a146ac2794fcbdefcf1"
+        ],
+        [
+            "destruct H; discriminate.",
+            "VernacExtend",
+            "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+        ],
+        [
+            "destruct H; discriminate.",
+            "VernacExtend",
+            "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+        ],
+        [
+            "destruct H; discriminate.",
+            "VernacExtend",
+            "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+        ],
+        [
+            "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try solve [contradiction]; try discriminate; auto.",
+            "VernacExtend",
+            "49edb1c975c7bc7ec5179a146ac2794fcbdefcf1"
+        ],
+        [
+            "destruct H; discriminate.",
+            "VernacExtend",
+            "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+        ],
+        [
+            "destruct H; discriminate.",
+            "VernacExtend",
+            "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+        ],
+        [
+            "destruct H; discriminate.",
+            "VernacExtend",
+            "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+        ],
+        [
+            "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try solve [contradiction]; try discriminate; auto.",
+            "VernacExtend",
+            "49edb1c975c7bc7ec5179a146ac2794fcbdefcf1"
+        ],
+        [
+            "simpl in H; destruct H; discriminate.",
+            "VernacExtend",
+            "c0e0f7093cf95c0d649307f8a003cc174feb1fa2"
+        ],
+        [
+            "simpl in H; destruct H; discriminate.",
+            "VernacExtend",
+            "c0e0f7093cf95c0d649307f8a003cc174feb1fa2"
+        ],
+        [
+            "simpl in H; destruct H; discriminate.",
+            "VernacExtend",
+            "c0e0f7093cf95c0d649307f8a003cc174feb1fa2"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "hnf; intros; specialize (H loc).",
+            "VernacExtend",
+            "b38255fac081e63376447ab3b05c300310d3ae64"
+        ],
+        [
+            "rewrite H0; clear H0.",
+            "VernacExtend",
+            "fabeca7858ebb717928a37dd7ab85d95711cf62f"
+        ],
+        [
+            "rewrite (JMaccess loc) in *.",
+            "VernacExtend",
+            "733d89a633854e1d93237e0d8fa6e19ff03bf117"
+        ],
+        [
+            "destruct (phi @ loc) eqn:?H.",
+            "VernacExtend",
+            "293c5ad111b3a238c90e756cb63d70e8a460280b"
+        ],
+        [
+            "simpl in H.",
+            "VernacExtend",
+            "78dad51b2bb1130f71851d1e55489020824f59f6"
+        ],
+        [
+            "if_tac in H.",
+            "VernacExtend",
+            "37665ad4b9e4ccc2d0c8acd96b43848e24a487f1"
+        ],
+        [
+            "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try contradiction; try discriminate; simpl; auto.",
+            "VernacExtend",
+            "7b78b8bf8c344469c7099f01e3d153e6020fbdb3"
+        ],
+        [
+            "eapply perm_order''_trans; [apply access_cur_max | ].",
+            "VernacExtend",
+            "043d4789b33d95c6ebc338e0c74cbed9806b3fc4"
+        ],
+        [
+            "rewrite H2.",
+            "VernacExtend",
+            "c34b98a4ea7c987830199fe378bb7a145a0d652e"
+        ],
+        [
+            "unfold perm_of_sh.",
+            "VernacExtend",
+            "24223f3f3b6bc9da4351c28a97298f62b69ac998"
+        ],
+        [
+            "rewrite if_true by auto.",
+            "VernacExtend",
+            "96c670b25f044d48f2a3c00bd5b1bf4bb99aa88f"
+        ],
+        [
+            "rewrite if_true by auto.",
+            "VernacExtend",
+            "96c670b25f044d48f2a3c00bd5b1bf4bb99aa88f"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "subst sh.",
+            "VernacExtend",
+            "d0a6b6f23a2c8f70b7c3db5f627d45772a176573"
+        ],
+        [
+            "rewrite if_true by auto.",
+            "VernacExtend",
+            "96c670b25f044d48f2a3c00bd5b1bf4bb99aa88f"
+        ],
+        [
+            "apply po_None.",
+            "VernacExtend",
+            "083fb67f99a6608789c530728149b5a2bd80981d"
+        ],
+        [
+            "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try contradiction; try discriminate; simpl; auto.",
+            "VernacExtend",
+            "7b78b8bf8c344469c7099f01e3d153e6020fbdb3"
+        ],
+        [
+            "destruct H; discriminate.",
+            "VernacExtend",
+            "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+        ],
+        [
+            "destruct H; discriminate.",
+            "VernacExtend",
+            "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+        ],
+        [
+            "destruct H; discriminate.",
+            "VernacExtend",
+            "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+        ],
+        [
+            "rewrite if_false by auto.",
+            "VernacExtend",
+            "5a76c3b1b70df813cbad68c4a8a05295b8091083"
+        ],
+        [
+            "eapply perm_order''_trans; [apply access_cur_max | ].",
+            "VernacExtend",
+            "043d4789b33d95c6ebc338e0c74cbed9806b3fc4"
+        ],
+        [
+            "rewrite H2.",
+            "VernacExtend",
+            "c34b98a4ea7c987830199fe378bb7a145a0d652e"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "destruct k; simpl in *; auto.",
+            "VernacExtend",
+            "377077cf78d9bb6e0dbd40c363bd344a8b183922"
+        ],
+        [
+            "destruct (perm_of_sh sh) as [[ | | | ] | ] eqn:?H; try contradiction ;auto.",
+            "VernacExtend",
+            "11fd7f83d33f9bf56919770779a49b1a148833e9"
+        ],
+        [
+            "eapply perm_order''_trans; [apply access_cur_max | ].",
+            "VernacExtend",
+            "043d4789b33d95c6ebc338e0c74cbed9806b3fc4"
+        ],
+        [
+            "destruct (access_at m' loc Cur).",
+            "VernacExtend",
+            "b8f825de350d3923be37ba60152750fb8379b250"
+        ],
+        [
+            "destruct H; subst.",
+            "VernacExtend",
+            "cfced62c1f73763fa32f2f64f12dc4faf51d1289"
+        ],
+        [
+            "match goal with |- Mem.perm_order'' _ ?A => destruct A; try constructor end.",
+            "VernacExtend",
+            "752d41b1e3948c53be2117837c82d4495304077a"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite if_true by auto.",
+            "VernacExtend",
+            "96c670b25f044d48f2a3c00bd5b1bf4bb99aa88f"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "eapply perm_order''_trans; [apply access_cur_max | ].",
+            "VernacExtend",
+            "043d4789b33d95c6ebc338e0c74cbed9806b3fc4"
+        ],
+        [
+            "destruct (access_at m' loc Cur).",
+            "VernacExtend",
+            "b8f825de350d3923be37ba60152750fb8379b250"
+        ],
+        [
+            "destruct H; subst.",
+            "VernacExtend",
+            "cfced62c1f73763fa32f2f64f12dc4faf51d1289"
+        ],
+        [
+            "rewrite if_true.",
+            "VernacExtend",
+            "8198b40d461a5545fc467eded52f2fe8cb3ac368"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite H1.",
+            "VernacExtend",
+            "91099f93f9346d13e3fc00550ba094ceac5333db"
+        ],
+        [
+            "apply perm_refl.",
+            "VernacExtend",
+            "c9924b8118505b42e4a68782b991f72d43440838"
+        ],
+        [
+            "clear - r H1.",
+            "VernacExtend",
+            "fc26699685fb064b1f5650ddbc7ece5460a46a7d"
+        ],
+        [
+            "unfold perm_of_sh in H1.",
+            "VernacExtend",
+            "516374f8fd46596806c30b622f7f54973512acd1"
+        ],
+        [
+            "if_tac in H1.",
+            "VernacExtend",
+            "a8b105d3165f67156642f776b75c37a862c34adf"
+        ],
+        [
+            "if_tac in H1.",
+            "VernacExtend",
+            "a8b105d3165f67156642f776b75c37a862c34adf"
+        ],
+        [
+            "inv H1; constructor.",
+            "VernacExtend",
+            "90b8a96910185f6bb0372377de53e98a5c6ff167"
+        ],
+        [
+            "inv H1; constructor.",
+            "VernacExtend",
+            "90b8a96910185f6bb0372377de53e98a5c6ff167"
+        ],
+        [
+            "rewrite if_true in H1 by auto.",
+            "VernacExtend",
+            "2b74498e52cf7ae06f4428151027bf62baf2a9c5"
+        ],
+        [
+            "inv H1; constructor.",
+            "VernacExtend",
+            "90b8a96910185f6bb0372377de53e98a5c6ff167"
+        ],
+        [
+            "contradiction.",
+            "VernacExtend",
+            "9b6a5c45e1144cbbccd544effb2a97082518704a"
+        ],
+        [
+            "eapply perm_order''_trans; [apply access_cur_max | ].",
+            "VernacExtend",
+            "043d4789b33d95c6ebc338e0c74cbed9806b3fc4"
+        ],
+        [
+            "destruct (access_at m' loc Cur).",
+            "VernacExtend",
+            "b8f825de350d3923be37ba60152750fb8379b250"
+        ],
+        [
+            "destruct H; subst.",
+            "VernacExtend",
+            "cfced62c1f73763fa32f2f64f12dc4faf51d1289"
+        ],
+        [
+            "rewrite if_true.",
+            "VernacExtend",
+            "8198b40d461a5545fc467eded52f2fe8cb3ac368"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite H1.",
+            "VernacExtend",
+            "91099f93f9346d13e3fc00550ba094ceac5333db"
+        ],
+        [
+            "apply perm_refl.",
+            "VernacExtend",
+            "c9924b8118505b42e4a68782b991f72d43440838"
+        ],
+        [
+            "clear - r H1.",
+            "VernacExtend",
+            "fc26699685fb064b1f5650ddbc7ece5460a46a7d"
+        ],
+        [
+            "unfold perm_of_sh in H1.",
+            "VernacExtend",
+            "516374f8fd46596806c30b622f7f54973512acd1"
+        ],
+        [
+            "if_tac in H1.",
+            "VernacExtend",
+            "a8b105d3165f67156642f776b75c37a862c34adf"
+        ],
+        [
+            "if_tac in H1.",
+            "VernacExtend",
+            "a8b105d3165f67156642f776b75c37a862c34adf"
+        ],
+        [
+            "inv H1; constructor.",
+            "VernacExtend",
+            "90b8a96910185f6bb0372377de53e98a5c6ff167"
+        ],
+        [
+            "inv H1; constructor.",
+            "VernacExtend",
+            "90b8a96910185f6bb0372377de53e98a5c6ff167"
+        ],
+        [
+            "rewrite if_true in H1 by auto.",
+            "VernacExtend",
+            "2b74498e52cf7ae06f4428151027bf62baf2a9c5"
+        ],
+        [
+            "inv H1; constructor.",
+            "VernacExtend",
+            "90b8a96910185f6bb0372377de53e98a5c6ff167"
+        ],
+        [
+            "contradiction.",
+            "VernacExtend",
+            "9b6a5c45e1144cbbccd544effb2a97082518704a"
+        ],
+        [
+            "eapply perm_order''_trans; [apply access_cur_max | ].",
+            "VernacExtend",
+            "043d4789b33d95c6ebc338e0c74cbed9806b3fc4"
+        ],
+        [
+            "destruct (access_at m' loc Cur).",
+            "VernacExtend",
+            "b8f825de350d3923be37ba60152750fb8379b250"
+        ],
+        [
+            "destruct H; subst.",
+            "VernacExtend",
+            "cfced62c1f73763fa32f2f64f12dc4faf51d1289"
+        ],
+        [
+            "rewrite if_true.",
+            "VernacExtend",
+            "8198b40d461a5545fc467eded52f2fe8cb3ac368"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite H1.",
+            "VernacExtend",
+            "91099f93f9346d13e3fc00550ba094ceac5333db"
+        ],
+        [
+            "apply perm_refl.",
+            "VernacExtend",
+            "c9924b8118505b42e4a68782b991f72d43440838"
+        ],
+        [
+            "clear - r H1.",
+            "VernacExtend",
+            "fc26699685fb064b1f5650ddbc7ece5460a46a7d"
+        ],
+        [
+            "unfold perm_of_sh in H1.",
+            "VernacExtend",
+            "516374f8fd46596806c30b622f7f54973512acd1"
+        ],
+        [
+            "if_tac in H1.",
+            "VernacExtend",
+            "a8b105d3165f67156642f776b75c37a862c34adf"
+        ],
+        [
+            "if_tac in H1.",
+            "VernacExtend",
+            "a8b105d3165f67156642f776b75c37a862c34adf"
+        ],
+        [
+            "inv H1; constructor.",
+            "VernacExtend",
+            "90b8a96910185f6bb0372377de53e98a5c6ff167"
+        ],
+        [
+            "inv H1; constructor.",
+            "VernacExtend",
+            "90b8a96910185f6bb0372377de53e98a5c6ff167"
+        ],
+        [
+            "rewrite if_true in H1 by auto.",
+            "VernacExtend",
+            "2b74498e52cf7ae06f4428151027bf62baf2a9c5"
+        ],
+        [
+            "inv H1; constructor.",
+            "VernacExtend",
+            "90b8a96910185f6bb0372377de53e98a5c6ff167"
+        ],
+        [
+            "contradiction.",
+            "VernacExtend",
+            "9b6a5c45e1144cbbccd544effb2a97082518704a"
+        ],
+        [
+            "eapply perm_order''_trans; [apply access_cur_max | ].",
+            "VernacExtend",
+            "043d4789b33d95c6ebc338e0c74cbed9806b3fc4"
+        ],
+        [
+            "destruct (access_at m' loc Cur).",
+            "VernacExtend",
+            "b8f825de350d3923be37ba60152750fb8379b250"
+        ],
+        [
+            "destruct p0; try contradiction.",
+            "VernacExtend",
+            "de0e0626c5c2a90433bec5f6d90914dd202a18e3"
+        ],
+        [
+            "match goal with |- Mem.perm_order'' _ ?A => destruct A; try constructor end.",
+            "VernacExtend",
+            "752d41b1e3948c53be2117837c82d4495304077a"
+        ],
+        [
+            "elimtype False.",
+            "VernacExtend",
+            "193053c8983316978aeded05598d605cc4f35bde"
+        ],
+        [
+            "clear - H1 r.",
+            "VernacExtend",
+            "ffb40a5c2342656a1c09106aa09a1148dfd4afc8"
+        ],
+        [
+            "unfold perm_of_sh in H1.",
+            "VernacExtend",
+            "516374f8fd46596806c30b622f7f54973512acd1"
+        ],
+        [
+            "if_tac in H1.",
+            "VernacExtend",
+            "a8b105d3165f67156642f776b75c37a862c34adf"
+        ],
+        [
+            "if_tac in H1.",
+            "VernacExtend",
+            "a8b105d3165f67156642f776b75c37a862c34adf"
+        ],
+        [
+            "inv H1; constructor.",
+            "VernacExtend",
+            "90b8a96910185f6bb0372377de53e98a5c6ff167"
+        ],
+        [
+            "inv H1; constructor.",
+            "VernacExtend",
+            "90b8a96910185f6bb0372377de53e98a5c6ff167"
+        ],
+        [
+            "rewrite if_true in H1 by auto.",
+            "VernacExtend",
+            "2b74498e52cf7ae06f4428151027bf62baf2a9c5"
+        ],
+        [
+            "inv H1; constructor.",
+            "VernacExtend",
+            "90b8a96910185f6bb0372377de53e98a5c6ff167"
+        ],
+        [
+            "destruct (access_at m' loc Cur); try contradiction.",
+            "VernacExtend",
+            "175b0fb9bb52d3de9b0d1d9713af775bb10ead12"
+        ],
+        [
+            "destruct H; subst p0.",
+            "VernacExtend",
+            "8e18df4a5326d55e6fc30e91a4b4a7f847f6f54e"
+        ],
+        [
+            "specialize (JMmax_access loc).",
+            "VernacExtend",
+            "8d2c3c5732861886c8ff8100ab5c48f80096d915"
+        ],
+        [
+            "rewrite H0 in JMmax_access.",
+            "VernacExtend",
+            "4e53c3c071566228d240e45edd06257b71eb10c9"
+        ],
+        [
+            "simpl in JMmax_access.",
+            "VernacExtend",
+            "25fece4d82ebc42ebd2d54470f896cac97474182"
+        ],
+        [
+            "unfold max_access_at in *.",
+            "VernacExtend",
+            "77a7c640d38f7b9542d001203af96917ce52714b"
+        ],
+        [
+            "rewrite <- H1.",
+            "VernacExtend",
+            "b8b417d956609d1854d18921f25bc0ffae73a74e"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "destruct (access_at m' loc Cur); try contradiction.",
+            "VernacExtend",
+            "175b0fb9bb52d3de9b0d1d9713af775bb10ead12"
+        ],
+        [
+            "destruct H; subst p0.",
+            "VernacExtend",
+            "8e18df4a5326d55e6fc30e91a4b4a7f847f6f54e"
+        ],
+        [
+            "specialize (JMmax_access loc).",
+            "VernacExtend",
+            "8d2c3c5732861886c8ff8100ab5c48f80096d915"
+        ],
+        [
+            "rewrite H0 in JMmax_access.",
+            "VernacExtend",
+            "4e53c3c071566228d240e45edd06257b71eb10c9"
+        ],
+        [
+            "simpl in JMmax_access.",
+            "VernacExtend",
+            "25fece4d82ebc42ebd2d54470f896cac97474182"
+        ],
+        [
+            "unfold max_access_at in *.",
+            "VernacExtend",
+            "77a7c640d38f7b9542d001203af96917ce52714b"
+        ],
+        [
+            "rewrite <- H1.",
+            "VernacExtend",
+            "b8b417d956609d1854d18921f25bc0ffae73a74e"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "simpl in H.",
+            "VernacExtend",
+            "78dad51b2bb1130f71851d1e55489020824f59f6"
+        ],
+        [
+            "destruct (access_at m' loc Cur); try contradiction.",
+            "VernacExtend",
+            "175b0fb9bb52d3de9b0d1d9713af775bb10ead12"
+        ],
+        [
+            "destruct H; subst.",
+            "VernacExtend",
+            "cfced62c1f73763fa32f2f64f12dc4faf51d1289"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "specialize (JMmax_access loc).",
+            "VernacExtend",
+            "8d2c3c5732861886c8ff8100ab5c48f80096d915"
+        ],
+        [
+            "rewrite H0 in JMmax_access.",
+            "VernacExtend",
+            "4e53c3c071566228d240e45edd06257b71eb10c9"
+        ],
+        [
+            "simpl in JMmax_access.",
+            "VernacExtend",
+            "25fece4d82ebc42ebd2d54470f896cac97474182"
+        ],
+        [
+            "unfold max_access_at in *.",
+            "VernacExtend",
+            "77a7c640d38f7b9542d001203af96917ce52714b"
+        ],
+        [
+            "rewrite <- H1.",
+            "VernacExtend",
+            "b8b417d956609d1854d18921f25bc0ffae73a74e"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "hnf; intros; specialize (H loc).",
+            "VernacExtend",
+            "b38255fac081e63376447ab3b05c300310d3ae64"
+        ],
+        [
+            "rewrite H0; clear H0.",
+            "VernacExtend",
+            "fabeca7858ebb717928a37dd7ab85d95711cf62f"
+        ],
+        [
+            "specialize (JMalloc loc).",
+            "VernacExtend",
+            "34f29e63bcb0f5cd696c11237eb62f995921a4be"
+        ],
+        [
+            "rewrite (JMaccess loc) in *.",
+            "VernacExtend",
+            "733d89a633854e1d93237e0d8fa6e19ff03bf117"
+        ],
+        [
+            "destruct (phi @ loc) eqn:?H.",
+            "VernacExtend",
+            "293c5ad111b3a238c90e756cb63d70e8a460280b"
+        ],
+        [
+            "simpl in H.",
+            "VernacExtend",
+            "78dad51b2bb1130f71851d1e55489020824f59f6"
+        ],
+        [
+            "if_tac in H.",
+            "VernacExtend",
+            "37665ad4b9e4ccc2d0c8acd96b43848e24a487f1"
+        ],
+        [
+            "destruct loc as [b z].",
+            "VernacExtend",
+            "82e0aff0f85e71d5930a319c87e94d64160b4ed3"
+        ],
+        [
+            "rewrite nextblock_access_empty in *by auto.",
+            "VernacExtend",
+            "27280b7933581faab6bd9f63d304360dfc25ee5e"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "apply proof_irr.",
+            "VernacExtend",
+            "10d46e46974f89c2b3a9463c04a06ee6c39cd171"
+        ],
+        [
+            "destruct loc as [b z].",
+            "VernacExtend",
+            "82e0aff0f85e71d5930a319c87e94d64160b4ed3"
+        ],
+        [
+            "rewrite nextblock_access_empty in * by auto.",
+            "VernacExtend",
+            "27280b7933581faab6bd9f63d304360dfc25ee5e"
+        ],
+        [
+            "contradiction.",
+            "VernacExtend",
+            "9b6a5c45e1144cbbccd544effb2a97082518704a"
+        ],
+        [
+            "destruct loc as [b z].",
+            "VernacExtend",
+            "82e0aff0f85e71d5930a319c87e94d64160b4ed3"
+        ],
+        [
+            "rewrite nextblock_access_empty in * by auto.",
+            "VernacExtend",
+            "27280b7933581faab6bd9f63d304360dfc25ee5e"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "destruct k; auto; try contradiction H.",
+            "VernacExtend",
+            "04ce7a79dbc079b197b423c53d4e79ac92c14be6"
+        ],
+        [
+            "simpl in H.",
+            "VernacExtend",
+            "78dad51b2bb1130f71851d1e55489020824f59f6"
+        ],
+        [
+            "destruct loc as [b z].",
+            "VernacExtend",
+            "82e0aff0f85e71d5930a319c87e94d64160b4ed3"
+        ],
+        [
+            "rewrite nextblock_access_empty in * by auto.",
+            "VernacExtend",
+            "27280b7933581faab6bd9f63d304360dfc25ee5e"
+        ],
+        [
+            "contradiction.",
+            "VernacExtend",
+            "9b6a5c45e1144cbbccd544effb2a97082518704a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma whole_program_sequential_safety: forall {CS: compspecs} {Espec: OracleKind} (initial_oracle: OK_ty) (dryspec: ext_spec OK_ty) (dessicate : forall (ef : external_function) jm, ext_spec_type OK_spec ef -> ext_spec_type dryspec ef) (JDE: juicy_dry_ext_spec _ (@JE_spec OK_ty OK_spec) dryspec dessicate) (DME: ext_spec_mem_evolve _ dryspec) prog V G m, @semax_prog Espec CS prog V G -> Genv.init_mem prog = Some m -> exists b, exists q, exists m', Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\\ initial_core (cl_core_sem (globalenv prog)) 0 m q m' (Vptr b Ptrofs.zero) nil /\\ forall n, @dry_safeN _ _ _ OK_ty (genv_symb_injective) (coresem_extract_cenv (cl_core_sem (globalenv prog)) (prog_comp_env prog)) dryspec (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n initial_oracle q m'.",
+            "VernacStartTheoremProof",
+            "0ed89856e2874a37e077dba5dc64826c4988e80c"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct (@semax_prog_rule' Espec CS _ _ _ _ 0 H H0) as [b [q [[H1 H2] H3]]].",
+            "VernacExtend",
+            "61e9e5a5e8945ef244fc7fdc227556a0ab04af11"
+        ],
+        [
+            "destruct (H3 O initial_oracle) as [jmx [H4x [H5x [H6x [H7x _]]]]].",
+            "VernacExtend",
+            "eabd1bb2ed9e4c18106a0a8b29f9c118416a2e3b"
+        ],
+        [
+            "destruct (H2 jmx H4x) as [jmx' [H8x H8y]].",
+            "VernacExtend",
+            "cc2c58b985f4cb759a7e05c0db46b0e6029c1047"
+        ],
+        [
+            "exists b, q, (m_dry jmx').",
+            "VernacExtend",
+            "f026704396703bf90d3af18343fd622a908b8465"
+        ],
+        [
+            "split3; auto.",
+            "VernacExtend",
+            "5198a06904f9188b673c83129393f27ab50f92b2"
+        ],
+        [
+            "rewrite H4x in H8y.",
+            "VernacExtend",
+            "73e15982929fed9e82f0ec4fcf40f9d01e8d191d"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "clear H5x H6x H7x H8y.",
+            "VernacExtend",
+            "5f04160067927530926ced42d82c3c87da98e013"
+        ],
+        [
+            "forget (m_dry jmx) as m.",
+            "VernacExtend",
+            "eb592734ef961c5c714d645cee894cd40d89ddfa"
+        ],
+        [
+            "clear jmx.",
+            "VernacExtend",
+            "d53be69532dbfd7f338e55ed46e0e625920a13ce"
+        ],
+        [
+            "intro n.",
+            "VernacExtend",
+            "7b184e6f13215b0f6a04b4277e277a724a645d52"
+        ],
+        [
+            "specialize (H3 n initial_oracle).",
+            "VernacExtend",
+            "2228aa546bda5dfae451d96e5564c3e559967a82"
+        ],
+        [
+            "destruct H3 as [jm [? [? [? [? _]]]]].",
+            "VernacExtend",
+            "fc8b298c2e6c98089d258bba8aa2d92797620439"
+        ],
+        [
+            "unfold semax.jsafeN in H6.",
+            "VernacExtend",
+            "1c674706fa7f56c2c52a0792eb979351fd1c5480"
+        ],
+        [
+            "subst m.",
+            "VernacExtend",
+            "9ba78b8037512180a4349842defa7f5fabdd6010"
+        ],
+        [
+            "assert (joins (compcert_rmaps.RML.R.ghost_of (m_phi jm)) (Some (ghost_PCM.ext_ref initial_oracle, compcert_rmaps.RML.R.NoneP) :: nil)) as J.",
+            "VernacExtend",
+            "22b6f9f67fee63643fa75fe6f46022129a2452f7"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "destruct (compcert_rmaps.RML.R.ghost_of (m_phi jm)); inv H5.",
+            "VernacExtend",
+            "e601c1d1004146e86ef4ad081ff44aab2084dbeb"
+        ],
+        [
+            "eexists; constructor; constructor.",
+            "VernacExtend",
+            "8c61d3953db3e20c36934eb4c41c04ee6bda01c8"
+        ],
+        [
+            "instantiate (1 := (_, _)); constructor; simpl; constructor; auto.",
+            "VernacExtend",
+            "51df02c75ca9acf533aafc8c421aac110178b6cd"
+        ],
+        [
+            "instantiate (1 := (Some _, _)); repeat constructor; simpl; auto.",
+            "VernacExtend",
+            "077727f02644357371084f377d7a80aabccc0828"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "clear - JDE DME H4 J H6.",
+            "VernacExtend",
+            "a37caf2a62b90bce83bfb3e3513b18e5f2613555"
+        ],
+        [
+            "rewrite <- H4 in H6|-*.",
+            "VernacExtend",
+            "67257b33d5562ca197d59bb149e358a3632b746e"
+        ],
+        [
+            "assert (level jm <= n)%nat by omega.",
+            "VernacExtend",
+            "d88a33ff82f627c2881ae167657eedbe753a1a3f"
+        ],
+        [
+            "clear H4; rename H into H4.",
+            "VernacExtend",
+            "7068fc6807110e6b82ea3dcd989f9a5e861dc1a2"
+        ],
+        [
+            "forget initial_oracle as ora.",
+            "VernacExtend",
+            "f9d6ca729a50705afc9fc63f6d9bf07581c9ccb1"
+        ],
+        [
+            "revert ora jm q H4 J H6; induction n; simpl; intros.",
+            "VernacExtend",
+            "d454458ed613d91b753d6acbee72f467bf5f65b7"
+        ],
+        [
+            "assert (level (m_phi jm) = 0%nat) by omega.",
+            "VernacExtend",
+            "a8faafd56545bf11f6bdac51536f8983c34c036f"
+        ],
+        [
+            "rewrite H; constructor.",
+            "VernacExtend",
+            "120a7e910e6db2155c79f9e0dbe70976e2a82781"
+        ],
+        [
+            "inv H6.",
+            "VernacExtend",
+            "b10e31bee083758aefa5d701fdf79a6e37f3d0e0"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite <- level_juice_level_phi in H4.",
+            "VernacExtend",
+            "aabcef8149d709fde4d8f2e55f1feb647e712e26"
+        ],
+        [
+            "destruct H0 as (?&?&?&Hg).",
+            "VernacExtend",
+            "25daf18221d18ed36998ee30e143283eb75467ca"
+        ],
+        [
+            "eapply safeN_step.",
+            "VernacExtend",
+            "5de1df7b7d95cb9d8bd3679c233ae975288d9afc"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "red.",
+            "VernacExtend",
+            "95a3fb9e13ce19fdc8e335912fb83e57a9512b14"
+        ],
+        [
+            "red.",
+            "VernacExtend",
+            "95a3fb9e13ce19fdc8e335912fb83e57a9512b14"
+        ],
+        [
+            "fold (globalenv prog).",
+            "VernacExtend",
+            "3616c6bb273d7a9a3f52bf01ee241e9b3aaf6802"
+        ],
+        [
+            "eassumption.",
+            "VernacExtend",
+            "909bfe8655bf95c07560744f733991163ce6cf7e"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct (H1 (Some (ghost_PCM.ext_ref ora, compcert_rmaps.RML.R.NoneP) :: nil)) as (m'' & J'' & (? & ? & ?) & ?); auto.",
+            "VernacExtend",
+            "e49b980e94a4292a87cfdbac764c51aeef428b55"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "eexists; apply join_comm, core_unit.",
+            "VernacExtend",
+            "ea00ab4256b1efec4ab6025f9d014642aa92c341"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "rewrite Hg.",
+            "VernacExtend",
+            "32219dabf5c9e976b09577f6e465d13804443d5c"
+        ],
+        [
+            "destruct J; eexists; apply compcert_rmaps.RML.ghost_fmap_join; eauto.",
+            "VernacExtend",
+            "c1d01f2df51fb2e531909581811779ecdc975e60"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "replace (m_dry m') with (m_dry m'') by auto.",
+            "VernacExtend",
+            "a86c3c9652d460b5a7cb0e05d271a58c95015421"
+        ],
+        [
+            "change (level (m_phi jm)) with (level jm) in *.",
+            "VernacExtend",
+            "25d4dfd9e247746fac340d9c66a254ea5af5a753"
+        ],
+        [
+            "replace n0 with (level m'') by omega.",
+            "VernacExtend",
+            "a1e984f011dfe12f16cbccf34aca16cf7946ca36"
+        ],
+        [
+            "apply IHn; auto.",
+            "VernacExtend",
+            "ea2509b5476810b5c177bf63d6cf7c6e91937a23"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "replace (level m'') with n0 by omega.",
+            "VernacExtend",
+            "a12b0aab277c5464e959981dfdf82c39b136162b"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct dryspec as [ty pre post exit].",
+            "VernacExtend",
+            "865bb9113437566bcf558130f53094ed0cf99031"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "destruct JE_spec as [ty' pre' post' exit'].",
+            "VernacExtend",
+            "6de0d4ac2a7253c6fdac208b77fd56bc9190c3ad"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "change (level (m_phi jm)) with (level jm) in *.",
+            "VernacExtend",
+            "25d4dfd9e247746fac340d9c66a254ea5af5a753"
+        ],
+        [
+            "destruct JDE as [JDE1 [JDE2 JDE3]].",
+            "VernacExtend",
+            "b32f1e97300a9a3960983f6c72b674f90afde9fc"
+        ],
+        [
+            "specialize (JDE1 e x (dessicate e jm x)); simpl in JDE1.",
+            "VernacExtend",
+            "1c90b8462894903481922f1bdd6ec0e042a96cc5"
+        ],
+        [
+            "eapply safeN_external.",
+            "VernacExtend",
+            "5cb0fa2087bcbcc5633d013a93b33484763d6c0f"
+        ],
+        [
+            "eassumption.",
+            "VernacExtend",
+            "909bfe8655bf95c07560744f733991163ce6cf7e"
+        ],
+        [
+            "apply JDE1.",
+            "VernacExtend",
+            "61f5faca6fad02b3b92b3a7777885c582addc8c7"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "assumption.",
+            "VernacExtend",
+            "41f0308313ff87e6ab2782f90d6021ec4b55d932"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "assert (H20: exists jm', m_dry jm' = m' /\\ (level jm' = n')%nat /\\ juicy_safety.pures_eq (m_phi jm) (m_phi jm') /\\ resource_at (m_phi jm') = resource_fmap (approx (level jm')) (approx (level jm')) oo juicy_mem_lemmas.rebuild_juicy_mem_fmap jm (m_dry jm') /\\ compcert_rmaps.RML.R.ghost_of (m_phi jm') = Some (ghost_PCM.ext_ghost z', compcert_rmaps.RML.R.NoneP) :: ghost_fmap (approx (level jm')) (approx (level jm')) (tl (ghost_of (m_phi jm)))).",
+            "VernacExtend",
+            "56119b0fc35fd9e45747e2d39fdfd7bd75f21a2b"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "destruct (juicy_mem_lemmas.rebuild_juicy_mem_rmap jm m') as [phi [? [? ?]]].",
+            "VernacExtend",
+            "623560b7527afb382db3f3e082ff7fa8ca17cde1"
+        ],
+        [
+            "assert (own.ghost_approx phi (Some (ghost_PCM.ext_ghost z', NoneP) :: tl (compcert_rmaps.RML.R.ghost_of phi)) = Some (ghost_PCM.ext_ghost z', NoneP) :: tl (compcert_rmaps.RML.R.ghost_of phi)) as Happrox.",
+            "VernacExtend",
+            "518df93b78515b33bb5ab681b1b9d74d9855e52d"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "simpl; f_equal.",
+            "VernacExtend",
+            "e1a8d9221cffa231af353a6224974ce2a7f11d21"
+        ],
+        [
+            "rewrite <- compcert_rmaps.RML.ghost_of_approx at 2.",
+            "VernacExtend",
+            "a996becce46aa21de9d4083d339824e01677b3cf"
+        ],
+        [
+            "destruct (compcert_rmaps.RML.R.ghost_of phi); auto.",
+            "VernacExtend",
+            "07b9d6f57f451fcff5d16560fe2c9599c56deb1b"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "set (phi1 := initial_world.set_ghost _ _ Happrox).",
+            "VernacExtend",
+            "065fd7755e15c30222f106de475d96b776b40017"
+        ],
+        [
+            "assert (level phi1 = level phi /\\ resource_at phi1 = resource_at phi) as [Hl1 Hr1].",
+            "VernacExtend",
+            "7ad128dee3455a874620adc8da22c044abe66d98"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "subst phi1; unfold initial_world.set_ghost; rewrite level_make_rmap, resource_at_make_rmap; auto.",
+            "VernacExtend",
+            "69ad41cbd4cedf9790a303adb51e317723f9547f"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "pose (phi' := age_to.age_to n' phi1).",
+            "VernacExtend",
+            "ea5baf4939bb60d4cf8a8789670c75dfb59ab149"
+        ],
+        [
+            "assert (mem_rmap_cohere m' phi').",
+            "VernacExtend",
+            "c3531195b50875794e125138e4dbf29180b7adfc"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "clear - H1 Hr1 Hl1 H8 H7 H6 H3 DME JDE1.",
+            "VernacExtend",
+            "6bbf86289c400f109118cdab9ab9e06d4ecde667"
+        ],
+        [
+            "apply JDE1 in H1; [ | reflexivity].",
+            "VernacExtend",
+            "97619c54ab2506927ec68b99a65d0754728fdbf7"
+        ],
+        [
+            "specialize (DME e _ _ _ _ _ _ _ _ _ _ H1 H6).",
+            "VernacExtend",
+            "2f3737c36dddce30a2ac836bd41d5ad0a9447c33"
+        ],
+        [
+            "subst phi'.",
+            "VernacExtend",
+            "756a2d34a9af5d4eefc05a9f4837b51ffa6335e2"
+        ],
+        [
+            "apply age_to_cohere.",
+            "VernacExtend",
+            "c4b558ad304ad7ef6635ea95c6bae86b6322fb0b"
+        ],
+        [
+            "subst phi1.",
+            "VernacExtend",
+            "1542e79f77326aa72c1bcae29a971154c801dd98"
+        ],
+        [
+            "apply set_ghost_cohere.",
+            "VernacExtend",
+            "a99f27c7d66ae0b7479f03df873acb436e5b487c"
+        ],
+        [
+            "eapply mem_evolve_cohere; eauto.",
+            "VernacExtend",
+            "34d6ec8d3da4677aa80e189099bcb2e3d14756b0"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "destruct H10 as [H10 [H11 [H12 H13]]].",
+            "VernacExtend",
+            "a36327a18aa1a59b1fa423df750d1c1363b9cb82"
+        ],
+        [
+            "pose (jm' := mkJuicyMem _ _ H10 H11 H12 H13).",
+            "VernacExtend",
+            "6367b61deb987effa84b59864f3df0ef98534f26"
+        ],
+        [
+            "exists jm'.",
+            "VernacExtend",
+            "402f1303c85d68c904ebce8760568ea2cde367ca"
+        ],
+        [
+            "split; [ | split3].",
+            "VernacExtend",
+            "e845ca83bd9f723409d06aaaf8cf5af52e0a355e"
+        ],
+        [
+            "subst jm'; simpl; auto.",
+            "VernacExtend",
+            "17d9e401a2f30584f20a3de55dd87ced70550527"
+        ],
+        [
+            "subst jm' phi'; simpl.",
+            "VernacExtend",
+            "6c18dac78463dd05068db72c938ce246ffe1cd41"
+        ],
+        [
+            "apply age_to.level_age_to.",
+            "VernacExtend",
+            "bb0e2e2f53591b90543d455ac42a175017f9a91f"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "hnf.",
+            "VernacExtend",
+            "93c9be61208bb2956fb47b51f12123e34260e667"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "intro loc.",
+            "VernacExtend",
+            "8b9938ec34ded7bb0e723c290989a39c80117118"
+        ],
+        [
+            "subst jm' phi'.",
+            "VernacExtend",
+            "e2111608bab02a8c3ec38e76558dcc91090c370a"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite age_to_resource_at.age_to_resource_at.",
+            "VernacExtend",
+            "82c977257d1aa49d33cf2bcdce832867fbbcd75d"
+        ],
+        [
+            "rewrite Hr1, H8.",
+            "VernacExtend",
+            "bb83ca091c0b7641fd13565836903b348227c74b"
+        ],
+        [
+            "unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap.",
+            "VernacExtend",
+            "0775ff42899ee308e4b9c4c3c1be7f3a4f5f6cd7"
+        ],
+        [
+            "destruct (m_phi jm @ loc); auto.",
+            "VernacExtend",
+            "9e49777218aa867a635755c069e7941392e1adde"
+        ],
+        [
+            "rewrite age_to.level_age_to by omega.",
+            "VernacExtend",
+            "b9c285421fae0c18b5afcac7544c7a9c6eda0690"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "intro loc.",
+            "VernacExtend",
+            "8b9938ec34ded7bb0e723c290989a39c80117118"
+        ],
+        [
+            "subst jm' phi'.",
+            "VernacExtend",
+            "e2111608bab02a8c3ec38e76558dcc91090c370a"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite age_to_resource_at.age_to_resource_at.",
+            "VernacExtend",
+            "82c977257d1aa49d33cf2bcdce832867fbbcd75d"
+        ],
+        [
+            "rewrite Hr1, H8.",
+            "VernacExtend",
+            "bb83ca091c0b7641fd13565836903b348227c74b"
+        ],
+        [
+            "unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap; simpl.",
+            "VernacExtend",
+            "9acd3609f7a6cad483aa2c47fcf2dd2143b136db"
+        ],
+        [
+            "destruct (m_phi jm @ loc); auto.",
+            "VernacExtend",
+            "9e49777218aa867a635755c069e7941392e1adde"
+        ],
+        [
+            "if_tac; simpl; auto.",
+            "VernacExtend",
+            "eaac644de8d93cb6d681da1d5abe1ad1f493fd0f"
+        ],
+        [
+            "destruct k; simpl; auto.",
+            "VernacExtend",
+            "22221ec2842f7bf8384caac4e4ac38fb4bc62b89"
+        ],
+        [
+            "if_tac; simpl; eauto.",
+            "VernacExtend",
+            "ef690a5adca687048e5b99dd18dd1e41704f247a"
+        ],
+        [
+            "simpl; eauto.",
+            "VernacExtend",
+            "4ce65de88075efadc9056201dfbe2495f09587e9"
+        ],
+        [
+            "subst jm' phi'.",
+            "VernacExtend",
+            "e2111608bab02a8c3ec38e76558dcc91090c370a"
+        ],
+        [
+            "simpl m_phi.",
+            "VernacExtend",
+            "052fa065aa8e116c9dabe91844017d0789d203b4"
+        ],
+        [
+            "rewrite age_to_resource_at.age_to_ghost_of.",
+            "VernacExtend",
+            "f82245f74bd8db8a9290163566628f07179bc120"
+        ],
+        [
+            "subst phi1.",
+            "VernacExtend",
+            "1542e79f77326aa72c1bcae29a971154c801dd98"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "extensionality; unfold compose; simpl.",
+            "VernacExtend",
+            "4d593ae013e51b6a26b37cb5d41ed3f8cdbaa5c8"
+        ],
+        [
+            "rewrite age_to_resource_at.age_to_resource_at, age_to.level_age_to by omega.",
+            "VernacExtend",
+            "3f886fb27183da55b028e83567b6c548618be82b"
+        ],
+        [
+            "unfold initial_world.set_ghost; rewrite resource_at_make_rmap.",
+            "VernacExtend",
+            "ae90ea5a92ca00cd9f12d0b23ad16593284989fc"
+        ],
+        [
+            "rewrite H8; auto.",
+            "VernacExtend",
+            "f12c3889b03009c0e07f35afb32f3af7fbe3b6ce"
+        ],
+        [
+            "unfold initial_world.set_ghost; rewrite ghost_of_make_rmap; simpl.",
+            "VernacExtend",
+            "863e007500d3e96eab21214030d186609bda2c61"
+        ],
+        [
+            "rewrite age_to.level_age_to, H9 by (rewrite level_make_rmap; omega); simpl; auto.",
+            "VernacExtend",
+            "5d568a04db7610b0ee65cfce11cad181de621677"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "destruct H20 as [jm' [H26 [H27 [H28 [H29 Hg']]]]].",
+            "VernacExtend",
+            "da08fea87b91066986f8cfedb9be2129e1961e28"
+        ],
+        [
+            "specialize (H2 ret jm' z' n' Hargsty Hretty).",
+            "VernacExtend",
+            "46737723f08ddb06cb52a57f2c4fa62768516bb0"
+        ],
+        [
+            "spec H2.",
+            "VernacExtend",
+            "ccbc913e682d1020971c7fd5f1b9a88216edea30"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "spec H2.",
+            "VernacExtend",
+            "ccbc913e682d1020971c7fd5f1b9a88216edea30"
+        ],
+        [
+            "hnf; split3; auto.",
+            "VernacExtend",
+            "b4c11c52341b551919fd7a318b4e70bd98372236"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "spec H2.",
+            "VernacExtend",
+            "ccbc913e682d1020971c7fd5f1b9a88216edea30"
+        ],
+        [
+            "eapply JDE2; eauto 6.",
+            "VernacExtend",
+            "9f6fd60d0d71850c82c7e09e6bfd6e922722f1a5"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "subst m'.",
+            "VernacExtend",
+            "9d802df24f716ad892031bcb0e44244435522c66"
+        ],
+        [
+            "apply H6.",
+            "VernacExtend",
+            "b0314bbdc776869d305067ca471096a36fa958c1"
+        ],
+        [
+            "destruct H2 as [c' [H2a H2b]]; exists c'; split; auto.",
+            "VernacExtend",
+            "dc57eb4c55e80713983a31377ce103420cf8ede0"
+        ],
+        [
+            "hnf in H2b.",
+            "VernacExtend",
+            "cdcf65d0b2bec98b07d7a98921a7140cd9bf83ad"
+        ],
+        [
+            "specialize (H2b (Some (ghost_PCM.ext_ref z', compcert_rmaps.RML.R.NoneP) :: nil)).",
+            "VernacExtend",
+            "629f6077b7068e0a15a82048722f1e1d006ebf9a"
+        ],
+        [
+            "spec H2b.",
+            "VernacExtend",
+            "f5d83473dd2480a80825ef503a21fa56b06838fd"
+        ],
+        [
+            "apply join_sub_refl.",
+            "VernacExtend",
+            "4779672f72d81599299f374faa7fb63266e667dd"
+        ],
+        [
+            "spec H2b.",
+            "VernacExtend",
+            "f5d83473dd2480a80825ef503a21fa56b06838fd"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "rewrite Hg'.",
+            "VernacExtend",
+            "2b1cb73ced19abb1c7ceca29213dc25a84a86faa"
+        ],
+        [
+            "eexists (Some (ghost_PCM.ext_both z', compcert_rmaps.RML.R.NoneP) :: _); repeat constructor.",
+            "VernacExtend",
+            "8b4b14afa16f742adab004b4874d737abe281986"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "destruct H2b as [jm'' [? [? ?]]].",
+            "VernacExtend",
+            "c6e71ceffd8fd231123a8085a565f2a450a1aae8"
+        ],
+        [
+            "destruct H7 as [? [? ?]].",
+            "VernacExtend",
+            "92bae2d8800a17365997ec5d5d98bbd29ad409ee"
+        ],
+        [
+            "subst m'.",
+            "VernacExtend",
+            "9d802df24f716ad892031bcb0e44244435522c66"
+        ],
+        [
+            "rewrite <- H7.",
+            "VernacExtend",
+            "15eb34513c3298e9d5b8731fdb6616cb0a4f6a80"
+        ],
+        [
+            "specialize (IHn z' jm'' c').",
+            "VernacExtend",
+            "42e0fe6c76e89314507707ee9703533174e2a7b9"
+        ],
+        [
+            "subst n'.",
+            "VernacExtend",
+            "c6091d97cf8dbc71af500743869c9dea7d99a086"
+        ],
+        [
+            "rewrite <- H9.",
+            "VernacExtend",
+            "9575559b4e4b5658029033bee2aac6031ac75e67"
+        ],
+        [
+            "change (level (m_phi jm'')) with (level jm'') in IHn.",
+            "VernacExtend",
+            "660d830a86c60e2d265a21fdc517b23ef334ce28"
+        ],
+        [
+            "apply IHn.",
+            "VernacExtend",
+            "1c9414f4f052b2727ca012553a4a3a2a0fc85649"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "rewrite H9; auto.",
+            "VernacExtend",
+            "32da508a9bb447bd86457daa2876c838a3ce2f9c"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "eapply safeN_halted; eauto.",
+            "VernacExtend",
+            "44b82d5a3eb88f1ae2255a364e55d54671b7475c"
+        ],
+        [
+            "apply JDE.",
+            "VernacExtend",
+            "8606cbe1b8912d2a868bfeaf62a02acf0edf0e73"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Unshelve.",
+            "VernacExtend",
+            "c817813615af0b6452c375cc2ce9f2ba23fdba54"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "split; [apply Share.nontrivial | hnf].",
+            "VernacExtend",
+            "04425da89b33178a5bd26c6fbbad7774634f13ab"
+        ],
+        [
+            "exists None; constructor.",
+            "VernacExtend",
+            "6cd9f7494e5722c3726e1562a7adf907d2a8d776"
+        ],
+        [
+            "all: fail.",
+            "VernacExtend",
+            "5a70b106758d07e6eabb00c46f8724034f511f18"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Require Import VST.veric.juicy_safety.",
+            "VernacRequire",
+            "0cc657ca5e84e3a20e4e408ba92c2b105e94e9ba"
+        ],
+        [
+            "Definition fun_id (ext_link: Strings.String.string -> ident) (ef: external_function) : option ident := match ef with EF_external id sig => Some (ext_link id) | _ => None end.",
+            "VernacDefinition",
+            "1b4960323b9b1ccb825e10355603010ed24f7a94"
+        ],
+        [
+            "Print genv.",
+            "VernacPrint",
+            "5939d8fc2791f4ca54cfb114df975ce921947983"
+        ],
+        [
+            "Lemma module_sequential_safety : forall {CS: compspecs} (prog: program) (V: varspecs) (G: funspecs) ora m f f_id f_b f_body args, let ge := Genv.globalenv prog in let ext_link := ext_link_prog prog in let spec := add_funspecs NullExtension.Espec ext_link G in let tys := sig_args (ef_sig f) in let rty := sig_res (ef_sig f) in let sem := juicy_core_sem (cl_core_sem (Build_genv ge (prog_comp_env prog))) in @semax_prog spec CS prog V G -> fun_id ext_link f = Some f_id -> Genv.find_symbol ge f_id = Some f_b -> Genv.find_funct ge (Vptr f_b Ptrofs.zero) = Some f_body -> forall x : ext_spec_type (@OK_spec spec) f, ext_spec_pre (@OK_spec spec) f x (genv_symb_injective ge) tys args ora m -> exists q, initial_core sem 0 m q m (Vptr f_b Ptrofs.zero) args /\\ forall n, safeN_(genv_symb := @genv_symb_injective _ _)(Hrel := juicy_extspec.Hrel) (coresem_extract_cenv sem (prog_comp_env prog)) (upd_exit (@OK_spec spec) x (genv_symb_injective ge)) ge n ora q m.",
+            "VernacStartTheoremProof",
+            "8860675099c4843d4be685c1839ec917207d4967"
+        ],
+        [
+            "Abort.",
+            "VernacAbort",
+            "c7c176802253f03c8ef9f27e1c3c9d26e4650d85"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "juicy_dry_ext_spec_make",
+            "line_nb": 23,
+            "steps": [
+                {
+                    "command": [
+                        "destruct J.",
+                        "VernacExtend",
+                        "2543d2b2c278760b4df9059d61392e3cb3279e76"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Build_external_specification with ext_spec_type.",
+                        "VernacExtend",
+                        "1673054124d7af19e7200eba8cb0ff709994bfb7"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros e t b tl vl x m.",
+                        "VernacExtend",
+                        "3e10421b9eb611754b0b66a769187ff05c23fb94"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (forall jm, m_dry jm = m -> ext_spec_pre e t b tl vl x jm).",
+                        "VernacExtend",
+                        "b5c8f73f04b0802f65c2802917d7ab28dea5b042"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros e t b ot v x m.",
+                        "VernacExtend",
+                        "8a797c8914e0875f5310a1f8ce7c87a4ca7368b1"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (forall jm, m_dry jm = m -> ext_spec_post e t b ot v x jm).",
+                        "VernacExtend",
+                        "1a2660d1e8798e87b6ccbc318196d605ef171cbf"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros v x m.",
+                        "VernacExtend",
+                        "48a390813c54295aa618ad04cf6ac09dbfe1f177"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (forall jm, m_dry jm = m -> ext_spec_exit v x jm).",
+                        "VernacExtend",
+                        "b29f3b10bed550f9a7bfcd3850869e4363f4e15f"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "dessicate_id",
+            "line_nb": 33,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct J; simpl in *.",
+                        "VernacExtend",
+                        "65e20359d3199910e8d85d03d041a847bb2cc7a0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply X.",
+                        "VernacExtend",
+                        "1a06263bf241d2c272a11be0f0a1522334cc2c93"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "age_to_cohere",
+            "line_nb": 56,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H as [? [? [? ?]]].",
+                        "VernacExtend",
+                        "f7c830f4341e5acea7c0e14114c9964685e4dfb7"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; [ | split3]; hnf; intros.",
+                        "VernacExtend",
+                        "63a96d6f62b877dd1bf6c1e859eacf9adb8be786"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "hnf in H.",
+                        "VernacExtend",
+                        "b998e5ae98dd847416f4f194f30407c3597ea052"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite age_to_resource_at.age_to_resource_at in H3.",
+                        "VernacExtend",
+                        "ac06cbcb39b8578c8424143dc45629a643e244f7"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (phi @ loc) eqn:?H; inv H3.",
+                        "VernacExtend",
+                        "587e92edcb542e3321a6eb89a3b254875fb1b1b6"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (H _ _ _ _ _ H4); split; subst; auto.",
+                        "VernacExtend",
+                        "8b7491608d70d88218fd91fb2cb8e38e0e5d232e"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite age_to_resource_at.age_to_resource_at .",
+                        "VernacExtend",
+                        "82c977257d1aa49d33cf2bcdce832867fbbcd75d"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (H0 loc).",
+                        "VernacExtend",
+                        "0a70c52d0987e7125c0d2b1d78a3575838b13c27"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H0.",
+                        "VernacExtend",
+                        "1a54b13ac1654793174947eafd5c41a3f024eb49"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (phi @ loc); simpl; auto.",
+                        "VernacExtend",
+                        "c127fc90d360132a1f3235e27eaf873cfd63dca1"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite age_to_resource_at.age_to_resource_at .",
+                        "VernacExtend",
+                        "82c977257d1aa49d33cf2bcdce832867fbbcd75d"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (H1 loc).",
+                        "VernacExtend",
+                        "8d64e446d0ff75b87b93e9b255a983cb92a2c810"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (phi @ loc); simpl; auto.",
+                        "VernacExtend",
+                        "c127fc90d360132a1f3235e27eaf873cfd63dca1"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite age_to_resource_at.age_to_resource_at .",
+                        "VernacExtend",
+                        "82c977257d1aa49d33cf2bcdce832867fbbcd75d"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (H2 loc H3).",
+                        "VernacExtend",
+                        "e5d537ca8ae45abcde0e46f421183b97a258b1d4"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H2.",
+                        "VernacExtend",
+                        "c34b98a4ea7c987830199fe378bb7a145a0d652e"
+                    ]
+                },
+                {
+                    "command": [
+                        "reflexivity.",
+                        "VernacExtend",
+                        "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "set_ghost_cohere",
+            "line_nb": 80,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold initial_world.set_ghost.",
+                        "VernacExtend",
+                        "f01faed8f54d1adbcc11989fbf44c564cfb9cf3f"
+                    ]
+                },
+                {
+                    "command": [
+                        "rename H into Hg.",
+                        "VernacExtend",
+                        "c9e22c935777ce1875d1198c495eb30ec513f38c"
+                    ]
+                },
+                {
+                    "command": [
+                        "rename H0 into H.",
+                        "VernacExtend",
+                        "31a94f38353930552253442cfe1821b2d4a29944"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H as [? [? [? ?]]].",
+                        "VernacExtend",
+                        "f7c830f4341e5acea7c0e14114c9964685e4dfb7"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; [ | split3]; hnf; intros.",
+                        "VernacExtend",
+                        "63a96d6f62b877dd1bf6c1e859eacf9adb8be786"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "hnf in H.",
+                        "VernacExtend",
+                        "b998e5ae98dd847416f4f194f30407c3597ea052"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite resource_at_make_rmap in H3.",
+                        "VernacExtend",
+                        "49269cfa3b5d20f5d74476728ce5ddfe0420c705"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (phi @ loc) eqn:?H; inv H3.",
+                        "VernacExtend",
+                        "587e92edcb542e3321a6eb89a3b254875fb1b1b6"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (H _ _ _ _ _ H4); split; subst; auto.",
+                        "VernacExtend",
+                        "8b7491608d70d88218fd91fb2cb8e38e0e5d232e"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite resource_at_make_rmap.",
+                        "VernacExtend",
+                        "8c357c8ccf2cc08642a35d18032ae2f7599bca42"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (H0 loc).",
+                        "VernacExtend",
+                        "0a70c52d0987e7125c0d2b1d78a3575838b13c27"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H0.",
+                        "VernacExtend",
+                        "1a54b13ac1654793174947eafd5c41a3f024eb49"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (phi @ loc); simpl; auto.",
+                        "VernacExtend",
+                        "c127fc90d360132a1f3235e27eaf873cfd63dca1"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite resource_at_make_rmap.",
+                        "VernacExtend",
+                        "8c357c8ccf2cc08642a35d18032ae2f7599bca42"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (H1 loc).",
+                        "VernacExtend",
+                        "8d64e446d0ff75b87b93e9b255a983cb92a2c810"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (phi @ loc); simpl; auto.",
+                        "VernacExtend",
+                        "c127fc90d360132a1f3235e27eaf873cfd63dca1"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite resource_at_make_rmap.",
+                        "VernacExtend",
+                        "8c357c8ccf2cc08642a35d18032ae2f7599bca42"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (H2 loc H3).",
+                        "VernacExtend",
+                        "e5d537ca8ae45abcde0e46f421183b97a258b1d4"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H2.",
+                        "VernacExtend",
+                        "c34b98a4ea7c987830199fe378bb7a145a0d652e"
+                    ]
+                },
+                {
+                    "command": [
+                        "reflexivity.",
+                        "VernacExtend",
+                        "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "mem_evolve_cohere",
+            "line_nb": 107,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct jm.",
+                        "VernacExtend",
+                        "8795f89844d770dd0654a8ef328b3253248c83f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap in H0.",
+                        "VernacExtend",
+                        "7eb832881a86c4053c8523f630e91822f24c7a76"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H0.",
+                        "VernacExtend",
+                        "a4a6a8421870dbf7255f8d031744eec32f12a941"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; [ | split3].",
+                        "VernacExtend",
+                        "e845ca83bd9f723409d06aaaf8cf5af52e0a355e"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "hnf; intros; specialize (H loc).",
+                        "VernacExtend",
+                        "b38255fac081e63376447ab3b05c300310d3ae64"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (JMaccess loc) in *.",
+                        "VernacExtend",
+                        "733d89a633854e1d93237e0d8fa6e19ff03bf117"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H0 in *; clear H0; simpl in *.",
+                        "VernacExtend",
+                        "eec332bc71452d6158a045157199ff3dfeb7eeac"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (phi @ loc) eqn:?H.",
+                        "VernacExtend",
+                        "293c5ad111b3a238c90e756cb63d70e8a460280b"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H.",
+                        "VernacExtend",
+                        "78dad51b2bb1130f71851d1e55489020824f59f6"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H.",
+                        "VernacExtend",
+                        "37665ad4b9e4ccc2d0c8acd96b43848e24a487f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H1.",
+                        "VernacExtend",
+                        "a8b105d3165f67156642f776b75c37a862c34adf"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H1; auto.",
+                        "VernacExtend",
+                        "44e29500ec69b40038c7fe627a3f30e846e26567"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H1.",
+                        "VernacExtend",
+                        "7549fbb600c3af6072a6d21bdcba999a253a2e01"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H1.",
+                        "VernacExtend",
+                        "a8b105d3165f67156642f776b75c37a862c34adf"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H1; auto.",
+                        "VernacExtend",
+                        "44e29500ec69b40038c7fe627a3f30e846e26567"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H1.",
+                        "VernacExtend",
+                        "7549fbb600c3af6072a6d21bdcba999a253a2e01"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct k; simpl in *.",
+                        "VernacExtend",
+                        "ab0991733a9904f10ab886d6963ef1acf1bccbb5"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (perm_of_sh sh0) as [[ | | | ] | ] eqn:?H; try contradiction ;auto.",
+                        "VernacExtend",
+                        "a3a70baee873ac9e5be54effc6e6f14c82cc0d68"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try contradiction; try discriminate; auto.",
+                        "VernacExtend",
+                        "6eab620848a62a825d55bf8bbe8efbd57e3c2a2a"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H1; inv H1; auto.",
+                        "VernacExtend",
+                        "9b9893bd5637674e457a675466fffde3cd711642"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H1; inv H1; auto.",
+                        "VernacExtend",
+                        "9b9893bd5637674e457a675466fffde3cd711642"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H1; inv H1; auto.",
+                        "VernacExtend",
+                        "9b9893bd5637674e457a675466fffde3cd711642"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H1; inv H1; auto.",
+                        "VernacExtend",
+                        "9b9893bd5637674e457a675466fffde3cd711642"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H1; inv H1; auto.",
+                        "VernacExtend",
+                        "9b9893bd5637674e457a675466fffde3cd711642"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H1; inv H1; auto.",
+                        "VernacExtend",
+                        "9b9893bd5637674e457a675466fffde3cd711642"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H1; inv H1; auto.",
+                        "VernacExtend",
+                        "9b9893bd5637674e457a675466fffde3cd711642"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H1; auto.",
+                        "VernacExtend",
+                        "44e29500ec69b40038c7fe627a3f30e846e26567"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H1; auto.",
+                        "VernacExtend",
+                        "44e29500ec69b40038c7fe627a3f30e846e26567"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H1; auto.",
+                        "VernacExtend",
+                        "44e29500ec69b40038c7fe627a3f30e846e26567"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "hnf; intros; specialize (H loc).",
+                        "VernacExtend",
+                        "b38255fac081e63376447ab3b05c300310d3ae64"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H0; clear H0.",
+                        "VernacExtend",
+                        "fabeca7858ebb717928a37dd7ab85d95711cf62f"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (JMaccess loc) in *.",
+                        "VernacExtend",
+                        "733d89a633854e1d93237e0d8fa6e19ff03bf117"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (phi @ loc) eqn:?H.",
+                        "VernacExtend",
+                        "293c5ad111b3a238c90e756cb63d70e8a460280b"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H.",
+                        "VernacExtend",
+                        "78dad51b2bb1130f71851d1e55489020824f59f6"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H.",
+                        "VernacExtend",
+                        "37665ad4b9e4ccc2d0c8acd96b43848e24a487f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try contradiction; try discriminate; simpl; auto.",
+                        "VernacExtend",
+                        "7b78b8bf8c344469c7099f01e3d153e6020fbdb3"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold perm_of_sh.",
+                        "VernacExtend",
+                        "24223f3f3b6bc9da4351c28a97298f62b69ac998"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite if_true by auto.",
+                        "VernacExtend",
+                        "96c670b25f044d48f2a3c00bd5b1bf4bb99aa88f"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite if_true by auto.",
+                        "VernacExtend",
+                        "96c670b25f044d48f2a3c00bd5b1bf4bb99aa88f"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst.",
+                        "VernacExtend",
+                        "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite if_true by auto; auto.",
+                        "VernacExtend",
+                        "fff72a4253cbdf2a5ffdd07e2fac87ffa93cd77d"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try contradiction; try discriminate; simpl; auto.",
+                        "VernacExtend",
+                        "7b78b8bf8c344469c7099f01e3d153e6020fbdb3"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; discriminate.",
+                        "VernacExtend",
+                        "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; discriminate.",
+                        "VernacExtend",
+                        "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; discriminate.",
+                        "VernacExtend",
+                        "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite if_false by auto; auto.",
+                        "VernacExtend",
+                        "79e721c0823517dcaa34f2c49c109725be37d5b7"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct k; simpl in *; auto.",
+                        "VernacExtend",
+                        "377077cf78d9bb6e0dbd40c363bd344a8b183922"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (perm_of_sh sh) as [[ | | | ] | ] eqn:?H; try contradiction ;auto.",
+                        "VernacExtend",
+                        "11fd7f83d33f9bf56919770779a49b1a148833e9"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try solve [contradiction]; try discriminate; auto.",
+                        "VernacExtend",
+                        "49edb1c975c7bc7ec5179a146ac2794fcbdefcf1"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; discriminate.",
+                        "VernacExtend",
+                        "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; discriminate.",
+                        "VernacExtend",
+                        "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; discriminate.",
+                        "VernacExtend",
+                        "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite if_true; auto.",
+                        "VernacExtend",
+                        "f3f4d9bdc07f35c6f3b5cd5c24f527f915854764"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try solve [contradiction]; try discriminate; auto.",
+                        "VernacExtend",
+                        "49edb1c975c7bc7ec5179a146ac2794fcbdefcf1"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try solve [contradiction]; try discriminate; auto.",
+                        "VernacExtend",
+                        "49edb1c975c7bc7ec5179a146ac2794fcbdefcf1"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try solve [contradiction]; try discriminate; auto.",
+                        "VernacExtend",
+                        "49edb1c975c7bc7ec5179a146ac2794fcbdefcf1"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; discriminate.",
+                        "VernacExtend",
+                        "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; discriminate.",
+                        "VernacExtend",
+                        "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; discriminate.",
+                        "VernacExtend",
+                        "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "elimtype False; clear - r H1.",
+                        "VernacExtend",
+                        "a1c68994e49dab7a381bcb9d388f8edcd761b3e4"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold perm_of_sh in H1.",
+                        "VernacExtend",
+                        "516374f8fd46596806c30b622f7f54973512acd1"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H1.",
+                        "VernacExtend",
+                        "a8b105d3165f67156642f776b75c37a862c34adf"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H1; inv H1.",
+                        "VernacExtend",
+                        "2197cce5698593586413880e2fb76b35d5b1dbc4"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite if_true in H1 by auto.",
+                        "VernacExtend",
+                        "2b74498e52cf7ae06f4428151027bf62baf2a9c5"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H1.",
+                        "VernacExtend",
+                        "7549fbb600c3af6072a6d21bdcba999a253a2e01"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try solve [contradiction]; try discriminate; auto.",
+                        "VernacExtend",
+                        "49edb1c975c7bc7ec5179a146ac2794fcbdefcf1"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold perm_of_sh in H1.",
+                        "VernacExtend",
+                        "516374f8fd46596806c30b622f7f54973512acd1"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H1.",
+                        "VernacExtend",
+                        "a8b105d3165f67156642f776b75c37a862c34adf"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H1; inv H1.",
+                        "VernacExtend",
+                        "2197cce5698593586413880e2fb76b35d5b1dbc4"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite if_true in H1 by auto.",
+                        "VernacExtend",
+                        "2b74498e52cf7ae06f4428151027bf62baf2a9c5"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H1.",
+                        "VernacExtend",
+                        "7549fbb600c3af6072a6d21bdcba999a253a2e01"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold perm_of_sh in H1.",
+                        "VernacExtend",
+                        "516374f8fd46596806c30b622f7f54973512acd1"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H1.",
+                        "VernacExtend",
+                        "a8b105d3165f67156642f776b75c37a862c34adf"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H1; inv H1.",
+                        "VernacExtend",
+                        "2197cce5698593586413880e2fb76b35d5b1dbc4"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite if_true in H1 by auto.",
+                        "VernacExtend",
+                        "2b74498e52cf7ae06f4428151027bf62baf2a9c5"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H1.",
+                        "VernacExtend",
+                        "7549fbb600c3af6072a6d21bdcba999a253a2e01"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try solve [contradiction]; try discriminate; auto.",
+                        "VernacExtend",
+                        "49edb1c975c7bc7ec5179a146ac2794fcbdefcf1"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; discriminate.",
+                        "VernacExtend",
+                        "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; discriminate.",
+                        "VernacExtend",
+                        "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; discriminate.",
+                        "VernacExtend",
+                        "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try solve [contradiction]; try discriminate; auto.",
+                        "VernacExtend",
+                        "49edb1c975c7bc7ec5179a146ac2794fcbdefcf1"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; discriminate.",
+                        "VernacExtend",
+                        "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; discriminate.",
+                        "VernacExtend",
+                        "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; discriminate.",
+                        "VernacExtend",
+                        "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try solve [contradiction]; try discriminate; auto.",
+                        "VernacExtend",
+                        "49edb1c975c7bc7ec5179a146ac2794fcbdefcf1"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H; destruct H; discriminate.",
+                        "VernacExtend",
+                        "c0e0f7093cf95c0d649307f8a003cc174feb1fa2"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H; destruct H; discriminate.",
+                        "VernacExtend",
+                        "c0e0f7093cf95c0d649307f8a003cc174feb1fa2"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H; destruct H; discriminate.",
+                        "VernacExtend",
+                        "c0e0f7093cf95c0d649307f8a003cc174feb1fa2"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "hnf; intros; specialize (H loc).",
+                        "VernacExtend",
+                        "b38255fac081e63376447ab3b05c300310d3ae64"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H0; clear H0.",
+                        "VernacExtend",
+                        "fabeca7858ebb717928a37dd7ab85d95711cf62f"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (JMaccess loc) in *.",
+                        "VernacExtend",
+                        "733d89a633854e1d93237e0d8fa6e19ff03bf117"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (phi @ loc) eqn:?H.",
+                        "VernacExtend",
+                        "293c5ad111b3a238c90e756cb63d70e8a460280b"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H.",
+                        "VernacExtend",
+                        "78dad51b2bb1130f71851d1e55489020824f59f6"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H.",
+                        "VernacExtend",
+                        "37665ad4b9e4ccc2d0c8acd96b43848e24a487f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try contradiction; try discriminate; simpl; auto.",
+                        "VernacExtend",
+                        "7b78b8bf8c344469c7099f01e3d153e6020fbdb3"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply perm_order''_trans; [apply access_cur_max | ].",
+                        "VernacExtend",
+                        "043d4789b33d95c6ebc338e0c74cbed9806b3fc4"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H2.",
+                        "VernacExtend",
+                        "c34b98a4ea7c987830199fe378bb7a145a0d652e"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold perm_of_sh.",
+                        "VernacExtend",
+                        "24223f3f3b6bc9da4351c28a97298f62b69ac998"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite if_true by auto.",
+                        "VernacExtend",
+                        "96c670b25f044d48f2a3c00bd5b1bf4bb99aa88f"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite if_true by auto.",
+                        "VernacExtend",
+                        "96c670b25f044d48f2a3c00bd5b1bf4bb99aa88f"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor.",
+                        "VernacExtend",
+                        "3c77e6be855b5086df5e918bf2a0537e1010479a"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst sh.",
+                        "VernacExtend",
+                        "d0a6b6f23a2c8f70b7c3db5f627d45772a176573"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite if_true by auto.",
+                        "VernacExtend",
+                        "96c670b25f044d48f2a3c00bd5b1bf4bb99aa88f"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply po_None.",
+                        "VernacExtend",
+                        "083fb67f99a6608789c530728149b5a2bd80981d"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try contradiction; try discriminate; simpl; auto.",
+                        "VernacExtend",
+                        "7b78b8bf8c344469c7099f01e3d153e6020fbdb3"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; discriminate.",
+                        "VernacExtend",
+                        "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; discriminate.",
+                        "VernacExtend",
+                        "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; discriminate.",
+                        "VernacExtend",
+                        "0a1b656582aedea3d8e4bc79d40ccc353aacc7e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite if_false by auto.",
+                        "VernacExtend",
+                        "5a76c3b1b70df813cbad68c4a8a05295b8091083"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply perm_order''_trans; [apply access_cur_max | ].",
+                        "VernacExtend",
+                        "043d4789b33d95c6ebc338e0c74cbed9806b3fc4"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H2.",
+                        "VernacExtend",
+                        "c34b98a4ea7c987830199fe378bb7a145a0d652e"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor.",
+                        "VernacExtend",
+                        "3c77e6be855b5086df5e918bf2a0537e1010479a"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct k; simpl in *; auto.",
+                        "VernacExtend",
+                        "377077cf78d9bb6e0dbd40c363bd344a8b183922"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (perm_of_sh sh) as [[ | | | ] | ] eqn:?H; try contradiction ;auto.",
+                        "VernacExtend",
+                        "11fd7f83d33f9bf56919770779a49b1a148833e9"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply perm_order''_trans; [apply access_cur_max | ].",
+                        "VernacExtend",
+                        "043d4789b33d95c6ebc338e0c74cbed9806b3fc4"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (access_at m' loc Cur).",
+                        "VernacExtend",
+                        "b8f825de350d3923be37ba60152750fb8379b250"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; subst.",
+                        "VernacExtend",
+                        "cfced62c1f73763fa32f2f64f12dc4faf51d1289"
+                    ]
+                },
+                {
+                    "command": [
+                        "match goal with |- Mem.perm_order'' _ ?A => destruct A; try constructor end.",
+                        "VernacExtend",
+                        "752d41b1e3948c53be2117837c82d4495304077a"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite if_true by auto.",
+                        "VernacExtend",
+                        "96c670b25f044d48f2a3c00bd5b1bf4bb99aa88f"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply perm_order''_trans; [apply access_cur_max | ].",
+                        "VernacExtend",
+                        "043d4789b33d95c6ebc338e0c74cbed9806b3fc4"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (access_at m' loc Cur).",
+                        "VernacExtend",
+                        "b8f825de350d3923be37ba60152750fb8379b250"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; subst.",
+                        "VernacExtend",
+                        "cfced62c1f73763fa32f2f64f12dc4faf51d1289"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite if_true.",
+                        "VernacExtend",
+                        "8198b40d461a5545fc467eded52f2fe8cb3ac368"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H1.",
+                        "VernacExtend",
+                        "91099f93f9346d13e3fc00550ba094ceac5333db"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply perm_refl.",
+                        "VernacExtend",
+                        "c9924b8118505b42e4a68782b991f72d43440838"
+                    ]
+                },
+                {
+                    "command": [
+                        "clear - r H1.",
+                        "VernacExtend",
+                        "fc26699685fb064b1f5650ddbc7ece5460a46a7d"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold perm_of_sh in H1.",
+                        "VernacExtend",
+                        "516374f8fd46596806c30b622f7f54973512acd1"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H1.",
+                        "VernacExtend",
+                        "a8b105d3165f67156642f776b75c37a862c34adf"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H1.",
+                        "VernacExtend",
+                        "a8b105d3165f67156642f776b75c37a862c34adf"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H1; constructor.",
+                        "VernacExtend",
+                        "90b8a96910185f6bb0372377de53e98a5c6ff167"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H1; constructor.",
+                        "VernacExtend",
+                        "90b8a96910185f6bb0372377de53e98a5c6ff167"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite if_true in H1 by auto.",
+                        "VernacExtend",
+                        "2b74498e52cf7ae06f4428151027bf62baf2a9c5"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H1; constructor.",
+                        "VernacExtend",
+                        "90b8a96910185f6bb0372377de53e98a5c6ff167"
+                    ]
+                },
+                {
+                    "command": [
+                        "contradiction.",
+                        "VernacExtend",
+                        "9b6a5c45e1144cbbccd544effb2a97082518704a"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply perm_order''_trans; [apply access_cur_max | ].",
+                        "VernacExtend",
+                        "043d4789b33d95c6ebc338e0c74cbed9806b3fc4"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (access_at m' loc Cur).",
+                        "VernacExtend",
+                        "b8f825de350d3923be37ba60152750fb8379b250"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; subst.",
+                        "VernacExtend",
+                        "cfced62c1f73763fa32f2f64f12dc4faf51d1289"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite if_true.",
+                        "VernacExtend",
+                        "8198b40d461a5545fc467eded52f2fe8cb3ac368"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H1.",
+                        "VernacExtend",
+                        "91099f93f9346d13e3fc00550ba094ceac5333db"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply perm_refl.",
+                        "VernacExtend",
+                        "c9924b8118505b42e4a68782b991f72d43440838"
+                    ]
+                },
+                {
+                    "command": [
+                        "clear - r H1.",
+                        "VernacExtend",
+                        "fc26699685fb064b1f5650ddbc7ece5460a46a7d"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold perm_of_sh in H1.",
+                        "VernacExtend",
+                        "516374f8fd46596806c30b622f7f54973512acd1"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H1.",
+                        "VernacExtend",
+                        "a8b105d3165f67156642f776b75c37a862c34adf"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H1.",
+                        "VernacExtend",
+                        "a8b105d3165f67156642f776b75c37a862c34adf"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H1; constructor.",
+                        "VernacExtend",
+                        "90b8a96910185f6bb0372377de53e98a5c6ff167"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H1; constructor.",
+                        "VernacExtend",
+                        "90b8a96910185f6bb0372377de53e98a5c6ff167"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite if_true in H1 by auto.",
+                        "VernacExtend",
+                        "2b74498e52cf7ae06f4428151027bf62baf2a9c5"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H1; constructor.",
+                        "VernacExtend",
+                        "90b8a96910185f6bb0372377de53e98a5c6ff167"
+                    ]
+                },
+                {
+                    "command": [
+                        "contradiction.",
+                        "VernacExtend",
+                        "9b6a5c45e1144cbbccd544effb2a97082518704a"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply perm_order''_trans; [apply access_cur_max | ].",
+                        "VernacExtend",
+                        "043d4789b33d95c6ebc338e0c74cbed9806b3fc4"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (access_at m' loc Cur).",
+                        "VernacExtend",
+                        "b8f825de350d3923be37ba60152750fb8379b250"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; subst.",
+                        "VernacExtend",
+                        "cfced62c1f73763fa32f2f64f12dc4faf51d1289"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite if_true.",
+                        "VernacExtend",
+                        "8198b40d461a5545fc467eded52f2fe8cb3ac368"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H1.",
+                        "VernacExtend",
+                        "91099f93f9346d13e3fc00550ba094ceac5333db"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply perm_refl.",
+                        "VernacExtend",
+                        "c9924b8118505b42e4a68782b991f72d43440838"
+                    ]
+                },
+                {
+                    "command": [
+                        "clear - r H1.",
+                        "VernacExtend",
+                        "fc26699685fb064b1f5650ddbc7ece5460a46a7d"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold perm_of_sh in H1.",
+                        "VernacExtend",
+                        "516374f8fd46596806c30b622f7f54973512acd1"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H1.",
+                        "VernacExtend",
+                        "a8b105d3165f67156642f776b75c37a862c34adf"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H1.",
+                        "VernacExtend",
+                        "a8b105d3165f67156642f776b75c37a862c34adf"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H1; constructor.",
+                        "VernacExtend",
+                        "90b8a96910185f6bb0372377de53e98a5c6ff167"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H1; constructor.",
+                        "VernacExtend",
+                        "90b8a96910185f6bb0372377de53e98a5c6ff167"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite if_true in H1 by auto.",
+                        "VernacExtend",
+                        "2b74498e52cf7ae06f4428151027bf62baf2a9c5"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H1; constructor.",
+                        "VernacExtend",
+                        "90b8a96910185f6bb0372377de53e98a5c6ff167"
+                    ]
+                },
+                {
+                    "command": [
+                        "contradiction.",
+                        "VernacExtend",
+                        "9b6a5c45e1144cbbccd544effb2a97082518704a"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply perm_order''_trans; [apply access_cur_max | ].",
+                        "VernacExtend",
+                        "043d4789b33d95c6ebc338e0c74cbed9806b3fc4"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (access_at m' loc Cur).",
+                        "VernacExtend",
+                        "b8f825de350d3923be37ba60152750fb8379b250"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct p0; try contradiction.",
+                        "VernacExtend",
+                        "de0e0626c5c2a90433bec5f6d90914dd202a18e3"
+                    ]
+                },
+                {
+                    "command": [
+                        "match goal with |- Mem.perm_order'' _ ?A => destruct A; try constructor end.",
+                        "VernacExtend",
+                        "752d41b1e3948c53be2117837c82d4495304077a"
+                    ]
+                },
+                {
+                    "command": [
+                        "elimtype False.",
+                        "VernacExtend",
+                        "193053c8983316978aeded05598d605cc4f35bde"
+                    ]
+                },
+                {
+                    "command": [
+                        "clear - H1 r.",
+                        "VernacExtend",
+                        "ffb40a5c2342656a1c09106aa09a1148dfd4afc8"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold perm_of_sh in H1.",
+                        "VernacExtend",
+                        "516374f8fd46596806c30b622f7f54973512acd1"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H1.",
+                        "VernacExtend",
+                        "a8b105d3165f67156642f776b75c37a862c34adf"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H1.",
+                        "VernacExtend",
+                        "a8b105d3165f67156642f776b75c37a862c34adf"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H1; constructor.",
+                        "VernacExtend",
+                        "90b8a96910185f6bb0372377de53e98a5c6ff167"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H1; constructor.",
+                        "VernacExtend",
+                        "90b8a96910185f6bb0372377de53e98a5c6ff167"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite if_true in H1 by auto.",
+                        "VernacExtend",
+                        "2b74498e52cf7ae06f4428151027bf62baf2a9c5"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H1; constructor.",
+                        "VernacExtend",
+                        "90b8a96910185f6bb0372377de53e98a5c6ff167"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (access_at m' loc Cur); try contradiction.",
+                        "VernacExtend",
+                        "175b0fb9bb52d3de9b0d1d9713af775bb10ead12"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; subst p0.",
+                        "VernacExtend",
+                        "8e18df4a5326d55e6fc30e91a4b4a7f847f6f54e"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (JMmax_access loc).",
+                        "VernacExtend",
+                        "8d2c3c5732861886c8ff8100ab5c48f80096d915"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H0 in JMmax_access.",
+                        "VernacExtend",
+                        "4e53c3c071566228d240e45edd06257b71eb10c9"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in JMmax_access.",
+                        "VernacExtend",
+                        "25fece4d82ebc42ebd2d54470f896cac97474182"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold max_access_at in *.",
+                        "VernacExtend",
+                        "77a7c640d38f7b9542d001203af96917ce52714b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- H1.",
+                        "VernacExtend",
+                        "b8b417d956609d1854d18921f25bc0ffae73a74e"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (access_at m' loc Cur); try contradiction.",
+                        "VernacExtend",
+                        "175b0fb9bb52d3de9b0d1d9713af775bb10ead12"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; subst p0.",
+                        "VernacExtend",
+                        "8e18df4a5326d55e6fc30e91a4b4a7f847f6f54e"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (JMmax_access loc).",
+                        "VernacExtend",
+                        "8d2c3c5732861886c8ff8100ab5c48f80096d915"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H0 in JMmax_access.",
+                        "VernacExtend",
+                        "4e53c3c071566228d240e45edd06257b71eb10c9"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in JMmax_access.",
+                        "VernacExtend",
+                        "25fece4d82ebc42ebd2d54470f896cac97474182"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold max_access_at in *.",
+                        "VernacExtend",
+                        "77a7c640d38f7b9542d001203af96917ce52714b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- H1.",
+                        "VernacExtend",
+                        "b8b417d956609d1854d18921f25bc0ffae73a74e"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H.",
+                        "VernacExtend",
+                        "78dad51b2bb1130f71851d1e55489020824f59f6"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (access_at m' loc Cur); try contradiction.",
+                        "VernacExtend",
+                        "175b0fb9bb52d3de9b0d1d9713af775bb10ead12"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; subst.",
+                        "VernacExtend",
+                        "cfced62c1f73763fa32f2f64f12dc4faf51d1289"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (JMmax_access loc).",
+                        "VernacExtend",
+                        "8d2c3c5732861886c8ff8100ab5c48f80096d915"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H0 in JMmax_access.",
+                        "VernacExtend",
+                        "4e53c3c071566228d240e45edd06257b71eb10c9"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in JMmax_access.",
+                        "VernacExtend",
+                        "25fece4d82ebc42ebd2d54470f896cac97474182"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold max_access_at in *.",
+                        "VernacExtend",
+                        "77a7c640d38f7b9542d001203af96917ce52714b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- H1.",
+                        "VernacExtend",
+                        "b8b417d956609d1854d18921f25bc0ffae73a74e"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "hnf; intros; specialize (H loc).",
+                        "VernacExtend",
+                        "b38255fac081e63376447ab3b05c300310d3ae64"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H0; clear H0.",
+                        "VernacExtend",
+                        "fabeca7858ebb717928a37dd7ab85d95711cf62f"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (JMalloc loc).",
+                        "VernacExtend",
+                        "34f29e63bcb0f5cd696c11237eb62f995921a4be"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (JMaccess loc) in *.",
+                        "VernacExtend",
+                        "733d89a633854e1d93237e0d8fa6e19ff03bf117"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (phi @ loc) eqn:?H.",
+                        "VernacExtend",
+                        "293c5ad111b3a238c90e756cb63d70e8a460280b"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H.",
+                        "VernacExtend",
+                        "78dad51b2bb1130f71851d1e55489020824f59f6"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac in H.",
+                        "VernacExtend",
+                        "37665ad4b9e4ccc2d0c8acd96b43848e24a487f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct loc as [b z].",
+                        "VernacExtend",
+                        "82e0aff0f85e71d5930a319c87e94d64160b4ed3"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite nextblock_access_empty in *by auto.",
+                        "VernacExtend",
+                        "27280b7933581faab6bd9f63d304360dfc25ee5e"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst.",
+                        "VernacExtend",
+                        "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "f_equal.",
+                        "VernacExtend",
+                        "dfce814d1efcef60f8330516ad88155a3a5ec317"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply proof_irr.",
+                        "VernacExtend",
+                        "10d46e46974f89c2b3a9463c04a06ee6c39cd171"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct loc as [b z].",
+                        "VernacExtend",
+                        "82e0aff0f85e71d5930a319c87e94d64160b4ed3"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite nextblock_access_empty in * by auto.",
+                        "VernacExtend",
+                        "27280b7933581faab6bd9f63d304360dfc25ee5e"
+                    ]
+                },
+                {
+                    "command": [
+                        "contradiction.",
+                        "VernacExtend",
+                        "9b6a5c45e1144cbbccd544effb2a97082518704a"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct loc as [b z].",
+                        "VernacExtend",
+                        "82e0aff0f85e71d5930a319c87e94d64160b4ed3"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite nextblock_access_empty in * by auto.",
+                        "VernacExtend",
+                        "27280b7933581faab6bd9f63d304360dfc25ee5e"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct k; auto; try contradiction H.",
+                        "VernacExtend",
+                        "04ce7a79dbc079b197b423c53d4e79ac92c14be6"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H.",
+                        "VernacExtend",
+                        "78dad51b2bb1130f71851d1e55489020824f59f6"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct loc as [b z].",
+                        "VernacExtend",
+                        "82e0aff0f85e71d5930a319c87e94d64160b4ed3"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite nextblock_access_empty in * by auto.",
+                        "VernacExtend",
+                        "27280b7933581faab6bd9f63d304360dfc25ee5e"
+                    ]
+                },
+                {
+                    "command": [
+                        "contradiction.",
+                        "VernacExtend",
+                        "9b6a5c45e1144cbbccd544effb2a97082518704a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

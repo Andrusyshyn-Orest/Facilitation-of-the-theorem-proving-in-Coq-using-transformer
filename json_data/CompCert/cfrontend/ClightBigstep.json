@@ -1,0 +1,1743 @@
+{
+    "filename": "cfrontend/ClightBigstep.v",
+    "coq_project": "CompCert",
+    "vernac_cmds": [
+        [
+            "Require Import Coqlib.",
+            "VernacRequire",
+            "bbbe15041aca3a03300067f7acd445b462d537cc"
+        ],
+        [
+            "Require Import Maps.",
+            "VernacRequire",
+            "f9a27637102e60e06a3c1ceb5a01819e80b9f645"
+        ],
+        [
+            "Require Import Integers.",
+            "VernacRequire",
+            "688f068e3335df7950b569ef75a5e993414c9874"
+        ],
+        [
+            "Require Import Floats.",
+            "VernacRequire",
+            "b9c4a965f888465bf3445941d179c7194c314789"
+        ],
+        [
+            "Require Import Values.",
+            "VernacRequire",
+            "f69762569c40def2ecf819f8117763d2ee924d2a"
+        ],
+        [
+            "Require Import AST.",
+            "VernacRequire",
+            "d103ecb096c06f34167fba01dd861491b0d5e84e"
+        ],
+        [
+            "Require Import Memory.",
+            "VernacRequire",
+            "2705b33fd6d3e12818791c70e219eee6a06d5191"
+        ],
+        [
+            "Require Import Events.",
+            "VernacRequire",
+            "8d12cd63a382accc976f222cc44b7a14814a06b9"
+        ],
+        [
+            "Require Import Globalenvs.",
+            "VernacRequire",
+            "04fc9ef3af45317f021e6c5326bb64982be447d7"
+        ],
+        [
+            "Require Import Smallstep.",
+            "VernacRequire",
+            "84c69dcbdb1069c688ce977fea648ae7688f06a8"
+        ],
+        [
+            "Require Import Ctypes.",
+            "VernacRequire",
+            "faff04a71b411c7c14fffc3b7842917b771e9d84"
+        ],
+        [
+            "Require Import Cop.",
+            "VernacRequire",
+            "9be26e05a6d5ac2d3026bbd68199b72ca3abd06a"
+        ],
+        [
+            "Require Import Clight.",
+            "VernacRequire",
+            "a6c4d5ed9d584e2140fc20811570de83c620b622"
+        ],
+        [
+            "Section BIGSTEP.",
+            "VernacBeginSection",
+            "ea6381ad0d30951cafe6d487e1671cf23dd02e1d"
+        ],
+        [
+            "Variable ge: genv.",
+            "VernacAssumption",
+            "5dcbd76196753bb6e2da03561ae76151d62a94d8"
+        ],
+        [
+            "Inductive outcome: Type := | Out_break: outcome | Out_continue: outcome | Out_normal: outcome | Out_return: option (val * type) -> outcome.",
+            "VernacInductive",
+            "3cc6cc6676857de634359e02ac1ab4a3a935f167"
+        ],
+        [
+            "Inductive out_normal_or_continue : outcome -> Prop := | Out_normal_or_continue_N: out_normal_or_continue Out_normal | Out_normal_or_continue_C: out_normal_or_continue Out_continue.",
+            "VernacInductive",
+            "1d7138e89cbf52f05e23590ebfe8081c3db1635a"
+        ],
+        [
+            "Inductive out_break_or_return : outcome -> outcome -> Prop := | Out_break_or_return_B: out_break_or_return Out_break Out_normal | Out_break_or_return_R: forall ov, out_break_or_return (Out_return ov) (Out_return ov).",
+            "VernacInductive",
+            "8d9b2bc6ea4ed8cff2b1a871aa0857c0c0bb4693"
+        ],
+        [
+            "Definition outcome_switch (out: outcome) : outcome := match out with | Out_break => Out_normal | o => o end.",
+            "VernacDefinition",
+            "fae456d80e6e1983bb90109909c40c4281a5ae07"
+        ],
+        [
+            "Definition outcome_result_value (out: outcome) (t: type) (v: val) (m: mem): Prop := match out, t with | Out_normal, Tvoid => v = Vundef | Out_return None, Tvoid => v = Vundef | Out_return (Some (v',t')), ty => ty <> Tvoid /\\ sem_cast v' t' t m = Some v | _, _ => False end.",
+            "VernacDefinition",
+            "0f05f265ad0b1a4ce08500edafebfbdec566ae9e"
+        ],
+        [
+            "Inductive exec_stmt: env -> temp_env -> mem -> statement -> trace -> temp_env -> mem -> outcome -> Prop := | exec_Sskip: forall e le m, exec_stmt e le m Sskip E0 le m Out_normal | exec_Sassign: forall e le m a1 a2 loc ofs v2 v m', eval_lvalue ge e le m a1 loc ofs -> eval_expr ge e le m a2 v2 -> sem_cast v2 (typeof a2) (typeof a1) m = Some v -> assign_loc ge (typeof a1) m loc ofs v m' -> exec_stmt e le m (Sassign a1 a2) E0 le m' Out_normal | exec_Sset: forall e le m id a v, eval_expr ge e le m a v -> exec_stmt e le m (Sset id a) E0 (PTree.set id v le) m Out_normal | exec_Scall: forall e le m optid a al tyargs tyres cconv vf vargs f t m' vres, classify_fun (typeof a) = fun_case_f tyargs tyres cconv -> eval_expr ge e le m a vf -> eval_exprlist ge e le m al tyargs vargs -> Genv.find_funct ge vf = Some f -> type_of_fundef f = Tfunction tyargs tyres cconv -> eval_funcall m f vargs t m' vres -> exec_stmt e le m (Scall optid a al) t (set_opttemp optid vres le) m' Out_normal | exec_Sbuiltin: forall e le m optid ef al tyargs vargs t m' vres, eval_exprlist ge e le m al tyargs vargs -> external_call ef ge vargs m t vres m' -> exec_stmt e le m (Sbuiltin optid ef tyargs al) t (set_opttemp optid vres le) m' Out_normal | exec_Sseq_1: forall e le m s1 s2 t1 le1 m1 t2 le2 m2 out, exec_stmt e le m s1 t1 le1 m1 Out_normal -> exec_stmt e le1 m1 s2 t2 le2 m2 out -> exec_stmt e le m (Ssequence s1 s2) (t1 ** t2) le2 m2 out | exec_Sseq_2: forall e le m s1 s2 t1 le1 m1 out, exec_stmt e le m s1 t1 le1 m1 out -> out <> Out_normal -> exec_stmt e le m (Ssequence s1 s2) t1 le1 m1 out | exec_Sifthenelse: forall e le m a s1 s2 v1 b t le' m' out, eval_expr ge e le m a v1 -> bool_val v1 (typeof a) m = Some b -> exec_stmt e le m (if b then s1 else s2) t le' m' out -> exec_stmt e le m (Sifthenelse a s1 s2) t le' m' out | exec_Sreturn_none: forall e le m, exec_stmt e le m (Sreturn None) E0 le m (Out_return None) | exec_Sreturn_some: forall e le m a v, eval_expr ge e le m a v -> exec_stmt e le m (Sreturn (Some a)) E0 le m (Out_return (Some (v, typeof a))) | exec_Sbreak: forall e le m, exec_stmt e le m Sbreak E0 le m Out_break | exec_Scontinue: forall e le m, exec_stmt e le m Scontinue E0 le m Out_continue | exec_Sloop_stop1: forall e le m s1 s2 t le' m' out' out, exec_stmt e le m s1 t le' m' out' -> out_break_or_return out' out -> exec_stmt e le m (Sloop s1 s2) t le' m' out | exec_Sloop_stop2: forall e le m s1 s2 t1 le1 m1 out1 t2 le2 m2 out2 out, exec_stmt e le m s1 t1 le1 m1 out1 -> out_normal_or_continue out1 -> exec_stmt e le1 m1 s2 t2 le2 m2 out2 -> out_break_or_return out2 out -> exec_stmt e le m (Sloop s1 s2) (t1**t2) le2 m2 out | exec_Sloop_loop: forall e le m s1 s2 t1 le1 m1 out1 t2 le2 m2 t3 le3 m3 out, exec_stmt e le m s1 t1 le1 m1 out1 -> out_normal_or_continue out1 -> exec_stmt e le1 m1 s2 t2 le2 m2 Out_normal -> exec_stmt e le2 m2 (Sloop s1 s2) t3 le3 m3 out -> exec_stmt e le m (Sloop s1 s2) (t1**t2**t3) le3 m3 out | exec_Sswitch: forall e le m a t v n sl le1 m1 out, eval_expr ge e le m a v -> sem_switch_arg v (typeof a) = Some n -> exec_stmt e le m (seq_of_labeled_statement (select_switch n sl)) t le1 m1 out -> exec_stmt e le m (Sswitch a sl) t le1 m1 (outcome_switch out) with eval_funcall: mem -> fundef -> list val -> trace -> mem -> val -> Prop := | eval_funcall_internal: forall le m f vargs t e m1 m2 m3 out vres m4, alloc_variables ge empty_env m (f.(fn_params) ++ f.(fn_vars)) e m1 -> list_norepet (var_names f.(fn_params) ++ var_names f.(fn_vars)) -> bind_parameters ge e m1 f.(fn_params) vargs m2 -> exec_stmt e (create_undef_temps f.(fn_temps)) m2 f.(fn_body) t le m3 out -> outcome_result_value out f.(fn_return) vres m3 -> Mem.free_list m3 (blocks_of_env ge e) = Some m4 -> eval_funcall m (Internal f) vargs t m4 vres | eval_funcall_external: forall m ef targs tres cconv vargs t vres m', external_call ef ge vargs m t vres m' -> eval_funcall m (External ef targs tres cconv) vargs t m' vres.",
+            "VernacInductive",
+            "e690eee06a21da2449547b85f67fa3c84b7e661a"
+        ],
+        [
+            "Scheme exec_stmt_ind2 := Minimality for exec_stmt Sort Prop with eval_funcall_ind2 := Minimality for eval_funcall Sort Prop.",
+            "VernacScheme",
+            "216d76ba361b15e57f00523e22c02d703201991d"
+        ],
+        [
+            "Combined Scheme exec_stmt_funcall_ind from exec_stmt_ind2, eval_funcall_ind2.",
+            "VernacCombinedScheme",
+            "482b37ee65e815acd731d5990fe83e6614a56d88"
+        ],
+        [
+            "CoInductive execinf_stmt: env -> temp_env -> mem -> statement -> traceinf -> Prop := | execinf_Scall: forall e le m optid a al vf tyargs tyres cconv vargs f t, classify_fun (typeof a) = fun_case_f tyargs tyres cconv -> eval_expr ge e le m a vf -> eval_exprlist ge e le m al tyargs vargs -> Genv.find_funct ge vf = Some f -> type_of_fundef f = Tfunction tyargs tyres cconv -> evalinf_funcall m f vargs t -> execinf_stmt e le m (Scall optid a al) t | execinf_Sseq_1: forall e le m s1 s2 t, execinf_stmt e le m s1 t -> execinf_stmt e le m (Ssequence s1 s2) t | execinf_Sseq_2: forall e le m s1 s2 t1 le1 m1 t2, exec_stmt e le m s1 t1 le1 m1 Out_normal -> execinf_stmt e le1 m1 s2 t2 -> execinf_stmt e le m (Ssequence s1 s2) (t1 *** t2) | execinf_Sifthenelse: forall e le m a s1 s2 v1 b t, eval_expr ge e le m a v1 -> bool_val v1 (typeof a) m = Some b -> execinf_stmt e le m (if b then s1 else s2) t -> execinf_stmt e le m (Sifthenelse a s1 s2) t | execinf_Sloop_body1: forall e le m s1 s2 t, execinf_stmt e le m s1 t -> execinf_stmt e le m (Sloop s1 s2) t | execinf_Sloop_body2: forall e le m s1 s2 t1 le1 m1 out1 t2, exec_stmt e le m s1 t1 le1 m1 out1 -> out_normal_or_continue out1 -> execinf_stmt e le1 m1 s2 t2 -> execinf_stmt e le m (Sloop s1 s2) (t1***t2) | execinf_Sloop_loop: forall e le m s1 s2 t1 le1 m1 out1 t2 le2 m2 t3, exec_stmt e le m s1 t1 le1 m1 out1 -> out_normal_or_continue out1 -> exec_stmt e le1 m1 s2 t2 le2 m2 Out_normal -> execinf_stmt e le2 m2 (Sloop s1 s2) t3 -> execinf_stmt e le m (Sloop s1 s2) (t1***t2***t3) | execinf_Sswitch: forall e le m a t v n sl, eval_expr ge e le m a v -> sem_switch_arg v (typeof a) = Some n -> execinf_stmt e le m (seq_of_labeled_statement (select_switch n sl)) t -> execinf_stmt e le m (Sswitch a sl) t with evalinf_funcall: mem -> fundef -> list val -> traceinf -> Prop := | evalinf_funcall_internal: forall m f vargs t e m1 m2, alloc_variables ge empty_env m (f.(fn_params) ++ f.(fn_vars)) e m1 -> list_norepet (var_names f.(fn_params) ++ var_names f.(fn_vars)) -> bind_parameters ge e m1 f.(fn_params) vargs m2 -> execinf_stmt e (create_undef_temps f.(fn_temps)) m2 f.(fn_body) t -> evalinf_funcall m (Internal f) vargs t.",
+            "VernacInductive",
+            "7537652fb1d509fae7380e2d7a30963348e9a4ed"
+        ],
+        [
+            "End BIGSTEP.",
+            "VernacEndSegment",
+            "a72bc2ee471b73685c18616db2d8073b106c6ec9"
+        ],
+        [
+            "Inductive bigstep_program_terminates (p: program): trace -> int -> Prop := | bigstep_program_terminates_intro: forall b f m0 m1 t r, let ge := globalenv p in Genv.init_mem p = Some m0 -> Genv.find_symbol ge p.(prog_main) = Some b -> Genv.find_funct_ptr ge b = Some f -> type_of_fundef f = Tfunction Tnil type_int32s cc_default -> eval_funcall ge m0 f nil t m1 (Vint r) -> bigstep_program_terminates p t r.",
+            "VernacInductive",
+            "1c39f94add35faf77e694bbd3f78e981e357beed"
+        ],
+        [
+            "Inductive bigstep_program_diverges (p: program): traceinf -> Prop := | bigstep_program_diverges_intro: forall b f m0 t, let ge := globalenv p in Genv.init_mem p = Some m0 -> Genv.find_symbol ge p.(prog_main) = Some b -> Genv.find_funct_ptr ge b = Some f -> type_of_fundef f = Tfunction Tnil type_int32s cc_default -> evalinf_funcall ge m0 f nil t -> bigstep_program_diverges p t.",
+            "VernacInductive",
+            "2a24532863936e5b79ceb97bbaa6ccc45fc7fef1"
+        ],
+        [
+            "Definition bigstep_semantics (p: program) := Bigstep_semantics (bigstep_program_terminates p) (bigstep_program_diverges p).",
+            "VernacDefinition",
+            "20059c1d18277ad79a6a7ebb2577f58ef981fca1"
+        ],
+        [
+            "Section BIGSTEP_TO_TRANSITIONS.",
+            "VernacBeginSection",
+            "cf3dacc95efaf6d320a93a81c3d34b80da600e81"
+        ],
+        [
+            "Variable prog: program.",
+            "VernacAssumption",
+            "8edfcc461f8822741d13a143d725057d8d3f993a"
+        ],
+        [
+            "Let ge : genv := globalenv prog.",
+            "VernacDefinition",
+            "f4f302b06eb1da2988d0d53c32e72870f90ed81b"
+        ],
+        [
+            "Inductive outcome_state_match (e: env) (le: temp_env) (m: mem) (f: function) (k: cont): outcome -> state -> Prop := | osm_normal: outcome_state_match e le m f k Out_normal (State f Sskip k e le m) | osm_break: outcome_state_match e le m f k Out_break (State f Sbreak k e le m) | osm_continue: outcome_state_match e le m f k Out_continue (State f Scontinue k e le m) | osm_return_none: forall k', call_cont k' = call_cont k -> outcome_state_match e le m f k (Out_return None) (State f (Sreturn None) k' e le m) | osm_return_some: forall a v k', call_cont k' = call_cont k -> eval_expr ge e le m a v -> outcome_state_match e le m f k (Out_return (Some (v,typeof a))) (State f (Sreturn (Some a)) k' e le m).",
+            "VernacInductive",
+            "ef79ccd28c710d233e0c48e2af6fd54b1f1afb4f"
+        ],
+        [
+            "Lemma is_call_cont_call_cont: forall k, is_call_cont k -> call_cont k = k.",
+            "VernacStartTheoremProof",
+            "6f8376b37969bc15a31171116dabf101a85e3774"
+        ],
+        [
+            "destruct k; simpl; intros; contradiction || auto.",
+            "VernacExtend",
+            "4bb6ea545d753fc7396c3a7014cd00107a811891"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma exec_stmt_eval_funcall_steps: (forall e le m s t le' m' out, exec_stmt ge e le m s t le' m' out -> forall f k, exists S, star step1 ge (State f s k e le m) t S /\\ outcome_state_match e le' m' f k out S) /\\ (forall m fd args t m' res, eval_funcall ge m fd args t m' res -> forall k, is_call_cont k -> star step1 ge (Callstate fd args k m) t (Returnstate res k m')).",
+            "VernacStartTheoremProof",
+            "4fbebaa9fd0f9750807e3da244ba2166b5341b27"
+        ],
+        [
+            "apply exec_stmt_funcall_ind; intros.",
+            "VernacExtend",
+            "9f35a67dcf0dc17d7fa24a4d03b7fb8e851608c3"
+        ],
+        [
+            "econstructor; split.",
+            "VernacExtend",
+            "11b22cf50026d480fd4ddd40ba5951e5ad64df31"
+        ],
+        [
+            "apply star_refl.",
+            "VernacExtend",
+            "8488e5b2807fef16c5056ba3f303e3256adf3a28"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "econstructor; split.",
+            "VernacExtend",
+            "11b22cf50026d480fd4ddd40ba5951e5ad64df31"
+        ],
+        [
+            "apply star_one.",
+            "VernacExtend",
+            "d41a9ff5c656810eb3b34fc939a54f2b70a10ded"
+        ],
+        [
+            "econstructor; eauto.",
+            "VernacExtend",
+            "faa93781fb8bbf289e651728c4588af1c4169d34"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "econstructor; split.",
+            "VernacExtend",
+            "11b22cf50026d480fd4ddd40ba5951e5ad64df31"
+        ],
+        [
+            "apply star_one.",
+            "VernacExtend",
+            "d41a9ff5c656810eb3b34fc939a54f2b70a10ded"
+        ],
+        [
+            "econstructor; eauto.",
+            "VernacExtend",
+            "faa93781fb8bbf289e651728c4588af1c4169d34"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "econstructor; split.",
+            "VernacExtend",
+            "11b22cf50026d480fd4ddd40ba5951e5ad64df31"
+        ],
+        [
+            "eapply star_left.",
+            "VernacExtend",
+            "67331c341fa8d7a13fd47f4fcf5a3188f78ff1ac"
+        ],
+        [
+            "econstructor; eauto.",
+            "VernacExtend",
+            "faa93781fb8bbf289e651728c4588af1c4169d34"
+        ],
+        [
+            "eapply star_right.",
+            "VernacExtend",
+            "bd7a445300a9606d6cac959f699fe163db9f9dde"
+        ],
+        [
+            "apply H5.",
+            "VernacExtend",
+            "4feb0df7cc51caef1d129e505dc0af74a67c0d74"
+        ],
+        [
+            "simpl; auto.",
+            "VernacExtend",
+            "9b631374b1d3067f703fd99c5dc6e1e5c8405957"
+        ],
+        [
+            "econstructor.",
+            "VernacExtend",
+            "57e0061dc596e77c9d30460f8165a53e99efafc2"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "traceEq.",
+            "VernacExtend",
+            "10965c9bc3d4dfa256918633169cac5cec3cb604"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "econstructor; split.",
+            "VernacExtend",
+            "11b22cf50026d480fd4ddd40ba5951e5ad64df31"
+        ],
+        [
+            "apply star_one.",
+            "VernacExtend",
+            "d41a9ff5c656810eb3b34fc939a54f2b70a10ded"
+        ],
+        [
+            "econstructor; eauto.",
+            "VernacExtend",
+            "faa93781fb8bbf289e651728c4588af1c4169d34"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "destruct (H0 f (Kseq s2 k)) as [S1 [A1 B1]].",
+            "VernacExtend",
+            "f2999e839de4ac2e4d068a9d7225418137b219c8"
+        ],
+        [
+            "inv B1.",
+            "VernacExtend",
+            "c20f8f6346dc8193dea0cf23ade480873c5e5433"
+        ],
+        [
+            "destruct (H2 f k) as [S2 [A2 B2]].",
+            "VernacExtend",
+            "bc15f0ca5d9e2dc5ea49e50650c93fa3f6ebaa70"
+        ],
+        [
+            "econstructor; split.",
+            "VernacExtend",
+            "11b22cf50026d480fd4ddd40ba5951e5ad64df31"
+        ],
+        [
+            "eapply star_left.",
+            "VernacExtend",
+            "67331c341fa8d7a13fd47f4fcf5a3188f78ff1ac"
+        ],
+        [
+            "econstructor.",
+            "VernacExtend",
+            "57e0061dc596e77c9d30460f8165a53e99efafc2"
+        ],
+        [
+            "eapply star_trans.",
+            "VernacExtend",
+            "f718a22497a1d51e0071caa98b007c7dfe2cc533"
+        ],
+        [
+            "eexact A1.",
+            "VernacExtend",
+            "d7e3cabbf998b3743609fc8cdc2ad4aeef85eb02"
+        ],
+        [
+            "eapply star_left.",
+            "VernacExtend",
+            "67331c341fa8d7a13fd47f4fcf5a3188f78ff1ac"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "eexact A2.",
+            "VernacExtend",
+            "c745f555473fe4adc1e683e6c2a65f371d214067"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "traceEq.",
+            "VernacExtend",
+            "10965c9bc3d4dfa256918633169cac5cec3cb604"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "destruct (H0 f (Kseq s2 k)) as [S1 [A1 B1]].",
+            "VernacExtend",
+            "f2999e839de4ac2e4d068a9d7225418137b219c8"
+        ],
+        [
+            "set (S2 := match out with | Out_break => State f Sbreak k e le1 m1 | Out_continue => State f Scontinue k e le1 m1 | _ => S1 end).",
+            "VernacExtend",
+            "1d27366f5608f07e5f4e44b18ef1fdce5830dbe7"
+        ],
+        [
+            "exists S2; split.",
+            "VernacExtend",
+            "3e6211df824839eeab6b9b96ecab208e996b2e9e"
+        ],
+        [
+            "eapply star_left.",
+            "VernacExtend",
+            "67331c341fa8d7a13fd47f4fcf5a3188f78ff1ac"
+        ],
+        [
+            "econstructor.",
+            "VernacExtend",
+            "57e0061dc596e77c9d30460f8165a53e99efafc2"
+        ],
+        [
+            "eapply star_trans.",
+            "VernacExtend",
+            "f718a22497a1d51e0071caa98b007c7dfe2cc533"
+        ],
+        [
+            "eexact A1.",
+            "VernacExtend",
+            "d7e3cabbf998b3743609fc8cdc2ad4aeef85eb02"
+        ],
+        [
+            "unfold S2; inv B1.",
+            "VernacExtend",
+            "5dfab876783ea96b6f78f7bc81308259e86b8cb4"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "apply star_one.",
+            "VernacExtend",
+            "d41a9ff5c656810eb3b34fc939a54f2b70a10ded"
+        ],
+        [
+            "apply step_break_seq.",
+            "VernacExtend",
+            "729bc2f406d20ba481d87e28726dd9254e7f973a"
+        ],
+        [
+            "apply star_one.",
+            "VernacExtend",
+            "d41a9ff5c656810eb3b34fc939a54f2b70a10ded"
+        ],
+        [
+            "apply step_continue_seq.",
+            "VernacExtend",
+            "62c8db471ae27e5339fc23187753d3620fb8792f"
+        ],
+        [
+            "apply star_refl.",
+            "VernacExtend",
+            "8488e5b2807fef16c5056ba3f303e3256adf3a28"
+        ],
+        [
+            "apply star_refl.",
+            "VernacExtend",
+            "8488e5b2807fef16c5056ba3f303e3256adf3a28"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "traceEq.",
+            "VernacExtend",
+            "10965c9bc3d4dfa256918633169cac5cec3cb604"
+        ],
+        [
+            "unfold S2; inv B1; congruence || econstructor; eauto.",
+            "VernacExtend",
+            "a4465f89c1752427af4d950474f4ce8e9e155662"
+        ],
+        [
+            "destruct (H2 f k) as [S1 [A1 B1]].",
+            "VernacExtend",
+            "e2419cdd7b0a7e27ff6bc6f3b4cde0617071b5b0"
+        ],
+        [
+            "exists S1; split.",
+            "VernacExtend",
+            "03861de750440a4e87952a7e6fd14e01fd9bb34d"
+        ],
+        [
+            "eapply star_left.",
+            "VernacExtend",
+            "67331c341fa8d7a13fd47f4fcf5a3188f78ff1ac"
+        ],
+        [
+            "2: eexact A1.",
+            "VernacExtend",
+            "43ac7644c39037c8b82313b4879b62941f0e4dcc"
+        ],
+        [
+            "eapply step_ifthenelse; eauto.",
+            "VernacExtend",
+            "022ba0b26e96b13e0ed7bdcbb89b56b27ac43343"
+        ],
+        [
+            "traceEq.",
+            "VernacExtend",
+            "10965c9bc3d4dfa256918633169cac5cec3cb604"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "econstructor; split.",
+            "VernacExtend",
+            "11b22cf50026d480fd4ddd40ba5951e5ad64df31"
+        ],
+        [
+            "apply star_refl.",
+            "VernacExtend",
+            "8488e5b2807fef16c5056ba3f303e3256adf3a28"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "econstructor; split.",
+            "VernacExtend",
+            "11b22cf50026d480fd4ddd40ba5951e5ad64df31"
+        ],
+        [
+            "apply star_refl.",
+            "VernacExtend",
+            "8488e5b2807fef16c5056ba3f303e3256adf3a28"
+        ],
+        [
+            "econstructor; eauto.",
+            "VernacExtend",
+            "faa93781fb8bbf289e651728c4588af1c4169d34"
+        ],
+        [
+            "econstructor; split.",
+            "VernacExtend",
+            "11b22cf50026d480fd4ddd40ba5951e5ad64df31"
+        ],
+        [
+            "apply star_refl.",
+            "VernacExtend",
+            "8488e5b2807fef16c5056ba3f303e3256adf3a28"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "econstructor; split.",
+            "VernacExtend",
+            "11b22cf50026d480fd4ddd40ba5951e5ad64df31"
+        ],
+        [
+            "apply star_refl.",
+            "VernacExtend",
+            "8488e5b2807fef16c5056ba3f303e3256adf3a28"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "destruct (H0 f (Kloop1 s1 s2 k)) as [S1 [A1 B1]].",
+            "VernacExtend",
+            "dab3d9e0c1ed8f765ae9da447f32eaad90d6f732"
+        ],
+        [
+            "set (S2 := match out' with | Out_break => State f Sskip k e le' m' | _ => S1 end).",
+            "VernacExtend",
+            "c70dc47db9bb7129ac2f8b0d09469f989d7f67f0"
+        ],
+        [
+            "exists S2; split.",
+            "VernacExtend",
+            "3e6211df824839eeab6b9b96ecab208e996b2e9e"
+        ],
+        [
+            "eapply star_left.",
+            "VernacExtend",
+            "67331c341fa8d7a13fd47f4fcf5a3188f78ff1ac"
+        ],
+        [
+            "eapply step_loop.",
+            "VernacExtend",
+            "205300da769a01919ac99f0ca92372416ed8e196"
+        ],
+        [
+            "eapply star_trans.",
+            "VernacExtend",
+            "f718a22497a1d51e0071caa98b007c7dfe2cc533"
+        ],
+        [
+            "eexact A1.",
+            "VernacExtend",
+            "d7e3cabbf998b3743609fc8cdc2ad4aeef85eb02"
+        ],
+        [
+            "unfold S2.",
+            "VernacExtend",
+            "4447abd34d48abf2bec35c52c0a2e38c40511e98"
+        ],
+        [
+            "inversion H1; subst.",
+            "VernacExtend",
+            "0d6098b7de8d43e8e8e8d2cd73cf811a6b3dbedf"
+        ],
+        [
+            "inv B1.",
+            "VernacExtend",
+            "c20f8f6346dc8193dea0cf23ade480873c5e5433"
+        ],
+        [
+            "apply star_one.",
+            "VernacExtend",
+            "d41a9ff5c656810eb3b34fc939a54f2b70a10ded"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "apply star_refl.",
+            "VernacExtend",
+            "8488e5b2807fef16c5056ba3f303e3256adf3a28"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "traceEq.",
+            "VernacExtend",
+            "10965c9bc3d4dfa256918633169cac5cec3cb604"
+        ],
+        [
+            "unfold S2.",
+            "VernacExtend",
+            "4447abd34d48abf2bec35c52c0a2e38c40511e98"
+        ],
+        [
+            "inversion H1; subst.",
+            "VernacExtend",
+            "0d6098b7de8d43e8e8e8d2cd73cf811a6b3dbedf"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "inv B1; econstructor; eauto.",
+            "VernacExtend",
+            "7f74a9f97e282b59ba2af0d2fa82170af2ad991b"
+        ],
+        [
+            "destruct (H0 f (Kloop1 s1 s2 k)) as [S1 [A1 B1]].",
+            "VernacExtend",
+            "dab3d9e0c1ed8f765ae9da447f32eaad90d6f732"
+        ],
+        [
+            "destruct (H3 f (Kloop2 s1 s2 k)) as [S2 [A2 B2]].",
+            "VernacExtend",
+            "ce744782c769bb0f0b8ba286fa98014ce70a24b1"
+        ],
+        [
+            "set (S3 := match out2 with | Out_break => State f Sskip k e le2 m2 | _ => S2 end).",
+            "VernacExtend",
+            "834164ff48f3aeaed87d4d8a06132e6b8b7f6b81"
+        ],
+        [
+            "exists S3; split.",
+            "VernacExtend",
+            "ecf6fae4ddf3743660a658b16421eddd8aa73d1d"
+        ],
+        [
+            "eapply star_left.",
+            "VernacExtend",
+            "67331c341fa8d7a13fd47f4fcf5a3188f78ff1ac"
+        ],
+        [
+            "eapply step_loop.",
+            "VernacExtend",
+            "205300da769a01919ac99f0ca92372416ed8e196"
+        ],
+        [
+            "eapply star_trans.",
+            "VernacExtend",
+            "f718a22497a1d51e0071caa98b007c7dfe2cc533"
+        ],
+        [
+            "eexact A1.",
+            "VernacExtend",
+            "d7e3cabbf998b3743609fc8cdc2ad4aeef85eb02"
+        ],
+        [
+            "eapply star_left with (s2 := State f s2 (Kloop2 s1 s2 k) e le1 m1).",
+            "VernacExtend",
+            "3b1c7cf2eb5ae53993d52daddf94b56edf32717b"
+        ],
+        [
+            "inv H1; inv B1; constructor; auto.",
+            "VernacExtend",
+            "ebbf6042c1190df2c9ccd7c70cda18d87b372318"
+        ],
+        [
+            "eapply star_trans.",
+            "VernacExtend",
+            "f718a22497a1d51e0071caa98b007c7dfe2cc533"
+        ],
+        [
+            "eexact A2.",
+            "VernacExtend",
+            "c745f555473fe4adc1e683e6c2a65f371d214067"
+        ],
+        [
+            "unfold S3.",
+            "VernacExtend",
+            "947b62917423abe7d6c31d85cced372511c9d46c"
+        ],
+        [
+            "inversion H4; subst.",
+            "VernacExtend",
+            "92ad52d95af4dae86dd1521283469fe7dcf249ec"
+        ],
+        [
+            "inv B2.",
+            "VernacExtend",
+            "fd6610986ae436bceec53635ab00d13a1f5f8054"
+        ],
+        [
+            "apply star_one.",
+            "VernacExtend",
+            "d41a9ff5c656810eb3b34fc939a54f2b70a10ded"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "apply star_refl.",
+            "VernacExtend",
+            "8488e5b2807fef16c5056ba3f303e3256adf3a28"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "traceEq.",
+            "VernacExtend",
+            "10965c9bc3d4dfa256918633169cac5cec3cb604"
+        ],
+        [
+            "unfold S3.",
+            "VernacExtend",
+            "947b62917423abe7d6c31d85cced372511c9d46c"
+        ],
+        [
+            "inversion H4; subst.",
+            "VernacExtend",
+            "92ad52d95af4dae86dd1521283469fe7dcf249ec"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "inv B2; econstructor; eauto.",
+            "VernacExtend",
+            "38cc49c15a4dfe5e7b5862ed1f0eb75cae1a799e"
+        ],
+        [
+            "destruct (H0 f (Kloop1 s1 s2 k)) as [S1 [A1 B1]].",
+            "VernacExtend",
+            "dab3d9e0c1ed8f765ae9da447f32eaad90d6f732"
+        ],
+        [
+            "destruct (H3 f (Kloop2 s1 s2 k)) as [S2 [A2 B2]].",
+            "VernacExtend",
+            "ce744782c769bb0f0b8ba286fa98014ce70a24b1"
+        ],
+        [
+            "destruct (H5 f k) as [S3 [A3 B3]].",
+            "VernacExtend",
+            "bfcce973306253aaa3add8f2ad51f203304d1b67"
+        ],
+        [
+            "exists S3; split.",
+            "VernacExtend",
+            "ecf6fae4ddf3743660a658b16421eddd8aa73d1d"
+        ],
+        [
+            "eapply star_left.",
+            "VernacExtend",
+            "67331c341fa8d7a13fd47f4fcf5a3188f78ff1ac"
+        ],
+        [
+            "eapply step_loop.",
+            "VernacExtend",
+            "205300da769a01919ac99f0ca92372416ed8e196"
+        ],
+        [
+            "eapply star_trans.",
+            "VernacExtend",
+            "f718a22497a1d51e0071caa98b007c7dfe2cc533"
+        ],
+        [
+            "eexact A1.",
+            "VernacExtend",
+            "d7e3cabbf998b3743609fc8cdc2ad4aeef85eb02"
+        ],
+        [
+            "eapply star_left with (s2 := State f s2 (Kloop2 s1 s2 k) e le1 m1).",
+            "VernacExtend",
+            "3b1c7cf2eb5ae53993d52daddf94b56edf32717b"
+        ],
+        [
+            "inv H1; inv B1; constructor; auto.",
+            "VernacExtend",
+            "ebbf6042c1190df2c9ccd7c70cda18d87b372318"
+        ],
+        [
+            "eapply star_trans.",
+            "VernacExtend",
+            "f718a22497a1d51e0071caa98b007c7dfe2cc533"
+        ],
+        [
+            "eexact A2.",
+            "VernacExtend",
+            "c745f555473fe4adc1e683e6c2a65f371d214067"
+        ],
+        [
+            "eapply star_left with (s2 := State f (Sloop s1 s2) k e le2 m2).",
+            "VernacExtend",
+            "11e432f7f9830e740d0fd67d13263f3c5a6e764d"
+        ],
+        [
+            "inversion H4; subst; inv B2; constructor; auto.",
+            "VernacExtend",
+            "1945405ed3b26bf10f497bb4a13d4cde9f3417ed"
+        ],
+        [
+            "eexact A3.",
+            "VernacExtend",
+            "456c29e00e31019ed4839a3526d7f666243f4f37"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "traceEq.",
+            "VernacExtend",
+            "10965c9bc3d4dfa256918633169cac5cec3cb604"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "destruct (H2 f (Kswitch k)) as [S1 [A1 B1]].",
+            "VernacExtend",
+            "f905fbd63c78429499fdf9a255379994e955b597"
+        ],
+        [
+            "set (S2 := match out with | Out_normal => State f Sskip k e le1 m1 | Out_break => State f Sskip k e le1 m1 | Out_continue => State f Scontinue k e le1 m1 | _ => S1 end).",
+            "VernacExtend",
+            "48fcd98a5468df9663c6fd39d4b59f36357befa8"
+        ],
+        [
+            "exists S2; split.",
+            "VernacExtend",
+            "3e6211df824839eeab6b9b96ecab208e996b2e9e"
+        ],
+        [
+            "eapply star_left.",
+            "VernacExtend",
+            "67331c341fa8d7a13fd47f4fcf5a3188f78ff1ac"
+        ],
+        [
+            "eapply step_switch; eauto.",
+            "VernacExtend",
+            "4e86c3e3cdb680158a10c613bde5c566fbc697c4"
+        ],
+        [
+            "eapply star_trans.",
+            "VernacExtend",
+            "f718a22497a1d51e0071caa98b007c7dfe2cc533"
+        ],
+        [
+            "eexact A1.",
+            "VernacExtend",
+            "d7e3cabbf998b3743609fc8cdc2ad4aeef85eb02"
+        ],
+        [
+            "unfold S2; inv B1.",
+            "VernacExtend",
+            "5dfab876783ea96b6f78f7bc81308259e86b8cb4"
+        ],
+        [
+            "apply star_one.",
+            "VernacExtend",
+            "d41a9ff5c656810eb3b34fc939a54f2b70a10ded"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "apply star_one.",
+            "VernacExtend",
+            "d41a9ff5c656810eb3b34fc939a54f2b70a10ded"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "apply star_one.",
+            "VernacExtend",
+            "d41a9ff5c656810eb3b34fc939a54f2b70a10ded"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "apply star_refl.",
+            "VernacExtend",
+            "8488e5b2807fef16c5056ba3f303e3256adf3a28"
+        ],
+        [
+            "apply star_refl.",
+            "VernacExtend",
+            "8488e5b2807fef16c5056ba3f303e3256adf3a28"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "traceEq.",
+            "VernacExtend",
+            "10965c9bc3d4dfa256918633169cac5cec3cb604"
+        ],
+        [
+            "unfold S2.",
+            "VernacExtend",
+            "4447abd34d48abf2bec35c52c0a2e38c40511e98"
+        ],
+        [
+            "inv B1; simpl; econstructor; eauto.",
+            "VernacExtend",
+            "445eb04493cdd688c7c9832b22a66e046122eeb1"
+        ],
+        [
+            "destruct (H3 f k) as [S1 [A1 B1]].",
+            "VernacExtend",
+            "195da1b279585f18373f491aa707cca3a450427a"
+        ],
+        [
+            "eapply star_left.",
+            "VernacExtend",
+            "67331c341fa8d7a13fd47f4fcf5a3188f78ff1ac"
+        ],
+        [
+            "eapply step_internal_function; eauto.",
+            "VernacExtend",
+            "fbe53c6e3ea057e68166fe454d49efc7b868f05d"
+        ],
+        [
+            "econstructor; eauto.",
+            "VernacExtend",
+            "faa93781fb8bbf289e651728c4588af1c4169d34"
+        ],
+        [
+            "eapply star_right.",
+            "VernacExtend",
+            "bd7a445300a9606d6cac959f699fe163db9f9dde"
+        ],
+        [
+            "eexact A1.",
+            "VernacExtend",
+            "d7e3cabbf998b3743609fc8cdc2ad4aeef85eb02"
+        ],
+        [
+            "inv B1; simpl in H4; try contradiction.",
+            "VernacExtend",
+            "012bde1bc28145d2463629514b25b4fca758acb0"
+        ],
+        [
+            "assert (fn_return f = Tvoid /\\ vres = Vundef).",
+            "VernacExtend",
+            "fd6570f8b928f4dee39d872c75f603d67e515421"
+        ],
+        [
+            "destruct (fn_return f); auto || contradiction.",
+            "VernacExtend",
+            "3ae2e9938df421ed04f3d8220c0f6307744d46c3"
+        ],
+        [
+            "destruct H7.",
+            "VernacExtend",
+            "f6b4c745a19e0b13add33f75bb62e394f2c83618"
+        ],
+        [
+            "subst vres.",
+            "VernacExtend",
+            "a0a9991db286228d471a3b363e5bfcfb8ae6e90b"
+        ],
+        [
+            "apply step_skip_call; auto.",
+            "VernacExtend",
+            "9a6fafed78f2abf4e5099ea7b8525485e764eb53"
+        ],
+        [
+            "assert (fn_return f = Tvoid /\\ vres = Vundef).",
+            "VernacExtend",
+            "fd6570f8b928f4dee39d872c75f603d67e515421"
+        ],
+        [
+            "destruct (fn_return f); auto || contradiction.",
+            "VernacExtend",
+            "3ae2e9938df421ed04f3d8220c0f6307744d46c3"
+        ],
+        [
+            "destruct H8.",
+            "VernacExtend",
+            "9fb2c61f93ea55d054a69439c04b3c885f0137a6"
+        ],
+        [
+            "subst vres.",
+            "VernacExtend",
+            "a0a9991db286228d471a3b363e5bfcfb8ae6e90b"
+        ],
+        [
+            "rewrite <- (is_call_cont_call_cont k H6).",
+            "VernacExtend",
+            "829e258a9eeda10a0c24e54ab1bd7e2645583ffb"
+        ],
+        [
+            "rewrite <- H7.",
+            "VernacExtend",
+            "15eb34513c3298e9d5b8731fdb6616cb0a4f6a80"
+        ],
+        [
+            "apply step_return_0; auto.",
+            "VernacExtend",
+            "8e6c20c53a4b62a688589b1b3f9b9c595354b9d6"
+        ],
+        [
+            "destruct H4.",
+            "VernacExtend",
+            "9ae390e4b039d96b643e4c1e0cd28291b37e7b3e"
+        ],
+        [
+            "rewrite <- (is_call_cont_call_cont k H6).",
+            "VernacExtend",
+            "829e258a9eeda10a0c24e54ab1bd7e2645583ffb"
+        ],
+        [
+            "rewrite <- H7.",
+            "VernacExtend",
+            "15eb34513c3298e9d5b8731fdb6616cb0a4f6a80"
+        ],
+        [
+            "eapply step_return_1; eauto.",
+            "VernacExtend",
+            "bed190e11a275c7827960d0ace5e4b59372d62e9"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "traceEq.",
+            "VernacExtend",
+            "10965c9bc3d4dfa256918633169cac5cec3cb604"
+        ],
+        [
+            "apply star_one.",
+            "VernacExtend",
+            "d41a9ff5c656810eb3b34fc939a54f2b70a10ded"
+        ],
+        [
+            "apply step_external_function; auto.",
+            "VernacExtend",
+            "1d607db4b045befb03eed50c899d2a7026688612"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma exec_stmt_steps: forall e le m s t le' m' out, exec_stmt ge e le m s t le' m' out -> forall f k, exists S, star step1 ge (State f s k e le m) t S /\\ outcome_state_match e le' m' f k out S.",
+            "VernacStartTheoremProof",
+            "1c9866638e38f4396c0017ce050a565ebcbc6a48"
+        ],
+        [
+            "Proof (proj1 exec_stmt_eval_funcall_steps).",
+            "VernacExactProof",
+            "c12b493805ab152ba99b4ba0dbdcd439f171ee0f"
+        ],
+        [
+            "Lemma eval_funcall_steps: forall m fd args t m' res, eval_funcall ge m fd args t m' res -> forall k, is_call_cont k -> star step1 ge (Callstate fd args k m) t (Returnstate res k m').",
+            "VernacStartTheoremProof",
+            "6bc8536cdb723e82960a5c9a93637e5b4d6a8a2b"
+        ],
+        [
+            "Proof (proj2 exec_stmt_eval_funcall_steps).",
+            "VernacExactProof",
+            "1f689da1634d3496516ef19d718836559b8412b0"
+        ],
+        [
+            "Definition order (x y: unit) := False.",
+            "VernacDefinition",
+            "4489009dfa63e0f285989bd177299c89570f720f"
+        ],
+        [
+            "Lemma evalinf_funcall_forever: forall m fd args T k, evalinf_funcall ge m fd args T -> forever_N step1 order ge tt (Callstate fd args k m) T.",
+            "VernacStartTheoremProof",
+            "4fc2cbf25d4883b17a171a338dc93aae59b974a2"
+        ],
+        [
+            "cofix CIH_FUN.",
+            "VernacExtend",
+            "6a634f0bf4ecd8fd869df40ed7540eb8d66ee801"
+        ],
+        [
+            "assert (forall e le m s T f k, execinf_stmt ge e le m s T -> forever_N step1 order ge tt (State f s k e le m) T).",
+            "VernacExtend",
+            "45f9df1102b0b2060857be7ad2f9d4151b9a05db"
+        ],
+        [
+            "cofix CIH_STMT.",
+            "VernacExtend",
+            "91c95b0f199ad8cfa09c418451e6562ab4c56971"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "eapply forever_N_plus.",
+            "VernacExtend",
+            "a9a9cd59d4be50b763b7b479d63b57e0fc9b6dff"
+        ],
+        [
+            "apply plus_one.",
+            "VernacExtend",
+            "52139a12045cdc7dd016c7c29914d58c42ffd3c4"
+        ],
+        [
+            "eapply step_call; eauto.",
+            "VernacExtend",
+            "0e39243156d936c7fb99335814f6f0d674671389"
+        ],
+        [
+            "eapply CIH_FUN.",
+            "VernacExtend",
+            "2c2b64069aebceaeb0ebf65717f140432fdfc00d"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "traceEq.",
+            "VernacExtend",
+            "10965c9bc3d4dfa256918633169cac5cec3cb604"
+        ],
+        [
+            "eapply forever_N_plus.",
+            "VernacExtend",
+            "a9a9cd59d4be50b763b7b479d63b57e0fc9b6dff"
+        ],
+        [
+            "apply plus_one.",
+            "VernacExtend",
+            "52139a12045cdc7dd016c7c29914d58c42ffd3c4"
+        ],
+        [
+            "econstructor.",
+            "VernacExtend",
+            "57e0061dc596e77c9d30460f8165a53e99efafc2"
+        ],
+        [
+            "apply CIH_STMT; eauto.",
+            "VernacExtend",
+            "025b53cdbfd24e2a9a97d8acce99fc2a24996dad"
+        ],
+        [
+            "traceEq.",
+            "VernacExtend",
+            "10965c9bc3d4dfa256918633169cac5cec3cb604"
+        ],
+        [
+            "destruct (exec_stmt_steps _ _ _ _ _ _ _ _ H0 f (Kseq s2 k)) as [S1 [A1 B1]].",
+            "VernacExtend",
+            "b4f271b58793a6ca3d42e87e0cff18d13e4baa03"
+        ],
+        [
+            "inv B1.",
+            "VernacExtend",
+            "c20f8f6346dc8193dea0cf23ade480873c5e5433"
+        ],
+        [
+            "eapply forever_N_plus.",
+            "VernacExtend",
+            "a9a9cd59d4be50b763b7b479d63b57e0fc9b6dff"
+        ],
+        [
+            "eapply plus_left.",
+            "VernacExtend",
+            "d39588485736de6c209eb6ef852b2c63e125defb"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "eapply star_trans.",
+            "VernacExtend",
+            "f718a22497a1d51e0071caa98b007c7dfe2cc533"
+        ],
+        [
+            "eexact A1.",
+            "VernacExtend",
+            "d7e3cabbf998b3743609fc8cdc2ad4aeef85eb02"
+        ],
+        [
+            "apply star_one.",
+            "VernacExtend",
+            "d41a9ff5c656810eb3b34fc939a54f2b70a10ded"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "apply CIH_STMT; eauto.",
+            "VernacExtend",
+            "025b53cdbfd24e2a9a97d8acce99fc2a24996dad"
+        ],
+        [
+            "traceEq.",
+            "VernacExtend",
+            "10965c9bc3d4dfa256918633169cac5cec3cb604"
+        ],
+        [
+            "eapply forever_N_plus.",
+            "VernacExtend",
+            "a9a9cd59d4be50b763b7b479d63b57e0fc9b6dff"
+        ],
+        [
+            "apply plus_one.",
+            "VernacExtend",
+            "52139a12045cdc7dd016c7c29914d58c42ffd3c4"
+        ],
+        [
+            "eapply step_ifthenelse with (b := b); eauto.",
+            "VernacExtend",
+            "026feceb704f26b86e8de32f6226b5758992f87a"
+        ],
+        [
+            "apply CIH_STMT; eauto.",
+            "VernacExtend",
+            "025b53cdbfd24e2a9a97d8acce99fc2a24996dad"
+        ],
+        [
+            "traceEq.",
+            "VernacExtend",
+            "10965c9bc3d4dfa256918633169cac5cec3cb604"
+        ],
+        [
+            "eapply forever_N_plus.",
+            "VernacExtend",
+            "a9a9cd59d4be50b763b7b479d63b57e0fc9b6dff"
+        ],
+        [
+            "eapply plus_one.",
+            "VernacExtend",
+            "a17d4e15b00210abbb1da7144987e4dcfd479127"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "apply CIH_STMT; eauto.",
+            "VernacExtend",
+            "025b53cdbfd24e2a9a97d8acce99fc2a24996dad"
+        ],
+        [
+            "traceEq.",
+            "VernacExtend",
+            "10965c9bc3d4dfa256918633169cac5cec3cb604"
+        ],
+        [
+            "destruct (exec_stmt_steps _ _ _ _ _ _ _ _ H0 f (Kloop1 s1 s2 k)) as [S1 [A1 B1]].",
+            "VernacExtend",
+            "a126631946e27b8a42899c2e7ee640317adc9736"
+        ],
+        [
+            "eapply forever_N_plus with (s2 := State f s2 (Kloop2 s1 s2 k) e le1 m1).",
+            "VernacExtend",
+            "483b4b75261c3928f75bf67a892f2b03a4210a20"
+        ],
+        [
+            "eapply plus_left.",
+            "VernacExtend",
+            "d39588485736de6c209eb6ef852b2c63e125defb"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "eapply star_right.",
+            "VernacExtend",
+            "bd7a445300a9606d6cac959f699fe163db9f9dde"
+        ],
+        [
+            "eexact A1.",
+            "VernacExtend",
+            "d7e3cabbf998b3743609fc8cdc2ad4aeef85eb02"
+        ],
+        [
+            "inv H1; inv B1; constructor; auto.",
+            "VernacExtend",
+            "ebbf6042c1190df2c9ccd7c70cda18d87b372318"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "apply CIH_STMT; eauto.",
+            "VernacExtend",
+            "025b53cdbfd24e2a9a97d8acce99fc2a24996dad"
+        ],
+        [
+            "traceEq.",
+            "VernacExtend",
+            "10965c9bc3d4dfa256918633169cac5cec3cb604"
+        ],
+        [
+            "destruct (exec_stmt_steps _ _ _ _ _ _ _ _ H0 f (Kloop1 s1 s2 k)) as [S1 [A1 B1]].",
+            "VernacExtend",
+            "a126631946e27b8a42899c2e7ee640317adc9736"
+        ],
+        [
+            "destruct (exec_stmt_steps _ _ _ _ _ _ _ _ H2 f (Kloop2 s1 s2 k)) as [S2 [A2 B2]].",
+            "VernacExtend",
+            "2c752454d0e5e8ff7ca63c6c741ed16789d905b7"
+        ],
+        [
+            "eapply forever_N_plus with (s2 := State f (Sloop s1 s2) k e le2 m2).",
+            "VernacExtend",
+            "ad7392213c03cfda0aeb279cd3f00c03acf4436c"
+        ],
+        [
+            "eapply plus_left.",
+            "VernacExtend",
+            "d39588485736de6c209eb6ef852b2c63e125defb"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "eapply star_trans.",
+            "VernacExtend",
+            "f718a22497a1d51e0071caa98b007c7dfe2cc533"
+        ],
+        [
+            "eexact A1.",
+            "VernacExtend",
+            "d7e3cabbf998b3743609fc8cdc2ad4aeef85eb02"
+        ],
+        [
+            "eapply star_left.",
+            "VernacExtend",
+            "67331c341fa8d7a13fd47f4fcf5a3188f78ff1ac"
+        ],
+        [
+            "inv H1; inv B1; constructor; auto.",
+            "VernacExtend",
+            "ebbf6042c1190df2c9ccd7c70cda18d87b372318"
+        ],
+        [
+            "eapply star_right.",
+            "VernacExtend",
+            "bd7a445300a9606d6cac959f699fe163db9f9dde"
+        ],
+        [
+            "eexact A2.",
+            "VernacExtend",
+            "c745f555473fe4adc1e683e6c2a65f371d214067"
+        ],
+        [
+            "inv B2.",
+            "VernacExtend",
+            "fd6610986ae436bceec53635ab00d13a1f5f8054"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "apply CIH_STMT; eauto.",
+            "VernacExtend",
+            "025b53cdbfd24e2a9a97d8acce99fc2a24996dad"
+        ],
+        [
+            "traceEq.",
+            "VernacExtend",
+            "10965c9bc3d4dfa256918633169cac5cec3cb604"
+        ],
+        [
+            "eapply forever_N_plus.",
+            "VernacExtend",
+            "a9a9cd59d4be50b763b7b479d63b57e0fc9b6dff"
+        ],
+        [
+            "eapply plus_one.",
+            "VernacExtend",
+            "a17d4e15b00210abbb1da7144987e4dcfd479127"
+        ],
+        [
+            "eapply step_switch; eauto.",
+            "VernacExtend",
+            "4e86c3e3cdb680158a10c613bde5c566fbc697c4"
+        ],
+        [
+            "apply CIH_STMT; eauto.",
+            "VernacExtend",
+            "025b53cdbfd24e2a9a97d8acce99fc2a24996dad"
+        ],
+        [
+            "traceEq.",
+            "VernacExtend",
+            "10965c9bc3d4dfa256918633169cac5cec3cb604"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "inv H0.",
+            "VernacExtend",
+            "52c34ef20c88d5292e2350aff94f149a3968b772"
+        ],
+        [
+            "eapply forever_N_plus.",
+            "VernacExtend",
+            "a9a9cd59d4be50b763b7b479d63b57e0fc9b6dff"
+        ],
+        [
+            "eapply plus_one.",
+            "VernacExtend",
+            "a17d4e15b00210abbb1da7144987e4dcfd479127"
+        ],
+        [
+            "econstructor; eauto.",
+            "VernacExtend",
+            "faa93781fb8bbf289e651728c4588af1c4169d34"
+        ],
+        [
+            "econstructor; eauto.",
+            "VernacExtend",
+            "faa93781fb8bbf289e651728c4588af1c4169d34"
+        ],
+        [
+            "apply H; eauto.",
+            "VernacExtend",
+            "1dad22a5bc38e6644c0a2d380e546c904cb6fe58"
+        ],
+        [
+            "traceEq.",
+            "VernacExtend",
+            "10965c9bc3d4dfa256918633169cac5cec3cb604"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem bigstep_semantics_sound: bigstep_sound (bigstep_semantics prog) (semantics1 prog).",
+            "VernacStartTheoremProof",
+            "582bd4f9349f224fb6b7eb97f104f463725cba60"
+        ],
+        [
+            "constructor; simpl; intros.",
+            "VernacExtend",
+            "dcd76c351204acf8d4b7d76eea612fabf67729fc"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "econstructor; econstructor.",
+            "VernacExtend",
+            "b544b380f8811c0a398ac698cca4c51b3bc31c11"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "econstructor; eauto.",
+            "VernacExtend",
+            "faa93781fb8bbf289e651728c4588af1c4169d34"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "eapply eval_funcall_steps.",
+            "VernacExtend",
+            "5efb97901cb9bc18f26bfa978fb7ab0b1bd1cac2"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "red; auto.",
+            "VernacExtend",
+            "cab1687c6da0e60977d47d2335ecbd5d45e7e0b2"
+        ],
+        [
+            "econstructor.",
+            "VernacExtend",
+            "57e0061dc596e77c9d30460f8165a53e99efafc2"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "econstructor.",
+            "VernacExtend",
+            "57e0061dc596e77c9d30460f8165a53e99efafc2"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "econstructor; eauto.",
+            "VernacExtend",
+            "faa93781fb8bbf289e651728c4588af1c4169d34"
+        ],
+        [
+            "eapply forever_N_forever with (order := order).",
+            "VernacExtend",
+            "6b4383a2d8acaea812455bce2d76fa3daec7930d"
+        ],
+        [
+            "red; intros.",
+            "VernacExtend",
+            "cac589df0c867c7c46c31951b6da5495d0153212"
+        ],
+        [
+            "constructor; intros.",
+            "VernacExtend",
+            "6563c593bcf639ae667d436a08cab59e1ac2dcce"
+        ],
+        [
+            "red in H.",
+            "VernacExtend",
+            "a4b4bf9e03eb87c8fa06c84cfda5cac7b43f2be8"
+        ],
+        [
+            "elim H.",
+            "VernacExtend",
+            "853aa440c3a3810be05f0f87d0e688c05b92253d"
+        ],
+        [
+            "eapply evalinf_funcall_forever; eauto.",
+            "VernacExtend",
+            "866d4fbf086995405353e680bcc534aa535feaf1"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End BIGSTEP_TO_TRANSITIONS.",
+            "VernacEndSegment",
+            "eee3a7ca5447093f422b81e59fe02d9ae3c0a2af"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "is_call_cont_call_cont",
+            "line_nb": 32,
+            "steps": [
+                {
+                    "command": [
+                        "destruct k; simpl; intros; contradiction || auto.",
+                        "VernacExtend",
+                        "4bb6ea545d753fc7396c3a7014cd00107a811891"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,1060 @@
+{
+    "filename": "compcert/common/Memtype.v",
+    "coq_project": "VST",
+    "vernac_cmds": [
+        [
+            "Require Import Coqlib.",
+            "VernacRequire",
+            "bbbe15041aca3a03300067f7acd445b462d537cc"
+        ],
+        [
+            "Require Import AST.",
+            "VernacRequire",
+            "d103ecb096c06f34167fba01dd861491b0d5e84e"
+        ],
+        [
+            "Require Import Integers.",
+            "VernacRequire",
+            "688f068e3335df7950b569ef75a5e993414c9874"
+        ],
+        [
+            "Require Import Floats.",
+            "VernacRequire",
+            "b9c4a965f888465bf3445941d179c7194c314789"
+        ],
+        [
+            "Require Import Values.",
+            "VernacRequire",
+            "f69762569c40def2ecf819f8117763d2ee924d2a"
+        ],
+        [
+            "Require Import Memdata.",
+            "VernacRequire",
+            "6bc2b50d875b3c1fbd791155138176c9cdad7a94"
+        ],
+        [
+            "Inductive permission: Type := | Freeable: permission | Writable: permission | Readable: permission | Nonempty: permission.",
+            "VernacInductive",
+            "a35e58eea08894a9b24ace34dbec7c496e42a758"
+        ],
+        [
+            "Inductive perm_order: permission -> permission -> Prop := | perm_refl: forall p, perm_order p p | perm_F_any: forall p, perm_order Freeable p | perm_W_R: perm_order Writable Readable | perm_any_N: forall p, perm_order p Nonempty.",
+            "VernacInductive",
+            "55863dbda6d85660f4f3e1f9c307a4a5e1f34f86"
+        ],
+        [
+            "Hint Constructors perm_order: mem.",
+            "VernacHints",
+            "e85e1918b7fe2b1bb5d819cd0beb1ddc5bc5ccfc"
+        ],
+        [
+            "Lemma perm_order_trans: forall p1 p2 p3, perm_order p1 p2 -> perm_order p2 p3 -> perm_order p1 p3.",
+            "VernacStartTheoremProof",
+            "3ae23536d45437d15cf10a3f3ea569b14b0a40c9"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "inv H; inv H0; constructor.",
+            "VernacExtend",
+            "d86bb03f93c4842b7890e302a9d4fcc2d64d594c"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Inductive perm_kind: Type := | Max: perm_kind | Cur: perm_kind.",
+            "VernacInductive",
+            "c6f7e1539624b03911b496e90b0a771bc32a4f27"
+        ],
+        [
+            "Module Type MEM.",
+            "VernacDeclareModuleType",
+            "6d44ea2c24f11d7078b41a4abb2e702acb1d816d"
+        ],
+        [
+            "Parameter mem: Type.",
+            "VernacAssumption",
+            "205f76a10e41db4b40aeb592a34ea02008d69870"
+        ],
+        [
+            "Parameter empty: mem.",
+            "VernacAssumption",
+            "fbaebefb7ebb1ccf6aea4a283108216ca84faddd"
+        ],
+        [
+            "Parameter alloc: forall (m: mem) (lo hi: Z), mem * block.",
+            "VernacAssumption",
+            "b0ab3cd2200858ce197f0f032893ddf27879ed31"
+        ],
+        [
+            "Parameter free: forall (m: mem) (b: block) (lo hi: Z), option mem.",
+            "VernacAssumption",
+            "e24da432b92808deab3759e1f1195def247a4468"
+        ],
+        [
+            "Parameter load: forall (chunk: memory_chunk) (m: mem) (b: block) (ofs: Z), option val.",
+            "VernacAssumption",
+            "08b28579bad55a8cb36516f0bb0eb77a35ab9739"
+        ],
+        [
+            "Parameter store: forall (chunk: memory_chunk) (m: mem) (b: block) (ofs: Z) (v: val), option mem.",
+            "VernacAssumption",
+            "bf40adb282391a0e896f811ad15b4d4a5b4ea526"
+        ],
+        [
+            "Definition loadv (chunk: memory_chunk) (m: mem) (addr: val) : option val := match addr with | Vptr b ofs => load chunk m b (Ptrofs.unsigned ofs) | _ => None end.",
+            "VernacDefinition",
+            "024ac632334eba3a365c1f61981ec67b1b64b72b"
+        ],
+        [
+            "Definition storev (chunk: memory_chunk) (m: mem) (addr v: val) : option mem := match addr with | Vptr b ofs => store chunk m b (Ptrofs.unsigned ofs) v | _ => None end.",
+            "VernacDefinition",
+            "fd0a22080a46104a8ed5c44e1fa9cb8b2a1a5b92"
+        ],
+        [
+            "Parameter loadbytes: forall (m: mem) (b: block) (ofs n: Z), option (list memval).",
+            "VernacAssumption",
+            "e37c1436cf7c5447f5bf7ccf03cf4efe2e7ce3a8"
+        ],
+        [
+            "Parameter storebytes: forall (m: mem) (b: block) (ofs: Z) (bytes: list memval), option mem.",
+            "VernacAssumption",
+            "3963cef99dc42c824b25fa39d73c2fe5fe85b56d"
+        ],
+        [
+            "Fixpoint free_list (m: mem) (l: list (block * Z * Z)) {struct l}: option mem := match l with | nil => Some m | (b, lo, hi) :: l' => match free m b lo hi with | None => None | Some m' => free_list m' l' end end.",
+            "VernacFixpoint",
+            "6c4b0ed1f83405d5492c278e7f0a0f56cea17584"
+        ],
+        [
+            "Parameter drop_perm: forall (m: mem) (b: block) (lo hi: Z) (p: permission), option mem.",
+            "VernacAssumption",
+            "a4ee124d00558d2a2b4d64a2b07668bbc8caeb83"
+        ],
+        [
+            "Parameter nextblock: mem -> block.",
+            "VernacAssumption",
+            "b03ff6857a01782589c93a2b624acd0244dd5897"
+        ],
+        [
+            "Definition valid_block (m: mem) (b: block) := Plt b (nextblock m).",
+            "VernacDefinition",
+            "40c3897acbd75f2d436113e092676ded4df5a9f9"
+        ],
+        [
+            "Axiom valid_not_valid_diff: forall m b b', valid_block m b -> ~(valid_block m b') -> b <> b'.",
+            "VernacAssumption",
+            "16af76676795b2ef79dbeeffd2d64131a5eb40db"
+        ],
+        [
+            "Parameter perm: forall (m: mem) (b: block) (ofs: Z) (k: perm_kind) (p: permission), Prop.",
+            "VernacAssumption",
+            "136abdc39246455117e60267e531bd2a623ded21"
+        ],
+        [
+            "Axiom perm_implies: forall m b ofs k p1 p2, perm m b ofs k p1 -> perm_order p1 p2 -> perm m b ofs k p2.",
+            "VernacAssumption",
+            "d053c4852cd0d1b015b4a33000559ac5e47e9bae"
+        ],
+        [
+            "Axiom perm_cur_max: forall m b ofs p, perm m b ofs Cur p -> perm m b ofs Max p.",
+            "VernacAssumption",
+            "4b2eb041b400d1f67533c69cd346c5512d1e23ca"
+        ],
+        [
+            "Axiom perm_cur: forall m b ofs k p, perm m b ofs Cur p -> perm m b ofs k p.",
+            "VernacAssumption",
+            "13c159491df2000f068131ad58896fa4abf81d96"
+        ],
+        [
+            "Axiom perm_max: forall m b ofs k p, perm m b ofs k p -> perm m b ofs Max p.",
+            "VernacAssumption",
+            "4eb811e4ab19cc32318af950c9b973da2607faef"
+        ],
+        [
+            "Axiom perm_valid_block: forall m b ofs k p, perm m b ofs k p -> valid_block m b.",
+            "VernacAssumption",
+            "471ead0e7179bf1057de0486ab87f7c47bac470f"
+        ],
+        [
+            "Definition range_perm (m: mem) (b: block) (lo hi: Z) (k: perm_kind) (p: permission) : Prop := forall ofs, lo <= ofs < hi -> perm m b ofs k p.",
+            "VernacDefinition",
+            "84a322bdd56328c79e481b69715f3b1b2341f643"
+        ],
+        [
+            "Axiom range_perm_implies: forall m b lo hi k p1 p2, range_perm m b lo hi k p1 -> perm_order p1 p2 -> range_perm m b lo hi k p2.",
+            "VernacAssumption",
+            "2784a47b3633c5428b417a1372db0c8b1702cef9"
+        ],
+        [
+            "Definition valid_access (m: mem) (chunk: memory_chunk) (b: block) (ofs: Z) (p: permission): Prop := range_perm m b ofs (ofs + size_chunk chunk) Cur p /\\ (align_chunk chunk | ofs).",
+            "VernacDefinition",
+            "98ed4b004c1bf4b39c9ba8b6e79c6f24bdcafaae"
+        ],
+        [
+            "Axiom valid_access_implies: forall m chunk b ofs p1 p2, valid_access m chunk b ofs p1 -> perm_order p1 p2 -> valid_access m chunk b ofs p2.",
+            "VernacAssumption",
+            "bc55e377cde3d488d5476747e3727ad0936b5f42"
+        ],
+        [
+            "Axiom valid_access_valid_block: forall m chunk b ofs, valid_access m chunk b ofs Nonempty -> valid_block m b.",
+            "VernacAssumption",
+            "365cd3a9c61c13459185f8b64e0ae941fc0aedd4"
+        ],
+        [
+            "Axiom valid_access_perm: forall m chunk b ofs k p, valid_access m chunk b ofs p -> perm m b ofs k p.",
+            "VernacAssumption",
+            "2b775336f3bbfe88e7bea1ecf3025d20f5492605"
+        ],
+        [
+            "Parameter valid_pointer: forall (m: mem) (b: block) (ofs: Z), bool.",
+            "VernacAssumption",
+            "787794072bb50c3973fef3a31821528f536825f1"
+        ],
+        [
+            "Axiom valid_pointer_nonempty_perm: forall m b ofs, valid_pointer m b ofs = true <-> perm m b ofs Cur Nonempty.",
+            "VernacAssumption",
+            "417c0f9a9bd00e397a1592e59ba78fcc59b9881d"
+        ],
+        [
+            "Axiom valid_pointer_valid_access: forall m b ofs, valid_pointer m b ofs = true <-> valid_access m Mint8unsigned b ofs Nonempty.",
+            "VernacAssumption",
+            "105a67dd2f87257c557d8ebd56420fa16d158448"
+        ],
+        [
+            "Definition weak_valid_pointer (m: mem) (b: block) (ofs: Z) := valid_pointer m b ofs || valid_pointer m b (ofs - 1).",
+            "VernacDefinition",
+            "f803bb7ae5b1306b68feb796a974e3c3eb1ca4e9"
+        ],
+        [
+            "Axiom weak_valid_pointer_spec: forall m b ofs, weak_valid_pointer m b ofs = true <-> valid_pointer m b ofs = true \\/ valid_pointer m b (ofs - 1) = true.",
+            "VernacAssumption",
+            "8cf5eadfdc3bee065c61c381b4948eb6a7ab347d"
+        ],
+        [
+            "Axiom valid_pointer_implies: forall m b ofs, valid_pointer m b ofs = true -> weak_valid_pointer m b ofs = true.",
+            "VernacAssumption",
+            "e41e8d05ba79d523905ef7ba647e6308b6e88ce8"
+        ],
+        [
+            "Axiom nextblock_empty: nextblock empty = 1%positive.",
+            "VernacAssumption",
+            "e40f77390eb5f1a4200958fbde9ef07d81287954"
+        ],
+        [
+            "Axiom perm_empty: forall b ofs k p, ~perm empty b ofs k p.",
+            "VernacAssumption",
+            "ae4883a0fd64558e7cc08d117d2ff1978701adb7"
+        ],
+        [
+            "Axiom valid_access_empty: forall chunk b ofs p, ~valid_access empty chunk b ofs p.",
+            "VernacAssumption",
+            "ce0dda0f8031be2372279d0267d372b696e6b007"
+        ],
+        [
+            "Axiom valid_access_load: forall m chunk b ofs, valid_access m chunk b ofs Readable -> exists v, load chunk m b ofs = Some v.",
+            "VernacAssumption",
+            "2bf7d4fc4dab44675cbe972dc52c21c1d5c91f7c"
+        ],
+        [
+            "Axiom load_valid_access: forall m chunk b ofs v, load chunk m b ofs = Some v -> valid_access m chunk b ofs Readable.",
+            "VernacAssumption",
+            "3dbdc6b61f7ef202e2db4f8e86b1402ebcb27172"
+        ],
+        [
+            "Axiom load_type: forall m chunk b ofs v, load chunk m b ofs = Some v -> Val.has_type v (type_of_chunk chunk).",
+            "VernacAssumption",
+            "d4500dea5c457864992e50be0b2b531c8ce47fa8"
+        ],
+        [
+            "Axiom load_cast: forall m chunk b ofs v, load chunk m b ofs = Some v -> match chunk with | Mint8signed => v = Val.sign_ext 8 v | Mint8unsigned => v = Val.zero_ext 8 v | Mint16signed => v = Val.sign_ext 16 v | Mint16unsigned => v = Val.zero_ext 16 v | _ => True end.",
+            "VernacAssumption",
+            "a87eee0a06d0ce8ee2530125f17f91cb189d4080"
+        ],
+        [
+            "Axiom load_int8_signed_unsigned: forall m b ofs, load Mint8signed m b ofs = option_map (Val.sign_ext 8) (load Mint8unsigned m b ofs).",
+            "VernacAssumption",
+            "e0b107ba99de798bfd23e4d03895a1d2bbcce7d7"
+        ],
+        [
+            "Axiom load_int16_signed_unsigned: forall m b ofs, load Mint16signed m b ofs = option_map (Val.sign_ext 16) (load Mint16unsigned m b ofs).",
+            "VernacAssumption",
+            "e8f2178ad865983ef744c0e25693071810babe45"
+        ],
+        [
+            "Axiom range_perm_loadbytes: forall m b ofs len, range_perm m b ofs (ofs + len) Cur Readable -> exists bytes, loadbytes m b ofs len = Some bytes.",
+            "VernacAssumption",
+            "0254a5392b30572f7193cb0ded2ac6b7d19f7d29"
+        ],
+        [
+            "Axiom loadbytes_range_perm: forall m b ofs len bytes, loadbytes m b ofs len = Some bytes -> range_perm m b ofs (ofs + len) Cur Readable.",
+            "VernacAssumption",
+            "1d189904f6cda58dc7dff6bd17f9c0d8e002008f"
+        ],
+        [
+            "Axiom loadbytes_load: forall chunk m b ofs bytes, loadbytes m b ofs (size_chunk chunk) = Some bytes -> (align_chunk chunk | ofs) -> load chunk m b ofs = Some(decode_val chunk bytes).",
+            "VernacAssumption",
+            "6c5d4bc6c50ee970a156cb3e14fedc30af25623c"
+        ],
+        [
+            "Axiom load_loadbytes: forall chunk m b ofs v, load chunk m b ofs = Some v -> exists bytes, loadbytes m b ofs (size_chunk chunk) = Some bytes /\\ v = decode_val chunk bytes.",
+            "VernacAssumption",
+            "eb3e1d9d8a50c380c5632aae2747925f4db633c6"
+        ],
+        [
+            "Axiom loadbytes_length: forall m b ofs n bytes, loadbytes m b ofs n = Some bytes -> length bytes = nat_of_Z n.",
+            "VernacAssumption",
+            "7aa72794b0f7450be7fe108d7db1e6da28fe551a"
+        ],
+        [
+            "Axiom loadbytes_empty: forall m b ofs n, n <= 0 -> loadbytes m b ofs n = Some nil.",
+            "VernacAssumption",
+            "c941fa981e9a1b31a8b22ebf67120bc6be6c9840"
+        ],
+        [
+            "Axiom loadbytes_concat: forall m b ofs n1 n2 bytes1 bytes2, loadbytes m b ofs n1 = Some bytes1 -> loadbytes m b (ofs + n1) n2 = Some bytes2 -> n1 >= 0 -> n2 >= 0 -> loadbytes m b ofs (n1 + n2) = Some(bytes1 ++ bytes2).",
+            "VernacAssumption",
+            "a55b98fd30e2818cf0a8737ded7c4031e7c98def"
+        ],
+        [
+            "Axiom loadbytes_split: forall m b ofs n1 n2 bytes, loadbytes m b ofs (n1 + n2) = Some bytes -> n1 >= 0 -> n2 >= 0 -> exists bytes1, exists bytes2, loadbytes m b ofs n1 = Some bytes1 /\\ loadbytes m b (ofs + n1) n2 = Some bytes2 /\\ bytes = bytes1 ++ bytes2.",
+            "VernacAssumption",
+            "208a65b67810641c2f07db7cadfe803e82349a75"
+        ],
+        [
+            "Axiom nextblock_store: forall chunk m1 b ofs v m2, store chunk m1 b ofs v = Some m2 -> nextblock m2 = nextblock m1.",
+            "VernacAssumption",
+            "50388a2aa9ddc4827bcf42ed09ed43d398fe3014"
+        ],
+        [
+            "Axiom store_valid_block_1: forall chunk m1 b ofs v m2, store chunk m1 b ofs v = Some m2 -> forall b', valid_block m1 b' -> valid_block m2 b'.",
+            "VernacAssumption",
+            "d7db0618dbd7174f815cc5ccc71d980c385a90d4"
+        ],
+        [
+            "Axiom store_valid_block_2: forall chunk m1 b ofs v m2, store chunk m1 b ofs v = Some m2 -> forall b', valid_block m2 b' -> valid_block m1 b'.",
+            "VernacAssumption",
+            "498b5a5d75d0b57557eb964557f5960e98eaeae3"
+        ],
+        [
+            "Axiom perm_store_1: forall chunk m1 b ofs v m2, store chunk m1 b ofs v = Some m2 -> forall b' ofs' k p, perm m1 b' ofs' k p -> perm m2 b' ofs' k p.",
+            "VernacAssumption",
+            "12eece88657bb16fe24abbf64545474d7b34bb81"
+        ],
+        [
+            "Axiom perm_store_2: forall chunk m1 b ofs v m2, store chunk m1 b ofs v = Some m2 -> forall b' ofs' k p, perm m2 b' ofs' k p -> perm m1 b' ofs' k p.",
+            "VernacAssumption",
+            "8836f887984620c9d1dc5284916dcbd2ae764e70"
+        ],
+        [
+            "Axiom valid_access_store: forall m1 chunk b ofs v, valid_access m1 chunk b ofs Writable -> { m2: mem | store chunk m1 b ofs v = Some m2 }.",
+            "VernacAssumption",
+            "527405f94a7c9a02c51db59d9e3e3cd40c6507a9"
+        ],
+        [
+            "Axiom store_valid_access_1: forall chunk m1 b ofs v m2, store chunk m1 b ofs v = Some m2 -> forall chunk' b' ofs' p, valid_access m1 chunk' b' ofs' p -> valid_access m2 chunk' b' ofs' p.",
+            "VernacAssumption",
+            "998d84f3dc1eda67725c22afb5a6e5f4cef7e173"
+        ],
+        [
+            "Axiom store_valid_access_2: forall chunk m1 b ofs v m2, store chunk m1 b ofs v = Some m2 -> forall chunk' b' ofs' p, valid_access m2 chunk' b' ofs' p -> valid_access m1 chunk' b' ofs' p.",
+            "VernacAssumption",
+            "dc6996b34c826b02691c82d75f9b993c27ef34ac"
+        ],
+        [
+            "Axiom store_valid_access_3: forall chunk m1 b ofs v m2, store chunk m1 b ofs v = Some m2 -> valid_access m1 chunk b ofs Writable.",
+            "VernacAssumption",
+            "718c18437091522d2f68f7c7b59c7f383690cddf"
+        ],
+        [
+            "Axiom load_store_similar: forall chunk m1 b ofs v m2, store chunk m1 b ofs v = Some m2 -> forall chunk', size_chunk chunk' = size_chunk chunk -> align_chunk chunk' <= align_chunk chunk -> exists v', load chunk' m2 b ofs = Some v' /\\ decode_encode_val v chunk chunk' v'.",
+            "VernacAssumption",
+            "45b426c899a0fbedd1bee8972d24db98dc023ebc"
+        ],
+        [
+            "Axiom load_store_same: forall chunk m1 b ofs v m2, store chunk m1 b ofs v = Some m2 -> load chunk m2 b ofs = Some (Val.load_result chunk v).",
+            "VernacAssumption",
+            "58e3e112afb85f34309d8c916427d5274b98a5c1"
+        ],
+        [
+            "Axiom load_store_other: forall chunk m1 b ofs v m2, store chunk m1 b ofs v = Some m2 -> forall chunk' b' ofs', b' <> b \\/ ofs' + size_chunk chunk' <= ofs \\/ ofs + size_chunk chunk <= ofs' -> load chunk' m2 b' ofs' = load chunk' m1 b' ofs'.",
+            "VernacAssumption",
+            "b118db6fe9fd21c068f8aba5202212428d2101e6"
+        ],
+        [
+            "Definition compat_pointer_chunks (chunk1 chunk2: memory_chunk) : Prop := match chunk1, chunk2 with | (Mint32 | Many32), (Mint32 | Many32) => True | (Mint64 | Many64), (Mint64 | Many64) => True | _, _ => False end.",
+            "VernacDefinition",
+            "ae1912be94844ac4e1215bfd73296d9f45187156"
+        ],
+        [
+            "Axiom load_store_pointer_overlap: forall chunk m1 b ofs v_b v_o m2 chunk' ofs' v, store chunk m1 b ofs (Vptr v_b v_o) = Some m2 -> load chunk' m2 b ofs' = Some v -> ofs' <> ofs -> ofs' + size_chunk chunk' > ofs -> ofs + size_chunk chunk > ofs' -> v = Vundef.",
+            "VernacAssumption",
+            "b043b2e136b5b05072005f70244264a403ba460d"
+        ],
+        [
+            "Axiom load_store_pointer_mismatch: forall chunk m1 b ofs v_b v_o m2 chunk' v, store chunk m1 b ofs (Vptr v_b v_o) = Some m2 -> load chunk' m2 b ofs = Some v -> ~compat_pointer_chunks chunk chunk' -> v = Vundef.",
+            "VernacAssumption",
+            "0395c1c04ff4649a63ea109544d8cbd88b6c4e6d"
+        ],
+        [
+            "Axiom load_pointer_store: forall chunk m1 b ofs v m2 chunk' b' ofs' v_b v_o, store chunk m1 b ofs v = Some m2 -> load chunk' m2 b' ofs' = Some(Vptr v_b v_o) -> (v = Vptr v_b v_o /\\ compat_pointer_chunks chunk chunk' /\\ b' = b /\\ ofs' = ofs) \\/ (b' <> b \\/ ofs' + size_chunk chunk' <= ofs \\/ ofs + size_chunk chunk <= ofs').",
+            "VernacAssumption",
+            "a9ab0b35db58e58811de99f972b620440f1bafe0"
+        ],
+        [
+            "Axiom loadbytes_store_same: forall chunk m1 b ofs v m2, store chunk m1 b ofs v = Some m2 -> loadbytes m2 b ofs (size_chunk chunk) = Some(encode_val chunk v).",
+            "VernacAssumption",
+            "44ab09c80dfc714e795e01aa77ff58401b490773"
+        ],
+        [
+            "Axiom loadbytes_store_other: forall chunk m1 b ofs v m2, store chunk m1 b ofs v = Some m2 -> forall b' ofs' n, b' <> b \\/ n <= 0 \\/ ofs' + n <= ofs \\/ ofs + size_chunk chunk <= ofs' -> loadbytes m2 b' ofs' n = loadbytes m1 b' ofs' n.",
+            "VernacAssumption",
+            "ab6cc16ee8f8f1fdbce3d49f40b1a41ac9a5274a"
+        ],
+        [
+            "Axiom store_signed_unsigned_8: forall m b ofs v, store Mint8signed m b ofs v = store Mint8unsigned m b ofs v.",
+            "VernacAssumption",
+            "6396707ac47e26c5fa469d5019734de15dfe6ace"
+        ],
+        [
+            "Axiom store_signed_unsigned_16: forall m b ofs v, store Mint16signed m b ofs v = store Mint16unsigned m b ofs v.",
+            "VernacAssumption",
+            "39ac34eec2e05748be06008bb7dca20d940a6a4c"
+        ],
+        [
+            "Axiom store_int8_zero_ext: forall m b ofs n, store Mint8unsigned m b ofs (Vint (Int.zero_ext 8 n)) = store Mint8unsigned m b ofs (Vint n).",
+            "VernacAssumption",
+            "71cee32da6e6bdf7a28fce7719a4c81913628e6e"
+        ],
+        [
+            "Axiom store_int8_sign_ext: forall m b ofs n, store Mint8signed m b ofs (Vint (Int.sign_ext 8 n)) = store Mint8signed m b ofs (Vint n).",
+            "VernacAssumption",
+            "24c31f1327d32fb13d17035de76c5d01b163b3fa"
+        ],
+        [
+            "Axiom store_int16_zero_ext: forall m b ofs n, store Mint16unsigned m b ofs (Vint (Int.zero_ext 16 n)) = store Mint16unsigned m b ofs (Vint n).",
+            "VernacAssumption",
+            "c748b7d2adf126d00e3205516c6c684fe21ee90e"
+        ],
+        [
+            "Axiom store_int16_sign_ext: forall m b ofs n, store Mint16signed m b ofs (Vint (Int.sign_ext 16 n)) = store Mint16signed m b ofs (Vint n).",
+            "VernacAssumption",
+            "bdbb499a9fd4285c790bf8fbf7613f5fca6b8b4f"
+        ],
+        [
+            "Axiom range_perm_storebytes: forall m1 b ofs bytes, range_perm m1 b ofs (ofs + Z.of_nat (length bytes)) Cur Writable -> { m2 : mem | storebytes m1 b ofs bytes = Some m2 }.",
+            "VernacAssumption",
+            "b364189f64746d7f4e596ab6407df1b83f712401"
+        ],
+        [
+            "Axiom storebytes_range_perm: forall m1 b ofs bytes m2, storebytes m1 b ofs bytes = Some m2 -> range_perm m1 b ofs (ofs + Z.of_nat (length bytes)) Cur Writable.",
+            "VernacAssumption",
+            "2fade7599e135168359edcae61560b12d079b9ed"
+        ],
+        [
+            "Axiom perm_storebytes_1: forall m1 b ofs bytes m2, storebytes m1 b ofs bytes = Some m2 -> forall b' ofs' k p, perm m1 b' ofs' k p -> perm m2 b' ofs' k p.",
+            "VernacAssumption",
+            "8506caed254c06e4e9a1350622e8399e6be63f3a"
+        ],
+        [
+            "Axiom perm_storebytes_2: forall m1 b ofs bytes m2, storebytes m1 b ofs bytes = Some m2 -> forall b' ofs' k p, perm m2 b' ofs' k p -> perm m1 b' ofs' k p.",
+            "VernacAssumption",
+            "cd3fe9c3cfdaa91910985fd9547002af94cb7cbb"
+        ],
+        [
+            "Axiom storebytes_valid_access_1: forall m1 b ofs bytes m2, storebytes m1 b ofs bytes = Some m2 -> forall chunk' b' ofs' p, valid_access m1 chunk' b' ofs' p -> valid_access m2 chunk' b' ofs' p.",
+            "VernacAssumption",
+            "b6a2874736149c9643249e02954d9fb73c484731"
+        ],
+        [
+            "Axiom storebytes_valid_access_2: forall m1 b ofs bytes m2, storebytes m1 b ofs bytes = Some m2 -> forall chunk' b' ofs' p, valid_access m2 chunk' b' ofs' p -> valid_access m1 chunk' b' ofs' p.",
+            "VernacAssumption",
+            "182311f243997c6beffcc1127cbe191dad2a98f3"
+        ],
+        [
+            "Axiom nextblock_storebytes: forall m1 b ofs bytes m2, storebytes m1 b ofs bytes = Some m2 -> nextblock m2 = nextblock m1.",
+            "VernacAssumption",
+            "3afa44e647ca60a11af3d034a2168edf9e7463f9"
+        ],
+        [
+            "Axiom storebytes_valid_block_1: forall m1 b ofs bytes m2, storebytes m1 b ofs bytes = Some m2 -> forall b', valid_block m1 b' -> valid_block m2 b'.",
+            "VernacAssumption",
+            "38aa403c9bfbda016f258c0359e75d10f668d8e4"
+        ],
+        [
+            "Axiom storebytes_valid_block_2: forall m1 b ofs bytes m2, storebytes m1 b ofs bytes = Some m2 -> forall b', valid_block m2 b' -> valid_block m1 b'.",
+            "VernacAssumption",
+            "caa426404eaf1b359eb440bc0b84af48fa1e5e19"
+        ],
+        [
+            "Axiom storebytes_store: forall m1 b ofs chunk v m2, storebytes m1 b ofs (encode_val chunk v) = Some m2 -> (align_chunk chunk | ofs) -> store chunk m1 b ofs v = Some m2.",
+            "VernacAssumption",
+            "2070a878aee104212f88af9fd4ff0f67a24ca200"
+        ],
+        [
+            "Axiom store_storebytes: forall m1 b ofs chunk v m2, store chunk m1 b ofs v = Some m2 -> storebytes m1 b ofs (encode_val chunk v) = Some m2.",
+            "VernacAssumption",
+            "9c4532a5ecec4d6c23099bf12af334004c20e697"
+        ],
+        [
+            "Axiom loadbytes_storebytes_same: forall m1 b ofs bytes m2, storebytes m1 b ofs bytes = Some m2 -> loadbytes m2 b ofs (Z.of_nat (length bytes)) = Some bytes.",
+            "VernacAssumption",
+            "ca0b47ebc78d18a014d420fed8df1c93aeb7a9be"
+        ],
+        [
+            "Axiom loadbytes_storebytes_other: forall m1 b ofs bytes m2, storebytes m1 b ofs bytes = Some m2 -> forall b' ofs' len, len >= 0 -> b' <> b \\/ ofs' + len <= ofs \\/ ofs + Z.of_nat (length bytes) <= ofs' -> loadbytes m2 b' ofs' len = loadbytes m1 b' ofs' len.",
+            "VernacAssumption",
+            "5030247fb5f5aeaa49429c685a293b3f42bab1cc"
+        ],
+        [
+            "Axiom load_storebytes_other: forall m1 b ofs bytes m2, storebytes m1 b ofs bytes = Some m2 -> forall chunk b' ofs', b' <> b \\/ ofs' + size_chunk chunk <= ofs \\/ ofs + Z.of_nat (length bytes) <= ofs' -> load chunk m2 b' ofs' = load chunk m1 b' ofs'.",
+            "VernacAssumption",
+            "37a8f9f35364842e8d7e7b216a5cd97f3f679918"
+        ],
+        [
+            "Axiom storebytes_concat: forall m b ofs bytes1 m1 bytes2 m2, storebytes m b ofs bytes1 = Some m1 -> storebytes m1 b (ofs + Z.of_nat(length bytes1)) bytes2 = Some m2 -> storebytes m b ofs (bytes1 ++ bytes2) = Some m2.",
+            "VernacAssumption",
+            "68247630ec57d02b985c3bdede38c5027b443224"
+        ],
+        [
+            "Axiom storebytes_split: forall m b ofs bytes1 bytes2 m2, storebytes m b ofs (bytes1 ++ bytes2) = Some m2 -> exists m1, storebytes m b ofs bytes1 = Some m1 /\\ storebytes m1 b (ofs + Z.of_nat(length bytes1)) bytes2 = Some m2.",
+            "VernacAssumption",
+            "c27610f6b16ca05dc01a27ffa96bd733cffe9f8e"
+        ],
+        [
+            "Axiom alloc_result: forall m1 lo hi m2 b, alloc m1 lo hi = (m2, b) -> b = nextblock m1.",
+            "VernacAssumption",
+            "8a19ff0ee33d9484f300582b9566c0a1292a49c1"
+        ],
+        [
+            "Axiom nextblock_alloc: forall m1 lo hi m2 b, alloc m1 lo hi = (m2, b) -> nextblock m2 = Pos.succ (nextblock m1).",
+            "VernacAssumption",
+            "a11f0adb13ce61d48ef36f716081311fb444abd3"
+        ],
+        [
+            "Axiom valid_block_alloc: forall m1 lo hi m2 b, alloc m1 lo hi = (m2, b) -> forall b', valid_block m1 b' -> valid_block m2 b'.",
+            "VernacAssumption",
+            "0ee772350ee8651ed64246447b5e1acfdb66f233"
+        ],
+        [
+            "Axiom fresh_block_alloc: forall m1 lo hi m2 b, alloc m1 lo hi = (m2, b) -> ~(valid_block m1 b).",
+            "VernacAssumption",
+            "0b2038834a6761908a744960f5eff7a7e3945b25"
+        ],
+        [
+            "Axiom valid_new_block: forall m1 lo hi m2 b, alloc m1 lo hi = (m2, b) -> valid_block m2 b.",
+            "VernacAssumption",
+            "80fb60669a230626bcf1fa8c290903230070ac69"
+        ],
+        [
+            "Axiom valid_block_alloc_inv: forall m1 lo hi m2 b, alloc m1 lo hi = (m2, b) -> forall b', valid_block m2 b' -> b' = b \\/ valid_block m1 b'.",
+            "VernacAssumption",
+            "c853d69afff6ae74b3c90add6b9ed343a81a2ec5"
+        ],
+        [
+            "Axiom perm_alloc_1: forall m1 lo hi m2 b, alloc m1 lo hi = (m2, b) -> forall b' ofs k p, perm m1 b' ofs k p -> perm m2 b' ofs k p.",
+            "VernacAssumption",
+            "71e5334903de5dc035a98316d7bf36a5f5ade7e4"
+        ],
+        [
+            "Axiom perm_alloc_2: forall m1 lo hi m2 b, alloc m1 lo hi = (m2, b) -> forall ofs k, lo <= ofs < hi -> perm m2 b ofs k Freeable.",
+            "VernacAssumption",
+            "f71cc1c05d814eff11844c0f8a51eae74995855a"
+        ],
+        [
+            "Axiom perm_alloc_3: forall m1 lo hi m2 b, alloc m1 lo hi = (m2, b) -> forall ofs k p, perm m2 b ofs k p -> lo <= ofs < hi.",
+            "VernacAssumption",
+            "a33544c095551c919bbacb7ffb261acb18c4a0ad"
+        ],
+        [
+            "Axiom perm_alloc_4: forall m1 lo hi m2 b, alloc m1 lo hi = (m2, b) -> forall b' ofs k p, perm m2 b' ofs k p -> b' <> b -> perm m1 b' ofs k p.",
+            "VernacAssumption",
+            "9d7a25128ac33d83aee499549ea7f610af25bc90"
+        ],
+        [
+            "Axiom perm_alloc_inv: forall m1 lo hi m2 b, alloc m1 lo hi = (m2, b) -> forall b' ofs k p, perm m2 b' ofs k p -> if eq_block b' b then lo <= ofs < hi else perm m1 b' ofs k p.",
+            "VernacAssumption",
+            "152739314e6963139179bf3634184698cfa769ef"
+        ],
+        [
+            "Axiom valid_access_alloc_other: forall m1 lo hi m2 b, alloc m1 lo hi = (m2, b) -> forall chunk b' ofs p, valid_access m1 chunk b' ofs p -> valid_access m2 chunk b' ofs p.",
+            "VernacAssumption",
+            "955dda0a295f94151b05b1e1dccab7098690bcf9"
+        ],
+        [
+            "Axiom valid_access_alloc_same: forall m1 lo hi m2 b, alloc m1 lo hi = (m2, b) -> forall chunk ofs, lo <= ofs -> ofs + size_chunk chunk <= hi -> (align_chunk chunk | ofs) -> valid_access m2 chunk b ofs Freeable.",
+            "VernacAssumption",
+            "f030075c5442c350cd097d9db5963df46ff38faf"
+        ],
+        [
+            "Axiom valid_access_alloc_inv: forall m1 lo hi m2 b, alloc m1 lo hi = (m2, b) -> forall chunk b' ofs p, valid_access m2 chunk b' ofs p -> if eq_block b' b then lo <= ofs /\\ ofs + size_chunk chunk <= hi /\\ (align_chunk chunk | ofs) else valid_access m1 chunk b' ofs p.",
+            "VernacAssumption",
+            "03280511857b1f4c1cda960c02cc596d3c3f6083"
+        ],
+        [
+            "Axiom load_alloc_unchanged: forall m1 lo hi m2 b, alloc m1 lo hi = (m2, b) -> forall chunk b' ofs, valid_block m1 b' -> load chunk m2 b' ofs = load chunk m1 b' ofs.",
+            "VernacAssumption",
+            "dd73c88dc6a39a0feb91b536fe803ff390e7f1a1"
+        ],
+        [
+            "Axiom load_alloc_other: forall m1 lo hi m2 b, alloc m1 lo hi = (m2, b) -> forall chunk b' ofs v, load chunk m1 b' ofs = Some v -> load chunk m2 b' ofs = Some v.",
+            "VernacAssumption",
+            "fa93b5bc42659136848f1403359209432f340b5f"
+        ],
+        [
+            "Axiom load_alloc_same: forall m1 lo hi m2 b, alloc m1 lo hi = (m2, b) -> forall chunk ofs v, load chunk m2 b ofs = Some v -> v = Vundef.",
+            "VernacAssumption",
+            "9d2d4f214d8ab747bbdded696c3afbc0a606b2e2"
+        ],
+        [
+            "Axiom load_alloc_same': forall m1 lo hi m2 b, alloc m1 lo hi = (m2, b) -> forall chunk ofs, lo <= ofs -> ofs + size_chunk chunk <= hi -> (align_chunk chunk | ofs) -> load chunk m2 b ofs = Some Vundef.",
+            "VernacAssumption",
+            "dfd1ce23f8961ee017343aaa5ced1fd75e61c760"
+        ],
+        [
+            "Axiom range_perm_free: forall m1 b lo hi, range_perm m1 b lo hi Cur Freeable -> { m2: mem | free m1 b lo hi = Some m2 }.",
+            "VernacAssumption",
+            "28a2c9f23fdca4980a9a9df5c86af5ba7d1ef73b"
+        ],
+        [
+            "Axiom free_range_perm: forall m1 bf lo hi m2, free m1 bf lo hi = Some m2 -> range_perm m1 bf lo hi Cur Freeable.",
+            "VernacAssumption",
+            "6fd2123029d5b448bacabd9e0e4952f88351f515"
+        ],
+        [
+            "Axiom nextblock_free: forall m1 bf lo hi m2, free m1 bf lo hi = Some m2 -> nextblock m2 = nextblock m1.",
+            "VernacAssumption",
+            "35fa168ae71d1e64fc704332a7f7533f6141fd2f"
+        ],
+        [
+            "Axiom valid_block_free_1: forall m1 bf lo hi m2, free m1 bf lo hi = Some m2 -> forall b, valid_block m1 b -> valid_block m2 b.",
+            "VernacAssumption",
+            "6f717686ead15deac68527370725d3a213118b7c"
+        ],
+        [
+            "Axiom valid_block_free_2: forall m1 bf lo hi m2, free m1 bf lo hi = Some m2 -> forall b, valid_block m2 b -> valid_block m1 b.",
+            "VernacAssumption",
+            "c1b260b1982c57a465e577e3b927cff6c17e3226"
+        ],
+        [
+            "Axiom perm_free_1: forall m1 bf lo hi m2, free m1 bf lo hi = Some m2 -> forall b ofs k p, b <> bf \\/ ofs < lo \\/ hi <= ofs -> perm m1 b ofs k p -> perm m2 b ofs k p.",
+            "VernacAssumption",
+            "d7e18f9ba7594a788e7c4c2e9eba8ace974070f0"
+        ],
+        [
+            "Axiom perm_free_2: forall m1 bf lo hi m2, free m1 bf lo hi = Some m2 -> forall ofs k p, lo <= ofs < hi -> ~ perm m2 bf ofs k p.",
+            "VernacAssumption",
+            "5f3a6e14062441df8053caa0881ac43cfbacc65c"
+        ],
+        [
+            "Axiom perm_free_3: forall m1 bf lo hi m2, free m1 bf lo hi = Some m2 -> forall b ofs k p, perm m2 b ofs k p -> perm m1 b ofs k p.",
+            "VernacAssumption",
+            "78d499956382fee3c4e68974aeea0ae41041a600"
+        ],
+        [
+            "Axiom valid_access_free_1: forall m1 bf lo hi m2, free m1 bf lo hi = Some m2 -> forall chunk b ofs p, valid_access m1 chunk b ofs p -> b <> bf \\/ lo >= hi \\/ ofs + size_chunk chunk <= lo \\/ hi <= ofs -> valid_access m2 chunk b ofs p.",
+            "VernacAssumption",
+            "eeb17f17519ef1d21167495e9a6f014f747eb7b2"
+        ],
+        [
+            "Axiom valid_access_free_2: forall m1 bf lo hi m2, free m1 bf lo hi = Some m2 -> forall chunk ofs p, lo < hi -> ofs + size_chunk chunk > lo -> ofs < hi -> ~(valid_access m2 chunk bf ofs p).",
+            "VernacAssumption",
+            "69c680f17681030870810153d42b05e82839137f"
+        ],
+        [
+            "Axiom valid_access_free_inv_1: forall m1 bf lo hi m2, free m1 bf lo hi = Some m2 -> forall chunk b ofs p, valid_access m2 chunk b ofs p -> valid_access m1 chunk b ofs p.",
+            "VernacAssumption",
+            "0e9549cd949f04e3163d4ff84840a1fe2b042572"
+        ],
+        [
+            "Axiom valid_access_free_inv_2: forall m1 bf lo hi m2, free m1 bf lo hi = Some m2 -> forall chunk ofs p, valid_access m2 chunk bf ofs p -> lo >= hi \\/ ofs + size_chunk chunk <= lo \\/ hi <= ofs.",
+            "VernacAssumption",
+            "d23ccca3bb4d9ac493767548bc0034da3e128b0a"
+        ],
+        [
+            "Axiom load_free: forall m1 bf lo hi m2, free m1 bf lo hi = Some m2 -> forall chunk b ofs, b <> bf \\/ lo >= hi \\/ ofs + size_chunk chunk <= lo \\/ hi <= ofs -> load chunk m2 b ofs = load chunk m1 b ofs.",
+            "VernacAssumption",
+            "1f9f1b16dda61935160adf3c78d437b2dab3a138"
+        ],
+        [
+            "Axiom nextblock_drop: forall m b lo hi p m', drop_perm m b lo hi p = Some m' -> nextblock m' = nextblock m.",
+            "VernacAssumption",
+            "3684e70e641ca1e3dfbd01c56bdf7ec8648b2486"
+        ],
+        [
+            "Axiom drop_perm_valid_block_1: forall m b lo hi p m', drop_perm m b lo hi p = Some m' -> forall b', valid_block m b' -> valid_block m' b'.",
+            "VernacAssumption",
+            "3e3d69b3fdcd37c5be39c05b42fde07555c60122"
+        ],
+        [
+            "Axiom drop_perm_valid_block_2: forall m b lo hi p m', drop_perm m b lo hi p = Some m' -> forall b', valid_block m' b' -> valid_block m b'.",
+            "VernacAssumption",
+            "132bc6732c8078a7d54eec68768a9057e8a95e21"
+        ],
+        [
+            "Axiom range_perm_drop_1: forall m b lo hi p m', drop_perm m b lo hi p = Some m' -> range_perm m b lo hi Cur Freeable.",
+            "VernacAssumption",
+            "242d64ff51730f82009ba4cb7125cdbb345ee5fc"
+        ],
+        [
+            "Axiom range_perm_drop_2: forall m b lo hi p, range_perm m b lo hi Cur Freeable -> { m' | drop_perm m b lo hi p = Some m' }.",
+            "VernacAssumption",
+            "4046a339253e754787b42c90af1e61e6bf3d97df"
+        ],
+        [
+            "Axiom perm_drop_1: forall m b lo hi p m', drop_perm m b lo hi p = Some m' -> forall ofs k, lo <= ofs < hi -> perm m' b ofs k p.",
+            "VernacAssumption",
+            "f66570530808036f11ed654fce76117da23feaa1"
+        ],
+        [
+            "Axiom perm_drop_2: forall m b lo hi p m', drop_perm m b lo hi p = Some m' -> forall ofs k p', lo <= ofs < hi -> perm m' b ofs k p' -> perm_order p p'.",
+            "VernacAssumption",
+            "f4c939d8a735c360f5a66ebee4d735a6d1c36bc3"
+        ],
+        [
+            "Axiom perm_drop_3: forall m b lo hi p m', drop_perm m b lo hi p = Some m' -> forall b' ofs k p', b' <> b \\/ ofs < lo \\/ hi <= ofs -> perm m b' ofs k p' -> perm m' b' ofs k p'.",
+            "VernacAssumption",
+            "0828b7bf970e00315e833ed52813a5d0254d7133"
+        ],
+        [
+            "Axiom perm_drop_4: forall m b lo hi p m', drop_perm m b lo hi p = Some m' -> forall b' ofs k p', perm m' b' ofs k p' -> perm m b' ofs k p'.",
+            "VernacAssumption",
+            "264846e1b0adeac13f63bcfbe2f63e907048ac5a"
+        ],
+        [
+            "Axiom load_drop: forall m b lo hi p m', drop_perm m b lo hi p = Some m' -> forall chunk b' ofs, b' <> b \\/ ofs + size_chunk chunk <= lo \\/ hi <= ofs \\/ perm_order p Readable -> load chunk m' b' ofs = load chunk m b' ofs.",
+            "VernacAssumption",
+            "45d2c7b8cd335eacd08f7c78a7b4715b10de4116"
+        ],
+        [
+            "Parameter extends: mem -> mem -> Prop.",
+            "VernacAssumption",
+            "2acf5723d44345489d01f762e93e1b55008df281"
+        ],
+        [
+            "Axiom extends_refl: forall m, extends m m.",
+            "VernacAssumption",
+            "6381672f75592a51b2202e0c4323161a2b8a094e"
+        ],
+        [
+            "Axiom load_extends: forall chunk m1 m2 b ofs v1, extends m1 m2 -> load chunk m1 b ofs = Some v1 -> exists v2, load chunk m2 b ofs = Some v2 /\\ Val.lessdef v1 v2.",
+            "VernacAssumption",
+            "edd6383513f1c8b9ed3f3edd4857ec24879d2503"
+        ],
+        [
+            "Axiom loadv_extends: forall chunk m1 m2 addr1 addr2 v1, extends m1 m2 -> loadv chunk m1 addr1 = Some v1 -> Val.lessdef addr1 addr2 -> exists v2, loadv chunk m2 addr2 = Some v2 /\\ Val.lessdef v1 v2.",
+            "VernacAssumption",
+            "e72f21a5daa9eeb7246d99a16026dba2a1927843"
+        ],
+        [
+            "Axiom loadbytes_extends: forall m1 m2 b ofs len bytes1, extends m1 m2 -> loadbytes m1 b ofs len = Some bytes1 -> exists bytes2, loadbytes m2 b ofs len = Some bytes2 /\\ list_forall2 memval_lessdef bytes1 bytes2.",
+            "VernacAssumption",
+            "47ad66fd3b28b13bb04e84d6faad3730ebd6dcc0"
+        ],
+        [
+            "Axiom store_within_extends: forall chunk m1 m2 b ofs v1 m1' v2, extends m1 m2 -> store chunk m1 b ofs v1 = Some m1' -> Val.lessdef v1 v2 -> exists m2', store chunk m2 b ofs v2 = Some m2' /\\ extends m1' m2'.",
+            "VernacAssumption",
+            "7703cd4b1e758e95300c44505d150ae89cbdf02c"
+        ],
+        [
+            "Axiom store_outside_extends: forall chunk m1 m2 b ofs v m2', extends m1 m2 -> store chunk m2 b ofs v = Some m2' -> (forall ofs', perm m1 b ofs' Cur Readable -> ofs <= ofs' < ofs + size_chunk chunk -> False) -> extends m1 m2'.",
+            "VernacAssumption",
+            "acef08c15d106028859fbffe4e862fd2910ec0a0"
+        ],
+        [
+            "Axiom storev_extends: forall chunk m1 m2 addr1 v1 m1' addr2 v2, extends m1 m2 -> storev chunk m1 addr1 v1 = Some m1' -> Val.lessdef addr1 addr2 -> Val.lessdef v1 v2 -> exists m2', storev chunk m2 addr2 v2 = Some m2' /\\ extends m1' m2'.",
+            "VernacAssumption",
+            "2a7d8fe2aab02006cad8651003f316525121e685"
+        ],
+        [
+            "Axiom storebytes_within_extends: forall m1 m2 b ofs bytes1 m1' bytes2, extends m1 m2 -> storebytes m1 b ofs bytes1 = Some m1' -> list_forall2 memval_lessdef bytes1 bytes2 -> exists m2', storebytes m2 b ofs bytes2 = Some m2' /\\ extends m1' m2'.",
+            "VernacAssumption",
+            "bb5672a6653ed5b5364d53e3eef2e2cd5889ca18"
+        ],
+        [
+            "Axiom storebytes_outside_extends: forall m1 m2 b ofs bytes2 m2', extends m1 m2 -> storebytes m2 b ofs bytes2 = Some m2' -> (forall ofs', perm m1 b ofs' Cur Readable -> ofs <= ofs' < ofs + Z.of_nat (length bytes2) -> False) -> extends m1 m2'.",
+            "VernacAssumption",
+            "9568bf8e2cac61f56ac98c92cd1241f537d8d46d"
+        ],
+        [
+            "Axiom alloc_extends: forall m1 m2 lo1 hi1 b m1' lo2 hi2, extends m1 m2 -> alloc m1 lo1 hi1 = (m1', b) -> lo2 <= lo1 -> hi1 <= hi2 -> exists m2', alloc m2 lo2 hi2 = (m2', b) /\\ extends m1' m2'.",
+            "VernacAssumption",
+            "0b7869c1706bdfffcf606789441d5542ca121ce9"
+        ],
+        [
+            "Axiom free_left_extends: forall m1 m2 b lo hi m1', extends m1 m2 -> free m1 b lo hi = Some m1' -> extends m1' m2.",
+            "VernacAssumption",
+            "da6819e7bdde29aa6c2c211b90496865381863d1"
+        ],
+        [
+            "Axiom free_right_extends: forall m1 m2 b lo hi m2', extends m1 m2 -> free m2 b lo hi = Some m2' -> (forall ofs k p, perm m1 b ofs k p -> lo <= ofs < hi -> False) -> extends m1 m2'.",
+            "VernacAssumption",
+            "14b9dbb2b7dc8740dcf2167468a7d52e276a4317"
+        ],
+        [
+            "Axiom free_parallel_extends: forall m1 m2 b lo hi m1', extends m1 m2 -> free m1 b lo hi = Some m1' -> exists m2', free m2 b lo hi = Some m2' /\\ extends m1' m2'.",
+            "VernacAssumption",
+            "d2844dd69a0ee1bde697dedb2ad82c562951f128"
+        ],
+        [
+            "Axiom valid_block_extends: forall m1 m2 b, extends m1 m2 -> (valid_block m1 b <-> valid_block m2 b).",
+            "VernacAssumption",
+            "c40c28d3e14d3a5cee3342e86bb61189bdc8953c"
+        ],
+        [
+            "Axiom perm_extends: forall m1 m2 b ofs k p, extends m1 m2 -> perm m1 b ofs k p -> perm m2 b ofs k p.",
+            "VernacAssumption",
+            "ec7a895c786101837287f9f4f73feaed6ec53e9a"
+        ],
+        [
+            "Axiom valid_access_extends: forall m1 m2 chunk b ofs p, extends m1 m2 -> valid_access m1 chunk b ofs p -> valid_access m2 chunk b ofs p.",
+            "VernacAssumption",
+            "1bcb0b1ed643bb8057daf92fd8f52380565de28b"
+        ],
+        [
+            "Axiom valid_pointer_extends: forall m1 m2 b ofs, extends m1 m2 -> valid_pointer m1 b ofs = true -> valid_pointer m2 b ofs = true.",
+            "VernacAssumption",
+            "1fc8f04043af3ac358fe99d51789d9ff3b15614b"
+        ],
+        [
+            "Axiom weak_valid_pointer_extends: forall m1 m2 b ofs, extends m1 m2 -> weak_valid_pointer m1 b ofs = true -> weak_valid_pointer m2 b ofs = true.",
+            "VernacAssumption",
+            "2b5dac9f03fe30431158aceb47c3fcbe03142bd4"
+        ],
+        [
+            "Parameter inject: meminj -> mem -> mem -> Prop.",
+            "VernacAssumption",
+            "1b88a78b954a6f34178530cd588759e5c7c69240"
+        ],
+        [
+            "Axiom valid_block_inject_1: forall f m1 m2 b1 b2 delta, f b1 = Some(b2, delta) -> inject f m1 m2 -> valid_block m1 b1.",
+            "VernacAssumption",
+            "585ea6faab388af34b2d42cd5f0fcf592138b859"
+        ],
+        [
+            "Axiom valid_block_inject_2: forall f m1 m2 b1 b2 delta, f b1 = Some(b2, delta) -> inject f m1 m2 -> valid_block m2 b2.",
+            "VernacAssumption",
+            "61459f2fbbe39c8c49842c6267c0d90e959992f2"
+        ],
+        [
+            "Axiom perm_inject: forall f m1 m2 b1 b2 delta ofs k p, f b1 = Some(b2, delta) -> inject f m1 m2 -> perm m1 b1 ofs k p -> perm m2 b2 (ofs + delta) k p.",
+            "VernacAssumption",
+            "93cd64757370c6a1bb898acd8d0aaca859cb6dfd"
+        ],
+        [
+            "Axiom valid_access_inject: forall f m1 m2 chunk b1 ofs b2 delta p, f b1 = Some(b2, delta) -> inject f m1 m2 -> valid_access m1 chunk b1 ofs p -> valid_access m2 chunk b2 (ofs + delta) p.",
+            "VernacAssumption",
+            "3156556582e7679db2b654077d6cc9d3b776a8d1"
+        ],
+        [
+            "Axiom valid_pointer_inject: forall f m1 m2 b1 ofs b2 delta, f b1 = Some(b2, delta) -> inject f m1 m2 -> valid_pointer m1 b1 ofs = true -> valid_pointer m2 b2 (ofs + delta) = true.",
+            "VernacAssumption",
+            "28a608ef0e32284644bbdef42a09c7720c0c41a3"
+        ],
+        [
+            "Axiom weak_valid_pointer_inject: forall f m1 m2 b1 ofs b2 delta, f b1 = Some(b2, delta) -> inject f m1 m2 -> weak_valid_pointer m1 b1 ofs = true -> weak_valid_pointer m2 b2 (ofs + delta) = true.",
+            "VernacAssumption",
+            "c3b0c45aabe6905178a6151b4839f59c686ab40e"
+        ],
+        [
+            "Axiom address_inject: forall f m1 m2 b1 ofs1 b2 delta p, inject f m1 m2 -> perm m1 b1 (Ptrofs.unsigned ofs1) Cur p -> f b1 = Some (b2, delta) -> Ptrofs.unsigned (Ptrofs.add ofs1 (Ptrofs.repr delta)) = Ptrofs.unsigned ofs1 + delta.",
+            "VernacAssumption",
+            "b6674c2a9a2a865d1fa11789872937264cf580ec"
+        ],
+        [
+            "Axiom valid_pointer_inject_no_overflow: forall f m1 m2 b ofs b' delta, inject f m1 m2 -> valid_pointer m1 b (Ptrofs.unsigned ofs) = true -> f b = Some(b', delta) -> 0 <= Ptrofs.unsigned ofs + Ptrofs.unsigned (Ptrofs.repr delta) <= Ptrofs.max_unsigned.",
+            "VernacAssumption",
+            "3e6a86000d2610c0d1372583f3aa632a2a5ebbfd"
+        ],
+        [
+            "Axiom weak_valid_pointer_inject_no_overflow: forall f m1 m2 b ofs b' delta, inject f m1 m2 -> weak_valid_pointer m1 b (Ptrofs.unsigned ofs) = true -> f b = Some(b', delta) -> 0 <= Ptrofs.unsigned ofs + Ptrofs.unsigned (Ptrofs.repr delta) <= Ptrofs.max_unsigned.",
+            "VernacAssumption",
+            "70344347c9d76b8f90e1432291b757fccf479a46"
+        ],
+        [
+            "Axiom valid_pointer_inject_val: forall f m1 m2 b ofs b' ofs', inject f m1 m2 -> valid_pointer m1 b (Ptrofs.unsigned ofs) = true -> Val.inject f (Vptr b ofs) (Vptr b' ofs') -> valid_pointer m2 b' (Ptrofs.unsigned ofs') = true.",
+            "VernacAssumption",
+            "1ea8ff83dd6d7f17784e426e8bd77514dd5f6b9d"
+        ],
+        [
+            "Axiom weak_valid_pointer_inject_val: forall f m1 m2 b ofs b' ofs', inject f m1 m2 -> weak_valid_pointer m1 b (Ptrofs.unsigned ofs) = true -> Val.inject f (Vptr b ofs) (Vptr b' ofs') -> weak_valid_pointer m2 b' (Ptrofs.unsigned ofs') = true.",
+            "VernacAssumption",
+            "171392f5b53f97abd195c734651ec59eed3b1e8e"
+        ],
+        [
+            "Axiom inject_no_overlap: forall f m1 m2 b1 b2 b1' b2' delta1 delta2 ofs1 ofs2, inject f m1 m2 -> b1 <> b2 -> f b1 = Some (b1', delta1) -> f b2 = Some (b2', delta2) -> perm m1 b1 ofs1 Max Nonempty -> perm m1 b2 ofs2 Max Nonempty -> b1' <> b2' \\/ ofs1 + delta1 <> ofs2 + delta2.",
+            "VernacAssumption",
+            "d33502f5a286b8bdc4f5d3d33871b508fa3c605f"
+        ],
+        [
+            "Axiom different_pointers_inject: forall f m m' b1 ofs1 b2 ofs2 b1' delta1 b2' delta2, inject f m m' -> b1 <> b2 -> valid_pointer m b1 (Ptrofs.unsigned ofs1) = true -> valid_pointer m b2 (Ptrofs.unsigned ofs2) = true -> f b1 = Some (b1', delta1) -> f b2 = Some (b2', delta2) -> b1' <> b2' \\/ Ptrofs.unsigned (Ptrofs.add ofs1 (Ptrofs.repr delta1)) <> Ptrofs.unsigned (Ptrofs.add ofs2 (Ptrofs.repr delta2)).",
+            "VernacAssumption",
+            "1032ed959dc1e117b960112a423ae36ed24abf4e"
+        ],
+        [
+            "Axiom load_inject: forall f m1 m2 chunk b1 ofs b2 delta v1, inject f m1 m2 -> load chunk m1 b1 ofs = Some v1 -> f b1 = Some (b2, delta) -> exists v2, load chunk m2 b2 (ofs + delta) = Some v2 /\\ Val.inject f v1 v2.",
+            "VernacAssumption",
+            "d2125d184b75f54922f4576c93f1bb17060468a0"
+        ],
+        [
+            "Axiom loadv_inject: forall f m1 m2 chunk a1 a2 v1, inject f m1 m2 -> loadv chunk m1 a1 = Some v1 -> Val.inject f a1 a2 -> exists v2, loadv chunk m2 a2 = Some v2 /\\ Val.inject f v1 v2.",
+            "VernacAssumption",
+            "af1c5410df5a55ba2dc19e331e3d11ae2c4b5733"
+        ],
+        [
+            "Axiom loadbytes_inject: forall f m1 m2 b1 ofs len b2 delta bytes1, inject f m1 m2 -> loadbytes m1 b1 ofs len = Some bytes1 -> f b1 = Some (b2, delta) -> exists bytes2, loadbytes m2 b2 (ofs + delta) len = Some bytes2 /\\ list_forall2 (memval_inject f) bytes1 bytes2.",
+            "VernacAssumption",
+            "6e68ea84b9a0688d630f6c45e8b49c937ebe6993"
+        ],
+        [
+            "Axiom store_mapped_inject: forall f chunk m1 b1 ofs v1 n1 m2 b2 delta v2, inject f m1 m2 -> store chunk m1 b1 ofs v1 = Some n1 -> f b1 = Some (b2, delta) -> Val.inject f v1 v2 -> exists n2, store chunk m2 b2 (ofs + delta) v2 = Some n2 /\\ inject f n1 n2.",
+            "VernacAssumption",
+            "715af4b9c3fb1131f2688516f21975599d3993e2"
+        ],
+        [
+            "Axiom store_unmapped_inject: forall f chunk m1 b1 ofs v1 n1 m2, inject f m1 m2 -> store chunk m1 b1 ofs v1 = Some n1 -> f b1 = None -> inject f n1 m2.",
+            "VernacAssumption",
+            "eb8dbd62c9c6abdfe478718f8e6f14e4269c32eb"
+        ],
+        [
+            "Axiom store_outside_inject: forall f m1 m2 chunk b ofs v m2', inject f m1 m2 -> (forall b' delta ofs', f b' = Some(b, delta) -> perm m1 b' ofs' Cur Readable -> ofs <= ofs' + delta < ofs + size_chunk chunk -> False) -> store chunk m2 b ofs v = Some m2' -> inject f m1 m2'.",
+            "VernacAssumption",
+            "238a8622f9bcc0977144ea15dba650cde94178f2"
+        ],
+        [
+            "Axiom storev_mapped_inject: forall f chunk m1 a1 v1 n1 m2 a2 v2, inject f m1 m2 -> storev chunk m1 a1 v1 = Some n1 -> Val.inject f a1 a2 -> Val.inject f v1 v2 -> exists n2, storev chunk m2 a2 v2 = Some n2 /\\ inject f n1 n2.",
+            "VernacAssumption",
+            "74cf819a33c82d3cf14085bac32b5dcf8d5921f3"
+        ],
+        [
+            "Axiom storebytes_mapped_inject: forall f m1 b1 ofs bytes1 n1 m2 b2 delta bytes2, inject f m1 m2 -> storebytes m1 b1 ofs bytes1 = Some n1 -> f b1 = Some (b2, delta) -> list_forall2 (memval_inject f) bytes1 bytes2 -> exists n2, storebytes m2 b2 (ofs + delta) bytes2 = Some n2 /\\ inject f n1 n2.",
+            "VernacAssumption",
+            "9a87e0a94a95cbef48340516eb59aa09c737196e"
+        ],
+        [
+            "Axiom storebytes_unmapped_inject: forall f m1 b1 ofs bytes1 n1 m2, inject f m1 m2 -> storebytes m1 b1 ofs bytes1 = Some n1 -> f b1 = None -> inject f n1 m2.",
+            "VernacAssumption",
+            "a9908a204cfa304c46317ad261bb212ce8129a37"
+        ],
+        [
+            "Axiom storebytes_outside_inject: forall f m1 m2 b ofs bytes2 m2', inject f m1 m2 -> (forall b' delta ofs', f b' = Some(b, delta) -> perm m1 b' ofs' Cur Readable -> ofs <= ofs' + delta < ofs + Z.of_nat (length bytes2) -> False) -> storebytes m2 b ofs bytes2 = Some m2' -> inject f m1 m2'.",
+            "VernacAssumption",
+            "dff0903171ef4ed963c3add03ab7735c79a9a589"
+        ],
+        [
+            "Axiom alloc_right_inject: forall f m1 m2 lo hi b2 m2', inject f m1 m2 -> alloc m2 lo hi = (m2', b2) -> inject f m1 m2'.",
+            "VernacAssumption",
+            "6f24a842ac279226e2e4181d6119f9f169d369b5"
+        ],
+        [
+            "Axiom alloc_left_unmapped_inject: forall f m1 m2 lo hi m1' b1, inject f m1 m2 -> alloc m1 lo hi = (m1', b1) -> exists f', inject f' m1' m2 /\\ inject_incr f f' /\\ f' b1 = None /\\ (forall b, b <> b1 -> f' b = f b).",
+            "VernacAssumption",
+            "b5857c7490f6ce5c3a91044aeba3b6a98f50d0f2"
+        ],
+        [
+            "Definition inj_offset_aligned (delta: Z) (size: Z) : Prop := forall chunk, size_chunk chunk <= size -> (align_chunk chunk | delta).",
+            "VernacDefinition",
+            "71ce9e31051ba831fcee8f36bd69ffe62e361619"
+        ],
+        [
+            "Axiom alloc_left_mapped_inject: forall f m1 m2 lo hi m1' b1 b2 delta, inject f m1 m2 -> alloc m1 lo hi = (m1', b1) -> valid_block m2 b2 -> 0 <= delta <= Ptrofs.max_unsigned -> (forall ofs k p, perm m2 b2 ofs k p -> delta = 0 \\/ 0 <= ofs < Ptrofs.max_unsigned) -> (forall ofs k p, lo <= ofs < hi -> perm m2 b2 (ofs + delta) k p) -> inj_offset_aligned delta (hi-lo) -> (forall b delta' ofs k p, f b = Some (b2, delta') -> perm m1 b ofs k p -> lo + delta <= ofs + delta' < hi + delta -> False) -> exists f', inject f' m1' m2 /\\ inject_incr f f' /\\ f' b1 = Some(b2, delta) /\\ (forall b, b <> b1 -> f' b = f b).",
+            "VernacAssumption",
+            "cf364b1d3df822830e76dba4b9416dbf506c6a58"
+        ],
+        [
+            "Axiom alloc_parallel_inject: forall f m1 m2 lo1 hi1 m1' b1 lo2 hi2, inject f m1 m2 -> alloc m1 lo1 hi1 = (m1', b1) -> lo2 <= lo1 -> hi1 <= hi2 -> exists f', exists m2', exists b2, alloc m2 lo2 hi2 = (m2', b2) /\\ inject f' m1' m2' /\\ inject_incr f f' /\\ f' b1 = Some(b2, 0) /\\ (forall b, b <> b1 -> f' b = f b).",
+            "VernacAssumption",
+            "b021aa1c33052be7716f3e39e0faba3f12e18003"
+        ],
+        [
+            "Axiom free_inject: forall f m1 l m1' m2 b lo hi m2', inject f m1 m2 -> free_list m1 l = Some m1' -> free m2 b lo hi = Some m2' -> (forall b1 delta ofs k p, f b1 = Some(b, delta) -> perm m1 b1 ofs k p -> lo <= ofs + delta < hi -> exists lo1, exists hi1, In (b1, lo1, hi1) l /\\ lo1 <= ofs < hi1) -> inject f m1' m2'.",
+            "VernacAssumption",
+            "5246d8f23d6ddd808913d493c3e750cab1ebb1fd"
+        ],
+        [
+            "Axiom free_parallel_inject: forall f m1 m2 b lo hi m1' b' delta, inject f m1 m2 -> free m1 b lo hi = Some m1' -> f b = Some(b', delta) -> exists m2', free m2 b' (lo + delta) (hi + delta) = Some m2' /\\ inject f m1' m2'.",
+            "VernacAssumption",
+            "ca1880139d2fcaf3d1ff0df3ea721deacaa3cf50"
+        ],
+        [
+            "Axiom drop_outside_inject: forall f m1 m2 b lo hi p m2', inject f m1 m2 -> drop_perm m2 b lo hi p = Some m2' -> (forall b' delta ofs k p, f b' = Some(b, delta) -> perm m1 b' ofs k p -> lo <= ofs + delta < hi -> False) -> inject f m1 m2'.",
+            "VernacAssumption",
+            "32e6acd7987babfd74e3792bb48e67200b64f8f9"
+        ],
+        [
+            "Definition flat_inj (thr: block) : meminj := fun (b: block) => if plt b thr then Some(b, 0) else None.",
+            "VernacDefinition",
+            "102d4a41e8de7d7164223b6557357a96efafc750"
+        ],
+        [
+            "Parameter inject_neutral: forall (thr: block) (m: mem), Prop.",
+            "VernacAssumption",
+            "8a2e83d7745479be00bfa715734fa9823c45a7fb"
+        ],
+        [
+            "Axiom neutral_inject: forall m, inject_neutral (nextblock m) m -> inject (flat_inj (nextblock m)) m m.",
+            "VernacAssumption",
+            "521292e8878028c294a8f5a9736b70701cd285d7"
+        ],
+        [
+            "Axiom empty_inject_neutral: forall thr, inject_neutral thr empty.",
+            "VernacAssumption",
+            "84ba2df06cadb6c385a48be9b749a7471aefb947"
+        ],
+        [
+            "Axiom alloc_inject_neutral: forall thr m lo hi b m', alloc m lo hi = (m', b) -> inject_neutral thr m -> Plt (nextblock m) thr -> inject_neutral thr m'.",
+            "VernacAssumption",
+            "ce493db69b373420f288601f8b5567082a939480"
+        ],
+        [
+            "Axiom store_inject_neutral: forall chunk m b ofs v m' thr, store chunk m b ofs v = Some m' -> inject_neutral thr m -> Plt b thr -> Val.inject (flat_inj thr) v v -> inject_neutral thr m'.",
+            "VernacAssumption",
+            "0508db8d31460c66b6dcd5d400ade540aad7e55e"
+        ],
+        [
+            "Axiom drop_inject_neutral: forall m b lo hi p m' thr, drop_perm m b lo hi p = Some m' -> inject_neutral thr m -> Plt b thr -> inject_neutral thr m'.",
+            "VernacAssumption",
+            "da16dba0bc2ab09cd1168dfa80a9bb3dbba36ca8"
+        ],
+        [
+            "End MEM.",
+            "VernacEndSegment",
+            "eac2790d5159a9c133836f6a4ae68789b98d1e57"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "perm_order_trans",
+            "line_nb": 9,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H; inv H0; constructor.",
+                        "VernacExtend",
+                        "d86bb03f93c4842b7890e302a9d4fcc2d64d594c"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

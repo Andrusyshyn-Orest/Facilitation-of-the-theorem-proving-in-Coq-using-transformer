@@ -1,0 +1,974 @@
+{
+    "filename": "Rgeometry_tools.v",
+    "coq_project": "area-method",
+    "vernac_cmds": [
+        [
+            "Require Export geometry_tools_lemmas.",
+            "VernacRequire",
+            "0287621d650647131c218e1ebe2ff0e2bbd7f456"
+        ],
+        [
+            "Require Export general_tactics.",
+            "VernacRequire",
+            "97e3f39181ac8d0952b5e8a3f95b269cee25da8c"
+        ],
+        [
+            "Require Import List.",
+            "VernacRequire",
+            "d9bcce4a390afeb160107bf87c6f7abe3d82c6d6"
+        ],
+        [
+            "Require Import Quote.",
+            "VernacRequire",
+            "877af0330d8ca8ae76cae126a7eb6fdb55008ece"
+        ],
+        [
+            "Inductive AVars : Type := | PVar : Point -> AVars | FVar : F -> AVars.",
+            "VernacInductive",
+            "7adcb44df0230ff2db0527670ffb3f479248b240"
+        ],
+        [
+            "Inductive AP : Type := | APvar : nat -> AP.",
+            "VernacInductive",
+            "2a2a8350d071214e09516ce4e92205bb6b055af7"
+        ],
+        [
+            "Inductive AF : Type := | AS : nat -> nat -> nat -> AF | AD : nat -> nat -> AF | AFvar : nat -> AF | AF0 : AF | AF1 : AF | AFplus : AF -> AF -> AF | AFmult : AF -> AF -> AF | AFopp : AF -> AF | AFinv : AF -> AF.",
+            "VernacInductive",
+            "9d9ee574abc34c62979b0d4cac4ccb8ca3ee947b"
+        ],
+        [
+            "Ltac List_mem var lvar := match constr:(lvar) with | nil => constr:(false) | cons ?X1 ?X2 => match constr:(X1 = var) with | (?X1 = ?X1) => constr:(true) | _ => List_mem var X2 end end.",
+            "VernacExtend",
+            "02623d7a1ff2b4a579c4fdfa012ccbd734df50c4"
+        ],
+        [
+            "Ltac build_var_point_list_aux lvar point := let res := List_mem (PVar point) lvar in match constr:(res) with | true => lvar | false => constr:(cons (PVar point) lvar) end.",
+            "VernacExtend",
+            "ce73e4fd37f437e163e82a3f8d73e0ed7bc6f4a2"
+        ],
+        [
+            "Ltac build_var_list_aux lvar trm := match constr:(trm) with | F0 => lvar | F1 => lvar | (Fplus ?X1 ?X2) => let l2 := build_var_list_aux lvar X2 in build_var_list_aux l2 X1 | (Fmult ?X1 ?X2) => let l2 := build_var_list_aux lvar X2 in build_var_list_aux l2 X1 | (Fopp ?X1) => build_var_list_aux lvar X1 | (Finv ?X1) => build_var_list_aux lvar X1 | (S ?X1 ?X2 ?X3) => let l1 := build_var_point_list_aux lvar X3 in let l2 := build_var_point_list_aux l1 X2 in build_var_point_list_aux l2 X1 | (DSeg ?X1 ?X2) => let l1 := build_var_point_list_aux lvar X2 in build_var_point_list_aux l1 X1 | (?X1 = ?X2) => let l2 := build_var_point_list_aux lvar X2 in build_var_point_list_aux l2 X1 | ?X1 => let res := List_mem (FVar X1) lvar in match constr:(res) with | true => lvar | false => constr:(cons (FVar X1) lvar) end end.",
+            "VernacExtend",
+            "2156857f171e3c9990087510bff4b8cea565dc74"
+        ],
+        [
+            "Ltac build_var_list trm := build_var_list_aux (@nil AVars) trm.",
+            "VernacExtend",
+            "521cf37cd9272becfbd08412f0b3d7044bedd8c3"
+        ],
+        [
+            "Ltac List_assoc elt lst := match constr:(lst) with | nil => fail | (cons (@pairT AVars nat ?X1 ?X2) ?X3) => match constr:(elt = X1) with | (?X1 = ?X1) => constr:(X2) | _ => List_assoc elt X3 end end.",
+            "VernacExtend",
+            "c736c8daa6c1785eb02f452926873298328ba979"
+        ],
+        [
+            "Ltac number_aux lvar cpt := match constr:(lvar) with | nil => constr:(@nil (prodT AVars nat)) | cons ?X2 ?X3 => let l2 := number_aux X3 (Datatypes.S cpt) in constr:(cons (@pairT AVars nat X2 cpt) l2) end.",
+            "VernacExtend",
+            "4a3fdfe91631db79618ebf7fa2f255942e1f923d"
+        ],
+        [
+            "Ltac number lvar := number_aux lvar (Datatypes.O).",
+            "VernacExtend",
+            "82b28e474788c22edc2e1d7b9844c14be02290e9"
+        ],
+        [
+            "Ltac build_numbered_var_list trm := let lvar := build_var_list trm in number lvar.",
+            "VernacExtend",
+            "25d8a0ab871bd71bd5620af0b70a3a73ac3cb94a"
+        ],
+        [
+            "Definition list_assoc_inv := (fix list_assoc_inv_rec (A:Type) (B:Set) (eq_dec:forall e1 e2:B, {e1 = e2} + {e1 <> e2}) (lst:list (prodT A B)) {struct lst} : B -> A -> A := fun (key:B) (default:A) => match lst with | nil => default | cons (pairT v e) l => match eq_dec e key with | left _ => v | right _ => list_assoc_inv_rec A B eq_dec l key default end end).",
+            "VernacDefinition",
+            "b1695451fbc01fc5badcfbf2ad2b3662826bfdec"
+        ],
+        [
+            "Parameter SomeValue :AVars.",
+            "VernacAssumption",
+            "2fae86424b9a1cc133c0cdb4fe8a40f80da900f2"
+        ],
+        [
+            "Parameter SomePoint :Point.",
+            "VernacAssumption",
+            "0092298c3f45e48beb673b3e60dc6f11b730d87f"
+        ],
+        [
+            "Definition interp_AP_to_Point (lvar:list (prodT AVars nat)) (e:nat) : Point := match(list_assoc_inv AVars nat eq_nat_dec lvar e SomeValue) with | PVar p => p | _ => SomePoint end .",
+            "VernacDefinition",
+            "e2a2fea788c22e83304778d21c4eb9fba673dc94"
+        ],
+        [
+            "Fixpoint interp_AF_to_F (lvar:list (prodT AVars nat)) (e:AF) {struct e} : F := match e with | AF0 => F0 | AF1 => F1 | AS e1 e2 e3 => let idx1 := (interp_AP_to_Point lvar e1) in S idx1 (interp_AP_to_Point lvar e2) (interp_AP_to_Point lvar e3) | AD e1 e2 => DSeg (interp_AP_to_Point lvar e1) (interp_AP_to_Point lvar e2) | AFplus e1 e2 => Fplus (interp_AF_to_F lvar e1) (interp_AF_to_F lvar e2) | AFmult e1 e2 => Fmult (interp_AF_to_F lvar e1) (interp_AF_to_F lvar e2) | AFopp e => Fopp (interp_AF_to_F lvar e) | AFinv e => Finv (interp_AF_to_F lvar e) | AFvar n => match(list_assoc_inv AVars nat eq_nat_dec lvar n SomeValue) with | FVar f => f | _ => F0 end end.",
+            "VernacFixpoint",
+            "af779844fe2854fc6ca25d4be8ffc292ba12ef97"
+        ],
+        [
+            "Ltac interp_A lvar trm := match constr:(trm) with | F0 => constr:(AF0) | F1 => constr:(AF1) | (Fplus ?X1 ?X2) => let e1 := interp_A lvar X1 with e2 := interp_A lvar X2 in constr:(AFplus e1 e2) | (Fmult ?X1 ?X2) => let e1 := interp_A lvar X1 with e2 := interp_A lvar X2 in constr:(AFmult e1 e2) | (Fopp ?X1) => let e := interp_A lvar X1 in constr:(AFopp e) | (Finv ?X1) => let e := interp_A lvar X1 in constr:(AFinv e) | (S ?X1 ?X2 ?X3) => let idx1 := List_assoc (PVar X1) lvar with idx2 := List_assoc (PVar X2) lvar with idx3 := List_assoc (PVar X3) lvar in constr:(AS idx1 idx2 idx3) | (DSeg ?X1 ?X2) => let idx1 := List_assoc (PVar X1) lvar with idx2 := List_assoc (PVar X2) lvar in constr:(AD idx1 idx2) | ?X1 => let idx := List_assoc (FVar X1) lvar in constr:(AFvar idx) end.",
+            "VernacExtend",
+            "48f2e2ca018a0ce8dbfe6a4f89fba2c1ca2c8fd6"
+        ],
+        [
+            "Fixpoint nateq (n m:nat) {struct m} : bool := match n, m with | O, O => true | Datatypes.S n', Datatypes.S m' => nateq n' m' | _, _ => false end.",
+            "VernacFixpoint",
+            "7c020710af7e6f0462000e161e7619efec81129f"
+        ],
+        [
+            "Lemma nateq_prop : forall n m:nat, (Is_true (nateq n m))-> n=m.",
+            "VernacStartTheoremProof",
+            "94c413c34bf05bcc194415dce51b49093cad0f24"
+        ],
+        [
+            "simple induction n; simple induction m; intros; try contradiction.",
+            "VernacExtend",
+            "662074fc177bf9b37e57cca810e69cc6e58b5d61"
+        ],
+        [
+            "trivial.",
+            "VernacExtend",
+            "6704630005ea37c1f66f817f0d3cb83967ca08c5"
+        ],
+        [
+            "unfold Is_true in H1.",
+            "VernacExtend",
+            "5e01f5cba7e73684b0d676dfa1f2278853403fc0"
+        ],
+        [
+            "rewrite (H n1 H1).",
+            "VernacExtend",
+            "22ea9a0812f254ee1e4456358c43b6ad5c1d589d"
+        ],
+        [
+            "trivial.",
+            "VernacExtend",
+            "6704630005ea37c1f66f817f0d3cb83967ca08c5"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Fixpoint simplif (e:AF) {struct e} : AF := match e with | AFplus e1 e2 => let s1 := (simplif e1) in let s2 := (simplif e2) in match s1 with AF0 => s2 |_ => match s2 with AF0 => s1 |_ => AFplus s1 s2 end end | AFmult e1 e2 => let s1 := (simplif e1) in let s2 := (simplif e2) in match s1 with AF0 => AF0 |AF1 => s2 |_ => match s2 with AF0 => AF0 |AF1 => s1 |_ => AFmult s1 s2 end end | AFopp e => let s := (simplif e) in match s with AF0 => AF0 | AFopp e1 => e1 | _ => AFopp s end | AS e1 e2 e3 => if (nateq e1 e2) then AF0 else (if (nateq e1 e3) then AF0 else (if (nateq e2 e3) then AF0 else e)) | AD e1 e2 => if (nateq e1 e2) then AF0 else e | _ => e end.",
+            "VernacFixpoint",
+            "114e590d7f305c00f4048b468cf2989c86202830"
+        ],
+        [
+            "Lemma simplif_correct : forall (e:AF) (lvar:list (prodT AVars nat)), interp_AF_to_F lvar (simplif e) = interp_AF_to_F lvar e.",
+            "VernacStartTheoremProof",
+            "c361e748ed7dd765c39bfacbd23aee0ad0b2b824"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "induction e;trivial;simpl interp_AF_to_F at 2.",
+            "VernacExtend",
+            "4b39ab5f49e42025ebcfc3ff40eb4ffc838d90cd"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "assert (T:=(nateq_prop n n0)).",
+            "VernacExtend",
+            "c65d239e6f5afeaf7deff5d04c761fa032c5c388"
+        ],
+        [
+            "destruct (nateq n n0).",
+            "VernacExtend",
+            "7db538763ea21a86412cbdf8b4ce098f2b08f596"
+        ],
+        [
+            "replace n with n0.",
+            "VernacExtend",
+            "016f906ab7d1c5a2591a0930545de72cc280fee3"
+        ],
+        [
+            "replace (S (interp_AP_to_Point lvar n0) (interp_AP_to_Point lvar n0) (interp_AP_to_Point lvar n1)) with 0;auto;apply trivial_col1.",
+            "VernacExtend",
+            "13cdb8a58789f60c9a86800067f0eceb85a93094"
+        ],
+        [
+            "symmetry;apply T;unfold Is_true;auto.",
+            "VernacExtend",
+            "4e15dc2a03e534703395d62dbb44bf93bb3553fb"
+        ],
+        [
+            "assert (T2:=(nateq_prop n n1)).",
+            "VernacExtend",
+            "81d9cb73cf4492c6a26c2f526e0643ef3e508d7e"
+        ],
+        [
+            "destruct (nateq n n1).",
+            "VernacExtend",
+            "07dab203fd0201360973ce1c1693a9e9079f8560"
+        ],
+        [
+            "replace n with n1.",
+            "VernacExtend",
+            "fff48ad77784515a2ef956dcfcf7a2564200cff9"
+        ],
+        [
+            "replace (S (interp_AP_to_Point lvar n1) (interp_AP_to_Point lvar n0) (interp_AP_to_Point lvar n1)) with 0;auto;apply trivial_col3.",
+            "VernacExtend",
+            "3be40b3f79cb5b5713634b93c5f94a499b78018a"
+        ],
+        [
+            "symmetry;apply T2;unfold Is_true;auto.",
+            "VernacExtend",
+            "28720a52d56b2a558ca905a2cd73145d64cd2c8d"
+        ],
+        [
+            "assert (T3:=(nateq_prop n0 n1)).",
+            "VernacExtend",
+            "603ca1c0b8d40fb9b7d0f1fde7be822bf0193b64"
+        ],
+        [
+            "destruct (nateq n0 n1).",
+            "VernacExtend",
+            "5df994bbe320e3d939c534e7a953039c67163b28"
+        ],
+        [
+            "replace n0 with n1.",
+            "VernacExtend",
+            "d1dddefeae6c9803b869c6db0d951dbe472b1953"
+        ],
+        [
+            "replace (S (interp_AP_to_Point lvar n) (interp_AP_to_Point lvar n1) (interp_AP_to_Point lvar n1)) with 0;auto;apply trivial_col2.",
+            "VernacExtend",
+            "d6edc3947144cc07958e8d3a8b1e3cfbdf85f9a6"
+        ],
+        [
+            "symmetry;apply T3;unfold Is_true;auto.",
+            "VernacExtend",
+            "c823b60c2657e0ad1588f2873a00f1bea6e14425"
+        ],
+        [
+            "simpl;auto.",
+            "VernacExtend",
+            "9b631374b1d3067f703fd99c5dc6e1e5c8405957"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "assert (T:=(nateq_prop n n0)).",
+            "VernacExtend",
+            "c65d239e6f5afeaf7deff5d04c761fa032c5c388"
+        ],
+        [
+            "destruct (nateq n n0).",
+            "VernacExtend",
+            "7db538763ea21a86412cbdf8b4ce098f2b08f596"
+        ],
+        [
+            "replace n with n0.",
+            "VernacExtend",
+            "016f906ab7d1c5a2591a0930545de72cc280fee3"
+        ],
+        [
+            "apply nuldirseg.",
+            "VernacExtend",
+            "ec6800e7118a49eac4b51d8b1c786d564429ffc9"
+        ],
+        [
+            "symmetry;apply T;unfold Is_true;auto.",
+            "VernacExtend",
+            "4e15dc2a03e534703395d62dbb44bf93bb3553fb"
+        ],
+        [
+            "simpl;auto.",
+            "VernacExtend",
+            "9b631374b1d3067f703fd99c5dc6e1e5c8405957"
+        ],
+        [
+            "rewrite <- IHe1;rewrite <- IHe2;simpl simplif at 1;destruct (simplif e1);destruct (simplif e2);trivial;simpl;ring.",
+            "VernacExtend",
+            "6f471dcb401383c123d4f27b5039bd4a1bcec215"
+        ],
+        [
+            "rewrite <- IHe1;rewrite <- IHe2;simpl simplif at 1;destruct (simplif e1);destruct (simplif e2);trivial;simpl;ring.",
+            "VernacExtend",
+            "6f471dcb401383c123d4f27b5039bd4a1bcec215"
+        ],
+        [
+            "rewrite <- IHe;simpl simplif at 1;destruct (simplif e);trivial;simpl;ring.",
+            "VernacExtend",
+            "ff566c6457f6f65a65aa796d253ed491d60b9e84"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Ltac simplif_term exp := let lvar := build_numbered_var_list exp in let trm := interp_A lvar exp in let trm2 :=constr:(interp_AF_to_F lvar (simplif trm)) in (replace exp with trm2 in *;[simpl|rewrite simplif_correct;trivial]).",
+            "VernacExtend",
+            "033802338060f7facbf09cc57a4aaef199fe0989"
+        ],
+        [
+            "Ltac Rbasic_simpl := match goal with _:_ |- ?X1 = ?X2 => simplif_term X1;simplif_term X2;unfold interp_AP_to_Point;simpl end.",
+            "VernacExtend",
+            "8fd701a2600631575c95e8dc69b864a68253d98e"
+        ],
+        [
+            "Fixpoint natle (n m:nat) {struct m} : bool := match n, m with | O, O => true | O, Datatypes.S n' => true | Datatypes.S n', Datatypes.S m' => natle n' m' | _, _ => false end.",
+            "VernacFixpoint",
+            "b572eb1bdf19cb701ef0ed62aaa571c906a485a4"
+        ],
+        [
+            "Fixpoint uniformize_areas (e:AF) {struct e} : AF := match e with | AFplus e1 e2 => let s1 := (uniformize_areas e1) in let s2 := (uniformize_areas e2) in AFplus s1 s2 | AFmult e1 e2 => let s1 := (uniformize_areas e1) in let s2 := (uniformize_areas e2) in AFmult s1 s2 | AFopp e1 => let s1 := (uniformize_areas e1) in AFopp s1 | AFinv e1 => let s1 := (uniformize_areas e1) in AFinv s1 | AS e1 e2 e3 => if (natle e1 e2) then (if (natle e2 e3) then (AS e1 e2 e3) else (if (natle e1 e3) then (AFopp (AS e1 e3 e2)) else (AS e3 e1 e2))) else (if (natle e2 e3) then (if (natle e1 e3) then (AFopp (AS e2 e1 e3)) else (AS e2 e3 e1)) else (AFopp (AS e3 e2 e1))) | AD e1 e2 => if (natle e1 e2) then (AD e1 e2) else (AFopp (AD e2 e1)) | _ => e end.",
+            "VernacFixpoint",
+            "12dbae4beba0c40fea2c0a773fa77098be95639b"
+        ],
+        [
+            "Lemma uniformize_areas_correct : forall (e:AF) (lvar:list (prodT AVars nat)), interp_AF_to_F lvar (uniformize_areas e) = interp_AF_to_F lvar e.",
+            "VernacStartTheoremProof",
+            "cc576857ec78df88c5337bc983da86833d7a3566"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "induction e;trivial;simpl interp_AF_to_F at 2.",
+            "VernacExtend",
+            "4b39ab5f49e42025ebcfc3ff40eb4ffc838d90cd"
+        ],
+        [
+            "simpl;case (natle n n0);case (natle n0 n1);case (natle n n1);simpl;Geometry.",
+            "VernacExtend",
+            "3b481e0b692b0dbd14c701b0151f4fad769f8524"
+        ],
+        [
+            "simpl;case (natle n n0);simpl;symmetry;Geometry.",
+            "VernacExtend",
+            "a34d188df9488df808bc6f5e55342a2decae7242"
+        ],
+        [
+            "rewrite <- IHe1;rewrite <- IHe2;simpl uniformize_areas at 1;destruct (uniformize_areas e1);destruct (uniformize_areas e2);trivial;ring.",
+            "VernacExtend",
+            "6ca02417d020e47922c12ee306cddf9c9a759985"
+        ],
+        [
+            "rewrite <- IHe1;rewrite <- IHe2;simpl uniformize_areas at 1;destruct (uniformize_areas e1);destruct (uniformize_areas e2);trivial;ring.",
+            "VernacExtend",
+            "6ca02417d020e47922c12ee306cddf9c9a759985"
+        ],
+        [
+            "rewrite <- IHe;simpl uniformize_areas at 1;destruct (uniformize_areas e);trivial;ring.",
+            "VernacExtend",
+            "0c6060aa1628bd226ed028932abadf464e1b1281"
+        ],
+        [
+            "rewrite <- IHe;simpl uniformize_areas at 1;destruct (uniformize_areas e);trivial;ring.",
+            "VernacExtend",
+            "0c6060aa1628bd226ed028932abadf464e1b1281"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Ltac generalize_all := repeat match goal with H:_ |- _ => revert H end.",
+            "VernacExtend",
+            "6ff2d05819d70edc42292511185866ec71028fe7"
+        ],
+        [
+            "Ltac uniformize_term exp lvar := let trm := interp_A lvar exp in let trm2 :=constr:(interp_AF_to_F lvar (uniformize_areas trm)) in (replace exp with trm2;[idtac|rewrite uniformize_areas_correct;trivial]).",
+            "VernacExtend",
+            "e0bc84533bfe80d8469f87b864262746384c4f79"
+        ],
+        [
+            "Inductive formula : Type := | f_imp : formula -> formula -> formula | f_const : Prop -> formula .",
+            "VernacInductive",
+            "fd7ba172bd56876d30c717c76656f98c1444c66a"
+        ],
+        [
+            "Inductive formula2 : Type := | f_imp2 : formula2 -> formula2 -> formula2 | f_neq : AF -> AF -> formula2 | f_eq : AF -> AF -> formula2.",
+            "VernacInductive",
+            "4c2f58e4886ed1e9ebacfcd21f2679e5cb979ed1"
+        ],
+        [
+            "Fixpoint uniformize_areas_formula2 (e:formula2) {struct e} : formula2 := match e with | f_imp2 e1 e2 => let s1 := (uniformize_areas_formula2 e1) in let s2 := (uniformize_areas_formula2 e2) in f_imp2 s1 s2 | f_neq e1 e2 => let s1 := (uniformize_areas e1) in let s2 := (uniformize_areas e2) in f_neq s1 s2 | f_eq e1 e2 => let s1 := (uniformize_areas e1) in let s2 := (uniformize_areas e2) in f_eq s1 s2 end.",
+            "VernacFixpoint",
+            "f842bcd901ca5d3aa188140ba50c3dd17dc8dc29"
+        ],
+        [
+            "Fixpoint interp_formula2_to_prop (lvar:list (prodT AVars nat)) (e:formula2) {struct e} : Prop := match e with | f_imp2 e1 e2 => let s1 := interp_formula2_to_prop lvar e1 in let s2 := interp_formula2_to_prop lvar e2 in s1 -> s2 | f_neq e1 e2 => let s1 := interp_AF_to_F lvar e1 in let s2 := interp_AF_to_F lvar e2 in s1 <> s2 | f_eq e1 e2 => let s1 := interp_AF_to_F lvar e1 in let s2 := interp_AF_to_F lvar e2 in s1 = s2 end.",
+            "VernacFixpoint",
+            "cadbfa2ab4a79e1df6cdb7087e7c6849cfaef2a7"
+        ],
+        [
+            "Lemma uniformize_areas_formula2_correct_gen : forall (e:formula2) (lvar:list (prodT AVars nat)), interp_formula2_to_prop lvar (uniformize_areas_formula2 e) <-> interp_formula2_to_prop lvar e.",
+            "VernacStartTheoremProof",
+            "1675b99dbf38fd2a8607df6cc8e15e90f3249971"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "induction e;simpl interp_formula2_to_prop; repeat rewrite uniformize_areas_correct ;intuition.",
+            "VernacExtend",
+            "4f0f0878335eb9456d7ad9a7a14bcaa8037ab9cc"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma uniformize_areas_formula2_correct : forall (e:formula2) (lvar:list (prodT AVars nat)), interp_formula2_to_prop lvar (uniformize_areas_formula2 e) -> interp_formula2_to_prop lvar e.",
+            "VernacStartTheoremProof",
+            "e30f3d3e204ae0e21f1a2ba6cc3bfb6e03e32979"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "assert ( interp_formula2_to_prop lvar (uniformize_areas_formula2 e) <-> interp_formula2_to_prop lvar e).",
+            "VernacExtend",
+            "83cacf157608bb3d5de76bb82cfe01b811f1b1dc"
+        ],
+        [
+            "apply uniformize_areas_formula2_correct_gen.",
+            "VernacExtend",
+            "54e046852ad90779822dfbe7ddd8b35ae2efbfc0"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition implies := fun A B :Prop => A->B.",
+            "VernacDefinition",
+            "fc715315258c878430fbbc946fa945f786291c54"
+        ],
+        [
+            "Definition neqF := fun A B : F => A<>B.",
+            "VernacDefinition",
+            "5dc4338b17cf91be27c8d34b4da0aff928e0b820"
+        ],
+        [
+            "Definition eqF := fun A B : F => A=B.",
+            "VernacDefinition",
+            "e142f7a51323349d59ab0ec0a8877bc35c8596c1"
+        ],
+        [
+            "Fixpoint interp_f (f: formula) : Prop := match f with | f_imp f1 f2 => implies (interp_f f1) (interp_f f2) | f_const c => c end.",
+            "VernacFixpoint",
+            "a18ceaa6c4321746c68b6dc5baf173773de2482d"
+        ],
+        [
+            "Ltac put_implies := repeat match goal with _:_ |- context [?X1 -> ?X2] => replace (X1 -> X2) with (implies X1 X2);[idtac|auto] end.",
+            "VernacExtend",
+            "79efa7539495d33d647c81198a843eff6d793e57"
+        ],
+        [
+            "Ltac put_eq_neqF := repeat match goal with _:_ |- context [?X1 <> ?X2] => replace (X1 <> X2) with (neqF X1 X2);[idtac|auto] |H:context [?X1 <> ?X2] |- _ => replace (X1 <> X2) with (neqF X1 X2) in H;[idtac|auto] |_:_ |- context [?X1 = ?X2] => replace (X1 = X2) with (eqF X1 X2);[idtac|auto] |H:context [?X1 = ?X2] |- _ => replace (X1 = X2) with (eqF X1 X2) in H;[idtac|auto] end.",
+            "VernacExtend",
+            "e8348bf3900deaa50c293516fda915d6f450105b"
+        ],
+        [
+            "Ltac generalize_all_eq := repeat match goal with H: context [?X1 = ?X2] |- _=> revert H end.",
+            "VernacExtend",
+            "268cd491856cf750922db5a4ac8ff50979ae0781"
+        ],
+        [
+            "Ltac generalize_all_eq_neqF := repeat match goal with H: context [eqF ?X1 ?X2] |- _=> revert H | H: context [neqF ?X1 ?X2] |- _=> revert H end.",
+            "VernacExtend",
+            "0ce515b46f7d6827b7e91ca9ad86036abd35d49a"
+        ],
+        [
+            "Ltac interp_formula2 lvar trm := match constr:(trm) with | (implies ?X1 ?X2) => let e1 := interp_formula2 lvar X1 in let e2 := interp_formula2 lvar X2 in constr:(f_imp2 e1 e2) | (eqF ?X1 ?X2) => let e1 := interp_A lvar X1 in let e2 := interp_A lvar X2 in constr:(f_eq e1 e2) | (neqF ?X1 ?X2) => let e1 := interp_A lvar X1 in let e2 := interp_A lvar X2 in constr:(f_neq e1 e2) end.",
+            "VernacExtend",
+            "e752e63e3e0b5d586bf5ffcfc76911785bd663d7"
+        ],
+        [
+            "Ltac interp_formula2_goal lvar := match goal with _:_ |- ?X1 => interp_formula2 lvar X1 end.",
+            "VernacExtend",
+            "b6fc0095acf0d4fe0085f3995c0c6c9dd05fdfed"
+        ],
+        [
+            "Ltac uniformize_formula2_goal lvar := let trm := interp_formula2_goal lvar in let trm2 :=constr:(interp_formula2_to_prop lvar (uniformize_areas_formula2 trm)) in let id := fresh in ( assert (id:(trm2-> interp_formula2_to_prop lvar trm)); [apply uniformize_areas_formula2_correct|idtac]; simpl in id; unfold interp_AP_to_Point in id;simpl in id;unfold implies; apply id;clear id ).",
+            "VernacExtend",
+            "8b5d00cdd8915e5d5e79431df357d86c734f6102"
+        ],
+        [
+            "Ltac prepare_goal2 lvar := generalize_all_eq_neqF;put_implies;interp_formula2_goal lvar.",
+            "VernacExtend",
+            "dbd5e510e6140b50819496684df1cd3e1f755e87"
+        ],
+        [
+            "Ltac prepare_goal := generalize_all_eq;put_implies;quote interp_f.",
+            "VernacExtend",
+            "8c8cbdece38dcb1221c51d4e195fc7c69c6dc553"
+        ],
+        [
+            "Ltac un_prepare_goal := simpl;unfold implies;intros.",
+            "VernacExtend",
+            "712fb68b9fa734ddcc73901d0f58fc96f87f53db"
+        ],
+        [
+            "Ltac build_var_list_eq varlist x := match constr:(x) with ?X2=?X3 => let l1 := build_var_list_aux varlist X2 in let l2 := build_var_list_aux l1 X3 in constr:(l2) | ?X2<>?X3 => let l1 := build_var_list_aux varlist X2 in let l2 := build_var_list_aux l1 X3 in constr:(l2) | _ => varlist end.",
+            "VernacExtend",
+            "4a0a3eb882d5dcc335cfe36c114491238c7b17da"
+        ],
+        [
+            "Ltac union_vars_aux varlist trm := match constr:(trm) with | interp_f ?X1 => union_vars_aux varlist X1 | f_imp ?X1 ?X2 => let lvar1 := union_vars_aux varlist X1 in let lvar2 := union_vars_aux lvar1 X2 in constr:(lvar2) | f_const ?X1 => build_var_list_eq varlist X1 end.",
+            "VernacExtend",
+            "063690a2799462d54fb27a7cc44988cdd8caeb16"
+        ],
+        [
+            "Ltac union_vars trm := union_vars_aux (@nil AVars) trm .",
+            "VernacExtend",
+            "a1f3d71f08e25ef760eedc870da2a4b4f5b2b857"
+        ],
+        [
+            "Ltac compute_vars_of_the_goal := match goal with _:_ |- ?X1 => let lvar := union_vars X1 in let varlist := number lvar in varlist end.",
+            "VernacExtend",
+            "b274cdb5857382b37470e7993be80f06be9e8ffa"
+        ],
+        [
+            "Ltac uniformize_quantities varlist trm := match constr:(trm) with | interp_f ?X1 => uniformize_quantities varlist X1 | f_imp ?X1 ?X2 => uniformize_quantities varlist X1;uniformize_quantities varlist X2 | f_const ?X1 => (match constr:(X1) with ?X1 = ?X2 => uniformize_term X1 varlist;uniformize_term X2 varlist | ?X1 <> ?X2 => uniformize_term X1 varlist;uniformize_term X2 varlist |_ => idtac end) end.",
+            "VernacExtend",
+            "a80c3da921dfc78c8545d7df8cc2b46896de200f"
+        ],
+        [
+            "Ltac uniformize_quantities_of_the_goal varlist := match goal with _:_ |- ?XG => uniformize_quantities varlist XG end.",
+            "VernacExtend",
+            "e0339dd4b8132e2065bd85ba92f727bc848528f5"
+        ],
+        [
+            "Ltac uniformize_quantities_of_all varlist := repeat match goal with _:_ |- context [?X1 = ?X2] => progress uniformize_term X1 varlist |_:_ |- context [?X1 = ?X2] => progress uniformize_term X2 varlist |H: context [?X1 <> ?X2] |- _ => progress uniformize_term X1 varlist |H: context [?X1 <> ?X2] |- _ => progress uniformize_term X2 varlist |H: context [?X1 = ?X2] |- _ => progress uniformize_term X1 varlist |H: context [?X1 = ?X2] |- _ => progress uniformize_term X2 varlist end.",
+            "VernacExtend",
+            "8af15a74b7f4bc23717e41ae047aae929c7a42db"
+        ],
+        [
+            "Ltac Runiformize_signed_areas := unfold Fminus, Fdiv in *; prepare_goal; let varlist := compute_vars_of_the_goal in (un_prepare_goal; put_eq_neqF;generalize_all_eq_neqF;put_implies; uniformize_formula2_goal varlist;intros).",
+            "VernacExtend",
+            "560ba0f081419928a2a757bff2b5833a8a85ebe8"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "nateq_prop",
+            "line_nb": 22,
+            "steps": [
+                {
+                    "command": [
+                        "simple induction n; simple induction m; intros; try contradiction.",
+                        "VernacExtend",
+                        "662074fc177bf9b37e57cca810e69cc6e58b5d61"
+                    ]
+                },
+                {
+                    "command": [
+                        "trivial.",
+                        "VernacExtend",
+                        "6704630005ea37c1f66f817f0d3cb83967ca08c5"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold Is_true in H1.",
+                        "VernacExtend",
+                        "5e01f5cba7e73684b0d676dfa1f2278853403fc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (H n1 H1).",
+                        "VernacExtend",
+                        "22ea9a0812f254ee1e4456358c43b6ad5c1d589d"
+                    ]
+                },
+                {
+                    "command": [
+                        "trivial.",
+                        "VernacExtend",
+                        "6704630005ea37c1f66f817f0d3cb83967ca08c5"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "simplif_correct",
+            "line_nb": 30,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "induction e;trivial;simpl interp_AF_to_F at 2.",
+                        "VernacExtend",
+                        "4b39ab5f49e42025ebcfc3ff40eb4ffc838d90cd"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (T:=(nateq_prop n n0)).",
+                        "VernacExtend",
+                        "c65d239e6f5afeaf7deff5d04c761fa032c5c388"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (nateq n n0).",
+                        "VernacExtend",
+                        "7db538763ea21a86412cbdf8b4ce098f2b08f596"
+                    ]
+                },
+                {
+                    "command": [
+                        "replace n with n0.",
+                        "VernacExtend",
+                        "016f906ab7d1c5a2591a0930545de72cc280fee3"
+                    ]
+                },
+                {
+                    "command": [
+                        "replace (S (interp_AP_to_Point lvar n0) (interp_AP_to_Point lvar n0) (interp_AP_to_Point lvar n1)) with 0;auto;apply trivial_col1.",
+                        "VernacExtend",
+                        "13cdb8a58789f60c9a86800067f0eceb85a93094"
+                    ]
+                },
+                {
+                    "command": [
+                        "symmetry;apply T;unfold Is_true;auto.",
+                        "VernacExtend",
+                        "4e15dc2a03e534703395d62dbb44bf93bb3553fb"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (T2:=(nateq_prop n n1)).",
+                        "VernacExtend",
+                        "81d9cb73cf4492c6a26c2f526e0643ef3e508d7e"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (nateq n n1).",
+                        "VernacExtend",
+                        "07dab203fd0201360973ce1c1693a9e9079f8560"
+                    ]
+                },
+                {
+                    "command": [
+                        "replace n with n1.",
+                        "VernacExtend",
+                        "fff48ad77784515a2ef956dcfcf7a2564200cff9"
+                    ]
+                },
+                {
+                    "command": [
+                        "replace (S (interp_AP_to_Point lvar n1) (interp_AP_to_Point lvar n0) (interp_AP_to_Point lvar n1)) with 0;auto;apply trivial_col3.",
+                        "VernacExtend",
+                        "3be40b3f79cb5b5713634b93c5f94a499b78018a"
+                    ]
+                },
+                {
+                    "command": [
+                        "symmetry;apply T2;unfold Is_true;auto.",
+                        "VernacExtend",
+                        "28720a52d56b2a558ca905a2cd73145d64cd2c8d"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (T3:=(nateq_prop n0 n1)).",
+                        "VernacExtend",
+                        "603ca1c0b8d40fb9b7d0f1fde7be822bf0193b64"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (nateq n0 n1).",
+                        "VernacExtend",
+                        "5df994bbe320e3d939c534e7a953039c67163b28"
+                    ]
+                },
+                {
+                    "command": [
+                        "replace n0 with n1.",
+                        "VernacExtend",
+                        "d1dddefeae6c9803b869c6db0d951dbe472b1953"
+                    ]
+                },
+                {
+                    "command": [
+                        "replace (S (interp_AP_to_Point lvar n) (interp_AP_to_Point lvar n1) (interp_AP_to_Point lvar n1)) with 0;auto;apply trivial_col2.",
+                        "VernacExtend",
+                        "d6edc3947144cc07958e8d3a8b1e3cfbdf85f9a6"
+                    ]
+                },
+                {
+                    "command": [
+                        "symmetry;apply T3;unfold Is_true;auto.",
+                        "VernacExtend",
+                        "c823b60c2657e0ad1588f2873a00f1bea6e14425"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl;auto.",
+                        "VernacExtend",
+                        "9b631374b1d3067f703fd99c5dc6e1e5c8405957"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (T:=(nateq_prop n n0)).",
+                        "VernacExtend",
+                        "c65d239e6f5afeaf7deff5d04c761fa032c5c388"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (nateq n n0).",
+                        "VernacExtend",
+                        "7db538763ea21a86412cbdf8b4ce098f2b08f596"
+                    ]
+                },
+                {
+                    "command": [
+                        "replace n with n0.",
+                        "VernacExtend",
+                        "016f906ab7d1c5a2591a0930545de72cc280fee3"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply nuldirseg.",
+                        "VernacExtend",
+                        "ec6800e7118a49eac4b51d8b1c786d564429ffc9"
+                    ]
+                },
+                {
+                    "command": [
+                        "symmetry;apply T;unfold Is_true;auto.",
+                        "VernacExtend",
+                        "4e15dc2a03e534703395d62dbb44bf93bb3553fb"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl;auto.",
+                        "VernacExtend",
+                        "9b631374b1d3067f703fd99c5dc6e1e5c8405957"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- IHe1;rewrite <- IHe2;simpl simplif at 1;destruct (simplif e1);destruct (simplif e2);trivial;simpl;ring.",
+                        "VernacExtend",
+                        "6f471dcb401383c123d4f27b5039bd4a1bcec215"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- IHe1;rewrite <- IHe2;simpl simplif at 1;destruct (simplif e1);destruct (simplif e2);trivial;simpl;ring.",
+                        "VernacExtend",
+                        "6f471dcb401383c123d4f27b5039bd4a1bcec215"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- IHe;simpl simplif at 1;destruct (simplif e);trivial;simpl;ring.",
+                        "VernacExtend",
+                        "ff566c6457f6f65a65aa796d253ed491d60b9e84"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "uniformize_areas_correct",
+            "line_nb": 65,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "induction e;trivial;simpl interp_AF_to_F at 2.",
+                        "VernacExtend",
+                        "4b39ab5f49e42025ebcfc3ff40eb4ffc838d90cd"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl;case (natle n n0);case (natle n0 n1);case (natle n n1);simpl;Geometry.",
+                        "VernacExtend",
+                        "3b481e0b692b0dbd14c701b0151f4fad769f8524"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl;case (natle n n0);simpl;symmetry;Geometry.",
+                        "VernacExtend",
+                        "a34d188df9488df808bc6f5e55342a2decae7242"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- IHe1;rewrite <- IHe2;simpl uniformize_areas at 1;destruct (uniformize_areas e1);destruct (uniformize_areas e2);trivial;ring.",
+                        "VernacExtend",
+                        "6ca02417d020e47922c12ee306cddf9c9a759985"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- IHe1;rewrite <- IHe2;simpl uniformize_areas at 1;destruct (uniformize_areas e1);destruct (uniformize_areas e2);trivial;ring.",
+                        "VernacExtend",
+                        "6ca02417d020e47922c12ee306cddf9c9a759985"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- IHe;simpl uniformize_areas at 1;destruct (uniformize_areas e);trivial;ring.",
+                        "VernacExtend",
+                        "0c6060aa1628bd226ed028932abadf464e1b1281"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- IHe;simpl uniformize_areas at 1;destruct (uniformize_areas e);trivial;ring.",
+                        "VernacExtend",
+                        "0c6060aa1628bd226ed028932abadf464e1b1281"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "uniformize_areas_formula2_correct_gen",
+            "line_nb": 81,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "induction e;simpl interp_formula2_to_prop; repeat rewrite uniformize_areas_correct ;intuition.",
+                        "VernacExtend",
+                        "4f0f0878335eb9456d7ad9a7a14bcaa8037ab9cc"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "uniformize_areas_formula2_correct",
+            "line_nb": 85,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert ( interp_formula2_to_prop lvar (uniformize_areas_formula2 e) <-> interp_formula2_to_prop lvar e).",
+                        "VernacExtend",
+                        "83cacf157608bb3d5de76bb82cfe01b811f1b1dc"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply uniformize_areas_formula2_correct_gen.",
+                        "VernacExtend",
+                        "54e046852ad90779822dfbe7ddd8b35ae2efbfc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition.",
+                        "VernacExtend",
+                        "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

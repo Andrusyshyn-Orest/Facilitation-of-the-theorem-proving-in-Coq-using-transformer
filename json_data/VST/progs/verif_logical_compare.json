@@ -1,0 +1,378 @@
+{
+    "filename": "progs/verif_logical_compare.v",
+    "coq_project": "VST",
+    "vernac_cmds": [
+        [
+            "Require Import VST.floyd.proofauto.",
+            "VernacRequire",
+            "1b5b5bd8f6976ab2a8ffc41bb68ef58d6fb49b99"
+        ],
+        [
+            "Require Import VST.progs.logical_compare.",
+            "VernacRequire",
+            "8f72c766deedc7e9eeaf8b7de7d1224bc724d178"
+        ],
+        [
+            "Instance CompSpecs : compspecs.",
+            "VernacInstance",
+            "154eee01c656800e0ca79db421bf2abcdf325f7f"
+        ],
+        [
+            "make_compspecs prog.",
+            "VernacExtend",
+            "36220761a2e554d38938361d97a6a7824a7eb4eb"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Definition logical_and_result v1 v2 : int := if Int.eq v1 Int.zero then Int.zero else v2.",
+            "VernacDefinition",
+            "e75430b1b49cadca592282f943cdb7af4f2e8e8e"
+        ],
+        [
+            "Definition logical_or_result v1 v2 : int := if Int.eq v1 Int.zero then v2 else Int.one.",
+            "VernacDefinition",
+            "961037250414c0bd3fe1fecf38c2c9b5f28e36ed"
+        ],
+        [
+            "Fixpoint quick_shortcut_logical (s: statement) : option ident := match s with | Sifthenelse _ (Sset id (Econst_int _ (Tint I32 Signed {| attr_volatile := false; attr_alignas := None |}))) s2 => match quick_shortcut_logical s2 with None => None | Some id2 => if ident_eq id id2 then Some id else None end | Sifthenelse e1 s2 (Sset id (Econst_int _ (Tint I32 Signed {| attr_volatile := false; attr_alignas := None |}))) => match quick_shortcut_logical s2 with None => None | Some id2 => if ident_eq id id2 then Some id else None end | Sset id (Ecast _ (Tint IBool Unsigned {| attr_volatile := false; attr_alignas := None |})) => Some id | _ => None end.",
+            "VernacFixpoint",
+            "5b9c36ab17b12b6ee953eb9455aac3e8bd0df7bf"
+        ],
+        [
+            "Fixpoint shortcut_logical (eval: expr -> option val) (tid: ident) (s: statement) : option (int * list expr) := match s with | Sifthenelse e1 (Sset id (Econst_int one (Tint I32 Signed {| attr_volatile := false; attr_alignas := None |}))) s2 => if andb (eqb_ident id tid) (Int.eq one Int.one) then match eval e1 with | Some (Vint v1) => match shortcut_logical eval tid s2 with | Some (v2, el) => Some (logical_or_result v1 v2, e1 :: el) | _ => None end | _ => None end else None | Sifthenelse e1 s2 (Sset id (Econst_int zero (Tint I32 Signed {| attr_volatile := false; attr_alignas := None |}))) => if andb (eqb_ident id tid) (Int.eq zero Int.zero) then match eval e1 with | Some (Vint v1) => match shortcut_logical eval tid s2 with | Some (v2, el) => Some (logical_and_result v1 v2, e1 :: el) | _ => None end | _ => None end else None | Sset id (Ecast e (Tint IBool Unsigned {| attr_volatile := false; attr_alignas := None |})) => if eqb_ident id tid then match eval (Ecast e tbool) with | Some (Vint v) => Some (v, (Ecast e tbool :: nil)) | _ => None end else None | _ => None end.",
+            "VernacFixpoint",
+            "3536193588e4790b278fdddb66e8c4be8278c860"
+        ],
+        [
+            "Lemma semax_shortcut_logical: forall Espec {cs: compspecs} Delta P Q R tid s v Qtemp Qvar GV el, quick_shortcut_logical s = Some tid -> typeof_temp Delta tid = Some tint -> local2ptree Q = (Qtemp, Qvar, nil, GV) -> Qtemp ! tid = None -> shortcut_logical (msubst_eval_expr Delta Qtemp Qvar GV) tid s = Some (v, el) -> ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- fold_right (fun e q => tc_expr Delta e && q) TT el -> @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R))) s (normal_ret_assert (PROPx P (LOCALx (temp tid (Vint v) :: Q) (SEPx R)))).",
+            "VernacStartTheoremProof",
+            "c92fae67ab94353f378bbd6895b155d635b6167a"
+        ],
+        [
+            "Admitted.",
+            "VernacEndProof",
+            "b273df2a612833d7cae3ad881c7303cec72f8651"
+        ],
+        [
+            "Definition do_or_spec := DECLARE _do_or WITH a: int, b : int PRE [ _a OF tbool, _b OF tbool ] PROP () LOCAL (temp _a (Vint a); temp _b (Vint b)) SEP () POST [ tbool ] PROP() LOCAL (temp ret_temp (Vint (logical_or_result a b))) SEP().",
+            "VernacDefinition",
+            "849bc6536949184507b748e212ea9e1d2d3080d6"
+        ],
+        [
+            "Definition do_and_spec := DECLARE _do_and WITH a: int, b : int PRE [ _a OF tbool, _b OF tbool ] PROP () LOCAL (temp _a (Vint a); temp _b (Vint b)) SEP () POST [ tbool ] PROP() LOCAL (temp ret_temp (Vint (logical_and_result a b))) SEP().",
+            "VernacDefinition",
+            "342dedd9c04b61778b434bf3656613dc72176e2b"
+        ],
+        [
+            "Definition main_spec := DECLARE _main WITH gv: globals PRE [] main_pre prog nil gv POST [ tint ] main_post prog nil gv.",
+            "VernacDefinition",
+            "0f22012860c727e5ebb861bb6a9befc1e472bedc"
+        ],
+        [
+            "Definition Vprog : varspecs := nil.",
+            "VernacDefinition",
+            "774beaea2ebe19cd909b6ac8ec5f730d386d086f"
+        ],
+        [
+            "Definition Gprog : funspecs := ltac:(with_library prog [do_or_spec; do_and_spec; main_spec]).",
+            "VernacDefinition",
+            "8f93f8261ece2e909742cc5aebe0960c799680ae"
+        ],
+        [
+            "Ltac do_semax_shortcut_logical := eapply semax_shortcut_logical; [ reflexivity | reflexivity | prove_local2ptree | reflexivity | reflexivity | unfold fold_right; entailer ].",
+            "VernacExtend",
+            "bb8803b7bca3831811316f6279bf39781e9da1d9"
+        ],
+        [
+            "Lemma body_do_or: semax_body Vprog Gprog f_do_or do_or_spec.",
+            "VernacStartTheoremProof",
+            "2e201ab32f3aa947ee77c989935437a529b58411"
+        ],
+        [
+            "start_function.",
+            "VernacExtend",
+            "c9d31eecaa0cff79fee4b43862828db880600e1a"
+        ],
+        [
+            "eapply semax_seq'; [do_semax_shortcut_logical | abbreviate_semax].",
+            "VernacExtend",
+            "95902eda407e1a53f991c16f91fcbd64cd6bc6ec"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "destruct H,H0; subst; simpl; entailer!.",
+            "VernacExtend",
+            "2d1bd93ce7608b8d804ba47f97909eb518147a9e"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma body_do_and: semax_body Vprog Gprog f_do_and do_and_spec.",
+            "VernacStartTheoremProof",
+            "93cf88aae56b2c0b96dcf11f3d82346a7dbe5fa5"
+        ],
+        [
+            "start_function.",
+            "VernacExtend",
+            "c9d31eecaa0cff79fee4b43862828db880600e1a"
+        ],
+        [
+            "eapply semax_seq'; [do_semax_shortcut_logical | abbreviate_semax].",
+            "VernacExtend",
+            "95902eda407e1a53f991c16f91fcbd64cd6bc6ec"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "destruct H,H0; subst; simpl; entailer!.",
+            "VernacExtend",
+            "2d1bd93ce7608b8d804ba47f97909eb518147a9e"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma body_main: semax_body Vprog Gprog f_main main_spec.",
+            "VernacStartTheoremProof",
+            "85a708d624631a1347a8e25eb25f081de372da3b"
+        ],
+        [
+            "start_function.",
+            "VernacExtend",
+            "c9d31eecaa0cff79fee4b43862828db880600e1a"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Existing Instance NullExtension.Espec.",
+            "VernacDeclareInstances",
+            "3dbdbac02afc384692ac89b7dc1b4e3e54bc3f98"
+        ],
+        [
+            "Lemma prog_correct: semax_prog prog Vprog Gprog.",
+            "VernacStartTheoremProof",
+            "c25859d2311f9b5cf6f4e0294f44c9072a4e49ec"
+        ],
+        [
+            "prove_semax_prog.",
+            "VernacExtend",
+            "e712159a341b36ef78a2c42df02bfd4c0041448b"
+        ],
+        [
+            "semax_func_cons body_do_or.",
+            "VernacExtend",
+            "dadab20f2776addb15de34ea7e2d47bcd25752bb"
+        ],
+        [
+            "semax_func_cons body_do_and.",
+            "VernacExtend",
+            "fa6433fe7a82376f341ae7e8c7139e04e32124b1"
+        ],
+        [
+            "semax_func_cons body_main.",
+            "VernacExtend",
+            "5762243e67ed09e007ac449ea2a947c5029be3be"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "CompSpecs",
+            "line_nb": 2,
+            "steps": [
+                {
+                    "command": [
+                        "make_compspecs prog.",
+                        "VernacExtend",
+                        "36220761a2e554d38938361d97a6a7824a7eb4eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "body_do_or",
+            "line_nb": 17,
+            "steps": [
+                {
+                    "command": [
+                        "start_function.",
+                        "VernacExtend",
+                        "c9d31eecaa0cff79fee4b43862828db880600e1a"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply semax_seq'; [do_semax_shortcut_logical | abbreviate_semax].",
+                        "VernacExtend",
+                        "95902eda407e1a53f991c16f91fcbd64cd6bc6ec"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H,H0; subst; simpl; entailer!.",
+                        "VernacExtend",
+                        "2d1bd93ce7608b8d804ba47f97909eb518147a9e"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "body_do_and",
+            "line_nb": 23,
+            "steps": [
+                {
+                    "command": [
+                        "start_function.",
+                        "VernacExtend",
+                        "c9d31eecaa0cff79fee4b43862828db880600e1a"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply semax_seq'; [do_semax_shortcut_logical | abbreviate_semax].",
+                        "VernacExtend",
+                        "95902eda407e1a53f991c16f91fcbd64cd6bc6ec"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H,H0; subst; simpl; entailer!.",
+                        "VernacExtend",
+                        "2d1bd93ce7608b8d804ba47f97909eb518147a9e"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "body_main",
+            "line_nb": 29,
+            "steps": [
+                {
+                    "command": [
+                        "start_function.",
+                        "VernacExtend",
+                        "c9d31eecaa0cff79fee4b43862828db880600e1a"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "prog_correct",
+            "line_nb": 34,
+            "steps": [
+                {
+                    "command": [
+                        "prove_semax_prog.",
+                        "VernacExtend",
+                        "e712159a341b36ef78a2c42df02bfd4c0041448b"
+                    ]
+                },
+                {
+                    "command": [
+                        "semax_func_cons body_do_or.",
+                        "VernacExtend",
+                        "dadab20f2776addb15de34ea7e2d47bcd25752bb"
+                    ]
+                },
+                {
+                    "command": [
+                        "semax_func_cons body_do_and.",
+                        "VernacExtend",
+                        "fa6433fe7a82376f341ae7e8c7139e04e32124b1"
+                    ]
+                },
+                {
+                    "command": [
+                        "semax_func_cons body_main.",
+                        "VernacExtend",
+                        "5762243e67ed09e007ac449ea2a947c5029be3be"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

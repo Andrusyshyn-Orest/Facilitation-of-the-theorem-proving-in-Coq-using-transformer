@@ -1,0 +1,2373 @@
+{
+    "filename": "mathcomp/algebra/ring_quotient.v",
+    "coq_project": "math-comp",
+    "vernac_cmds": [
+        [
+            "Require Import mathcomp.ssreflect.ssreflect.",
+            "VernacRequire",
+            "85e251063dc2b5a9653f7bb76dcd176ed36b42a9"
+        ],
+        [
+            "From mathcomp Require Import eqtype choice ssreflect ssrbool ssrnat ssrfun seq.",
+            "VernacRequire",
+            "212a842cb507e0c26fae5446dbeeebbee7b07fbb"
+        ],
+        [
+            "From mathcomp Require Import ssralg generic_quotient.",
+            "VernacRequire",
+            "b8edd840cc9ae827d65efc4fe86757f824e75d4a"
+        ],
+        [
+            "Import GRing.Theory.",
+            "VernacImport",
+            "a0fcf55540300b9b0e54bd28a113c5228ff530f4"
+        ],
+        [
+            "Set Implicit Arguments.",
+            "VernacSetOption",
+            "9e84ff8896f028601d8aded48c1d4aebe60aa584"
+        ],
+        [
+            "Unset Strict Implicit.",
+            "VernacUnsetOption",
+            "2842adaf6959318f2042805935c46f513bdc0348"
+        ],
+        [
+            "Unset Printing Implicit Defensive.",
+            "VernacUnsetOption",
+            "444e5f0be4b25d9b1fd556943a447ec10046d151"
+        ],
+        [
+            "Local Open Scope ring_scope.",
+            "VernacOpenCloseScope",
+            "fb9da4a291533574d328be8c8a69d90a14641928"
+        ],
+        [
+            "Local Open Scope quotient_scope.",
+            "VernacOpenCloseScope",
+            "d27d8214bf1167cb740fe551598349d95a0016a3"
+        ],
+        [
+            "Reserved Notation \"{ideal_quot I }\" (at level 0, format \"{ideal_quot I }\").",
+            "VernacSyntaxExtension",
+            "fe03792da8c6489aebabf324999af1311e6c64f6"
+        ],
+        [
+            "Reserved Notation \"m = n %[mod_ideal I ]\" (at level 70, n at next level, format \"'[hv ' m '/' = n '/' %[mod_ideal I ] ']'\").",
+            "VernacSyntaxExtension",
+            "a9e5a0c8d21972842ed18ff83a34ff7dda395076"
+        ],
+        [
+            "Reserved Notation \"m == n %[mod_ideal I ]\" (at level 70, n at next level, format \"'[hv ' m '/' == n '/' %[mod_ideal I ] ']'\").",
+            "VernacSyntaxExtension",
+            "9ac95635faf1e33f97928d3b5f500e708be8b828"
+        ],
+        [
+            "Reserved Notation \"m <> n %[mod_ideal I ]\" (at level 70, n at next level, format \"'[hv ' m '/' <> n '/' %[mod_ideal I ] ']'\").",
+            "VernacSyntaxExtension",
+            "d9943aaaf0ddbd1e18fac682aabeb76a90a2250a"
+        ],
+        [
+            "Reserved Notation \"m != n %[mod_ideal I ]\" (at level 70, n at next level, format \"'[hv ' m '/' != n '/' %[mod_ideal I ] ']'\").",
+            "VernacSyntaxExtension",
+            "634693852b2134a0cce2843f2079b498dc014f2d"
+        ],
+        [
+            "Section ZmodQuot.",
+            "VernacBeginSection",
+            "335fb2b0c4c0b8bd21ce8f70cb89fe0f39c15804"
+        ],
+        [
+            "Variable (T : Type).",
+            "VernacAssumption",
+            "a15b17e37c4241158d544882375356c273dc93f2"
+        ],
+        [
+            "Variable eqT : rel T.",
+            "VernacAssumption",
+            "81a07fc4ac7b2fadca29c038c8e7234e382a459b"
+        ],
+        [
+            "Variables (zeroT : T) (oppT : T -> T) (addT : T -> T -> T).",
+            "VernacAssumption",
+            "a460e4cf8dc1fccba49dd64ad37cef04bac55079"
+        ],
+        [
+            "Record zmod_quot_mixin_of (Q : Type) (qc : quot_class_of T Q) (zc : GRing.Zmodule.class_of Q) := ZmodQuotMixinPack { zmod_eq_quot_mixin :> eq_quot_mixin_of eqT qc zc; _ : \\pi_(QuotTypePack qc) zeroT = 0 :> GRing.Zmodule.Pack zc; _ : {morph \\pi_(QuotTypePack qc) : x / oppT x >-> @GRing.opp (GRing.Zmodule.Pack zc) x}; _ : {morph \\pi_(QuotTypePack qc) : x y / addT x y >-> @GRing.add (GRing.Zmodule.Pack zc) x y} }.",
+            "VernacInductive",
+            "b68860e6ba2ad6597e91a040858a2f2e92f33337"
+        ],
+        [
+            "Record zmod_quot_class_of (Q : Type) : Type := ZmodQuotClass { zmod_quot_quot_class :> quot_class_of T Q; zmod_quot_zmod_class :> GRing.Zmodule.class_of Q; zmod_quot_mixin :> zmod_quot_mixin_of zmod_quot_quot_class zmod_quot_zmod_class }.",
+            "VernacInductive",
+            "bdf60a72729bffb26b32402754d1e42b282581b4"
+        ],
+        [
+            "Structure zmodQuotType : Type := ZmodQuotTypePack { zmod_quot_sort :> Type; _ : zmod_quot_class_of zmod_quot_sort; }.",
+            "VernacInductive",
+            "81e21d991c3a565662fa9b04b8cd5962ad8a7461"
+        ],
+        [
+            "Implicit Type zqT : zmodQuotType.",
+            "VernacReserve",
+            "c569a9f04a58e48bac2e775e54fc7d0cb6efab36"
+        ],
+        [
+            "Definition zmod_quot_class zqT : zmod_quot_class_of zqT := let: ZmodQuotTypePack _ cT as qT' := zqT return zmod_quot_class_of qT' in cT.",
+            "VernacDefinition",
+            "c6e68cba1175faed2e2a86e2eee1b70d22212a3b"
+        ],
+        [
+            "Definition zmod_eq_quot_class zqT (zqc : zmod_quot_class_of zqT) : eq_quot_class_of eqT zqT := EqQuotClass zqc.",
+            "VernacDefinition",
+            "fbfbc34e911b3d5907277f5fc438a74c670254fd"
+        ],
+        [
+            "Canonical zmodQuotType_eqType zqT := Equality.Pack (zmod_quot_class zqT).",
+            "VernacDefinition",
+            "9435c8e381d66344e272f17c26a1ac0f4dba0233"
+        ],
+        [
+            "Canonical zmodQuotType_choiceType zqT := Choice.Pack (zmod_quot_class zqT).",
+            "VernacDefinition",
+            "db07624500937e9d1500430da07cc2fb643966ce"
+        ],
+        [
+            "Canonical zmodQuotType_zmodType zqT := GRing.Zmodule.Pack (zmod_quot_class zqT).",
+            "VernacDefinition",
+            "0d6753e83d1008a0babfc68040b290ea615f10a7"
+        ],
+        [
+            "Canonical zmodQuotType_quotType zqT := QuotTypePack (zmod_quot_class zqT).",
+            "VernacDefinition",
+            "ef3f42d97c7e956042f66aa9c82854113f89c250"
+        ],
+        [
+            "Canonical zmodQuotType_eqQuotType zqT := EqQuotTypePack (zmod_eq_quot_class (zmod_quot_class zqT)).",
+            "VernacDefinition",
+            "54f51838204e78eb319abdb6e9cac4de9f05eaa3"
+        ],
+        [
+            "Coercion zmodQuotType_eqType : zmodQuotType >-> eqType.",
+            "VernacCoercion",
+            "caa29f5cfd0f6d9bd96647a66aef90f4995ae5eb"
+        ],
+        [
+            "Coercion zmodQuotType_choiceType : zmodQuotType >-> choiceType.",
+            "VernacCoercion",
+            "bec40333c42753746ac7eb5695a787b7418b1197"
+        ],
+        [
+            "Coercion zmodQuotType_zmodType : zmodQuotType >-> zmodType.",
+            "VernacCoercion",
+            "45fbf13641c90e2ea57becc685b9278b023ae75f"
+        ],
+        [
+            "Coercion zmodQuotType_quotType : zmodQuotType >-> quotType.",
+            "VernacCoercion",
+            "53fd03f1670183e104fbab391dc3aa9cade448f1"
+        ],
+        [
+            "Coercion zmodQuotType_eqQuotType : zmodQuotType >-> eqQuotType.",
+            "VernacCoercion",
+            "2ff3db12ad3939ea781353f31986fffcf2de4169"
+        ],
+        [
+            "Definition ZmodQuotType_pack Q := fun (qT : quotType T) (zT : zmodType) qc zc of phant_id (quot_class qT) qc & phant_id (GRing.Zmodule.class zT) zc => fun m => ZmodQuotTypePack (@ZmodQuotClass Q qc zc m).",
+            "VernacDefinition",
+            "5adaf0cbd0bf7c89251fc63073be8b5be11794cf"
+        ],
+        [
+            "Definition ZmodQuotMixin_pack Q := fun (qT : eqQuotType eqT) (qc : eq_quot_class_of eqT Q) of phant_id (eq_quot_class qT) qc => fun (zT : zmodType) zc of phant_id (GRing.Zmodule.class zT) zc => fun e m0 mN mD => @ZmodQuotMixinPack Q qc zc e m0 mN mD.",
+            "VernacDefinition",
+            "776e68abe6e5186a9235148be1fe0828e659bcdb"
+        ],
+        [
+            "Definition ZmodQuotType_clone (Q : Type) qT cT of phant_id (zmod_quot_class qT) cT := @ZmodQuotTypePack Q cT.",
+            "VernacDefinition",
+            "416eed0ea5aec27c185d20096e35009a10ef714b"
+        ],
+        [
+            "Lemma zmod_quot_mixinP zqT : zmod_quot_mixin_of (zmod_quot_class zqT) (zmod_quot_class zqT).",
+            "VernacStartTheoremProof",
+            "c2f64520b53ff3e46d1baa4105ac0fd98e4f49ce"
+        ],
+        [
+            "by case: zqT => [] ? [] ? ? [].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma pi_zeror zqT : \\pi_zqT zeroT = 0.",
+            "VernacStartTheoremProof",
+            "1e0c7633258f639770773da0f1e6341daa776a1f"
+        ],
+        [
+            "by case: zqT => [] ? [] ? ? [].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma pi_oppr zqT : {morph \\pi_zqT : x / oppT x >-> - x}.",
+            "VernacStartTheoremProof",
+            "a37c9227a686ace80ca5f670cfc15292b0698a3e"
+        ],
+        [
+            "by case: zqT => [] ? [] ? ? [].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma pi_addr zqT : {morph \\pi_zqT : x y / addT x y >-> x + y}.",
+            "VernacStartTheoremProof",
+            "ddd07f161c495319dee4fe3c5b6382e8b5d2f5f1"
+        ],
+        [
+            "by case: zqT => [] ? [] ? ? [].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Canonical pi_zero_quot_morph zqT := PiMorph (pi_zeror zqT).",
+            "VernacDefinition",
+            "bd4528bbc2a28e1a6f8504a707ccd0b954223216"
+        ],
+        [
+            "Canonical pi_opp_quot_morph zqT := PiMorph1 (pi_oppr zqT).",
+            "VernacDefinition",
+            "65476d9c76fbcd48777f7a9d34b384af42532646"
+        ],
+        [
+            "Canonical pi_add_quot_morph zqT := PiMorph2 (pi_addr zqT).",
+            "VernacDefinition",
+            "6c980ca60c5e30ebc066b010e65e5be95789724c"
+        ],
+        [
+            "End ZmodQuot.",
+            "VernacEndSegment",
+            "178fb234e4ea45c946519b400f9fd4de5b70ef5c"
+        ],
+        [
+            "Notation ZmodQuotType z o a Q m := (@ZmodQuotType_pack _ _ z o a Q _ _ _ _ id id m).",
+            "VernacSyntacticDefinition",
+            "cbcb8d3b6c82ef01a1a844ee772847dacd8a36c4"
+        ],
+        [
+            "Notation \"[ 'zmodQuotType' z , o & a 'of' Q ]\" := (@ZmodQuotType_clone _ _ z o a Q _ _ id) (at level 0, format \"[ 'zmodQuotType' z , o & a 'of' Q ]\") : form_scope.",
+            "VernacNotation",
+            "872a051a2ca32f65a3b1a9b15444cc999b9165e6"
+        ],
+        [
+            "Notation ZmodQuotMixin Q m0 mN mD := (@ZmodQuotMixin_pack _ _ _ _ _ Q _ _ id _ _ id (pi_eq_quot _) m0 mN mD).",
+            "VernacSyntacticDefinition",
+            "db3f048b67cf5f8e888933b1d719defe544dd1f8"
+        ],
+        [
+            "Section PiAdditive.",
+            "VernacBeginSection",
+            "12de652346e90a155fe881e99de44954b1e20720"
+        ],
+        [
+            "Variables (V : zmodType) (equivV : rel V) (zeroV : V).",
+            "VernacAssumption",
+            "3f53e32f91bfda544cbc22bedbbbfccaee829644"
+        ],
+        [
+            "Variable Q : @zmodQuotType V equivV zeroV -%R +%R.",
+            "VernacAssumption",
+            "fa8396c87806102e4b18bb6499185dc6d47447c3"
+        ],
+        [
+            "Lemma pi_is_additive : additive \\pi_Q.",
+            "VernacStartTheoremProof",
+            "ecc6a7692eb845fd959484d0630e368ae515cb94"
+        ],
+        [
+            "by move=> x y /=; rewrite !piE.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Canonical pi_additive := Additive pi_is_additive.",
+            "VernacDefinition",
+            "e68c7e0e4b1e054d7029c3d4cebf650cce987167"
+        ],
+        [
+            "End PiAdditive.",
+            "VernacEndSegment",
+            "11e578587eebd0b240dc4cfb5ccfcc0fcea8fe23"
+        ],
+        [
+            "Section RingQuot.",
+            "VernacBeginSection",
+            "4128c42d77debaee84798cbcdabc380520823a25"
+        ],
+        [
+            "Variable (T : Type).",
+            "VernacAssumption",
+            "a15b17e37c4241158d544882375356c273dc93f2"
+        ],
+        [
+            "Variable eqT : rel T.",
+            "VernacAssumption",
+            "81a07fc4ac7b2fadca29c038c8e7234e382a459b"
+        ],
+        [
+            "Variables (zeroT : T) (oppT : T -> T) (addT : T -> T -> T).",
+            "VernacAssumption",
+            "a460e4cf8dc1fccba49dd64ad37cef04bac55079"
+        ],
+        [
+            "Variables (oneT : T) (mulT : T -> T -> T).",
+            "VernacAssumption",
+            "061fe95017780ccf875d6b2583f880550f5f9e51"
+        ],
+        [
+            "Record ring_quot_mixin_of (Q : Type) (qc : quot_class_of T Q) (rc : GRing.Ring.class_of Q) := RingQuotMixinPack { ring_zmod_quot_mixin :> zmod_quot_mixin_of eqT zeroT oppT addT qc rc; _ : \\pi_(QuotTypePack qc) oneT = 1 :> GRing.Ring.Pack rc; _ : {morph \\pi_(QuotTypePack qc) : x y / mulT x y >-> @GRing.mul (GRing.Ring.Pack rc) x y} }.",
+            "VernacInductive",
+            "3d5a83150c455a4b3d72bc8fc40303c9a80b6168"
+        ],
+        [
+            "Record ring_quot_class_of (Q : Type) : Type := RingQuotClass { ring_quot_quot_class :> quot_class_of T Q; ring_quot_ring_class :> GRing.Ring.class_of Q; ring_quot_mixin :> ring_quot_mixin_of ring_quot_quot_class ring_quot_ring_class }.",
+            "VernacInductive",
+            "ea782766657ebd1b9b288ecf89ee983112bb78fb"
+        ],
+        [
+            "Structure ringQuotType : Type := RingQuotTypePack { ring_quot_sort :> Type; _ : ring_quot_class_of ring_quot_sort; }.",
+            "VernacInductive",
+            "a3679bb042bf7381228a7e86c2fb37ac6c39cff3"
+        ],
+        [
+            "Implicit Type rqT : ringQuotType.",
+            "VernacReserve",
+            "c9cea5f21daa18f4c9286e0a95a4cafc860f415a"
+        ],
+        [
+            "Definition ring_quot_class rqT : ring_quot_class_of rqT := let: RingQuotTypePack _ cT as qT' := rqT return ring_quot_class_of qT' in cT.",
+            "VernacDefinition",
+            "022b870c9d1d4e23b85170195eb59ff5b7611e42"
+        ],
+        [
+            "Definition ring_zmod_quot_class rqT (rqc : ring_quot_class_of rqT) : zmod_quot_class_of eqT zeroT oppT addT rqT := ZmodQuotClass rqc.",
+            "VernacDefinition",
+            "fa52cf74fd93c8aa7ce2d37405b6f2b21750690f"
+        ],
+        [
+            "Definition ring_eq_quot_class rqT (rqc : ring_quot_class_of rqT) : eq_quot_class_of eqT rqT := EqQuotClass rqc.",
+            "VernacDefinition",
+            "4beb8be74e39d09e33c8bfd4af507557ac1a2870"
+        ],
+        [
+            "Canonical ringQuotType_eqType rqT := Equality.Pack (ring_quot_class rqT).",
+            "VernacDefinition",
+            "cec444e66c0ebb03805b1bad0a9127783cd1463a"
+        ],
+        [
+            "Canonical ringQuotType_choiceType rqT := Choice.Pack (ring_quot_class rqT).",
+            "VernacDefinition",
+            "6260d627fa2c6257c9383737b8e30beb25b6d7e1"
+        ],
+        [
+            "Canonical ringQuotType_zmodType rqT := GRing.Zmodule.Pack (ring_quot_class rqT).",
+            "VernacDefinition",
+            "c2794ea2d42dc7fb55d1d101b459ffb63d71859a"
+        ],
+        [
+            "Canonical ringQuotType_ringType rqT := GRing.Ring.Pack (ring_quot_class rqT).",
+            "VernacDefinition",
+            "8a6ad83786030568cd0c56e0a3a6fd54ebeeef20"
+        ],
+        [
+            "Canonical ringQuotType_quotType rqT := QuotTypePack (ring_quot_class rqT).",
+            "VernacDefinition",
+            "4dd72e3b79e61ce101438f5d5b70d16b3a8a75ec"
+        ],
+        [
+            "Canonical ringQuotType_eqQuotType rqT := EqQuotTypePack (ring_eq_quot_class (ring_quot_class rqT)).",
+            "VernacDefinition",
+            "0e93ff4621f444efdb8f1789d04c6d79a87b6f5b"
+        ],
+        [
+            "Canonical ringQuotType_zmodQuotType rqT := ZmodQuotTypePack (ring_zmod_quot_class (ring_quot_class rqT)).",
+            "VernacDefinition",
+            "5baffac392ecbe423ccdb829d52fb32b553f7f65"
+        ],
+        [
+            "Coercion ringQuotType_eqType : ringQuotType >-> eqType.",
+            "VernacCoercion",
+            "8e5823db1f8ece1e4fcd9129a96f2e8ad2036c1b"
+        ],
+        [
+            "Coercion ringQuotType_choiceType : ringQuotType >-> choiceType.",
+            "VernacCoercion",
+            "b6f999601f6217bbfe33516943a3269a44020330"
+        ],
+        [
+            "Coercion ringQuotType_zmodType : ringQuotType >-> zmodType.",
+            "VernacCoercion",
+            "39e04021949758d99964e4f070f88b8ef35d2912"
+        ],
+        [
+            "Coercion ringQuotType_ringType : ringQuotType >-> ringType.",
+            "VernacCoercion",
+            "8de3a0c8613ab547fbc2566f514c621f2c40d174"
+        ],
+        [
+            "Coercion ringQuotType_quotType : ringQuotType >-> quotType.",
+            "VernacCoercion",
+            "b879a980a2b8bd5f4709af0e206494ddea9a45f4"
+        ],
+        [
+            "Coercion ringQuotType_eqQuotType : ringQuotType >-> eqQuotType.",
+            "VernacCoercion",
+            "2bc8a24f8949dc189125d86aed5b06aa34ed6458"
+        ],
+        [
+            "Coercion ringQuotType_zmodQuotType : ringQuotType >-> zmodQuotType.",
+            "VernacCoercion",
+            "bfebabbc114887daa48ab0eabd5559bb7223b532"
+        ],
+        [
+            "Definition RingQuotType_pack Q := fun (qT : quotType T) (zT : ringType) qc rc of phant_id (quot_class qT) qc & phant_id (GRing.Ring.class zT) rc => fun m => RingQuotTypePack (@RingQuotClass Q qc rc m).",
+            "VernacDefinition",
+            "89c337c8fb7b8c98e6df61d636d78ad14cd282ad"
+        ],
+        [
+            "Definition RingQuotMixin_pack Q := fun (qT : zmodQuotType eqT zeroT oppT addT) => fun (qc : zmod_quot_class_of eqT zeroT oppT addT Q) of phant_id (zmod_quot_class qT) qc => fun (rT : ringType) rc of phant_id (GRing.Ring.class rT) rc => fun mZ m1 mM => @RingQuotMixinPack Q qc rc mZ m1 mM.",
+            "VernacDefinition",
+            "466c834ab8809e9a23e07cdc4a41ef10f6971d17"
+        ],
+        [
+            "Definition RingQuotType_clone (Q : Type) qT cT of phant_id (ring_quot_class qT) cT := @RingQuotTypePack Q cT.",
+            "VernacDefinition",
+            "d973d551276b0853e2af3fb756aa09ff6c08a323"
+        ],
+        [
+            "Lemma ring_quot_mixinP rqT : ring_quot_mixin_of (ring_quot_class rqT) (ring_quot_class rqT).",
+            "VernacStartTheoremProof",
+            "af8a627a9e5b89ef220f56bcb00a4aaa7bca9470"
+        ],
+        [
+            "by case: rqT => [] ? [] ? ? [].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma pi_oner rqT : \\pi_rqT oneT = 1.",
+            "VernacStartTheoremProof",
+            "e2a5d1905002a86101c5f473a0677679d02c70a1"
+        ],
+        [
+            "by case: rqT => [] ? [] ? ? [].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma pi_mulr rqT : {morph \\pi_rqT : x y / mulT x y >-> x * y}.",
+            "VernacStartTheoremProof",
+            "552724d6e42079627722201b918e3f217e685b88"
+        ],
+        [
+            "by case: rqT => [] ? [] ? ? [].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Canonical pi_one_quot_morph rqT := PiMorph (pi_oner rqT).",
+            "VernacDefinition",
+            "f8d6a7520bfaa3dae859d7a5774b0774514ec4e8"
+        ],
+        [
+            "Canonical pi_mul_quot_morph rqT := PiMorph2 (pi_mulr rqT).",
+            "VernacDefinition",
+            "908d9f88bd3ca08430a6282599c73d251c142932"
+        ],
+        [
+            "End RingQuot.",
+            "VernacEndSegment",
+            "ab5c9a8f773ba06e40d8b4980b03effaa9f489d5"
+        ],
+        [
+            "Notation RingQuotType o mul Q mix := (@RingQuotType_pack _ _ _ _ _ o mul Q _ _ _ _ id id mix).",
+            "VernacSyntacticDefinition",
+            "2e2fb8a040b736ca536948dda1781b2352cde6f7"
+        ],
+        [
+            "Notation \"[ 'ringQuotType' o & m 'of' Q ]\" := (@RingQuotType_clone _ _ _ _ _ o m Q _ _ id) (at level 0, format \"[ 'ringQuotType' o & m 'of' Q ]\") : form_scope.",
+            "VernacNotation",
+            "94bf4558f3ac7f9a5155257bd5eee6db24243aea"
+        ],
+        [
+            "Notation RingQuotMixin Q m1 mM := (@RingQuotMixin_pack _ _ _ _ _ _ _ Q _ _ id _ _ id (zmod_quot_mixinP _) m1 mM).",
+            "VernacSyntacticDefinition",
+            "8fa331ebf20616b9c94c543543e7902380ee0e90"
+        ],
+        [
+            "Section PiRMorphism.",
+            "VernacBeginSection",
+            "f0219cd12adc846cefad4d16e278f4a17cedf5e4"
+        ],
+        [
+            "Variables (R : ringType) (equivR : rel R) (zeroR : R).",
+            "VernacAssumption",
+            "c516112ad98891667536044d779a8ff4ed69dccd"
+        ],
+        [
+            "Variable Q : @ringQuotType R equivR zeroR -%R +%R 1 *%R.",
+            "VernacAssumption",
+            "7f1b3322bf1c220ac85d9f57630438bdf552ae3d"
+        ],
+        [
+            "Lemma pi_is_multiplicative : multiplicative \\pi_Q.",
+            "VernacStartTheoremProof",
+            "89869033f8de4010ff98fc2c6ed3912aad91c698"
+        ],
+        [
+            "by split; do ?move=> x y /=; rewrite !piE.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Canonical pi_rmorphism := AddRMorphism pi_is_multiplicative.",
+            "VernacDefinition",
+            "016ca7ad086c02b39ab4bffd98c7c800b2d9ff7d"
+        ],
+        [
+            "End PiRMorphism.",
+            "VernacEndSegment",
+            "8a0429014310eab09e62b3f5a5ea9e0f788fac5e"
+        ],
+        [
+            "Section UnitRingQuot.",
+            "VernacBeginSection",
+            "479358f05bfd908189422e60a1e0038af2842890"
+        ],
+        [
+            "Variable (T : Type).",
+            "VernacAssumption",
+            "a15b17e37c4241158d544882375356c273dc93f2"
+        ],
+        [
+            "Variable eqT : rel T.",
+            "VernacAssumption",
+            "81a07fc4ac7b2fadca29c038c8e7234e382a459b"
+        ],
+        [
+            "Variables (zeroT : T) (oppT : T -> T) (addT : T -> T -> T).",
+            "VernacAssumption",
+            "a460e4cf8dc1fccba49dd64ad37cef04bac55079"
+        ],
+        [
+            "Variables (oneT : T) (mulT : T -> T -> T).",
+            "VernacAssumption",
+            "061fe95017780ccf875d6b2583f880550f5f9e51"
+        ],
+        [
+            "Variables (unitT : pred T) (invT : T -> T).",
+            "VernacAssumption",
+            "85011615edb23da26acb90c2fa0bbb2a117f7e84"
+        ],
+        [
+            "Record unit_ring_quot_mixin_of (Q : Type) (qc : quot_class_of T Q) (rc : GRing.UnitRing.class_of Q) := UnitRingQuotMixinPack { unit_ring_zmod_quot_mixin :> ring_quot_mixin_of eqT zeroT oppT addT oneT mulT qc rc; _ : {mono \\pi_(QuotTypePack qc) : x / unitT x >-> x \\in @GRing.unit (GRing.UnitRing.Pack rc)}; _ : {morph \\pi_(QuotTypePack qc) : x / invT x >-> @GRing.inv (GRing.UnitRing.Pack rc) x} }.",
+            "VernacInductive",
+            "6fd153c04c3ad43d74183196705ebe89d5e313b3"
+        ],
+        [
+            "Record unit_ring_quot_class_of (Q : Type) : Type := UnitRingQuotClass { unit_ring_quot_quot_class :> quot_class_of T Q; unit_ring_quot_ring_class :> GRing.UnitRing.class_of Q; unit_ring_quot_mixin :> unit_ring_quot_mixin_of unit_ring_quot_quot_class unit_ring_quot_ring_class }.",
+            "VernacInductive",
+            "b35b4dc0a0cc7fb2a1a2250ddbed864981b6e68c"
+        ],
+        [
+            "Structure unitRingQuotType : Type := UnitRingQuotTypePack { unit_ring_quot_sort :> Type; _ : unit_ring_quot_class_of unit_ring_quot_sort; }.",
+            "VernacInductive",
+            "4b77d724a7d269384bc2017a5cf18fbf4512b24d"
+        ],
+        [
+            "Implicit Type rqT : unitRingQuotType.",
+            "VernacReserve",
+            "49d1c14a35db2eab0e701cf8cad8db5a4888f692"
+        ],
+        [
+            "Definition unit_ring_quot_class rqT : unit_ring_quot_class_of rqT := let: UnitRingQuotTypePack _ cT as qT' := rqT return unit_ring_quot_class_of qT' in cT.",
+            "VernacDefinition",
+            "aa698aaa934fc33d4df54799c6445d23d52aabe2"
+        ],
+        [
+            "Definition unit_ring_ring_quot_class rqT (rqc : unit_ring_quot_class_of rqT) : ring_quot_class_of eqT zeroT oppT addT oneT mulT rqT := RingQuotClass rqc.",
+            "VernacDefinition",
+            "dde38a5756268b01c5f198d006cc1714fe5d9952"
+        ],
+        [
+            "Definition unit_ring_zmod_quot_class rqT (rqc : unit_ring_quot_class_of rqT) : zmod_quot_class_of eqT zeroT oppT addT rqT := ZmodQuotClass rqc.",
+            "VernacDefinition",
+            "64ab251cb75002c86668bb26a40e915a592363b3"
+        ],
+        [
+            "Definition unit_ring_eq_quot_class rqT (rqc : unit_ring_quot_class_of rqT) : eq_quot_class_of eqT rqT := EqQuotClass rqc.",
+            "VernacDefinition",
+            "6b371d88a28d156e489d55bdf9c20316ca6c8c7d"
+        ],
+        [
+            "Canonical unitRingQuotType_eqType rqT := Equality.Pack (unit_ring_quot_class rqT).",
+            "VernacDefinition",
+            "9fd94226ef881d8f84e14ac7e854eaf2c4b17164"
+        ],
+        [
+            "Canonical unitRingQuotType_choiceType rqT := Choice.Pack (unit_ring_quot_class rqT).",
+            "VernacDefinition",
+            "6863407d951325f4ecdf63c03b9382b8fa288013"
+        ],
+        [
+            "Canonical unitRingQuotType_zmodType rqT := GRing.Zmodule.Pack (unit_ring_quot_class rqT).",
+            "VernacDefinition",
+            "ac83f5ea8d42572bce975113f0d13ab61dc8db69"
+        ],
+        [
+            "Canonical unitRingQuotType_ringType rqT := GRing.Ring.Pack (unit_ring_quot_class rqT).",
+            "VernacDefinition",
+            "9d926b31d42611062e77ce60685aa88fcd10b429"
+        ],
+        [
+            "Canonical unitRingQuotType_unitRingType rqT := GRing.UnitRing.Pack (unit_ring_quot_class rqT).",
+            "VernacDefinition",
+            "0666c5976666d9ec39e0bcaba6d935aab2979f5a"
+        ],
+        [
+            "Canonical unitRingQuotType_quotType rqT := QuotTypePack (unit_ring_quot_class rqT).",
+            "VernacDefinition",
+            "f6f3bbe664f36ae0b5e74d69bd551c5529e78533"
+        ],
+        [
+            "Canonical unitRingQuotType_eqQuotType rqT := EqQuotTypePack (unit_ring_eq_quot_class (unit_ring_quot_class rqT)).",
+            "VernacDefinition",
+            "dd9cdf109ae74699a9976b354190d0c27efe5171"
+        ],
+        [
+            "Canonical unitRingQuotType_zmodQuotType rqT := ZmodQuotTypePack (unit_ring_zmod_quot_class (unit_ring_quot_class rqT)).",
+            "VernacDefinition",
+            "1b32ee82ebc524e8285324f76bb8ee1b58da3989"
+        ],
+        [
+            "Canonical unitRingQuotType_ringQuotType rqT := RingQuotTypePack (unit_ring_ring_quot_class (unit_ring_quot_class rqT)).",
+            "VernacDefinition",
+            "0ac13f97818588831cec693f38c6070e13038baf"
+        ],
+        [
+            "Coercion unitRingQuotType_eqType : unitRingQuotType >-> eqType.",
+            "VernacCoercion",
+            "43623f7a6cd1f4cdf1aca87d1d595266c14c03fb"
+        ],
+        [
+            "Coercion unitRingQuotType_choiceType : unitRingQuotType >-> choiceType.",
+            "VernacCoercion",
+            "146842627134acae62fd6758e75ce25b5ba99ceb"
+        ],
+        [
+            "Coercion unitRingQuotType_zmodType : unitRingQuotType >-> zmodType.",
+            "VernacCoercion",
+            "4b6aaf941241430709a480b6e8bdc0bfb632685b"
+        ],
+        [
+            "Coercion unitRingQuotType_ringType : unitRingQuotType >-> ringType.",
+            "VernacCoercion",
+            "629dff50556693d7ef38cbd7ce7ae90c0db5ada1"
+        ],
+        [
+            "Coercion unitRingQuotType_unitRingType : unitRingQuotType >-> unitRingType.",
+            "VernacCoercion",
+            "25b08a65f19c3e27dca4bad46e3c655fd0ebfe28"
+        ],
+        [
+            "Coercion unitRingQuotType_quotType : unitRingQuotType >-> quotType.",
+            "VernacCoercion",
+            "6147cd0ff8cb7a7b65f2dc094eaaf3cf6924efb1"
+        ],
+        [
+            "Coercion unitRingQuotType_eqQuotType : unitRingQuotType >-> eqQuotType.",
+            "VernacCoercion",
+            "371295588c77ec08b715d274506dda031371c2ca"
+        ],
+        [
+            "Coercion unitRingQuotType_zmodQuotType : unitRingQuotType >-> zmodQuotType.",
+            "VernacCoercion",
+            "f9689fa9b02d4754affc42603cdd7b8fd689f118"
+        ],
+        [
+            "Coercion unitRingQuotType_ringQuotType : unitRingQuotType >-> ringQuotType.",
+            "VernacCoercion",
+            "c9f31f07e084f17c5566dcc73b78ae4aed1cd223"
+        ],
+        [
+            "Definition UnitRingQuotType_pack Q := fun (qT : quotType T) (rT : unitRingType) qc rc of phant_id (quot_class qT) qc & phant_id (GRing.UnitRing.class rT) rc => fun m => UnitRingQuotTypePack (@UnitRingQuotClass Q qc rc m).",
+            "VernacDefinition",
+            "7da1c6065db9278dbfec505ace66b10dd7db0371"
+        ],
+        [
+            "Definition UnitRingQuotMixin_pack Q := fun (qT : ringQuotType eqT zeroT oppT addT oneT mulT) => fun (qc : ring_quot_class_of eqT zeroT oppT addT oneT mulT Q) of phant_id (zmod_quot_class qT) qc => fun (rT : unitRingType) rc of phant_id (GRing.UnitRing.class rT) rc => fun mR mU mV => @UnitRingQuotMixinPack Q qc rc mR mU mV.",
+            "VernacDefinition",
+            "b6df34884e03e2cfdb92322ad5c73b5e2aa91bb0"
+        ],
+        [
+            "Definition UnitRingQuotType_clone (Q : Type) qT cT of phant_id (unit_ring_quot_class qT) cT := @UnitRingQuotTypePack Q cT.",
+            "VernacDefinition",
+            "317862a05a788266e42475c17a17b808ab8b1ca8"
+        ],
+        [
+            "Lemma unit_ring_quot_mixinP rqT : unit_ring_quot_mixin_of (unit_ring_quot_class rqT) (unit_ring_quot_class rqT).",
+            "VernacStartTheoremProof",
+            "d63ca15cb4f3c45c6fba9bdada5ff4923435b189"
+        ],
+        [
+            "by case: rqT => [] ? [] ? ? [].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma pi_unitr rqT : {mono \\pi_rqT : x / unitT x >-> x \\in GRing.unit}.",
+            "VernacStartTheoremProof",
+            "eb38a6024983b57cf73d5c42947729d133655ab2"
+        ],
+        [
+            "by case: rqT => [] ? [] ? ? [].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma pi_invr rqT : {morph \\pi_rqT : x / invT x >-> x^-1}.",
+            "VernacStartTheoremProof",
+            "e889cad461deb753f504cc01cb9ab968df05e8df"
+        ],
+        [
+            "by case: rqT => [] ? [] ? ? [].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Canonical pi_unit_quot_morph rqT := PiMono1 (pi_unitr rqT).",
+            "VernacDefinition",
+            "3273f7b753ede70b9459194c26f69d226cd18b13"
+        ],
+        [
+            "Canonical pi_inv_quot_morph rqT := PiMorph1 (pi_invr rqT).",
+            "VernacDefinition",
+            "a35a00b3b21cbfc7b9b20ab97a74293c4af99027"
+        ],
+        [
+            "End UnitRingQuot.",
+            "VernacEndSegment",
+            "cd604e7cdbfb419a8c9f5a47806c53eb14955344"
+        ],
+        [
+            "Notation UnitRingQuotType u i Q mix := (@UnitRingQuotType_pack _ _ _ _ _ _ _ u i Q _ _ _ _ id id mix).",
+            "VernacSyntacticDefinition",
+            "348e465743cb967fb7be9e6c1ef2766b55f4ea97"
+        ],
+        [
+            "Notation \"[ 'unitRingQuotType' u & i 'of' Q ]\" := (@UnitRingQuotType_clone _ _ _ _ _ _ _ u i Q _ _ id) (at level 0, format \"[ 'unitRingQuotType' u & i 'of' Q ]\") : form_scope.",
+            "VernacNotation",
+            "935bd66804e164ff096c3f522771f11363f4799b"
+        ],
+        [
+            "Notation UnitRingQuotMixin Q mU mV := (@UnitRingQuotMixin_pack _ _ _ _ _ _ _ _ _ Q _ _ id _ _ id (zmod_quot_mixinP _) mU mV).",
+            "VernacSyntacticDefinition",
+            "4c6fddef1761805af34270f1859bec76b935f9ac"
+        ],
+        [
+            "Section IdealDef.",
+            "VernacBeginSection",
+            "6a74580e7c5b62ed0daf885c01930f2ac8eaa05f"
+        ],
+        [
+            "Definition proper_ideal (R : ringType) (S : predPredType R) : Prop := 1 \\notin S /\\ forall a, {in S, forall u, a * u \\in S}.",
+            "VernacDefinition",
+            "2a561aebe8cc79b3351300952e8df3af961d6a5f"
+        ],
+        [
+            "Definition prime_idealr_closed (R : ringType) (S : predPredType R) : Prop := forall u v, u * v \\in S -> (u \\in S) || (v \\in S).",
+            "VernacDefinition",
+            "f5a735b0a384b0048c4ee8fc0e1ff390d3b0056c"
+        ],
+        [
+            "Definition idealr_closed (R : ringType) (S : predPredType R) := [/\\ 0 \\in S, 1 \\notin S & forall a, {in S &, forall u v, a * u + v \\in S}].",
+            "VernacDefinition",
+            "2f33ea071e31698b7fdce8023df82cdc7ff62e0b"
+        ],
+        [
+            "Lemma idealr_closed_nontrivial R S : @idealr_closed R S -> proper_ideal S.",
+            "VernacStartTheoremProof",
+            "cb7e7053b7edaac30bc1a28a9623c644bc3e4700"
+        ],
+        [
+            "by case=> S0 S1 hS; split => // a x xS; rewrite -[_ * _]addr0 hS.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma idealr_closedB R S : @idealr_closed R S -> zmod_closed S.",
+            "VernacStartTheoremProof",
+            "31aff870f82d8c982e74037073ade971f4994b36"
+        ],
+        [
+            "by case=> S0 _ hS; split=> // x y xS yS; rewrite -mulN1r addrC hS.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Coercion idealr_closedB : idealr_closed >-> zmod_closed.",
+            "VernacCoercion",
+            "acfeec1a71a1b24dd155b238a70d5abaedbf2930"
+        ],
+        [
+            "Coercion idealr_closed_nontrivial : idealr_closed >-> proper_ideal.",
+            "VernacCoercion",
+            "02b55db963e9486a2647f711def1d06ff1c40341"
+        ],
+        [
+            "Structure idealr (R : ringType) (S : predPredType R) := MkIdeal { idealr_zmod :> zmodPred S; _ : proper_ideal S }.",
+            "VernacInductive",
+            "cd21c6a25d6be37d3b715e643c047224708b4233"
+        ],
+        [
+            "Structure prime_idealr (R : ringType) (S : predPredType R) := MkPrimeIdeal { prime_idealr_zmod :> idealr S; _ : prime_idealr_closed S }.",
+            "VernacInductive",
+            "49669a5fc700d0915f48bf6fb64ada6d8507342f"
+        ],
+        [
+            "Definition Idealr (R : ringType) (I : predPredType R) (zmodI : zmodPred I) (kI : keyed_pred zmodI) : proper_ideal I -> idealr I.",
+            "VernacDefinition",
+            "cd72ba82ed248cd0c28e8ec0bf445b2bd7ae0a62"
+        ],
+        [
+            "by move=> kI1; split => //.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Section IdealTheory.",
+            "VernacBeginSection",
+            "0b5b334e82dac3a815fa4ca2be4b5e3af4d2765f"
+        ],
+        [
+            "Variables (R : ringType) (I : predPredType R) (idealrI : idealr I) (kI : keyed_pred idealrI).",
+            "VernacAssumption",
+            "0162191ac25066a54228cc4bc328e1e384038d74"
+        ],
+        [
+            "Lemma idealr1 : 1 \\in kI = false.",
+            "VernacStartTheoremProof",
+            "292b0cad3969589b1db05cd54d9d5cb73e5c4e53"
+        ],
+        [
+            "by apply: negPf; case: idealrI kI => ? /= [? _] [] /= _ ->.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma idealMr a u : u \\in kI -> a * u \\in kI.",
+            "VernacStartTheoremProof",
+            "ec2ee84b1aad86b7df3708025b454993765ba4d2"
+        ],
+        [
+            "by case: idealrI kI=> ? /= [? hI] [] /= ? hkI; rewrite !hkI; apply: hI.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma idealr0 : 0 \\in kI.",
+            "VernacStartTheoremProof",
+            "60cf54bdf1d0304e6db21259deb2a194104557cb"
+        ],
+        [
+            "exact: rpred0.",
+            "VernacExtend",
+            "ce637ff86bafca5d8359473e8c02af644dcbdc43"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End IdealTheory.",
+            "VernacEndSegment",
+            "67efe40305c35fa8a19ef26edd9de205daac6e00"
+        ],
+        [
+            "Section PrimeIdealTheory.",
+            "VernacBeginSection",
+            "a41a2c5c2c00e1c4610c918e6d8899f59841cdd9"
+        ],
+        [
+            "Variables (R : comRingType) (I : predPredType R) (pidealrI : prime_idealr I) (kI : keyed_pred pidealrI).",
+            "VernacAssumption",
+            "ff7143f3cc0728f3a8efc7dd5f76f812c53d7e7c"
+        ],
+        [
+            "Lemma prime_idealrM u v : (u * v \\in kI) = (u \\in kI) || (v \\in kI).",
+            "VernacStartTheoremProof",
+            "169e4ad10520e9bd73d731e6f1b34bb4891ecb11"
+        ],
+        [
+            "apply/idP/idP; last by case/orP => /idealMr hI; rewrite // mulrC.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "by case: pidealrI kI=> ? /= hI [] /= ? hkI; rewrite !hkI; apply: hI.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End PrimeIdealTheory.",
+            "VernacEndSegment",
+            "88bd2abb9831c63cdab12272bb25442b78dbe63d"
+        ],
+        [
+            "End IdealDef.",
+            "VernacEndSegment",
+            "8732e5884827355d4abea7fb806f31bf16cd4be5"
+        ],
+        [
+            "Module Quotient.",
+            "VernacDefineModule",
+            "210131dd87682cc5e107ec9bbc4f3c51b560174a"
+        ],
+        [
+            "Section ZmodQuotient.",
+            "VernacBeginSection",
+            "70b3590f6a20b3a2953358654c8f061066d6b0d2"
+        ],
+        [
+            "Variables (R : zmodType) (I : predPredType R) (zmodI : zmodPred I) (kI : keyed_pred zmodI).",
+            "VernacAssumption",
+            "a3baf0a4b6cd118e5ed92d55672d68ae4d5f3bb2"
+        ],
+        [
+            "Definition equiv (x y : R) := (x - y) \\in kI.",
+            "VernacDefinition",
+            "8a148dc0f0745a6842054bdb3fdde59de8096b21"
+        ],
+        [
+            "Lemma equivE x y : (equiv x y) = (x - y \\in kI).",
+            "VernacStartTheoremProof",
+            "9e011d39b1483e823297895967497ab6e2cb8947"
+        ],
+        [
+            "by [].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma equiv_is_equiv : equiv_class_of equiv.",
+            "VernacStartTheoremProof",
+            "a9ed73d04cf68e8f9e145a36732c67dceb496bdd"
+        ],
+        [
+            "split=> [x|x y|y x z]; rewrite !equivE ?subrr ?rpred0 //.",
+            "VernacExtend",
+            "82d53976234637e3f0907eb36cddf61d028c6306"
+        ],
+        [
+            "by rewrite -opprB rpredN.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "by move=> *; rewrite -[x](addrNK y) -addrA rpredD.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Canonical equiv_equiv := EquivRelPack equiv_is_equiv.",
+            "VernacDefinition",
+            "db6d0082f6774bf6bde6f1705540b6104e0e614f"
+        ],
+        [
+            "Canonical equiv_encModRel := defaultEncModRel equiv.",
+            "VernacDefinition",
+            "40d4e5f1a6532e51bbfb4e624dc27ea328c522d0"
+        ],
+        [
+            "Definition type := {eq_quot equiv}.",
+            "VernacDefinition",
+            "595f6e25df00b1f18cf65f2523ad97ce319443ff"
+        ],
+        [
+            "Definition type_of of phant R := type.",
+            "VernacDefinition",
+            "3cf13e474099a614476387e79acfb78eb1598e6e"
+        ],
+        [
+            "Canonical rquot_quotType := [quotType of type].",
+            "VernacDefinition",
+            "7c4ae9e06ea515a633ff6540543d29935e66df0c"
+        ],
+        [
+            "Canonical rquot_eqType := [eqType of type].",
+            "VernacDefinition",
+            "b5ebaefd8a36850f26d88d293c58192ec4d9f48b"
+        ],
+        [
+            "Canonical rquot_choiceType := [choiceType of type].",
+            "VernacDefinition",
+            "b936d855f9d4a135fbb45a4c7ad6556b41bc7945"
+        ],
+        [
+            "Canonical rquot_eqQuotType := [eqQuotType equiv of type].",
+            "VernacDefinition",
+            "235e50051d39b987d8003dcc3fa3b66c04d1ad50"
+        ],
+        [
+            "Lemma idealrBE x y : (x - y) \\in kI = (x == y %[mod type]).",
+            "VernacStartTheoremProof",
+            "6157f5414ea605254dff6cdad403b3b3f8ae674f"
+        ],
+        [
+            "by rewrite piE equivE.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma idealrDE x y : (x + y) \\in kI = (x == - y %[mod type]).",
+            "VernacStartTheoremProof",
+            "b39e62350ceb39bad2609ebba47502f9e5464939"
+        ],
+        [
+            "by rewrite -idealrBE opprK.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition zero : type := lift_cst type 0.",
+            "VernacDefinition",
+            "a16374acb817e23d754045dd4b018338293624b7"
+        ],
+        [
+            "Definition add := lift_op2 type +%R.",
+            "VernacDefinition",
+            "a189e6efcd24e2c0b38d31a572446007b24986ee"
+        ],
+        [
+            "Definition opp := lift_op1 type -%R.",
+            "VernacDefinition",
+            "8bf612a551473609eedc3fe80783fff03795ea42"
+        ],
+        [
+            "Canonical pi_zero_morph := PiConst zero.",
+            "VernacDefinition",
+            "e6bca51a4b2eb357bd37baaff4933afdd2373a17"
+        ],
+        [
+            "Lemma pi_opp : {morph \\pi : x / - x >-> opp x}.",
+            "VernacStartTheoremProof",
+            "a0483b8fb45454b5fe0cedc2209f59d7a1004f50"
+        ],
+        [
+            "move=> x; unlock opp; apply/eqP; rewrite piE equivE.",
+            "VernacExtend",
+            "c9f9ca35a24a7c1980ca3c1f7dbf4074d4301015"
+        ],
+        [
+            "by rewrite -opprD rpredN idealrDE opprK reprK.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Canonical pi_opp_morph := PiMorph1 pi_opp.",
+            "VernacDefinition",
+            "629e3ce46ae5c434a3fa8c36da459042dde2e09f"
+        ],
+        [
+            "Lemma pi_add : {morph \\pi : x y / x + y >-> add x y}.",
+            "VernacStartTheoremProof",
+            "571115e2900f9bf35fefa4b76093fbaf8c733494"
+        ],
+        [
+            "move=> x y /=; unlock add; apply/eqP; rewrite piE equivE.",
+            "VernacExtend",
+            "c9f9ca35a24a7c1980ca3c1f7dbf4074d4301015"
+        ],
+        [
+            "rewrite opprD addrAC addrA -addrA.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "by rewrite rpredD // (idealrBE, idealrDE) ?pi_opp ?reprK.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Canonical pi_add_morph := PiMorph2 pi_add.",
+            "VernacDefinition",
+            "ea1fb9a47e32f065b120a1a4031ee6bf32b01e82"
+        ],
+        [
+            "Lemma addqA: associative add.",
+            "VernacStartTheoremProof",
+            "1fb286e124d9a69a5fc5d232d5f1c84ece536477"
+        ],
+        [
+            "by move=> x y z; rewrite -[x]reprK -[y]reprK -[z]reprK !piE addrA.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma addqC: commutative add.",
+            "VernacStartTheoremProof",
+            "1d45494114b93211ce385b33407808e5479a7d4b"
+        ],
+        [
+            "by move=> x y; rewrite -[x]reprK -[y]reprK !piE addrC.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma add0q: left_id zero add.",
+            "VernacStartTheoremProof",
+            "3bd77ea0e3428ce74a37b82b704ad6705f6cdcc0"
+        ],
+        [
+            "by move=> x; rewrite -[x]reprK !piE add0r.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma addNq: left_inverse zero opp add.",
+            "VernacStartTheoremProof",
+            "ee29a8ac435d147cd2342e54bcd7020dc3fd8653"
+        ],
+        [
+            "by move=> x; rewrite -[x]reprK !piE addNr.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition rquot_zmodMixin := ZmodMixin addqA addqC add0q addNq.",
+            "VernacDefinition",
+            "2871db75d57c3a1519fe2065846b374e70759c90"
+        ],
+        [
+            "Canonical rquot_zmodType := Eval hnf in ZmodType type rquot_zmodMixin.",
+            "VernacDefinition",
+            "9e8e625c62a7ad712760e180ddc0b0fb8e0b75de"
+        ],
+        [
+            "Definition rquot_zmodQuotMixin := ZmodQuotMixin type (lock _) pi_opp pi_add.",
+            "VernacDefinition",
+            "8c02331abc3717d9cd15653d6ebb01c89be1718d"
+        ],
+        [
+            "Canonical rquot_zmodQuotType := ZmodQuotType 0 -%R +%R type rquot_zmodQuotMixin.",
+            "VernacDefinition",
+            "27f62441d19dac699573d12067ed5473780d6ef9"
+        ],
+        [
+            "End ZmodQuotient.",
+            "VernacEndSegment",
+            "073528b65f2e94371ddf93f9828b7bed343a0aa7"
+        ],
+        [
+            "Notation \"{quot I }\" := (@type_of _ _ _ I (Phant _)).",
+            "VernacNotation",
+            "1a3a4be232063ca7752b0e1ce1345804919e085c"
+        ],
+        [
+            "Section RingQuotient.",
+            "VernacBeginSection",
+            "de2f33eaec2a4ef3d35cdad68bb6d71a06360137"
+        ],
+        [
+            "Variables (R : comRingType) (I : predPredType R) (idealI : idealr I) (kI : keyed_pred idealI).",
+            "VernacAssumption",
+            "0a2273c6dbb53023629f2508bf3f1eb6d71ae583"
+        ],
+        [
+            "Local Notation type := {quot kI}.",
+            "VernacSyntacticDefinition",
+            "79e592cb06ba08a042ae3fca4f29a762102b31ef"
+        ],
+        [
+            "Definition one: type := lift_cst type 1.",
+            "VernacDefinition",
+            "cda8add11b8e8ab5ff07433d1d170e8dedf67195"
+        ],
+        [
+            "Definition mul := lift_op2 type *%R.",
+            "VernacDefinition",
+            "61f75179e33f480ad0f10567a346151497193cc4"
+        ],
+        [
+            "Canonical pi_one_morph := PiConst one.",
+            "VernacDefinition",
+            "a141dcd6f667a0dac8eba463c54e919ab2162fe5"
+        ],
+        [
+            "Lemma pi_mul: {morph \\pi : x y / x * y >-> mul x y}.",
+            "VernacStartTheoremProof",
+            "d5cdeee47ad4c8589cdd6e6afbc9ce4a24e426e7"
+        ],
+        [
+            "move=> x y; unlock mul; apply/eqP; rewrite piE equivE.",
+            "VernacExtend",
+            "c9f9ca35a24a7c1980ca3c1f7dbf4074d4301015"
+        ],
+        [
+            "rewrite -[_ * _](addrNK (x * repr (\\pi_type y))) -mulrBr.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "rewrite -addrA -mulrBl rpredD //.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "by rewrite idealMr // idealrDE opprK reprK.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "by rewrite mulrC idealMr // idealrDE opprK reprK.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Canonical pi_mul_morph := PiMorph2 pi_mul.",
+            "VernacDefinition",
+            "47998f73c2f1fa4bbebfd3bf25681dd0dd2ac129"
+        ],
+        [
+            "Lemma mulqA: associative mul.",
+            "VernacStartTheoremProof",
+            "e174d44056f8194936e7ab0e365f0c5acbc091f4"
+        ],
+        [
+            "by move=> x y z; rewrite -[x]reprK -[y]reprK -[z]reprK !piE mulrA.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma mulqC: commutative mul.",
+            "VernacStartTheoremProof",
+            "a9f67b2d0a2bda3fde30ad4cd3bf8bd60c718742"
+        ],
+        [
+            "by move=> x y; rewrite -[x]reprK -[y]reprK !piE mulrC.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma mul1q: left_id one mul.",
+            "VernacStartTheoremProof",
+            "0a933a62967ec81fb3da65a0377f758b768e2658"
+        ],
+        [
+            "by move=> x; rewrite -[x]reprK !piE mul1r.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma mulq_addl: left_distributive mul +%R.",
+            "VernacStartTheoremProof",
+            "54824992a4f22cd7b5bd73419ca68eac1a5a0e49"
+        ],
+        [
+            "move=> x y z; rewrite -[x]reprK -[y]reprK -[z]reprK.",
+            "VernacExtend",
+            "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+        ],
+        [
+            "by apply/eqP; rewrite piE /= mulrDl equiv_refl.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma nonzero1q: one != 0.",
+            "VernacStartTheoremProof",
+            "36d35a73fc94b36528f45cd9c6d9a4c8bfe0520c"
+        ],
+        [
+            "by rewrite piE equivE subr0 idealr1.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition rquot_comRingMixin := ComRingMixin mulqA mulqC mul1q mulq_addl nonzero1q.",
+            "VernacDefinition",
+            "111c2e378cdaea12759e51a722d8bb2b9a02d869"
+        ],
+        [
+            "Canonical rquot_ringType := Eval hnf in RingType type rquot_comRingMixin.",
+            "VernacDefinition",
+            "862e3cc194c329a3affdeee6a37155cae81b3f9d"
+        ],
+        [
+            "Canonical rquot_comRingType := Eval hnf in ComRingType type mulqC.",
+            "VernacDefinition",
+            "c9f07701a8cb33f18f6f55d8351605481d0b76c3"
+        ],
+        [
+            "Definition rquot_ringQuotMixin := RingQuotMixin type (lock _) pi_mul.",
+            "VernacDefinition",
+            "5237f7074b5d5f3aca7e2435d12cd19a7afb4bf1"
+        ],
+        [
+            "Canonical rquot_ringQuotType := RingQuotType 1 *%R type rquot_ringQuotMixin.",
+            "VernacDefinition",
+            "0547da95d33025d7bb5fb546ce416b84c936cff4"
+        ],
+        [
+            "End RingQuotient.",
+            "VernacEndSegment",
+            "f36f8793e2ba4ea1af2c4839d640d652371e82e5"
+        ],
+        [
+            "Section IDomainQuotient.",
+            "VernacBeginSection",
+            "e64889649dcb00fee1ba5b29333b772fe185d23f"
+        ],
+        [
+            "Variables (R : comRingType) (I : predPredType R) (pidealI : prime_idealr I) (kI : keyed_pred pidealI).",
+            "VernacAssumption",
+            "f48140241a665e71444eb10339d0d008c33b7c6b"
+        ],
+        [
+            "Lemma rquot_IdomainAxiom (x y : {quot kI}): x * y = 0 -> (x == 0) || (y == 0).",
+            "VernacStartTheoremProof",
+            "bb2c6bebd786ba9811eb37f21c4a915a9e1b857d"
+        ],
+        [
+            "by move=> /eqP; rewrite -[x]reprK -[y]reprK !piE !equivE !subr0 prime_idealrM.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End IDomainQuotient.",
+            "VernacEndSegment",
+            "9bbf4596607874fb8c4fc14053caf46fac3e0b78"
+        ],
+        [
+            "End Quotient.",
+            "VernacEndSegment",
+            "2f78ece027a30c5be7689abb99041a16475da9f7"
+        ],
+        [
+            "Notation \"{ideal_quot I }\" := (@Quotient.type_of _ _ _ I (Phant _)).",
+            "VernacNotation",
+            "9a82a9a986c50a21dd831d88dbaba67362f56eac"
+        ],
+        [
+            "Notation \"x == y %[mod_ideal I ]\" := (x == y %[mod {ideal_quot I}]) : quotient_scope.",
+            "VernacNotation",
+            "11818f341626f22bf870357823e4928be0b0965e"
+        ],
+        [
+            "Notation \"x = y %[mod_ideal I ]\" := (x = y %[mod {ideal_quot I}]) : quotient_scope.",
+            "VernacNotation",
+            "d8a1a156b5b83d8c17b7b822d5f8dcd47d60e2e6"
+        ],
+        [
+            "Notation \"x != y %[mod_ideal I ]\" := (x != y %[mod {ideal_quot I}]) : quotient_scope.",
+            "VernacNotation",
+            "dcaf6c1a7b3248c6785df87f82cf3b798b43c355"
+        ],
+        [
+            "Notation \"x <> y %[mod_ideal I ]\" := (x <> y %[mod {ideal_quot I}]) : quotient_scope.",
+            "VernacNotation",
+            "e6792b49e7b11e83e48ab24267321d76de026b06"
+        ],
+        [
+            "Canonical Quotient.rquot_eqType.",
+            "VernacCanonical",
+            "8f328dffd2f65553b8a7a6b81b05be4828fbbc16"
+        ],
+        [
+            "Canonical Quotient.rquot_choiceType.",
+            "VernacCanonical",
+            "aea884c638f8e540a827a5de1f7ef821039c4502"
+        ],
+        [
+            "Canonical Quotient.rquot_zmodType.",
+            "VernacCanonical",
+            "cc105801b16fa7755d42c1331c4ab4c473b95d7e"
+        ],
+        [
+            "Canonical Quotient.rquot_ringType.",
+            "VernacCanonical",
+            "7ce59fd9bf67604b9ff1d4f48dbda7bda7db7763"
+        ],
+        [
+            "Canonical Quotient.rquot_comRingType.",
+            "VernacCanonical",
+            "817f3993bf57f1b6ba4568a115d7f8689d517c53"
+        ],
+        [
+            "Canonical Quotient.rquot_quotType.",
+            "VernacCanonical",
+            "eee8f9f93e18857a8eff82026b4885f1786ddf42"
+        ],
+        [
+            "Canonical Quotient.rquot_eqQuotType.",
+            "VernacCanonical",
+            "4f7e8b79683b6c09ea4c3d69f84a977db63ef908"
+        ],
+        [
+            "Canonical Quotient.rquot_zmodQuotType.",
+            "VernacCanonical",
+            "687a634e6e5ef33a616e1d230f2024c58a8ff892"
+        ],
+        [
+            "Canonical Quotient.rquot_ringQuotType.",
+            "VernacCanonical",
+            "aeae6631abcccb6b5e325fe3f31f22e0b4b5e0e3"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "zmod_quot_mixinP",
+            "line_nb": 37,
+            "steps": [
+                {
+                    "command": [
+                        "by case: zqT => [] ? [] ? ? [].",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pi_zeror",
+            "line_nb": 40,
+            "steps": [
+                {
+                    "command": [
+                        "by case: zqT => [] ? [] ? ? [].",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pi_oppr",
+            "line_nb": 43,
+            "steps": [
+                {
+                    "command": [
+                        "by case: zqT => [] ? [] ? ? [].",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pi_addr",
+            "line_nb": 46,
+            "steps": [
+                {
+                    "command": [
+                        "by case: zqT => [] ? [] ? ? [].",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pi_is_additive",
+            "line_nb": 59,
+            "steps": [
+                {
+                    "command": [
+                        "by move=> x y /=; rewrite !piE.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ring_quot_mixinP",
+            "line_nb": 93,
+            "steps": [
+                {
+                    "command": [
+                        "by case: rqT => [] ? [] ? ? [].",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pi_oner",
+            "line_nb": 96,
+            "steps": [
+                {
+                    "command": [
+                        "by case: rqT => [] ? [] ? ? [].",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pi_mulr",
+            "line_nb": 99,
+            "steps": [
+                {
+                    "command": [
+                        "by case: rqT => [] ? [] ? ? [].",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pi_is_multiplicative",
+            "line_nb": 111,
+            "steps": [
+                {
+                    "command": [
+                        "by split; do ?move=> x y /=; rewrite !piE.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "unit_ring_quot_mixinP",
+            "line_nb": 151,
+            "steps": [
+                {
+                    "command": [
+                        "by case: rqT => [] ? [] ? ? [].",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pi_unitr",
+            "line_nb": 154,
+            "steps": [
+                {
+                    "command": [
+                        "by case: rqT => [] ? [] ? ? [].",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pi_invr",
+            "line_nb": 157,
+            "steps": [
+                {
+                    "command": [
+                        "by case: rqT => [] ? [] ? ? [].",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "idealr_closed_nontrivial",
+            "line_nb": 170,
+            "steps": [
+                {
+                    "command": [
+                        "by case=> S0 S1 hS; split => // a x xS; rewrite -[_ * _]addr0 hS.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "idealr_closedB",
+            "line_nb": 173,
+            "steps": [
+                {
+                    "command": [
+                        "by case=> S0 _ hS; split=> // x y xS yS; rewrite -mulN1r addrC hS.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Idealr",
+            "line_nb": 180,
+            "steps": [
+                {
+                    "command": [
+                        "by move=> kI1; split => //.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "idealr1",
+            "line_nb": 185,
+            "steps": [
+                {
+                    "command": [
+                        "by apply: negPf; case: idealrI kI => ? /= [? _] [] /= _ ->.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "idealMr",
+            "line_nb": 188,
+            "steps": [
+                {
+                    "command": [
+                        "by case: idealrI kI=> ? /= [? hI] [] /= ? hkI; rewrite !hkI; apply: hI.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "idealr0",
+            "line_nb": 191,
+            "steps": [
+                {
+                    "command": [
+                        "exact: rpred0.",
+                        "VernacExtend",
+                        "ce637ff86bafca5d8359473e8c02af644dcbdc43"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "equivE",
+            "line_nb": 207,
+            "steps": [
+                {
+                    "command": [
+                        "by [].",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "equiv_is_equiv",
+            "line_nb": 210,
+            "steps": [
+                {
+                    "command": [
+                        "split=> [x|x y|y x z]; rewrite !equivE ?subrr ?rpred0 //.",
+                        "VernacExtend",
+                        "82d53976234637e3f0907eb36cddf61d028c6306"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite -opprB rpredN.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "by move=> *; rewrite -[x](addrNK y) -addrA rpredD.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "idealrBE",
+            "line_nb": 223,
+            "steps": [
+                {
+                    "command": [
+                        "by rewrite piE equivE.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "idealrDE",
+            "line_nb": 226,
+            "steps": [
+                {
+                    "command": [
+                        "by rewrite -idealrBE opprK.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pi_opp",
+            "line_nb": 233,
+            "steps": [
+                {
+                    "command": [
+                        "move=> x; unlock opp; apply/eqP; rewrite piE equivE.",
+                        "VernacExtend",
+                        "c9f9ca35a24a7c1980ca3c1f7dbf4074d4301015"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite -opprD rpredN idealrDE opprK reprK.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pi_add",
+            "line_nb": 238,
+            "steps": [
+                {
+                    "command": [
+                        "move=> x y /=; unlock add; apply/eqP; rewrite piE equivE.",
+                        "VernacExtend",
+                        "c9f9ca35a24a7c1980ca3c1f7dbf4074d4301015"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite opprD addrAC addrA -addrA.",
+                        "VernacExtend",
+                        "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite rpredD // (idealrBE, idealrDE) ?pi_opp ?reprK.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "addqA",
+            "line_nb": 244,
+            "steps": [
+                {
+                    "command": [
+                        "by move=> x y z; rewrite -[x]reprK -[y]reprK -[z]reprK !piE addrA.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "addqC",
+            "line_nb": 247,
+            "steps": [
+                {
+                    "command": [
+                        "by move=> x y; rewrite -[x]reprK -[y]reprK !piE addrC.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "add0q",
+            "line_nb": 250,
+            "steps": [
+                {
+                    "command": [
+                        "by move=> x; rewrite -[x]reprK !piE add0r.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "addNq",
+            "line_nb": 253,
+            "steps": [
+                {
+                    "command": [
+                        "by move=> x; rewrite -[x]reprK !piE addNr.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pi_mul",
+            "line_nb": 268,
+            "steps": [
+                {
+                    "command": [
+                        "move=> x y; unlock mul; apply/eqP; rewrite piE equivE.",
+                        "VernacExtend",
+                        "c9f9ca35a24a7c1980ca3c1f7dbf4074d4301015"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite -[_ * _](addrNK (x * repr (\\pi_type y))) -mulrBr.",
+                        "VernacExtend",
+                        "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite -addrA -mulrBl rpredD //.",
+                        "VernacExtend",
+                        "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite idealMr // idealrDE opprK reprK.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite mulrC idealMr // idealrDE opprK reprK.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "mulqA",
+            "line_nb": 276,
+            "steps": [
+                {
+                    "command": [
+                        "by move=> x y z; rewrite -[x]reprK -[y]reprK -[z]reprK !piE mulrA.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "mulqC",
+            "line_nb": 279,
+            "steps": [
+                {
+                    "command": [
+                        "by move=> x y; rewrite -[x]reprK -[y]reprK !piE mulrC.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "mul1q",
+            "line_nb": 282,
+            "steps": [
+                {
+                    "command": [
+                        "by move=> x; rewrite -[x]reprK !piE mul1r.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "mulq_addl",
+            "line_nb": 285,
+            "steps": [
+                {
+                    "command": [
+                        "move=> x y z; rewrite -[x]reprK -[y]reprK -[z]reprK.",
+                        "VernacExtend",
+                        "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply/eqP; rewrite piE /= mulrDl equiv_refl.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "nonzero1q",
+            "line_nb": 289,
+            "steps": [
+                {
+                    "command": [
+                        "by rewrite piE equivE subr0 idealr1.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "rquot_IdomainAxiom",
+            "line_nb": 300,
+            "steps": [
+                {
+                    "command": [
+                        "by move=> /eqP; rewrite -[x]reprK -[y]reprK !piE !equivE !subr0 prime_idealrM.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

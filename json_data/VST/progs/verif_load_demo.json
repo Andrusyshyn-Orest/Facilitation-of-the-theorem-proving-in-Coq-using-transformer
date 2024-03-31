@@ -1,0 +1,1987 @@
+{
+    "filename": "progs/verif_load_demo.v",
+    "coq_project": "VST",
+    "vernac_cmds": [
+        [
+            "Require Import VST.floyd.proofauto.",
+            "VernacRequire",
+            "1b5b5bd8f6976ab2a8ffc41bb68ef58d6fb49b99"
+        ],
+        [
+            "Require Import VST.progs.load_demo.",
+            "VernacRequire",
+            "0726dfe580989dc9d7f636243aff4085951317d1"
+        ],
+        [
+            "Instance CompSpecs : compspecs.",
+            "VernacInstance",
+            "154eee01c656800e0ca79db421bf2abcdf325f7f"
+        ],
+        [
+            "make_compspecs prog.",
+            "VernacExtend",
+            "36220761a2e554d38938361d97a6a7824a7eb4eb"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Definition Vprog : varspecs.",
+            "VernacDefinition",
+            "071102901c915338608cbb3742cc92eff26260b2"
+        ],
+        [
+            "mk_varspecs prog.",
+            "VernacExtend",
+            "3d71166af717afdd6c2d6e7673cef893ac1c6afc"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Definition pair_pair_t := (Tstruct _pair_pair noattr).",
+            "VernacDefinition",
+            "d3ccf10303ec5fb046a39ab82b402942f5f5abf8"
+        ],
+        [
+            "Definition array_size := 100.",
+            "VernacDefinition",
+            "ea30728ff762e1e5a13afb768ebae215edcb7ff1"
+        ],
+        [
+            "Definition get22_spec := DECLARE _get22 WITH pps: val, i: Z, x11: int, x12: int, x21: int, x22: int, sh : share PRE [ _pps OF (tptr pair_pair_t), _i OF tint ] PROP (readable_share sh; 0 <= i < array_size) LOCAL (temp _pps pps; temp _i (Vint (Int.repr i))) SEP (field_at sh (tarray pair_pair_t array_size) [ArraySubsc i] ((Vint x11, Vint x12), (Vint x21, Vint x22)) pps) POST [ tint ] PROP () LOCAL (temp ret_temp (Vint x22)) SEP (field_at sh (tarray pair_pair_t array_size) [ArraySubsc i] ((Vint x11, Vint x12), (Vint x21, Vint x22)) pps).",
+            "VernacDefinition",
+            "38547f9dead5b2c6fc6cc2cd8bf9959f97a10592"
+        ],
+        [
+            "Definition uint_sum (contents : list Z) : int := fold_right (fun el sum => Int.add sum (Int.repr el)) Int.zero contents.",
+            "VernacDefinition",
+            "b4c92bd7d7e2c9a01bfdbca12f5cc3423a95ec8b"
+        ],
+        [
+            "Definition fiddle_spec := DECLARE _fiddle WITH p: val, n: Z, tag: Z, contents: list Z PRE [ _p OF tptr tuint ] PROP (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10)) = n) LOCAL (temp _p p) SEP (data_at Ews (tarray tuint (1+n)) (map Vint (map Int.repr (tag::contents))) (offset_val (-sizeof tuint) p)) POST [ tint ] PROP ( ) LOCAL (temp ret_temp (Vint (Int.add (Int.repr (Z.land tag 255)) (uint_sum contents)))) SEP (data_at Ews (tarray tuint (1+n)) (map Vint (map Int.repr (tag::contents))) (offset_val (-sizeof tuint) p)).",
+            "VernacDefinition",
+            "80cd9a4928f18c5368952e3e62422c8d9bc7c1cb"
+        ],
+        [
+            "Definition get_uint32_le (arr: list Z) : int := (Int.or (Int.or (Int.or (Int.repr (Znth 0 arr)) (Int.shl (Int.repr (Znth 1 arr)) (Int.repr 8))) (Int.shl (Int.repr (Znth 2 arr)) (Int.repr 16))) (Int.shl (Int.repr (Znth 3 arr)) (Int.repr 24))).",
+            "VernacDefinition",
+            "2dc705de79bae5103fb6c872998eee381dc38ee6"
+        ],
+        [
+            "Definition get_little_endian_spec := DECLARE _get_little_endian WITH input : val, in_sh : share, arr : list Z PRE [ _input OF (tptr tuchar) ] PROP (Zlength arr = 4; readable_share in_sh; forall i, 0 <= i < 4 -> 0 <= Znth i arr <= Byte.max_unsigned) LOCAL (temp _input input) SEP (data_at in_sh (tarray tuchar 4) (map Vint (map Int.repr arr)) input) POST [ tuint ] PROP() LOCAL(temp ret_temp (Vint (get_uint32_le arr))) SEP (data_at in_sh (tarray tuchar 4) (map Vint (map Int.repr arr)) input).",
+            "VernacDefinition",
+            "dedd4b4f8295582ec851a631d0c2eba9af5554ba"
+        ],
+        [
+            "Definition Gprog : funspecs := ltac:(with_library prog [get22_spec; fiddle_spec; get_little_endian_spec]).",
+            "VernacDefinition",
+            "ee80c795acc1cb800de86539852785022213c8d9"
+        ],
+        [
+            "Ltac solve_arr_range H := match goal with |- context [Znth ?i _] => specialize (H i); spec H; [ computable | ]; rewrite Int.unsigned_repr; rep_omega end.",
+            "VernacExtend",
+            "763d75641ac6776100a2031984709598aaf98fa6"
+        ],
+        [
+            "Lemma body_get_little_endian: semax_body Vprog Gprog f_get_little_endian get_little_endian_spec.",
+            "VernacStartTheoremProof",
+            "0042a52a649548a9c0a92762b47ad600dcdf1ca4"
+        ],
+        [
+            "start_function.",
+            "VernacExtend",
+            "c9d31eecaa0cff79fee4b43862828db880600e1a"
+        ],
+        [
+            "assert (BMU: Byte.max_unsigned=255) by reflexivity.",
+            "VernacExtend",
+            "25f9eb0f55b1386f21f1acdcba6ab35b1a304bac"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "entailer!.",
+            "VernacExtend",
+            "e9311eb469ece63c985af7872ea148a97277818d"
+        ],
+        [
+            "solve_arr_range H0.",
+            "VernacExtend",
+            "9c6bbe8c39d131018ce4a6daa51d40240b417fdc"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "entailer!.",
+            "VernacExtend",
+            "e9311eb469ece63c985af7872ea148a97277818d"
+        ],
+        [
+            "solve_arr_range H0.",
+            "VernacExtend",
+            "9c6bbe8c39d131018ce4a6daa51d40240b417fdc"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "entailer!.",
+            "VernacExtend",
+            "e9311eb469ece63c985af7872ea148a97277818d"
+        ],
+        [
+            "solve_arr_range H0.",
+            "VernacExtend",
+            "9c6bbe8c39d131018ce4a6daa51d40240b417fdc"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "entailer!.",
+            "VernacExtend",
+            "e9311eb469ece63c985af7872ea148a97277818d"
+        ],
+        [
+            "solve_arr_range H0.",
+            "VernacExtend",
+            "9c6bbe8c39d131018ce4a6daa51d40240b417fdc"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma uint_sum_app: forall a b, uint_sum (a++b) = Int.add (uint_sum a) (uint_sum b).",
+            "VernacStartTheoremProof",
+            "58b362f852bf35ec8d0ad693957768473eec7447"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "induction a; simpl.",
+            "VernacExtend",
+            "83046760be90957e25a4b343bcfdb8eb6df65d17"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "symmetry.",
+            "VernacExtend",
+            "a08fc0dc04bba893008bded8181f393e2d8db167"
+        ],
+        [
+            "apply Int.add_zero_l.",
+            "VernacExtend",
+            "b16ea9891396c46dbade78a1a4ce69d0e526b072"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite IHa.",
+            "VernacExtend",
+            "9e383c888c61315717545bb7809490842b4060d5"
+        ],
+        [
+            "rewrite !Int.add_assoc.",
+            "VernacExtend",
+            "9c6964a3edefa64bfe5ca5e0c9d541d2864c45c7"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "apply Int.add_commut.",
+            "VernacExtend",
+            "e52ebe9be83b65e318fe519253660b5f59ee2e57"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma body_fiddle: semax_body Vprog Gprog f_fiddle fiddle_spec.",
+            "VernacStartTheoremProof",
+            "4cd2a3318d31a58798d5af13d79af790c4e71cad"
+        ],
+        [
+            "start_function.",
+            "VernacExtend",
+            "c9d31eecaa0cff79fee4b43862828db880600e1a"
+        ],
+        [
+            "rename H into Htag.",
+            "VernacExtend",
+            "c6f966fbd5d55029faad12d35ad9e50dcfe079f6"
+        ],
+        [
+            "assert_PROP (Zlength contents = n) as LEN.",
+            "VernacExtend",
+            "837dd603fb87f541c080f68fbd1ad46bde448afd"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "entailer!.",
+            "VernacExtend",
+            "e9311eb469ece63c985af7872ea148a97277818d"
+        ],
+        [
+            "forget (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10))) as n.",
+            "VernacExtend",
+            "480c9e54759f91d642934a8c3093191f887b1cf9"
+        ],
+        [
+            "clear - H0.",
+            "VernacExtend",
+            "26b60cd70d9cbb77dd5e024fa10fa554555a88cc"
+        ],
+        [
+            "rewrite !Zlength_map in H0.",
+            "VernacExtend",
+            "099db56335acf74127b79a3d3088e30c11e68890"
+        ],
+        [
+            "rewrite Zlength_cons in H0.",
+            "VernacExtend",
+            "409227792e388c60c4858953f7e745962fa484a4"
+        ],
+        [
+            "destruct (zlt n 0); [elimtype False | ].",
+            "VernacExtend",
+            "cac460a25914eb5bce647ccb9a8d04395ea61080"
+        ],
+        [
+            "rewrite Z.max_l in H0 by omega.",
+            "VernacExtend",
+            "d14e2a9bba96250d8df0888c25f132320cc8161d"
+        ],
+        [
+            "pose proof (Zlength_nonneg contents).",
+            "VernacExtend",
+            "aeb10237c572e8f9bde28acce0a7827845207393"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "rewrite Z.max_r in H0 by omega.",
+            "VernacExtend",
+            "71d73e124072502c316cca05e58b96d82fe88083"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "assert (Zlength (tag :: contents) = 1 + n) as LEN1.",
+            "VernacExtend",
+            "5609df94d85261f90c36661f55dc8bb97cebc256"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "rewrite Zlength_cons.",
+            "VernacExtend",
+            "e06d429bdf690ef195f65a36ea0771f78b7f113c"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "assert (N0: 0 <= n).",
+            "VernacExtend",
+            "6727a08d8ca5d3ecd07d8d0bc3d6ff0ecdeb4b04"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "pose proof (Zlength_nonneg contents).",
+            "VernacExtend",
+            "aeb10237c572e8f9bde28acce0a7827845207393"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "assert_PROP (isptr p) as P by entailer!.",
+            "VernacExtend",
+            "13ae3b42b25905c65a8c57bbf8ed27562f452234"
+        ],
+        [
+            "assert_PROP (force_val (sem_add_ptr_int tuint Signed p (eval_unop Oneg tint (Vint (Int.repr 1)))) = field_address (tarray tuint (1+n)) [ArraySubsc 0] (offset_val (-sizeof tuint) p)).",
+            "VernacExtend",
+            "8809c9c5f77206452f4e1fb9fd2f8221edd09df7"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "entailer!.",
+            "VernacExtend",
+            "e9311eb469ece63c985af7872ea148a97277818d"
+        ],
+        [
+            "destruct p; inversion P.",
+            "VernacExtend",
+            "19342ec92b00fc4159d9b431382422d5485302a9"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite field_compatible_field_address by auto with field_compatible.",
+            "VernacExtend",
+            "c2b977fa32b5f6a1a86064fb8265946db67e760e"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite ptrofs_add_repr_0_r.",
+            "VernacExtend",
+            "a9ab9c0268f767b299bf3895a1414e463c933c36"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "forward_for_simple_bound (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10))) (EX i: Z, PROP ( ) LOCAL ( temp _size (Vint (Int.shru (Int.repr tag) (Int.repr 10))); temp _sum (Vint (Int.add (Int.and (Int.repr tag) (Int.repr 255)) (uint_sum (sublist 0 i contents)))); temp _tagword (Vint (Int.repr tag)); temp _p p ) SEP (data_at Ews (tarray tuint (1 + n)) (map Vint (map Int.repr (tag :: contents))) (offset_val (- sizeof tuint) p))).",
+            "VernacExtend",
+            "845e1a7cb321e1f988503a993c56c5db9f752be4"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "entailer!.",
+            "VernacExtend",
+            "e9311eb469ece63c985af7872ea148a97277818d"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "assert_PROP (force_val (sem_add_ptr_int tuint Unsigned p (Vint (Int.repr i))) = field_address (tarray tuint (1 + n)) [ArraySubsc (1 + i)] (offset_val (- sizeof tuint) p)).",
+            "VernacExtend",
+            "9d881099db60026ecd6e73bd29932f6bb2847fe8"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "entailer!.",
+            "VernacExtend",
+            "e9311eb469ece63c985af7872ea148a97277818d"
+        ],
+        [
+            "destruct p; inversion P.",
+            "VernacExtend",
+            "19342ec92b00fc4159d9b431382422d5485302a9"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite field_compatible_field_address by auto with field_compatible.",
+            "VernacExtend",
+            "c2b977fa32b5f6a1a86064fb8265946db67e760e"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite Ptrofs.add_assoc, ptrofs_add_repr.",
+            "VernacExtend",
+            "7a427aeb00c6fc7a512b5611d6cd76a8f78e23ad"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "entailer!.",
+            "VernacExtend",
+            "e9311eb469ece63c985af7872ea148a97277818d"
+        ],
+        [
+            "rewrite Znth_pos_cons by omega.",
+            "VernacExtend",
+            "c3b4fb155af7a4ceb6dc192beebe3056fde20a00"
+        ],
+        [
+            "autorewrite with sublist.",
+            "VernacExtend",
+            "27d3b47789f36e3bd15e796d8905bf4584c44131"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "rewrite Int.add_assoc.",
+            "VernacExtend",
+            "9d2c804a29063deaa3aa15ceab3e092804ec1b9f"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "rewrite (sublist_split 0 i (i+1)) by omega.",
+            "VernacExtend",
+            "cd48bdb17f983b85643688d8ff63f5a1938b4636"
+        ],
+        [
+            "rewrite sublist_len_1 by omega.",
+            "VernacExtend",
+            "103007f1fe770ee2aa9f775d051c76c6c73519d8"
+        ],
+        [
+            "replace (1 + i - 1) with i by omega.",
+            "VernacExtend",
+            "4c5c4a0397492bce1713469705de205a3cec9588"
+        ],
+        [
+            "rewrite uint_sum_app.",
+            "VernacExtend",
+            "577e75e183b9d2cc594bdfe49c5c1854d3de384f"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "apply Int.add_zero_l.",
+            "VernacExtend",
+            "b16ea9891396c46dbade78a1a4ce69d0e526b072"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "rewrite sublist_same by auto.",
+            "VernacExtend",
+            "a90b4c11d8441dd8866de49c6d1aaaf7cedfda8e"
+        ],
+        [
+            "entailer!.",
+            "VernacExtend",
+            "e9311eb469ece63c985af7872ea148a97277818d"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma body_get22_root_expr: semax_body Vprog Gprog f_get22 get22_spec.",
+            "VernacStartTheoremProof",
+            "07d044765b056afb52af2cfe87dfeae8661864f1"
+        ],
+        [
+            "start_function.",
+            "VernacExtend",
+            "c9d31eecaa0cff79fee4b43862828db880600e1a"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "simpl (temp _p _).",
+            "VernacExtend",
+            "94b02226fc5fc2cdeb20954627300059d944d421"
+        ],
+        [
+            "assert_PROP (offset_val 8 (force_val (sem_add_ptr_int (Tstruct _pair_pair noattr) Signed pps (Vint (Int.repr i)))) = field_address (tarray pair_pair_t array_size) [StructField _right; ArraySubsc i] pps) as E.",
+            "VernacExtend",
+            "3bd04a67cfc8cfcd72e1c708c3854be2d1aa03b4"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "entailer!.",
+            "VernacExtend",
+            "e9311eb469ece63c985af7872ea148a97277818d"
+        ],
+        [
+            "rewrite field_compatible_field_address by auto with field_compatible.",
+            "VernacExtend",
+            "c2b977fa32b5f6a1a86064fb8265946db67e760e"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "normalize.",
+            "VernacExtend",
+            "b44f672ef6622bc7f333c87e081e8283dfd06387"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma body_get22_full_expr: semax_body Vprog Gprog f_get22 get22_spec.",
+            "VernacStartTheoremProof",
+            "4757a0badd687a75b4627fc4eb7f6baf5f5a9a93"
+        ],
+        [
+            "start_function.",
+            "VernacExtend",
+            "c9d31eecaa0cff79fee4b43862828db880600e1a"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "simpl (temp _p _).",
+            "VernacExtend",
+            "94b02226fc5fc2cdeb20954627300059d944d421"
+        ],
+        [
+            "assert_PROP ( offset_val 4 (offset_val 8 (force_val (sem_add_ptr_int (Tstruct _pair_pair noattr) Signed pps (Vint (Int.repr i))))) = (field_address (tarray pair_pair_t array_size) [StructField _snd; StructField _right; ArraySubsc i] pps)).",
+            "VernacExtend",
+            "a9f4a1598d24923cd53f9f5f0c1e2d09d30802e4"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "entailer!.",
+            "VernacExtend",
+            "e9311eb469ece63c985af7872ea148a97277818d"
+        ],
+        [
+            "rewrite field_compatible_field_address by auto with field_compatible.",
+            "VernacExtend",
+            "c2b977fa32b5f6a1a86064fb8265946db67e760e"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "f_equal.",
+            "VernacExtend",
+            "dfce814d1efcef60f8330516ad88155a3a5ec317"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma body_get22_alt: semax_body Vprog Gprog f_get22 get22_spec.",
+            "VernacStartTheoremProof",
+            "74d0de36be57c204734e47ccd219f295a3fcd761"
+        ],
+        [
+            "start_function.",
+            "VernacExtend",
+            "c9d31eecaa0cff79fee4b43862828db880600e1a"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "simpl (temp _p _).",
+            "VernacExtend",
+            "94b02226fc5fc2cdeb20954627300059d944d421"
+        ],
+        [
+            "assert_PROP (offset_val 8 (force_val (sem_add_ptr_int (Tstruct _pair_pair noattr) Signed pps (Vint (Int.repr i)))) = field_address (tarray pair_pair_t array_size) [StructField _right; ArraySubsc i] pps) as E.",
+            "VernacExtend",
+            "3bd04a67cfc8cfcd72e1c708c3854be2d1aa03b4"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "entailer!.",
+            "VernacExtend",
+            "e9311eb469ece63c985af7872ea148a97277818d"
+        ],
+        [
+            "rewrite field_compatible_field_address by auto with field_compatible.",
+            "VernacExtend",
+            "c2b977fa32b5f6a1a86064fb8265946db67e760e"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "normalize.",
+            "VernacExtend",
+            "b44f672ef6622bc7f333c87e081e8283dfd06387"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "rewrite E.",
+            "VernacExtend",
+            "304079e57d3d6c0912193a26e70d779c9e1768b9"
+        ],
+        [
+            "clear E.",
+            "VernacExtend",
+            "c4264db66fb80327b8fb2d3acc1876cdfc4348d3"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "forward.",
+            "VernacExtend",
+            "9b0656c46c9070100c33193703b52c502932001c"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "CompSpecs",
+            "line_nb": 2,
+            "steps": [
+                {
+                    "command": [
+                        "make_compspecs prog.",
+                        "VernacExtend",
+                        "36220761a2e554d38938361d97a6a7824a7eb4eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Vprog",
+            "line_nb": 5,
+            "steps": [
+                {
+                    "command": [
+                        "mk_varspecs prog.",
+                        "VernacExtend",
+                        "3d71166af717afdd6c2d6e7673cef893ac1c6afc"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "body_get_little_endian",
+            "line_nb": 17,
+            "steps": [
+                {
+                    "command": [
+                        "start_function.",
+                        "VernacExtend",
+                        "c9d31eecaa0cff79fee4b43862828db880600e1a"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (BMU: Byte.max_unsigned=255) by reflexivity.",
+                        "VernacExtend",
+                        "25f9eb0f55b1386f21f1acdcba6ab35b1a304bac"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "entailer!.",
+                        "VernacExtend",
+                        "e9311eb469ece63c985af7872ea148a97277818d"
+                    ]
+                },
+                {
+                    "command": [
+                        "solve_arr_range H0.",
+                        "VernacExtend",
+                        "9c6bbe8c39d131018ce4a6daa51d40240b417fdc"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "entailer!.",
+                        "VernacExtend",
+                        "e9311eb469ece63c985af7872ea148a97277818d"
+                    ]
+                },
+                {
+                    "command": [
+                        "solve_arr_range H0.",
+                        "VernacExtend",
+                        "9c6bbe8c39d131018ce4a6daa51d40240b417fdc"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "entailer!.",
+                        "VernacExtend",
+                        "e9311eb469ece63c985af7872ea148a97277818d"
+                    ]
+                },
+                {
+                    "command": [
+                        "solve_arr_range H0.",
+                        "VernacExtend",
+                        "9c6bbe8c39d131018ce4a6daa51d40240b417fdc"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "entailer!.",
+                        "VernacExtend",
+                        "e9311eb469ece63c985af7872ea148a97277818d"
+                    ]
+                },
+                {
+                    "command": [
+                        "solve_arr_range H0.",
+                        "VernacExtend",
+                        "9c6bbe8c39d131018ce4a6daa51d40240b417fdc"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "uint_sum_app",
+            "line_nb": 36,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "induction a; simpl.",
+                        "VernacExtend",
+                        "83046760be90957e25a4b343bcfdb8eb6df65d17"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "symmetry.",
+                        "VernacExtend",
+                        "a08fc0dc04bba893008bded8181f393e2d8db167"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Int.add_zero_l.",
+                        "VernacExtend",
+                        "b16ea9891396c46dbade78a1a4ce69d0e526b072"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite IHa.",
+                        "VernacExtend",
+                        "9e383c888c61315717545bb7809490842b4060d5"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite !Int.add_assoc.",
+                        "VernacExtend",
+                        "9c6964a3edefa64bfe5ca5e0c9d541d2864c45c7"
+                    ]
+                },
+                {
+                    "command": [
+                        "f_equal.",
+                        "VernacExtend",
+                        "dfce814d1efcef60f8330516ad88155a3a5ec317"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Int.add_commut.",
+                        "VernacExtend",
+                        "e52ebe9be83b65e318fe519253660b5f59ee2e57"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "body_fiddle",
+            "line_nb": 48,
+            "steps": [
+                {
+                    "command": [
+                        "start_function.",
+                        "VernacExtend",
+                        "c9d31eecaa0cff79fee4b43862828db880600e1a"
+                    ]
+                },
+                {
+                    "command": [
+                        "rename H into Htag.",
+                        "VernacExtend",
+                        "c6f966fbd5d55029faad12d35ad9e50dcfe079f6"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert_PROP (Zlength contents = n) as LEN.",
+                        "VernacExtend",
+                        "837dd603fb87f541c080f68fbd1ad46bde448afd"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "entailer!.",
+                        "VernacExtend",
+                        "e9311eb469ece63c985af7872ea148a97277818d"
+                    ]
+                },
+                {
+                    "command": [
+                        "forget (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10))) as n.",
+                        "VernacExtend",
+                        "480c9e54759f91d642934a8c3093191f887b1cf9"
+                    ]
+                },
+                {
+                    "command": [
+                        "clear - H0.",
+                        "VernacExtend",
+                        "26b60cd70d9cbb77dd5e024fa10fa554555a88cc"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite !Zlength_map in H0.",
+                        "VernacExtend",
+                        "099db56335acf74127b79a3d3088e30c11e68890"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Zlength_cons in H0.",
+                        "VernacExtend",
+                        "409227792e388c60c4858953f7e745962fa484a4"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (zlt n 0); [elimtype False | ].",
+                        "VernacExtend",
+                        "cac460a25914eb5bce647ccb9a8d04395ea61080"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Z.max_l in H0 by omega.",
+                        "VernacExtend",
+                        "d14e2a9bba96250d8df0888c25f132320cc8161d"
+                    ]
+                },
+                {
+                    "command": [
+                        "pose proof (Zlength_nonneg contents).",
+                        "VernacExtend",
+                        "aeb10237c572e8f9bde28acce0a7827845207393"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Z.max_r in H0 by omega.",
+                        "VernacExtend",
+                        "71d73e124072502c316cca05e58b96d82fe88083"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (Zlength (tag :: contents) = 1 + n) as LEN1.",
+                        "VernacExtend",
+                        "5609df94d85261f90c36661f55dc8bb97cebc256"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Zlength_cons.",
+                        "VernacExtend",
+                        "e06d429bdf690ef195f65a36ea0771f78b7f113c"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (N0: 0 <= n).",
+                        "VernacExtend",
+                        "6727a08d8ca5d3ecd07d8d0bc3d6ff0ecdeb4b04"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "pose proof (Zlength_nonneg contents).",
+                        "VernacExtend",
+                        "aeb10237c572e8f9bde28acce0a7827845207393"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert_PROP (isptr p) as P by entailer!.",
+                        "VernacExtend",
+                        "13ae3b42b25905c65a8c57bbf8ed27562f452234"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert_PROP (force_val (sem_add_ptr_int tuint Signed p (eval_unop Oneg tint (Vint (Int.repr 1)))) = field_address (tarray tuint (1+n)) [ArraySubsc 0] (offset_val (-sizeof tuint) p)).",
+                        "VernacExtend",
+                        "8809c9c5f77206452f4e1fb9fd2f8221edd09df7"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "entailer!.",
+                        "VernacExtend",
+                        "e9311eb469ece63c985af7872ea148a97277818d"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct p; inversion P.",
+                        "VernacExtend",
+                        "19342ec92b00fc4159d9b431382422d5485302a9"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite field_compatible_field_address by auto with field_compatible.",
+                        "VernacExtend",
+                        "c2b977fa32b5f6a1a86064fb8265946db67e760e"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite ptrofs_add_repr_0_r.",
+                        "VernacExtend",
+                        "a9ab9c0268f767b299bf3895a1414e463c933c36"
+                    ]
+                },
+                {
+                    "command": [
+                        "reflexivity.",
+                        "VernacExtend",
+                        "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward_for_simple_bound (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10))) (EX i: Z, PROP ( ) LOCAL ( temp _size (Vint (Int.shru (Int.repr tag) (Int.repr 10))); temp _sum (Vint (Int.add (Int.and (Int.repr tag) (Int.repr 255)) (uint_sum (sublist 0 i contents)))); temp _tagword (Vint (Int.repr tag)); temp _p p ) SEP (data_at Ews (tarray tuint (1 + n)) (map Vint (map Int.repr (tag :: contents))) (offset_val (- sizeof tuint) p))).",
+                        "VernacExtend",
+                        "845e1a7cb321e1f988503a993c56c5db9f752be4"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "entailer!.",
+                        "VernacExtend",
+                        "e9311eb469ece63c985af7872ea148a97277818d"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert_PROP (force_val (sem_add_ptr_int tuint Unsigned p (Vint (Int.repr i))) = field_address (tarray tuint (1 + n)) [ArraySubsc (1 + i)] (offset_val (- sizeof tuint) p)).",
+                        "VernacExtend",
+                        "9d881099db60026ecd6e73bd29932f6bb2847fe8"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "entailer!.",
+                        "VernacExtend",
+                        "e9311eb469ece63c985af7872ea148a97277818d"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct p; inversion P.",
+                        "VernacExtend",
+                        "19342ec92b00fc4159d9b431382422d5485302a9"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite field_compatible_field_address by auto with field_compatible.",
+                        "VernacExtend",
+                        "c2b977fa32b5f6a1a86064fb8265946db67e760e"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Ptrofs.add_assoc, ptrofs_add_repr.",
+                        "VernacExtend",
+                        "7a427aeb00c6fc7a512b5611d6cd76a8f78e23ad"
+                    ]
+                },
+                {
+                    "command": [
+                        "f_equal.",
+                        "VernacExtend",
+                        "dfce814d1efcef60f8330516ad88155a3a5ec317"
+                    ]
+                },
+                {
+                    "command": [
+                        "f_equal.",
+                        "VernacExtend",
+                        "dfce814d1efcef60f8330516ad88155a3a5ec317"
+                    ]
+                },
+                {
+                    "command": [
+                        "f_equal.",
+                        "VernacExtend",
+                        "dfce814d1efcef60f8330516ad88155a3a5ec317"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "entailer!.",
+                        "VernacExtend",
+                        "e9311eb469ece63c985af7872ea148a97277818d"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Znth_pos_cons by omega.",
+                        "VernacExtend",
+                        "c3b4fb155af7a4ceb6dc192beebe3056fde20a00"
+                    ]
+                },
+                {
+                    "command": [
+                        "autorewrite with sublist.",
+                        "VernacExtend",
+                        "27d3b47789f36e3bd15e796d8905bf4584c44131"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "f_equal.",
+                        "VernacExtend",
+                        "dfce814d1efcef60f8330516ad88155a3a5ec317"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Int.add_assoc.",
+                        "VernacExtend",
+                        "9d2c804a29063deaa3aa15ceab3e092804ec1b9f"
+                    ]
+                },
+                {
+                    "command": [
+                        "f_equal.",
+                        "VernacExtend",
+                        "dfce814d1efcef60f8330516ad88155a3a5ec317"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (sublist_split 0 i (i+1)) by omega.",
+                        "VernacExtend",
+                        "cd48bdb17f983b85643688d8ff63f5a1938b4636"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite sublist_len_1 by omega.",
+                        "VernacExtend",
+                        "103007f1fe770ee2aa9f775d051c76c6c73519d8"
+                    ]
+                },
+                {
+                    "command": [
+                        "replace (1 + i - 1) with i by omega.",
+                        "VernacExtend",
+                        "4c5c4a0397492bce1713469705de205a3cec9588"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite uint_sum_app.",
+                        "VernacExtend",
+                        "577e75e183b9d2cc594bdfe49c5c1854d3de384f"
+                    ]
+                },
+                {
+                    "command": [
+                        "f_equal.",
+                        "VernacExtend",
+                        "dfce814d1efcef60f8330516ad88155a3a5ec317"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Int.add_zero_l.",
+                        "VernacExtend",
+                        "b16ea9891396c46dbade78a1a4ce69d0e526b072"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite sublist_same by auto.",
+                        "VernacExtend",
+                        "a90b4c11d8441dd8866de49c6d1aaaf7cedfda8e"
+                    ]
+                },
+                {
+                    "command": [
+                        "entailer!.",
+                        "VernacExtend",
+                        "e9311eb469ece63c985af7872ea148a97277818d"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "body_get22_root_expr",
+            "line_nb": 127,
+            "steps": [
+                {
+                    "command": [
+                        "start_function.",
+                        "VernacExtend",
+                        "c9d31eecaa0cff79fee4b43862828db880600e1a"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl (temp _p _).",
+                        "VernacExtend",
+                        "94b02226fc5fc2cdeb20954627300059d944d421"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert_PROP (offset_val 8 (force_val (sem_add_ptr_int (Tstruct _pair_pair noattr) Signed pps (Vint (Int.repr i)))) = field_address (tarray pair_pair_t array_size) [StructField _right; ArraySubsc i] pps) as E.",
+                        "VernacExtend",
+                        "3bd04a67cfc8cfcd72e1c708c3854be2d1aa03b4"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "entailer!.",
+                        "VernacExtend",
+                        "e9311eb469ece63c985af7872ea148a97277818d"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite field_compatible_field_address by auto with field_compatible.",
+                        "VernacExtend",
+                        "c2b977fa32b5f6a1a86064fb8265946db67e760e"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "normalize.",
+                        "VernacExtend",
+                        "b44f672ef6622bc7f333c87e081e8283dfd06387"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "body_get22_full_expr",
+            "line_nb": 141,
+            "steps": [
+                {
+                    "command": [
+                        "start_function.",
+                        "VernacExtend",
+                        "c9d31eecaa0cff79fee4b43862828db880600e1a"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl (temp _p _).",
+                        "VernacExtend",
+                        "94b02226fc5fc2cdeb20954627300059d944d421"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert_PROP ( offset_val 4 (offset_val 8 (force_val (sem_add_ptr_int (Tstruct _pair_pair noattr) Signed pps (Vint (Int.repr i))))) = (field_address (tarray pair_pair_t array_size) [StructField _snd; StructField _right; ArraySubsc i] pps)).",
+                        "VernacExtend",
+                        "a9f4a1598d24923cd53f9f5f0c1e2d09d30802e4"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "entailer!.",
+                        "VernacExtend",
+                        "e9311eb469ece63c985af7872ea148a97277818d"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite field_compatible_field_address by auto with field_compatible.",
+                        "VernacExtend",
+                        "c2b977fa32b5f6a1a86064fb8265946db67e760e"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "f_equal.",
+                        "VernacExtend",
+                        "dfce814d1efcef60f8330516ad88155a3a5ec317"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "body_get22_alt",
+            "line_nb": 156,
+            "steps": [
+                {
+                    "command": [
+                        "start_function.",
+                        "VernacExtend",
+                        "c9d31eecaa0cff79fee4b43862828db880600e1a"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl (temp _p _).",
+                        "VernacExtend",
+                        "94b02226fc5fc2cdeb20954627300059d944d421"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert_PROP (offset_val 8 (force_val (sem_add_ptr_int (Tstruct _pair_pair noattr) Signed pps (Vint (Int.repr i)))) = field_address (tarray pair_pair_t array_size) [StructField _right; ArraySubsc i] pps) as E.",
+                        "VernacExtend",
+                        "3bd04a67cfc8cfcd72e1c708c3854be2d1aa03b4"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "entailer!.",
+                        "VernacExtend",
+                        "e9311eb469ece63c985af7872ea148a97277818d"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite field_compatible_field_address by auto with field_compatible.",
+                        "VernacExtend",
+                        "c2b977fa32b5f6a1a86064fb8265946db67e760e"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "normalize.",
+                        "VernacExtend",
+                        "b44f672ef6622bc7f333c87e081e8283dfd06387"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite E.",
+                        "VernacExtend",
+                        "304079e57d3d6c0912193a26e70d779c9e1768b9"
+                    ]
+                },
+                {
+                    "command": [
+                        "clear E.",
+                        "VernacExtend",
+                        "c4264db66fb80327b8fb2d3acc1876cdfc4348d3"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "forward.",
+                        "VernacExtend",
+                        "9b0656c46c9070100c33193703b52c502932001c"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

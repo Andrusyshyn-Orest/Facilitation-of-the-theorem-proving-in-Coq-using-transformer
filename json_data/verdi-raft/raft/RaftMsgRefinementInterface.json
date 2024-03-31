@@ -1,0 +1,740 @@
+{
+    "filename": "raft/RaftMsgRefinementInterface.v",
+    "coq_project": "verdi-raft",
+    "vernac_cmds": [
+        [
+            "Require Import Verdi.GhostSimulations.",
+            "VernacRequire",
+            "891dab67151e6ddfd50d6b357dfdba6cdf4a4361"
+        ],
+        [
+            "Require Import VerdiRaft.Raft.",
+            "VernacRequire",
+            "36b0b9afd1c52050ce42daf3c5fa4abb91993f25"
+        ],
+        [
+            "Require Import VerdiRaft.RaftRefinementInterface.",
+            "VernacRequire",
+            "927926da3b5a03c3f12be5b77cf55cd407b249d6"
+        ],
+        [
+            "Section RaftMsgRefinementInterface.",
+            "VernacBeginSection",
+            "39332109da33aca15885a2bab9c3efa8a6dee951"
+        ],
+        [
+            "Context {orig_base_params : BaseParams}.",
+            "VernacContext",
+            "69028e681894580fbc36a6124a9136decfafb159"
+        ],
+        [
+            "Context {one_node_params : OneNodeParams orig_base_params}.",
+            "VernacContext",
+            "013ed31ca1bcacb0528fc416f1059cfa49b9df65"
+        ],
+        [
+            "Context {raft_params : RaftParams orig_base_params}.",
+            "VernacContext",
+            "f5c24333154da8ee6ae37600b526f95496c92448"
+        ],
+        [
+            "Definition ghost_log : Type := list entry.",
+            "VernacDefinition",
+            "520f61ed5c10a6e7f6c4023368f6df2d1276d726"
+        ],
+        [
+            "Lemma ghost_log_eq_dec : forall x y : ghost_log, {x = y} + {x <> y}.",
+            "VernacStartTheoremProof",
+            "922efd8ddd4b9445b01c26fbfd798665c014bc75"
+        ],
+        [
+            "decide equality.",
+            "VernacExtend",
+            "10aba07d521545accbb51a4c2e0695a9ddce3199"
+        ],
+        [
+            "apply entry_eq_dec.",
+            "VernacExtend",
+            "8c86bce71a2923b2fdccaba1e37789f625b0e56e"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition write_ghost_log (h : name) (st : @data raft_refined_base_params) : ghost_log := log (snd st).",
+            "VernacDefinition",
+            "03a5be0e005464b005cd2f9f42e0e9bb37067de8"
+        ],
+        [
+            "Instance ghost_log_params : MsgGhostMultiParams raft_refined_multi_params := {| ghost_msg := ghost_log ; ghost_msg_eq_dec := ghost_log_eq_dec ; ghost_msg_default := [] ; write_ghost_msg := write_ghost_log |}.",
+            "VernacInstance",
+            "3ab64bb24b6623f8fd764d9958d858bd74ba6973"
+        ],
+        [
+            "Definition raft_msg_refined_base_params := mgv_refined_base_params.",
+            "VernacDefinition",
+            "3f3e1e2084f2426f28407e68c8b5dc1ff31b2901"
+        ],
+        [
+            "Definition raft_msg_refined_multi_params := mgv_refined_multi_params.",
+            "VernacDefinition",
+            "a70fc3471d11fc41c9c2ea4250cd6100915b7103"
+        ],
+        [
+            "Definition raft_msg_refined_failure_params := mgv_refined_failure_params.",
+            "VernacDefinition",
+            "83926632e5bc0f3266306ee9a9ca77f093780a6c"
+        ],
+        [
+            "Hint Extern 3 (@BaseParams) => apply raft_msg_refined_base_params : typeclass_instances.",
+            "VernacHints",
+            "b25093667e9bb38d8bef4308663fd36ee62c9940"
+        ],
+        [
+            "Hint Extern 3 (@MultiParams _) => apply raft_msg_refined_multi_params : typeclass_instances.",
+            "VernacHints",
+            "5efb750fdbd5a50695216cb3b7083648a0f8cd8a"
+        ],
+        [
+            "Hint Extern 3 (@FailureParams _ _) => apply raft_msg_refined_failure_params : typeclass_instances.",
+            "VernacHints",
+            "e9058513eea708413b2b6e3de0d0cf47ca7de66c"
+        ],
+        [
+            "Inductive msg_refined_raft_intermediate_reachable : network -> Prop := | MRRIR_init : msg_refined_raft_intermediate_reachable step_async_init | MRRIR_step_failure : forall failed net failed' net' out, msg_refined_raft_intermediate_reachable net -> step_failure (failed, net) (failed', net') out -> msg_refined_raft_intermediate_reachable net' | MRRIR_handleInput : forall net h inp gd out d l ps' st', msg_refined_raft_intermediate_reachable net -> handleInput h inp (snd (nwState net h)) = (out, d, l) -> update_elections_data_input h inp (nwState net h) = gd -> (forall h', st' h' = update name_eq_dec (nwState net) h (gd, d) h') -> (forall p', In p' ps' -> In p' (nwPackets net) \\/ In p' (send_packets h (add_ghost_msg h (gd, d) l))) -> msg_refined_raft_intermediate_reachable (mkNetwork ps' st') | MRRIR_handleMessage : forall p net xs ys st' ps' gd d l, msg_refined_raft_intermediate_reachable net -> handleMessage (pSrc p) (pDst p) (snd (pBody p)) (snd (nwState net (pDst p))) = (d, l) -> update_elections_data_net (pDst p) (pSrc p) (snd (pBody p)) (nwState net (pDst p)) = gd -> nwPackets net = xs ++ p :: ys -> (forall h, st' h = update name_eq_dec (nwState net) (pDst p) (gd, d) h) -> (forall p', In p' ps' -> In p' (xs ++ ys) \\/ In p' (send_packets (pDst p) (@add_ghost_msg _ _ ghost_log_params (pDst p) (gd, d) l))) -> msg_refined_raft_intermediate_reachable (mkNetwork ps' st') | MRRIR_doLeader : forall net st' ps' h os gd d d' ms, msg_refined_raft_intermediate_reachable net -> doLeader d h = (os, d', ms) -> nwState net h = (gd, d) -> (forall h', st' h' = update name_eq_dec (nwState net) h (gd, d') h') -> (forall p, In p ps' -> In p (nwPackets net) \\/ In p (send_packets h (add_ghost_msg h (gd, d') ms))) -> msg_refined_raft_intermediate_reachable (mkNetwork ps' st') | MRRIR_doGenericServer : forall net st' ps' os gd d d' ms h, msg_refined_raft_intermediate_reachable net -> doGenericServer h d = (os, d', ms) -> nwState net h = (gd, d) -> (forall h', st' h' = update name_eq_dec (nwState net) h (gd, d') h') -> (forall p, In p ps' -> In p (nwPackets net) \\/ In p (send_packets h (add_ghost_msg h (gd, d') ms))) -> msg_refined_raft_intermediate_reachable (mkNetwork ps' st').",
+            "VernacInductive",
+            "e9d571caacaa81500a1f3bc110ec26fb2edc6dd3"
+        ],
+        [
+            "Definition msg_refined_raft_net_invariant_client_request (P : network -> Prop) := forall h net st' ps' gd out d l client id c, handleClientRequest h (snd (nwState net h)) client id c = (out, d, l) -> gd = update_elections_data_client_request h (nwState net h) client id c -> P net -> msg_refined_raft_intermediate_reachable net -> (forall h', st' h' = update name_eq_dec (nwState net) h (gd, d) h') -> (forall p', In p' ps' -> In p' (nwPackets net) \\/ In p' (send_packets h (add_ghost_msg h (gd, d) l))) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "9abdd4abf21195a93caf2e89004b8b2ea4dffe59"
+        ],
+        [
+            "Definition msg_refined_raft_net_invariant_timeout (P : network -> Prop) := forall net h st' ps' gd out d l, handleTimeout h (snd (nwState net h)) = (out, d, l) -> gd = update_elections_data_timeout h (nwState net h) -> P net -> msg_refined_raft_intermediate_reachable net -> (forall h', st' h' = update name_eq_dec (nwState net) h (gd, d) h') -> (forall p', In p' ps' -> In p' (nwPackets net) \\/ In p' (send_packets h (add_ghost_msg h (gd, d) l))) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "040a00ca25ba7012abe167691b6e247447f2b197"
+        ],
+        [
+            "Definition msg_refined_raft_net_invariant_append_entries (P : network -> Prop) := forall xs p ys net st' ps' gd d m t n pli plt es ci, handleAppendEntries (pDst p) (snd (nwState net (pDst p))) t n pli plt es ci = (d, m) -> gd = update_elections_data_appendEntries (pDst p) (nwState net (pDst p)) t n pli plt es ci -> snd (pBody p) = AppendEntries t n pli plt es ci -> P net -> msg_refined_raft_intermediate_reachable net -> nwPackets net = xs ++ p :: ys -> (forall h, st' h = update name_eq_dec (nwState net) (pDst p) (gd, d) h) -> (forall p', In p' ps' -> In p' (xs ++ ys) \\/ p' = mkPacket (pDst p) (pSrc p) (write_ghost_log (pDst p) (gd, d), m)) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "8866be1fd2d03c1f874f6efc6b3d11d5a59cf304"
+        ],
+        [
+            "Definition msg_refined_raft_net_invariant_append_entries_reply (P : network -> Prop) := forall xs p ys net st' ps' gd d m t es res, handleAppendEntriesReply (pDst p) (snd (nwState net (pDst p))) (pSrc p) t es res = (d, m) -> gd = (fst (nwState net (pDst p))) -> snd (pBody p) = AppendEntriesReply t es res -> P net -> msg_refined_raft_intermediate_reachable net -> nwPackets net = xs ++ p :: ys -> (forall h, st' h = update name_eq_dec (nwState net) (pDst p) (gd, d) h) -> (forall p', In p' ps' -> In p' (xs ++ ys) \\/ In p' (send_packets (pDst p) (@add_ghost_msg _ _ ghost_log_params (pDst p) (gd, d) m))) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "10023bd783c281ab6df4ea4b1fba404502951390"
+        ],
+        [
+            "Definition msg_refined_raft_net_invariant_request_vote (P : network -> Prop) := forall xs p ys net st' ps' gd d m t cid lli llt, handleRequestVote (pDst p) (snd (nwState net (pDst p))) t (pSrc p) lli llt = (d, m) -> gd = update_elections_data_requestVote (pDst p) (pSrc p) t (pSrc p) lli llt (nwState net (pDst p)) -> snd (pBody p) = RequestVote t cid lli llt -> P net -> msg_refined_raft_intermediate_reachable net -> nwPackets net = xs ++ p :: ys -> (forall h, st' h = update name_eq_dec (nwState net) (pDst p) (gd, d) h) -> (forall p', In p' ps' -> In p' (xs ++ ys) \\/ p' = mkPacket (pDst p) (pSrc p) (write_ghost_log (pDst p) (gd, d), m)) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "eee2220b47947723f5d6a4ecece69a38831ed831"
+        ],
+        [
+            "Definition msg_refined_raft_net_invariant_request_vote_reply (P : network -> Prop) := forall xs p ys net st' ps' gd d t v, handleRequestVoteReply (pDst p) (snd (nwState net (pDst p))) (pSrc p) t v = d -> gd = update_elections_data_requestVoteReply (pDst p) (pSrc p) t v (nwState net (pDst p)) -> snd (pBody p) = RequestVoteReply t v -> P net -> msg_refined_raft_intermediate_reachable net -> nwPackets net = xs ++ p :: ys -> (forall h, st' h = update name_eq_dec (nwState net) (pDst p) (gd, d) h) -> (forall p', In p' ps' -> In p' (xs ++ ys)) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "abcdeff2288d2a3253aafbc75724b9ec75b155da"
+        ],
+        [
+            "Definition msg_refined_raft_net_invariant_do_leader (P : network -> Prop) := forall net st' ps' gd d h os d' ms, doLeader d h = (os, d', ms) -> P net -> msg_refined_raft_intermediate_reachable net -> nwState net h = (gd, d) -> (forall h', st' h' = update name_eq_dec (nwState net) h (gd, d') h') -> (forall p, In p ps' -> In p (nwPackets net) \\/ In p (send_packets h (add_ghost_msg h (gd, d') ms))) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "a082f9a1c5882e10f31fab5473fd042dba8254a8"
+        ],
+        [
+            "Definition msg_refined_raft_net_invariant_do_generic_server (P : network -> Prop) := forall net st' ps' gd d os d' ms h, doGenericServer h d = (os, d', ms) -> P net -> msg_refined_raft_intermediate_reachable net -> nwState net h = (gd, d) -> (forall h', st' h' = update name_eq_dec (nwState net) h (gd, d') h') -> (forall p, In p ps' -> In p (nwPackets net) \\/ In p (send_packets h (add_ghost_msg h (gd, d') ms))) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "957f1ce642a112810a1382a5b2cc5ffffc9894dd"
+        ],
+        [
+            "Definition msg_refined_raft_net_invariant_state_same_packet_subset (P : network -> Prop) := forall net net', (forall h, nwState net h = nwState net' h) -> (forall p, In p (nwPackets net') -> In p (nwPackets net)) -> P net -> msg_refined_raft_intermediate_reachable net -> P net'.",
+            "VernacDefinition",
+            "03653e59ee3afe253fd5c596af5e74364897bee5"
+        ],
+        [
+            "Definition msg_refined_raft_net_invariant_reboot (P : network -> Prop) := forall net net' gd d h d', reboot d = d' -> P net -> msg_refined_raft_intermediate_reachable net -> nwState net h = (gd, d) -> (forall h', nwState net' h' = update name_eq_dec (nwState net) h (gd, d') h') -> nwPackets net = nwPackets net' -> P net'.",
+            "VernacDefinition",
+            "83136669ef5a5aebebe9f43e7fb5b06e6e6e2e99"
+        ],
+        [
+            "Definition msg_refined_raft_net_invariant_init (P : network -> Prop) := P step_async_init.",
+            "VernacDefinition",
+            "89a8c4a4153dda451972fe5db2dab655eeb4994e"
+        ],
+        [
+            "Definition msg_refined_raft_net_invariant_client_request' (P : network -> Prop) := forall h net st' ps' gd out d l client id c, handleClientRequest h (snd (nwState net h)) client id c = (out, d, l) -> gd = update_elections_data_client_request h (nwState net h) client id c -> P net -> msg_refined_raft_intermediate_reachable net -> msg_refined_raft_intermediate_reachable (mkNetwork ps' st') -> (forall h', st' h' = update name_eq_dec (nwState net) h (gd, d) h') -> (forall p', In p' ps' -> In p' (nwPackets net) \\/ In p' (send_packets h (add_ghost_msg h (gd, d) l))) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "9d9f13ae9059c8f1ac9e224aa2ce617b8f3c4ee7"
+        ],
+        [
+            "Definition msg_refined_raft_net_invariant_timeout' (P : network -> Prop) := forall net h st' ps' gd out d l, handleTimeout h (snd (nwState net h)) = (out, d, l) -> gd = update_elections_data_timeout h (nwState net h) -> P net -> msg_refined_raft_intermediate_reachable net -> msg_refined_raft_intermediate_reachable (mkNetwork ps' st') -> (forall h', st' h' = update name_eq_dec (nwState net) h (gd, d) h') -> (forall p', In p' ps' -> In p' (nwPackets net) \\/ In p' (send_packets h (add_ghost_msg h (gd, d) l))) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "c89c6af5c65f5a775883261aa37728eedcce05cd"
+        ],
+        [
+            "Definition msg_refined_raft_net_invariant_append_entries' (P : network -> Prop) := forall xs p ys net st' ps' gd d m t n pli plt es ci, handleAppendEntries (pDst p) (snd (nwState net (pDst p))) t n pli plt es ci = (d, m) -> gd = update_elections_data_appendEntries (pDst p) (nwState net (pDst p)) t n pli plt es ci -> snd (pBody p) = AppendEntries t n pli plt es ci -> P net -> msg_refined_raft_intermediate_reachable net -> msg_refined_raft_intermediate_reachable (mkNetwork ps' st') -> nwPackets net = xs ++ p :: ys -> (forall h, st' h = update name_eq_dec (nwState net) (pDst p) (gd, d) h) -> (forall p', In p' ps' -> In p' (xs ++ ys) \\/ p' = mkPacket (pDst p) (pSrc p) (write_ghost_log (pDst p) (gd, d), m)) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "fde1c3b1b36e8ac9d2c648caf9cd0bbb9e9363d5"
+        ],
+        [
+            "Definition msg_refined_raft_net_invariant_append_entries_reply' (P : network -> Prop) := forall xs p ys net st' ps' gd d m t es res, handleAppendEntriesReply (pDst p) (snd (nwState net (pDst p))) (pSrc p) t es res = (d, m) -> gd = (fst (nwState net (pDst p))) -> snd (pBody p) = AppendEntriesReply t es res -> P net -> msg_refined_raft_intermediate_reachable net -> msg_refined_raft_intermediate_reachable (mkNetwork ps' st') -> nwPackets net = xs ++ p :: ys -> (forall h, st' h = update name_eq_dec (nwState net) (pDst p) (gd, d) h) -> (forall p', In p' ps' -> In p' (xs ++ ys) \\/ In p' (send_packets (pDst p) (@add_ghost_msg _ _ ghost_log_params (pDst p) (gd, d) m))) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "f3c13de0cd20888c8a3f48f4ea6113b4c53b920e"
+        ],
+        [
+            "Definition msg_refined_raft_net_invariant_request_vote' (P : network -> Prop) := forall xs p ys net st' ps' gd d m t cid lli llt, handleRequestVote (pDst p) (snd (nwState net (pDst p))) t (pSrc p) lli llt = (d, m) -> gd = update_elections_data_requestVote (pDst p) (pSrc p) t (pSrc p) lli llt (nwState net (pDst p)) -> snd (pBody p) = RequestVote t cid lli llt -> P net -> msg_refined_raft_intermediate_reachable net -> msg_refined_raft_intermediate_reachable (mkNetwork ps' st') -> nwPackets net = xs ++ p :: ys -> (forall h, st' h = update name_eq_dec (nwState net) (pDst p) (gd, d) h) -> (forall p', In p' ps' -> In p' (xs ++ ys) \\/ p' = mkPacket (pDst p) (pSrc p) (write_ghost_log (pDst p) (gd, d), m)) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "4affbbe4e8dae57507772b29218ffdf1226d1ba6"
+        ],
+        [
+            "Definition msg_refined_raft_net_invariant_request_vote_reply' (P : network -> Prop) := forall xs p ys net st' ps' gd d t v, handleRequestVoteReply (pDst p) (snd (nwState net (pDst p))) (pSrc p) t v = d -> gd = update_elections_data_requestVoteReply (pDst p) (pSrc p) t v (nwState net (pDst p)) -> snd (pBody p) = RequestVoteReply t v -> P net -> msg_refined_raft_intermediate_reachable net -> msg_refined_raft_intermediate_reachable (mkNetwork ps' st') -> nwPackets net = xs ++ p :: ys -> (forall h, st' h = update name_eq_dec (nwState net) (pDst p) (gd, d) h) -> (forall p', In p' ps' -> In p' (xs ++ ys)) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "5d3ffc7c0c804b7184c529adc716d02810d5d2ee"
+        ],
+        [
+            "Definition msg_refined_raft_net_invariant_do_leader' (P : network -> Prop) := forall net st' ps' gd d h os d' ms, doLeader d h = (os, d', ms) -> P net -> msg_refined_raft_intermediate_reachable net -> msg_refined_raft_intermediate_reachable (mkNetwork ps' st') -> nwState net h = (gd, d) -> (forall h', st' h' = update name_eq_dec (nwState net) h (gd, d') h') -> (forall p, In p ps' -> In p (nwPackets net) \\/ In p (send_packets h (add_ghost_msg h (gd, d') ms))) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "2b7d77192155cd8ba44392be08afe9d2cf08b2bf"
+        ],
+        [
+            "Definition msg_refined_raft_net_invariant_do_generic_server' (P : network -> Prop) := forall net st' ps' gd d os d' ms h, doGenericServer h d = (os, d', ms) -> P net -> msg_refined_raft_intermediate_reachable net -> msg_refined_raft_intermediate_reachable (mkNetwork ps' st') -> nwState net h = (gd, d) -> (forall h', st' h' = update name_eq_dec (nwState net) h (gd, d') h') -> (forall p, In p ps' -> In p (nwPackets net) \\/ In p (send_packets h (add_ghost_msg h (gd, d') ms))) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "c2418f23661694e43f75562ff33a7a77244fb5df"
+        ],
+        [
+            "Definition msg_refined_raft_net_invariant_state_same_packet_subset' (P : network -> Prop) := forall net net', (forall h, nwState net h = nwState net' h) -> (forall p, In p (nwPackets net') -> In p (nwPackets net)) -> P net -> msg_refined_raft_intermediate_reachable net -> P net'.",
+            "VernacDefinition",
+            "bf5767b4759126ec849324af6d85521a54268fe8"
+        ],
+        [
+            "Definition msg_refined_raft_net_invariant_reboot' (P : network -> Prop) := forall net net' gd d h d', reboot d = d' -> P net -> msg_refined_raft_intermediate_reachable net -> msg_refined_raft_intermediate_reachable net' -> nwState net h = (gd, d) -> (forall h', nwState net' h' = update name_eq_dec (nwState net) h (gd, d') h') -> nwPackets net = nwPackets net' -> P net'.",
+            "VernacDefinition",
+            "d07cdf6523b71b3f4efa568da0b380f3b85d00f3"
+        ],
+        [
+            "Lemma msg_refined_raft_net_invariant_client_request'_weak : forall net, msg_refined_raft_net_invariant_client_request net -> msg_refined_raft_net_invariant_client_request' net.",
+            "VernacStartTheoremProof",
+            "f4f32ff91774fd9638a3711f7a6675ddabcfddb6"
+        ],
+        [
+            "unfold msg_refined_raft_net_invariant_client_request, msg_refined_raft_net_invariant_client_request'.",
+            "VernacExtend",
+            "7d98a787b80399857f627f2e88168a3a6d405428"
+        ],
+        [
+            "intuition eauto.",
+            "VernacExtend",
+            "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma msg_refined_raft_net_invariant_timeout'_weak : forall net, msg_refined_raft_net_invariant_timeout net -> msg_refined_raft_net_invariant_timeout' net.",
+            "VernacStartTheoremProof",
+            "c4e4831ed58a4ac8199f6a272730a511a237908c"
+        ],
+        [
+            "unfold msg_refined_raft_net_invariant_timeout, msg_refined_raft_net_invariant_timeout'.",
+            "VernacExtend",
+            "570f14c02a7ab8f135914e836ad7e47a5154d97f"
+        ],
+        [
+            "intuition eauto.",
+            "VernacExtend",
+            "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma msg_refined_raft_net_invariant_append_entries'_weak : forall net, msg_refined_raft_net_invariant_append_entries net -> msg_refined_raft_net_invariant_append_entries' net.",
+            "VernacStartTheoremProof",
+            "60e812a9ec7fcc11af1713f0068deec200726ae7"
+        ],
+        [
+            "unfold msg_refined_raft_net_invariant_append_entries, msg_refined_raft_net_invariant_append_entries'.",
+            "VernacExtend",
+            "9db1c6ab81243e3bc02cdeb6361974443ef26f11"
+        ],
+        [
+            "intuition eauto.",
+            "VernacExtend",
+            "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma msg_refined_raft_net_invariant_append_entries_reply'_weak : forall net, msg_refined_raft_net_invariant_append_entries_reply net -> msg_refined_raft_net_invariant_append_entries_reply' net.",
+            "VernacStartTheoremProof",
+            "953f4288ce7cea6aadd7a11e78393a8cff6d53c6"
+        ],
+        [
+            "unfold msg_refined_raft_net_invariant_append_entries_reply, msg_refined_raft_net_invariant_append_entries_reply'.",
+            "VernacExtend",
+            "136bb4f6e799c4584fd0482a0a29655c33fe9293"
+        ],
+        [
+            "intuition eauto.",
+            "VernacExtend",
+            "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma msg_refined_raft_net_invariant_request_vote'_weak : forall net, msg_refined_raft_net_invariant_request_vote net -> msg_refined_raft_net_invariant_request_vote' net.",
+            "VernacStartTheoremProof",
+            "c41cd6c352d8ad1b2cd1f62903754a6189db9bec"
+        ],
+        [
+            "unfold msg_refined_raft_net_invariant_request_vote, msg_refined_raft_net_invariant_request_vote'.",
+            "VernacExtend",
+            "1e7d5e1e213382b7e742450819c3c4dbf5ec1c48"
+        ],
+        [
+            "intuition eauto.",
+            "VernacExtend",
+            "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma msg_refined_raft_net_invariant_request_vote_reply'_weak : forall net, msg_refined_raft_net_invariant_request_vote_reply net -> msg_refined_raft_net_invariant_request_vote_reply' net.",
+            "VernacStartTheoremProof",
+            "e3d5252920a8f992b75afee2e387a9959c599779"
+        ],
+        [
+            "unfold msg_refined_raft_net_invariant_request_vote_reply, msg_refined_raft_net_invariant_request_vote_reply'.",
+            "VernacExtend",
+            "810cb18c1e073bfc0d02f35986c3d8b06e83930f"
+        ],
+        [
+            "intuition eauto.",
+            "VernacExtend",
+            "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma msg_refined_raft_net_invariant_do_leader'_weak : forall net, msg_refined_raft_net_invariant_do_leader net -> msg_refined_raft_net_invariant_do_leader' net.",
+            "VernacStartTheoremProof",
+            "96404511e75fc274db024629ca8c7f2781723202"
+        ],
+        [
+            "unfold msg_refined_raft_net_invariant_do_leader, msg_refined_raft_net_invariant_do_leader'.",
+            "VernacExtend",
+            "57dc39f440e018d9dc6765a154fbdb4b6cadea04"
+        ],
+        [
+            "intuition eauto.",
+            "VernacExtend",
+            "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma msg_refined_raft_net_invariant_do_generic_server'_weak : forall net, msg_refined_raft_net_invariant_do_generic_server net -> msg_refined_raft_net_invariant_do_generic_server' net.",
+            "VernacStartTheoremProof",
+            "5a5fe716ea25418e0e6e4da9be5fe15809eb0743"
+        ],
+        [
+            "unfold msg_refined_raft_net_invariant_do_generic_server, msg_refined_raft_net_invariant_do_generic_server'.",
+            "VernacExtend",
+            "1b7398c8db996f4bdfcccadedbb3b44dcabde30a"
+        ],
+        [
+            "intuition eauto.",
+            "VernacExtend",
+            "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma msg_refined_raft_net_invariant_reboot'_weak : forall net, msg_refined_raft_net_invariant_reboot net -> msg_refined_raft_net_invariant_reboot' net.",
+            "VernacStartTheoremProof",
+            "4cc7bf4144755c0e8d0409f9049d83d55d75c3c0"
+        ],
+        [
+            "unfold msg_refined_raft_net_invariant_reboot, msg_refined_raft_net_invariant_reboot'.",
+            "VernacExtend",
+            "1e6d5c56bc62f39ec7f74023d90141f764470cb1"
+        ],
+        [
+            "intuition eauto.",
+            "VernacExtend",
+            "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma msg_refined_raft_net_invariant_subset'_weak : forall net, msg_refined_raft_net_invariant_state_same_packet_subset net -> msg_refined_raft_net_invariant_state_same_packet_subset' net.",
+            "VernacStartTheoremProof",
+            "5a9b1ec8a29d4730866415530712e439b50d484d"
+        ],
+        [
+            "unfold msg_refined_raft_net_invariant_state_same_packet_subset, msg_refined_raft_net_invariant_state_same_packet_subset'.",
+            "VernacExtend",
+            "1332bdff0755ca9628dba8ac06c1706371aba165"
+        ],
+        [
+            "intuition eauto.",
+            "VernacExtend",
+            "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Class raft_msg_refinement_interface : Prop := { msg_refined_raft_net_invariant : forall P net, msg_refined_raft_net_invariant_init P -> msg_refined_raft_net_invariant_client_request P -> msg_refined_raft_net_invariant_timeout P -> msg_refined_raft_net_invariant_append_entries P -> msg_refined_raft_net_invariant_append_entries_reply P -> msg_refined_raft_net_invariant_request_vote P -> msg_refined_raft_net_invariant_request_vote_reply P -> msg_refined_raft_net_invariant_do_leader P -> msg_refined_raft_net_invariant_do_generic_server P -> msg_refined_raft_net_invariant_state_same_packet_subset P -> msg_refined_raft_net_invariant_reboot P -> msg_refined_raft_intermediate_reachable net -> P net; msg_refined_raft_net_invariant' : forall P net, msg_refined_raft_net_invariant_init P -> msg_refined_raft_net_invariant_client_request' P -> msg_refined_raft_net_invariant_timeout' P -> msg_refined_raft_net_invariant_append_entries' P -> msg_refined_raft_net_invariant_append_entries_reply' P -> msg_refined_raft_net_invariant_request_vote' P -> msg_refined_raft_net_invariant_request_vote_reply' P -> msg_refined_raft_net_invariant_do_leader' P -> msg_refined_raft_net_invariant_do_generic_server' P -> msg_refined_raft_net_invariant_state_same_packet_subset' P -> msg_refined_raft_net_invariant_reboot' P -> msg_refined_raft_intermediate_reachable net -> P net; msg_lift_prop : forall (P : _ -> Prop), (forall net, refined_raft_intermediate_reachable net -> P net) -> (forall net, msg_refined_raft_intermediate_reachable net -> P (mgv_deghost net)); msg_lift_prop_all_the_way : forall (P : _ -> Prop), (forall net, raft_intermediate_reachable net -> P net) -> (forall (net : @network _ raft_msg_refined_multi_params), msg_refined_raft_intermediate_reachable net -> P (deghost (mgv_deghost net))); msg_lower_prop : forall P : _ -> Prop, (forall net, msg_refined_raft_intermediate_reachable net -> P (mgv_deghost net)) -> (forall net, refined_raft_intermediate_reachable net -> P net); msg_lower_prop_all_the_way : forall P : _ -> Prop, (forall (net : @network _ raft_msg_refined_multi_params), msg_refined_raft_intermediate_reachable net -> P (deghost (mgv_deghost net))) -> (forall net, raft_intermediate_reachable net -> P net); msg_deghost_spec : forall (net : @network _ raft_msg_refined_multi_params) h, nwState (mgv_deghost net) h = nwState net h; msg_simulation_1 : forall net, msg_refined_raft_intermediate_reachable net -> refined_raft_intermediate_reachable (mgv_deghost net) }.",
+            "VernacInductive",
+            "df7d119b1989c234703ddf264ccd14b8016e85ca"
+        ],
+        [
+            "End RaftMsgRefinementInterface.",
+            "VernacEndSegment",
+            "1e14004c3f950001662661cc21191236c219471c"
+        ],
+        [
+            "Hint Extern 3 (@BaseParams) => apply raft_msg_refined_base_params : typeclass_instances.",
+            "VernacHints",
+            "b25093667e9bb38d8bef4308663fd36ee62c9940"
+        ],
+        [
+            "Hint Extern 3 (@MultiParams _) => apply raft_msg_refined_multi_params : typeclass_instances.",
+            "VernacHints",
+            "5efb750fdbd5a50695216cb3b7083648a0f8cd8a"
+        ],
+        [
+            "Hint Extern 3 (@FailureParams _ _) => apply raft_msg_refined_failure_params : typeclass_instances.",
+            "VernacHints",
+            "e9058513eea708413b2b6e3de0d0cf47ca7de66c"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "ghost_log_eq_dec",
+            "line_nb": 8,
+            "steps": [
+                {
+                    "command": [
+                        "decide equality.",
+                        "VernacExtend",
+                        "10aba07d521545accbb51a4c2e0695a9ddce3199"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply entry_eq_dec.",
+                        "VernacExtend",
+                        "8c86bce71a2923b2fdccaba1e37789f625b0e56e"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "msg_refined_raft_net_invariant_client_request'_weak",
+            "line_nb": 42,
+            "steps": [
+                {
+                    "command": [
+                        "unfold msg_refined_raft_net_invariant_client_request, msg_refined_raft_net_invariant_client_request'.",
+                        "VernacExtend",
+                        "7d98a787b80399857f627f2e88168a3a6d405428"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition eauto.",
+                        "VernacExtend",
+                        "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "msg_refined_raft_net_invariant_timeout'_weak",
+            "line_nb": 46,
+            "steps": [
+                {
+                    "command": [
+                        "unfold msg_refined_raft_net_invariant_timeout, msg_refined_raft_net_invariant_timeout'.",
+                        "VernacExtend",
+                        "570f14c02a7ab8f135914e836ad7e47a5154d97f"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition eauto.",
+                        "VernacExtend",
+                        "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "msg_refined_raft_net_invariant_append_entries'_weak",
+            "line_nb": 50,
+            "steps": [
+                {
+                    "command": [
+                        "unfold msg_refined_raft_net_invariant_append_entries, msg_refined_raft_net_invariant_append_entries'.",
+                        "VernacExtend",
+                        "9db1c6ab81243e3bc02cdeb6361974443ef26f11"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition eauto.",
+                        "VernacExtend",
+                        "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "msg_refined_raft_net_invariant_append_entries_reply'_weak",
+            "line_nb": 54,
+            "steps": [
+                {
+                    "command": [
+                        "unfold msg_refined_raft_net_invariant_append_entries_reply, msg_refined_raft_net_invariant_append_entries_reply'.",
+                        "VernacExtend",
+                        "136bb4f6e799c4584fd0482a0a29655c33fe9293"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition eauto.",
+                        "VernacExtend",
+                        "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "msg_refined_raft_net_invariant_request_vote'_weak",
+            "line_nb": 58,
+            "steps": [
+                {
+                    "command": [
+                        "unfold msg_refined_raft_net_invariant_request_vote, msg_refined_raft_net_invariant_request_vote'.",
+                        "VernacExtend",
+                        "1e7d5e1e213382b7e742450819c3c4dbf5ec1c48"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition eauto.",
+                        "VernacExtend",
+                        "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "msg_refined_raft_net_invariant_request_vote_reply'_weak",
+            "line_nb": 62,
+            "steps": [
+                {
+                    "command": [
+                        "unfold msg_refined_raft_net_invariant_request_vote_reply, msg_refined_raft_net_invariant_request_vote_reply'.",
+                        "VernacExtend",
+                        "810cb18c1e073bfc0d02f35986c3d8b06e83930f"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition eauto.",
+                        "VernacExtend",
+                        "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "msg_refined_raft_net_invariant_do_leader'_weak",
+            "line_nb": 66,
+            "steps": [
+                {
+                    "command": [
+                        "unfold msg_refined_raft_net_invariant_do_leader, msg_refined_raft_net_invariant_do_leader'.",
+                        "VernacExtend",
+                        "57dc39f440e018d9dc6765a154fbdb4b6cadea04"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition eauto.",
+                        "VernacExtend",
+                        "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "msg_refined_raft_net_invariant_do_generic_server'_weak",
+            "line_nb": 70,
+            "steps": [
+                {
+                    "command": [
+                        "unfold msg_refined_raft_net_invariant_do_generic_server, msg_refined_raft_net_invariant_do_generic_server'.",
+                        "VernacExtend",
+                        "1b7398c8db996f4bdfcccadedbb3b44dcabde30a"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition eauto.",
+                        "VernacExtend",
+                        "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "msg_refined_raft_net_invariant_reboot'_weak",
+            "line_nb": 74,
+            "steps": [
+                {
+                    "command": [
+                        "unfold msg_refined_raft_net_invariant_reboot, msg_refined_raft_net_invariant_reboot'.",
+                        "VernacExtend",
+                        "1e6d5c56bc62f39ec7f74023d90141f764470cb1"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition eauto.",
+                        "VernacExtend",
+                        "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "msg_refined_raft_net_invariant_subset'_weak",
+            "line_nb": 78,
+            "steps": [
+                {
+                    "command": [
+                        "unfold msg_refined_raft_net_invariant_state_same_packet_subset, msg_refined_raft_net_invariant_state_same_packet_subset'.",
+                        "VernacExtend",
+                        "1332bdff0755ca9628dba8ac06c1706371aba165"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition eauto.",
+                        "VernacExtend",
+                        "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

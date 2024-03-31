@@ -1,0 +1,2268 @@
+{
+    "filename": "cparser/MenhirLib/Validator_complete.v",
+    "coq_project": "CompCert",
+    "vernac_cmds": [
+        [
+            "Require Automaton.",
+            "VernacRequire",
+            "2a0cbee8eee90ef23660cd2aaf73b263992155b4"
+        ],
+        [
+            "Require Import Alphabet.",
+            "VernacRequire",
+            "319f2088e96907602758beab43ff96f8fdb554b7"
+        ],
+        [
+            "Require Import List.",
+            "VernacRequire",
+            "d9bcce4a390afeb160107bf87c6f7abe3d82c6d6"
+        ],
+        [
+            "Require Import Syntax.",
+            "VernacRequire",
+            "f7333e1bc90f5c9993df336e6bf762d9d566cbfe"
+        ],
+        [
+            "Module Make(Import A:Automaton.T).",
+            "VernacDefineModule",
+            "dd5d48cf97451a72eafee54b66f197b4fb42feee"
+        ],
+        [
+            "Module TerminalComparableM <: ComparableM.",
+            "VernacDefineModule",
+            "53ae2117571fe4c667481a3ba9ace47d6e416da3"
+        ],
+        [
+            "Definition t := terminal.",
+            "VernacDefinition",
+            "f9635be73b756fd5d845bce75781baf4baad3f92"
+        ],
+        [
+            "Instance tComparable : Comparable t := _.",
+            "VernacInstance",
+            "66ba31b751cb8ae4f591a3c50f95c3348ee13368"
+        ],
+        [
+            "End TerminalComparableM.",
+            "VernacEndSegment",
+            "3666384bfda56fb0973e4367a468185629310e1f"
+        ],
+        [
+            "Module TerminalOrderedType := OrderedType_from_ComparableM TerminalComparableM.",
+            "VernacDefineModule",
+            "0fa85a3446d0d44b63ccaede308a45c5af437927"
+        ],
+        [
+            "Module StateProdPosComparableM <: ComparableM.",
+            "VernacDefineModule",
+            "582d0902ae1af673fa0a28345792992e0efb93f6"
+        ],
+        [
+            "Definition t := (state*production*nat)%type.",
+            "VernacDefinition",
+            "4b98949fd06ac4b96fd2342c18c02dc2394111a3"
+        ],
+        [
+            "Instance tComparable : Comparable t := _.",
+            "VernacInstance",
+            "66ba31b751cb8ae4f591a3c50f95c3348ee13368"
+        ],
+        [
+            "End StateProdPosComparableM.",
+            "VernacEndSegment",
+            "c8e90ea0189bfeedc15f0dba0d5ee5803b7a2efa"
+        ],
+        [
+            "Module StateProdPosOrderedType := OrderedType_from_ComparableM StateProdPosComparableM.",
+            "VernacDefineModule",
+            "213399c129156acc2388b69df2daba89c0780c20"
+        ],
+        [
+            "Module TerminalSet := FSetAVL.Make TerminalOrderedType.",
+            "VernacDefineModule",
+            "a31fbd6fe522b1b2aa0ba98707f41e2792799fc8"
+        ],
+        [
+            "Module StateProdPosMap := FMapAVL.Make StateProdPosOrderedType.",
+            "VernacDefineModule",
+            "f57416a2a26761df9b6e1fe9f14053225523dc5c"
+        ],
+        [
+            "Definition nullable_symb (symbol:symbol) := match symbol with | NT nt => nullable_nterm nt | _ => false end.",
+            "VernacDefinition",
+            "ef0924d6a2c1669eb76178e3c41a6f074527a4b4"
+        ],
+        [
+            "Definition nullable_word (word:list symbol) := forallb nullable_symb word.",
+            "VernacDefinition",
+            "19be057e48e2bd2d95ffcf60097409359fd99802"
+        ],
+        [
+            "Definition first_nterm_set (nterm:nonterminal) := fold_left (fun acc t => TerminalSet.add t acc) (first_nterm nterm) TerminalSet.empty.",
+            "VernacDefinition",
+            "676a7eb9b0430f46ef9338029c7d01d2ef5ab96d"
+        ],
+        [
+            "Definition first_symb_set (symbol:symbol) := match symbol with | NT nt => first_nterm_set nt | T t => TerminalSet.singleton t end.",
+            "VernacDefinition",
+            "07f34d55c049f515a6161241f2af8c9d0f1810b5"
+        ],
+        [
+            "Fixpoint first_word_set (word:list symbol) := match word with | [] => TerminalSet.empty | t::q => if nullable_symb t then TerminalSet.union (first_symb_set t) (first_word_set q) else first_symb_set t end.",
+            "VernacFixpoint",
+            "c2e58fdb135fbaad1c945c2283082ebf779cd21e"
+        ],
+        [
+            "Definition future_of_prod prod dot_pos : list symbol := (fix loop n lst := match n with | O => lst | S x => match loop x lst with [] => [] | _::q => q end end) dot_pos (rev' (prod_rhs_rev prod)).",
+            "VernacDefinition",
+            "40e868f1bff691d675dd58356c3f5a9aa633e665"
+        ],
+        [
+            "Definition items_map (_:unit): StateProdPosMap.t TerminalSet.t := fold_left (fun acc state => fold_left (fun acc item => let key := (state, prod_item item, dot_pos_item item) in let data := fold_left (fun acc t => TerminalSet.add t acc) (lookaheads_item item) TerminalSet.empty in let old := match StateProdPosMap.find key acc with | Some x => x | None => TerminalSet.empty end in StateProdPosMap.add key (TerminalSet.union data old) acc ) (items_of_state state) acc ) all_list (StateProdPosMap.empty TerminalSet.t).",
+            "VernacDefinition",
+            "75d98d5eca009e2cc01e9640c87fad0dc97d7a89"
+        ],
+        [
+            "Definition find_items_map items_map state prod dot_pos : TerminalSet.t := match StateProdPosMap.find (state, prod, dot_pos) items_map with | None => TerminalSet.empty | Some x => x end.",
+            "VernacDefinition",
+            "e992a9b81b95a4b6bde601b868ef935b39d1b82a"
+        ],
+        [
+            "Definition state_has_future state prod (fut:list symbol) (lookahead:terminal) := exists dot_pos:nat, fut = future_of_prod prod dot_pos /\\ TerminalSet.In lookahead (find_items_map (items_map ()) state prod dot_pos).",
+            "VernacDefinition",
+            "04e5564ea0fef68f9183950579c42ae3113a88dc"
+        ],
+        [
+            "Definition forallb_items items_map (P:state -> production -> nat -> TerminalSet.t -> bool): bool:= StateProdPosMap.fold (fun key set acc => match key with (st, p, pos) => (acc && P st p pos set)%bool end ) items_map true.",
+            "VernacDefinition",
+            "df35a888ffec22a3526f8beca8635c01f6c78441"
+        ],
+        [
+            "Lemma forallb_items_spec : forall p, forallb_items (items_map ()) p = true -> forall st prod fut lookahead, state_has_future st prod fut lookahead -> forall P:state -> production -> list symbol -> terminal -> Prop, (forall st prod pos set lookahead, TerminalSet.In lookahead set -> p st prod pos set = true -> P st prod (future_of_prod prod pos) lookahead) -> P st prod fut lookahead.",
+            "VernacStartTheoremProof",
+            "ee665996624603bed3b2510f5b8e7aa17796f4a9"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold forallb_items in H.",
+            "VernacExtend",
+            "0d965ac021403d15c167506346572040270f0604"
+        ],
+        [
+            "rewrite StateProdPosMap.fold_1 in H.",
+            "VernacExtend",
+            "086e64d7906b2a0f392c78f08a8d5b2b0fa11c61"
+        ],
+        [
+            "destruct H0; destruct H0.",
+            "VernacExtend",
+            "21d5a3dd09b17117201ee446055b76e72487326a"
+        ],
+        [
+            "specialize (H1 st prod x _ _ H2).",
+            "VernacExtend",
+            "8b9e11c7baf8a67e5c283b6d9646115c9e36f283"
+        ],
+        [
+            "destruct H0.",
+            "VernacExtend",
+            "5c8f6cb3dc303d56935d6ec271a1de04f6790225"
+        ],
+        [
+            "apply H1.",
+            "VernacExtend",
+            "3fcc9345bbf6ea218ca825a16c0f27912de9bd67"
+        ],
+        [
+            "unfold find_items_map in *.",
+            "VernacExtend",
+            "af97836b586760de036120dddfe318f1af6901f4"
+        ],
+        [
+            "pose proof (@StateProdPosMap.find_2 _ (items_map ()) (st, prod, x)).",
+            "VernacExtend",
+            "07c862527223f6f2cc0273e320bc775837db6269"
+        ],
+        [
+            "destruct (StateProdPosMap.find (st, prod, x) (items_map ())); [ |destruct (TerminalSet.empty_1 H2)].",
+            "VernacExtend",
+            "f553d9a0bc23030b0f856908b61f4a8b6c22603f"
+        ],
+        [
+            "specialize (H0 _ (eq_refl _)).",
+            "VernacExtend",
+            "4df8bf6bd0db5f2b8007d14afa838b760a65af74"
+        ],
+        [
+            "pose proof (StateProdPosMap.elements_1 H0).",
+            "VernacExtend",
+            "07964cad08f23c2a942cabce80419ceb48973141"
+        ],
+        [
+            "revert H.",
+            "VernacExtend",
+            "6842e040dd98a07b1eb54bbabc9c3f1076566a9a"
+        ],
+        [
+            "generalize true at 1.",
+            "VernacExtend",
+            "819c8b53ddb6ea219943490855662c0ec4c57697"
+        ],
+        [
+            "induction H3.",
+            "VernacExtend",
+            "3139d12347d024ef0d73e7a4ac9234d4e721869a"
+        ],
+        [
+            "destruct H.",
+            "VernacExtend",
+            "8b2bca015429da94c456243b461e17a2a0582c40"
+        ],
+        [
+            "destruct y.",
+            "VernacExtend",
+            "fbeb4c3b73b2f0e6bfc89563d7f3b824ea0ea309"
+        ],
+        [
+            "simpl in H3; destruct H3.",
+            "VernacExtend",
+            "4918ecd4e4b24d2bfa226e793026e2c290fb0354"
+        ],
+        [
+            "pose proof (compare_eq (st, prod, x) k H).",
+            "VernacExtend",
+            "6340f9f686674ac4c3013d61ea19f1c8e08b0323"
+        ],
+        [
+            "destruct H3.",
+            "VernacExtend",
+            "1c0230aafd4a4c88f93d392a681d452fd6dea35e"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "generalize (p st prod x t).",
+            "VernacExtend",
+            "8348478c5760bd16718e65f8c9ddc1d126b958d6"
+        ],
+        [
+            "induction l; simpl; intros.",
+            "VernacExtend",
+            "34e9ea5965da389dfe8faf53c8ea4965d4fdcc22"
+        ],
+        [
+            "rewrite Bool.andb_true_iff in H3.",
+            "VernacExtend",
+            "d1521a7c609befc30ae0b22fdeadb1b982f7b42d"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "destruct a; destruct k; destruct p0.",
+            "VernacExtend",
+            "449d0ec95bad934056bdc79b9fcf3a346a5374bb"
+        ],
+        [
+            "simpl in H3.",
+            "VernacExtend",
+            "2a96f120ac764efacadc60b978d01343f60aafa0"
+        ],
+        [
+            "replace (b0 && b && p s p0 n t0)%bool with (b0 && p s p0 n t0 && b)%bool in H3.",
+            "VernacExtend",
+            "7f5e876b2cee3acce3e5c64dc6a3060ab7ccfb88"
+        ],
+        [
+            "apply (IHl _ _ H3).",
+            "VernacExtend",
+            "49e98b6c2baf4d504bd7574b12f628381b5c7f33"
+        ],
+        [
+            "destruct b, b0, (p s p0 n t0); reflexivity.",
+            "VernacExtend",
+            "a690d55ac084cb7ec491b074b5ffc3265d98dbaa"
+        ],
+        [
+            "intro.",
+            "VernacExtend",
+            "3999be354c758ba0d1866e0fcc78a7288779a224"
+        ],
+        [
+            "apply IHInA.",
+            "VernacExtend",
+            "3675fb2509ec80e73bcb24c163afdedb6728bda6"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition nullable_stable:= forall p:production, nullable_word (rev (prod_rhs_rev p)) = true -> nullable_nterm (prod_lhs p) = true.",
+            "VernacDefinition",
+            "77208a0e727b00acd4e7a7ea713c2852d6735c44"
+        ],
+        [
+            "Definition is_nullable_stable (_:unit) := forallb (fun p:production => implb (nullable_word (rev' (prod_rhs_rev p))) (nullable_nterm (prod_lhs p))) all_list.",
+            "VernacDefinition",
+            "bda746c994826d4d66d257a7bd1364387f853996"
+        ],
+        [
+            "Property is_nullable_stable_correct : is_nullable_stable () = true -> nullable_stable.",
+            "VernacStartTheoremProof",
+            "44ad30bc186a2d594db0a3be29cc185caf048587"
+        ],
+        [
+            "unfold is_nullable_stable, nullable_stable.",
+            "VernacExtend",
+            "fc2f8ac977cc7bb42a2932f847aae470b99021bf"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite forallb_forall in H.",
+            "VernacExtend",
+            "ca73771a8fe04b412f7c37dcb7f0e16d1c0c0740"
+        ],
+        [
+            "specialize (H p (all_list_forall p)).",
+            "VernacExtend",
+            "448c4688143e4888b353c5d975c35b078274fd7b"
+        ],
+        [
+            "unfold rev' in H; rewrite <- rev_alt in H.",
+            "VernacExtend",
+            "8e3f3eaecbe3a12d5bcbd822ddcbbae7ed1c2ba1"
+        ],
+        [
+            "rewrite H0 in H; intuition.",
+            "VernacExtend",
+            "6164888b067515a5f186263cdc28d905d768759f"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition first_stable:= forall (p:production), TerminalSet.Subset (first_word_set (rev (prod_rhs_rev p))) (first_nterm_set (prod_lhs p)).",
+            "VernacDefinition",
+            "449e38d9163000b1f1b33db8380d2c1166aa8336"
+        ],
+        [
+            "Definition is_first_stable (_:unit) := forallb (fun p:production => TerminalSet.subset (first_word_set (rev' (prod_rhs_rev p))) (first_nterm_set (prod_lhs p))) all_list.",
+            "VernacDefinition",
+            "0f178f1b29027a1b956ef4e0e8c5ad31fee4aee6"
+        ],
+        [
+            "Property is_first_stable_correct : is_first_stable () = true -> first_stable.",
+            "VernacStartTheoremProof",
+            "458014787bec43a745ae9bdb7e3be503dad441bc"
+        ],
+        [
+            "unfold is_first_stable, first_stable.",
+            "VernacExtend",
+            "bbf6566f80b08782796d59ce90d1830a938b4e0f"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite forallb_forall in H.",
+            "VernacExtend",
+            "ca73771a8fe04b412f7c37dcb7f0e16d1c0c0740"
+        ],
+        [
+            "specialize (H p (all_list_forall p)).",
+            "VernacExtend",
+            "448c4688143e4888b353c5d975c35b078274fd7b"
+        ],
+        [
+            "unfold rev' in H; rewrite <- rev_alt in H.",
+            "VernacExtend",
+            "8e3f3eaecbe3a12d5bcbd822ddcbbae7ed1c2ba1"
+        ],
+        [
+            "apply TerminalSet.subset_2; intuition.",
+            "VernacExtend",
+            "e81d2d7c0d7c8dd1c1f1fa186d3c3bb302fd653e"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition start_future := forall (init:initstate) (t:terminal) (p:production), prod_lhs p = start_nt init -> state_has_future init p (rev (prod_rhs_rev p)) t.",
+            "VernacDefinition",
+            "2422eb839b299add733b6a2b09165bf8a24262bf"
+        ],
+        [
+            "Definition is_start_future items_map := forallb (fun init => forallb (fun prod => if compare_eqb (prod_lhs prod) (start_nt init) then let lookaheads := find_items_map items_map init prod 0 in forallb (fun t => TerminalSet.mem t lookaheads) all_list else true) all_list) all_list.",
+            "VernacDefinition",
+            "4e3341ab61280bd9ab28bb3c0ee2590e3236dc14"
+        ],
+        [
+            "Property is_start_future_correct : is_start_future (items_map ()) = true -> start_future.",
+            "VernacStartTheoremProof",
+            "10a1706f53df955939723c23118cd6ec6110a701"
+        ],
+        [
+            "unfold is_start_future, start_future.",
+            "VernacExtend",
+            "f277424335fbe8d663451de55b9a9d0fd5805363"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite forallb_forall in H.",
+            "VernacExtend",
+            "ca73771a8fe04b412f7c37dcb7f0e16d1c0c0740"
+        ],
+        [
+            "specialize (H init (all_list_forall _)).",
+            "VernacExtend",
+            "d98f6e0bbe7afaf2c69846e1c8aa8b12a6ba63be"
+        ],
+        [
+            "rewrite forallb_forall in H.",
+            "VernacExtend",
+            "ca73771a8fe04b412f7c37dcb7f0e16d1c0c0740"
+        ],
+        [
+            "specialize (H p (all_list_forall _)).",
+            "VernacExtend",
+            "36c7889a7cdf4eb0d47a6567c6a1d5391e50ce02"
+        ],
+        [
+            "rewrite <- compare_eqb_iff in H0.",
+            "VernacExtend",
+            "c4cf01dee94230c37363342b4b5e9812f5a6ddfb"
+        ],
+        [
+            "rewrite H0 in H.",
+            "VernacExtend",
+            "7452e3cc0dd69f3f801875694ef5fef26bb0a630"
+        ],
+        [
+            "rewrite forallb_forall in H.",
+            "VernacExtend",
+            "ca73771a8fe04b412f7c37dcb7f0e16d1c0c0740"
+        ],
+        [
+            "specialize (H t (all_list_forall _)).",
+            "VernacExtend",
+            "19d600454501a819b7c48167b83131f4de9de0c3"
+        ],
+        [
+            "exists 0.",
+            "VernacExtend",
+            "b12b8acd7a1526ef0683513a127984e4864502d9"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "apply rev_alt.",
+            "VernacExtend",
+            "6e515e10df608483276053ee6c5b94d1fafec1f3"
+        ],
+        [
+            "apply TerminalSet.mem_2; eauto.",
+            "VernacExtend",
+            "36b3902c5c0946a9fdc40429faa0c5ee4f76d32c"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition terminal_shift := forall (s1:state) prod fut lookahead, state_has_future s1 prod fut lookahead -> match fut with | T t::q => match action_table s1 with | Lookahead_act awp => match awp t with | Shift_act s2 _ => state_has_future s2 prod q lookahead | _ => False end | _ => False end | _ => True end.",
+            "VernacDefinition",
+            "728c8908bf0ae6fd5e332f8d5af129dcdb292089"
+        ],
+        [
+            "Definition is_terminal_shift items_map := forallb_items items_map (fun s1 prod pos lset => match future_of_prod prod pos with | T t::_ => match action_table s1 with | Lookahead_act awp => match awp t with | Shift_act s2 _ => TerminalSet.subset lset (find_items_map items_map s2 prod (S pos)) | _ => false end | _ => false end | _ => true end).",
+            "VernacDefinition",
+            "dbfc9f93a1dd5c13ada8b32e773030d31029f3bd"
+        ],
+        [
+            "Property is_terminal_shift_correct : is_terminal_shift (items_map ()) = true -> terminal_shift.",
+            "VernacStartTheoremProof",
+            "01a8ebbc1ceabd7d849de7fc4e1d502941551a10"
+        ],
+        [
+            "unfold is_terminal_shift, terminal_shift.",
+            "VernacExtend",
+            "b388e6d3497f60a3215ba904e307118cf3406c87"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply (forallb_items_spec _ H _ _ _ _ H0 (fun _ _ fut look => _)).",
+            "VernacExtend",
+            "f994d625fcd4c78c715d86d18e808ce3b74e0e94"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct (future_of_prod prod0 pos) as [|[]] eqn:?; intuition.",
+            "VernacExtend",
+            "d1635bde82f82a4cdd0fe7aabba951ddb273455c"
+        ],
+        [
+            "destruct (action_table st); intuition.",
+            "VernacExtend",
+            "05748152b44fdefe0b957373d3796a38da0d2432"
+        ],
+        [
+            "destruct (l0 t); intuition.",
+            "VernacExtend",
+            "dc435dd7cf9a3b2070f04060e2ae12e94b6c41b2"
+        ],
+        [
+            "exists (S pos).",
+            "VernacExtend",
+            "82a81b669e832eb9ae669b129fc8022e8024f144"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "unfold future_of_prod in *.",
+            "VernacExtend",
+            "0761ef227c63df4e91a95c389fac2c3ba97f3e03"
+        ],
+        [
+            "rewrite Heql; reflexivity.",
+            "VernacExtend",
+            "c7b4406cac72e35abbe251e0da883cad6a60f114"
+        ],
+        [
+            "apply (TerminalSet.subset_2 H2); intuition.",
+            "VernacExtend",
+            "844a2930b0078398b9d3292857e9e6da9f6cc666"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition end_reduce := forall (s:state) prod fut lookahead, state_has_future s prod fut lookahead -> fut = [] -> match action_table s with | Default_reduce_act p => p = prod | Lookahead_act awt => match awt lookahead with | Reduce_act p => p = prod | _ => False end end.",
+            "VernacDefinition",
+            "6ed34e181a1746b438d44994dfc53949de2f5a0a"
+        ],
+        [
+            "Definition is_end_reduce items_map := forallb_items items_map (fun s prod pos lset => match future_of_prod prod pos with | [] => match action_table s with | Default_reduce_act p => compare_eqb p prod | Lookahead_act awt => TerminalSet.fold (fun lookahead acc => match awt lookahead with | Reduce_act p => (acc && compare_eqb p prod)%bool | _ => false end) lset true end | _ => true end).",
+            "VernacDefinition",
+            "a3e27450bc27f70988ac6f25c91b01d89ae24d6b"
+        ],
+        [
+            "Property is_end_reduce_correct : is_end_reduce (items_map ()) = true -> end_reduce.",
+            "VernacStartTheoremProof",
+            "93ba9a8f8bfc5737561fa1d02186b3a1732cb319"
+        ],
+        [
+            "unfold is_end_reduce, end_reduce.",
+            "VernacExtend",
+            "27c7b2c58112b5f8dc8f39afa17a2fe99be74783"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "revert H1.",
+            "VernacExtend",
+            "f960614533a2a55b448cbf376832532eaf449c34"
+        ],
+        [
+            "apply (forallb_items_spec _ H _ _ _ _ H0 (fun st prod fut look => _ -> match action_table st with | Default_reduce_act p => p = prod | _ => _ end)).",
+            "VernacExtend",
+            "f5a643222e5fceadd8f8e5ae58c67ad0fa8cec10"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite H3 in H2.",
+            "VernacExtend",
+            "cd6e90473b6ddc3ec3eb78a9c40980b4c1f2a641"
+        ],
+        [
+            "destruct (action_table st); intuition.",
+            "VernacExtend",
+            "05748152b44fdefe0b957373d3796a38da0d2432"
+        ],
+        [
+            "apply compare_eqb_iff; intuition.",
+            "VernacExtend",
+            "b8295e4d0fc4e46441fc7fbd0a7b48cac458944a"
+        ],
+        [
+            "rewrite TerminalSet.fold_1 in H2.",
+            "VernacExtend",
+            "a7c1b9ced534bb76ad76d890a7144ad00caf77d4"
+        ],
+        [
+            "revert H2.",
+            "VernacExtend",
+            "bf608dd02211921a8a3468ac1ffcc4e8bdf3c9e3"
+        ],
+        [
+            "generalize true at 1.",
+            "VernacExtend",
+            "819c8b53ddb6ea219943490855662c0ec4c57697"
+        ],
+        [
+            "pose proof (TerminalSet.elements_1 H1).",
+            "VernacExtend",
+            "918931e2ba691ad58fcf8d7a2848a7038d148a23"
+        ],
+        [
+            "induction H2.",
+            "VernacExtend",
+            "951bbbec963ad1faf7953248242dfa5ae7a3bc03"
+        ],
+        [
+            "pose proof (compare_eq _ _ H2).",
+            "VernacExtend",
+            "e5aa9d79f94a3d34fe438739359332cf2106753c"
+        ],
+        [
+            "destruct H4.",
+            "VernacExtend",
+            "9ae390e4b039d96b643e4c1e0cd28291b37e7b3e"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "assert (fold_left (fun (a : bool) (e : TerminalSet.elt) => match l e with | Shift_act _ _ => false | Reduce_act p => (a && compare_eqb p prod0)%bool | Fail_act => false end) l0 false = true -> False).",
+            "VernacExtend",
+            "1b377f9a2e34ba13ddf9eb2e7174dca81f602133"
+        ],
+        [
+            "induction l0; intuition.",
+            "VernacExtend",
+            "36fd5c04552070b9f7d684d1d91ebd8d032ce01d"
+        ],
+        [
+            "apply IHl0.",
+            "VernacExtend",
+            "7af050d68392be8d79d4c924d524bef6defc11e2"
+        ],
+        [
+            "simpl in H4.",
+            "VernacExtend",
+            "31358c428a532f17f4c3cd16100d65b9f5ba8243"
+        ],
+        [
+            "destruct (l a); intuition.",
+            "VernacExtend",
+            "a479d3cc00b447988c9562af5ea277d1884716a0"
+        ],
+        [
+            "destruct (l lookahead0); intuition.",
+            "VernacExtend",
+            "337665fb8025518119ace920b94cae0a9e11bce2"
+        ],
+        [
+            "apply compare_eqb_iff.",
+            "VernacExtend",
+            "6875036bfa9044fe222052714c3782c70ed1ae29"
+        ],
+        [
+            "destruct (compare_eqb p prod0); intuition.",
+            "VernacExtend",
+            "151b9810f48c2fecf472b8d7dda7a8e84d3db4cd"
+        ],
+        [
+            "destruct b; intuition.",
+            "VernacExtend",
+            "f1c7d9cc28fdc7746fe5798fab66de6e9d278486"
+        ],
+        [
+            "simpl; intros.",
+            "VernacExtend",
+            "429a59199da524088af55673600740ccc58db31e"
+        ],
+        [
+            "eapply IHInA; eauto.",
+            "VernacExtend",
+            "8c52080dd3929fc1c2f0062b1658f26f83e27b1c"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition non_terminal_goto := forall (s1:state) prod fut lookahead, state_has_future s1 prod fut lookahead -> match fut with | NT nt::q => match goto_table s1 nt with | Some (exist _ s2 _) => state_has_future s2 prod q lookahead | None => forall prod fut lookahead, state_has_future s1 prod fut lookahead -> match fut with | NT nt'::_ => nt <> nt' | _ => True end end | _ => True end.",
+            "VernacDefinition",
+            "a63d146588d0f5c0e581707394c9a78fcf33544c"
+        ],
+        [
+            "Definition is_non_terminal_goto items_map := forallb_items items_map (fun s1 prod pos lset => match future_of_prod prod pos with | NT nt::_ => match goto_table s1 nt with | Some (exist _ s2 _) => TerminalSet.subset lset (find_items_map items_map s2 prod (S pos)) | None => forallb_items items_map (fun s1' prod' pos' _ => (implb (compare_eqb s1 s1') match future_of_prod prod' pos' with | NT nt' :: _ => negb (compare_eqb nt nt') | _ => true end)%bool) end | _ => true end).",
+            "VernacDefinition",
+            "3ca18ad205ac7b271294b329ebe612445ae3d049"
+        ],
+        [
+            "Property is_non_terminal_goto_correct : is_non_terminal_goto (items_map ()) = true -> non_terminal_goto.",
+            "VernacStartTheoremProof",
+            "7621b257da9635594c6815803b0f0fe1024d0ea3"
+        ],
+        [
+            "unfold is_non_terminal_goto, non_terminal_goto.",
+            "VernacExtend",
+            "9bd409d369d18eb57be953e13b70a2b71ba68f6d"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply (forallb_items_spec _ H _ _ _ _ H0 (fun st prod fut look => match fut with | NT nt :: q => match goto_table st nt with | Some _ => _ | None => forall p f l, state_has_future st p f l -> (_:Prop) end | _ => _ end)).",
+            "VernacExtend",
+            "2024278ea3898d890bcb0f9a84ac429e098c16ca"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct (future_of_prod prod0 pos) as [|[]] eqn:?; intuition.",
+            "VernacExtend",
+            "d1635bde82f82a4cdd0fe7aabba951ddb273455c"
+        ],
+        [
+            "destruct (goto_table st n) as [[]|].",
+            "VernacExtend",
+            "51d45609c4a64e09fa58b3f410b18f2363e026be"
+        ],
+        [
+            "exists (S pos).",
+            "VernacExtend",
+            "82a81b669e832eb9ae669b129fc8022e8024f144"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "unfold future_of_prod in *.",
+            "VernacExtend",
+            "0761ef227c63df4e91a95c389fac2c3ba97f3e03"
+        ],
+        [
+            "rewrite Heql; reflexivity.",
+            "VernacExtend",
+            "c7b4406cac72e35abbe251e0da883cad6a60f114"
+        ],
+        [
+            "apply (TerminalSet.subset_2 H2); intuition.",
+            "VernacExtend",
+            "844a2930b0078398b9d3292857e9e6da9f6cc666"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "remember st in H2; revert Heqs.",
+            "VernacExtend",
+            "320185832a74269cd8d1258636238f287c90ce94"
+        ],
+        [
+            "apply (forallb_items_spec _ H2 _ _ _ _ H3 (fun st' prod fut look => s = st' -> match fut return Prop with [] => _ | _ => _ end)); intros.",
+            "VernacExtend",
+            "5d033ff2d1484b74a093239acb33675d78b01c63"
+        ],
+        [
+            "rewrite <- compare_eqb_iff in H6; rewrite H6 in H5.",
+            "VernacExtend",
+            "97eb88aa962191a4d673311d542ce2118dcb70c6"
+        ],
+        [
+            "destruct (future_of_prod prod1 pos0) as [|[]]; intuition.",
+            "VernacExtend",
+            "37f77d4bed22fc3d2b2b4ccb821757b44735e5c2"
+        ],
+        [
+            "rewrite <- compare_eqb_iff in H7; rewrite H7 in H5.",
+            "VernacExtend",
+            "781ccbecd75afdd67c5b218cdeb8bcac784ea143"
+        ],
+        [
+            "discriminate.",
+            "VernacExtend",
+            "66ca81b65e1a53372a2515fdfdd2a6b0677cb9c8"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition start_goto := forall (init:initstate), goto_table init (start_nt init) = None.",
+            "VernacDefinition",
+            "d3ccc73dd334f8d09d1f343cb616c99e8bc8e50a"
+        ],
+        [
+            "Definition is_start_goto (_:unit) := forallb (fun (init:initstate) => match goto_table init (start_nt init) with | Some _ => false | None => true end) all_list.",
+            "VernacDefinition",
+            "fc1dfa9f4e0729a215636f089b61ee5fab58e762"
+        ],
+        [
+            "Definition is_start_goto_correct: is_start_goto () = true -> start_goto.",
+            "VernacDefinition",
+            "47bb7d98b2470f79574f1a034fe01e2ee98eca9f"
+        ],
+        [
+            "unfold is_start_goto, start_goto.",
+            "VernacExtend",
+            "6967b3debcc96d22bf48a561d12b3ddca7562c93"
+        ],
+        [
+            "rewrite forallb_forall.",
+            "VernacExtend",
+            "23cb0ed1a597e4ba55be3b687b89af2d8252af29"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "specialize (H init (all_list_forall _)).",
+            "VernacExtend",
+            "d98f6e0bbe7afaf2c69846e1c8aa8b12a6ba63be"
+        ],
+        [
+            "destruct (goto_table init (start_nt init)); congruence.",
+            "VernacExtend",
+            "eeeeb4a7c869605844aded6da1b80133e22e2ef7"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition non_terminal_closed := forall (s1:state) prod fut lookahead, state_has_future s1 prod fut lookahead -> match fut with | NT nt::q => forall (p:production) (lookahead2:terminal), prod_lhs p = nt -> TerminalSet.In lookahead2 (first_word_set q) \\/ lookahead2 = lookahead /\\ nullable_word q = true -> state_has_future s1 p (rev (prod_rhs_rev p)) lookahead2 | _ => True end.",
+            "VernacDefinition",
+            "e155515e6c0cac2ced2fdf17f50110b7cc106d08"
+        ],
+        [
+            "Definition is_non_terminal_closed items_map := forallb_items items_map (fun s1 prod pos lset => match future_of_prod prod pos with | NT nt::q => forallb (fun p => if compare_eqb (prod_lhs p) nt then let lookaheads := find_items_map items_map s1 p 0 in (implb (nullable_word q) (TerminalSet.subset lset lookaheads)) && TerminalSet.subset (first_word_set q) lookaheads else true )%bool all_list | _ => true end).",
+            "VernacDefinition",
+            "4341e046f5ad6d5cbfb0cbf11af28ecee0da1377"
+        ],
+        [
+            "Property is_non_terminal_closed_correct: is_non_terminal_closed (items_map ()) = true -> non_terminal_closed.",
+            "VernacStartTheoremProof",
+            "0b79b59859d5e8ee75b7e79706752b2282b37c97"
+        ],
+        [
+            "unfold is_non_terminal_closed, non_terminal_closed.",
+            "VernacExtend",
+            "93f89525ccd3f9277f327e06149f1986c28fc452"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply (forallb_items_spec _ H _ _ _ _ H0 (fun st prod fut look => match fut with | NT nt :: q => forall p l, _ -> _ -> state_has_future st _ _ _ | _ => _ end)).",
+            "VernacExtend",
+            "86bfa2e4797d701c05de2abc188d75258060c131"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct (future_of_prod prod0 pos); intuition.",
+            "VernacExtend",
+            "244a3d2f19510a6322ffcd52ebd8b5b7b08e7343"
+        ],
+        [
+            "destruct s; eauto; intros.",
+            "VernacExtend",
+            "f83800b71dacc7dfed033a249e47cab2c9f70e7c"
+        ],
+        [
+            "rewrite forallb_forall in H2.",
+            "VernacExtend",
+            "3ec3a800f190f8786fc93583f64017878b7b9feb"
+        ],
+        [
+            "specialize (H2 p (all_list_forall p)).",
+            "VernacExtend",
+            "9376db63b7800d34dfebdfa72828b768a301e2bc"
+        ],
+        [
+            "rewrite <- compare_eqb_iff in H3.",
+            "VernacExtend",
+            "fb5a92b6b6dedfdb635a6109da063646a437c3ac"
+        ],
+        [
+            "rewrite H3 in H2.",
+            "VernacExtend",
+            "cd6e90473b6ddc3ec3eb78a9c40980b4c1f2a641"
+        ],
+        [
+            "rewrite Bool.andb_true_iff in H2.",
+            "VernacExtend",
+            "22b3b845e5ae2724dd394654c484a1b51ccf6857"
+        ],
+        [
+            "destruct H2.",
+            "VernacExtend",
+            "7d33163a064bad536ec0f601f214b86de6ac5ab6"
+        ],
+        [
+            "exists 0.",
+            "VernacExtend",
+            "b12b8acd7a1526ef0683513a127984e4864502d9"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "apply rev_alt.",
+            "VernacExtend",
+            "6e515e10df608483276053ee6c5b94d1fafec1f3"
+        ],
+        [
+            "destruct H4 as [|[]]; subst.",
+            "VernacExtend",
+            "eb9dd4e49c5b500f4ef9e7ec25f1f28142eb366c"
+        ],
+        [
+            "apply (TerminalSet.subset_2 H5); intuition.",
+            "VernacExtend",
+            "8c9a3b2a89b1e6c4a1e60a8ed9b3fa14c6472353"
+        ],
+        [
+            "rewrite H6 in H2.",
+            "VernacExtend",
+            "026f63f1c2e21c23a58b11f5e9080f3528807842"
+        ],
+        [
+            "apply (TerminalSet.subset_2 H2); intuition.",
+            "VernacExtend",
+            "844a2930b0078398b9d3292857e9e6da9f6cc666"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition complete := nullable_stable /\\ first_stable /\\ start_future /\\ terminal_shift /\\ end_reduce /\\ non_terminal_goto /\\ start_goto /\\ non_terminal_closed.",
+            "VernacDefinition",
+            "719d92fb7b8a529e41c06c25d7f61c41a92461c7"
+        ],
+        [
+            "Definition is_complete (_:unit) := let items_map := items_map () in (is_nullable_stable () && is_first_stable () && is_start_future items_map && is_terminal_shift items_map && is_end_reduce items_map && is_start_goto () && is_non_terminal_goto items_map && is_non_terminal_closed items_map)%bool.",
+            "VernacDefinition",
+            "e1c346a46623140c14913715ca22ae0af96e4196"
+        ],
+        [
+            "Property is_complete_correct: is_complete () = true -> complete.",
+            "VernacStartTheoremProof",
+            "f6640e213bdfd354fb29fc667b43af1280045145"
+        ],
+        [
+            "unfold is_complete, complete.",
+            "VernacExtend",
+            "f370ec81e34d046add49e43b2d3299998ee57197"
+        ],
+        [
+            "repeat rewrite Bool.andb_true_iff.",
+            "VernacExtend",
+            "0128a969d7d03185d79ee7b00145fa2245cab43f"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "apply is_nullable_stable_correct; assumption.",
+            "VernacExtend",
+            "0d76872faffb060e859009386a22053e0fd9029f"
+        ],
+        [
+            "apply is_first_stable_correct; assumption.",
+            "VernacExtend",
+            "85870724c734116a7a4d11ddf3c6b7952b4c7076"
+        ],
+        [
+            "apply is_start_future_correct; assumption.",
+            "VernacExtend",
+            "95e809fadb8d34e20802f3be6ecfb639cf63abd0"
+        ],
+        [
+            "apply is_terminal_shift_correct; assumption.",
+            "VernacExtend",
+            "0c73905451cd06c60fec1a30738ac5be87c81c29"
+        ],
+        [
+            "apply is_end_reduce_correct; assumption.",
+            "VernacExtend",
+            "4f47527fe8c32b3fb0460b531405e019446562a2"
+        ],
+        [
+            "apply is_non_terminal_goto_correct; assumption.",
+            "VernacExtend",
+            "de526dff3640c1c08483a5bcd201a6d9e4738759"
+        ],
+        [
+            "apply is_start_goto_correct; assumption.",
+            "VernacExtend",
+            "128a5af2e6a92cb4b6e935e49df268c324fbfe63"
+        ],
+        [
+            "apply is_non_terminal_closed_correct; assumption.",
+            "VernacExtend",
+            "45d0ecda7321a6cd781df76314f74deea922efc0"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End Make.",
+            "VernacEndSegment",
+            "158dcf795fe84f422408437686b9ec9e7417690b"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "forallb_items_spec",
+            "line_nb": 27,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold forallb_items in H.",
+                        "VernacExtend",
+                        "0d965ac021403d15c167506346572040270f0604"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite StateProdPosMap.fold_1 in H.",
+                        "VernacExtend",
+                        "086e64d7906b2a0f392c78f08a8d5b2b0fa11c61"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H0; destruct H0.",
+                        "VernacExtend",
+                        "21d5a3dd09b17117201ee446055b76e72487326a"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (H1 st prod x _ _ H2).",
+                        "VernacExtend",
+                        "8b9e11c7baf8a67e5c283b6d9646115c9e36f283"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H0.",
+                        "VernacExtend",
+                        "5c8f6cb3dc303d56935d6ec271a1de04f6790225"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply H1.",
+                        "VernacExtend",
+                        "3fcc9345bbf6ea218ca825a16c0f27912de9bd67"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold find_items_map in *.",
+                        "VernacExtend",
+                        "af97836b586760de036120dddfe318f1af6901f4"
+                    ]
+                },
+                {
+                    "command": [
+                        "pose proof (@StateProdPosMap.find_2 _ (items_map ()) (st, prod, x)).",
+                        "VernacExtend",
+                        "07c862527223f6f2cc0273e320bc775837db6269"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (StateProdPosMap.find (st, prod, x) (items_map ())); [ |destruct (TerminalSet.empty_1 H2)].",
+                        "VernacExtend",
+                        "f553d9a0bc23030b0f856908b61f4a8b6c22603f"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (H0 _ (eq_refl _)).",
+                        "VernacExtend",
+                        "4df8bf6bd0db5f2b8007d14afa838b760a65af74"
+                    ]
+                },
+                {
+                    "command": [
+                        "pose proof (StateProdPosMap.elements_1 H0).",
+                        "VernacExtend",
+                        "07964cad08f23c2a942cabce80419ceb48973141"
+                    ]
+                },
+                {
+                    "command": [
+                        "revert H.",
+                        "VernacExtend",
+                        "6842e040dd98a07b1eb54bbabc9c3f1076566a9a"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize true at 1.",
+                        "VernacExtend",
+                        "819c8b53ddb6ea219943490855662c0ec4c57697"
+                    ]
+                },
+                {
+                    "command": [
+                        "induction H3.",
+                        "VernacExtend",
+                        "3139d12347d024ef0d73e7a4ac9234d4e721869a"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H.",
+                        "VernacExtend",
+                        "8b2bca015429da94c456243b461e17a2a0582c40"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct y.",
+                        "VernacExtend",
+                        "fbeb4c3b73b2f0e6bfc89563d7f3b824ea0ea309"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H3; destruct H3.",
+                        "VernacExtend",
+                        "4918ecd4e4b24d2bfa226e793026e2c290fb0354"
+                    ]
+                },
+                {
+                    "command": [
+                        "pose proof (compare_eq (st, prod, x) k H).",
+                        "VernacExtend",
+                        "6340f9f686674ac4c3013d61ea19f1c8e08b0323"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H3.",
+                        "VernacExtend",
+                        "1c0230aafd4a4c88f93d392a681d452fd6dea35e"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize (p st prod x t).",
+                        "VernacExtend",
+                        "8348478c5760bd16718e65f8c9ddc1d126b958d6"
+                    ]
+                },
+                {
+                    "command": [
+                        "induction l; simpl; intros.",
+                        "VernacExtend",
+                        "34e9ea5965da389dfe8faf53c8ea4965d4fdcc22"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Bool.andb_true_iff in H3.",
+                        "VernacExtend",
+                        "d1521a7c609befc30ae0b22fdeadb1b982f7b42d"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition.",
+                        "VernacExtend",
+                        "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a; destruct k; destruct p0.",
+                        "VernacExtend",
+                        "449d0ec95bad934056bdc79b9fcf3a346a5374bb"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H3.",
+                        "VernacExtend",
+                        "2a96f120ac764efacadc60b978d01343f60aafa0"
+                    ]
+                },
+                {
+                    "command": [
+                        "replace (b0 && b && p s p0 n t0)%bool with (b0 && p s p0 n t0 && b)%bool in H3.",
+                        "VernacExtend",
+                        "7f5e876b2cee3acce3e5c64dc6a3060ab7ccfb88"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (IHl _ _ H3).",
+                        "VernacExtend",
+                        "49e98b6c2baf4d504bd7574b12f628381b5c7f33"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct b, b0, (p s p0 n t0); reflexivity.",
+                        "VernacExtend",
+                        "a690d55ac084cb7ec491b074b5ffc3265d98dbaa"
+                    ]
+                },
+                {
+                    "command": [
+                        "intro.",
+                        "VernacExtend",
+                        "3999be354c758ba0d1866e0fcc78a7288779a224"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply IHInA.",
+                        "VernacExtend",
+                        "3675fb2509ec80e73bcb24c163afdedb6728bda6"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "is_nullable_stable_correct",
+            "line_nb": 63,
+            "steps": [
+                {
+                    "command": [
+                        "unfold is_nullable_stable, nullable_stable.",
+                        "VernacExtend",
+                        "fc2f8ac977cc7bb42a2932f847aae470b99021bf"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite forallb_forall in H.",
+                        "VernacExtend",
+                        "ca73771a8fe04b412f7c37dcb7f0e16d1c0c0740"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (H p (all_list_forall p)).",
+                        "VernacExtend",
+                        "448c4688143e4888b353c5d975c35b078274fd7b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold rev' in H; rewrite <- rev_alt in H.",
+                        "VernacExtend",
+                        "8e3f3eaecbe3a12d5bcbd822ddcbbae7ed1c2ba1"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H0 in H; intuition.",
+                        "VernacExtend",
+                        "6164888b067515a5f186263cdc28d905d768759f"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "is_first_stable_correct",
+            "line_nb": 73,
+            "steps": [
+                {
+                    "command": [
+                        "unfold is_first_stable, first_stable.",
+                        "VernacExtend",
+                        "bbf6566f80b08782796d59ce90d1830a938b4e0f"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite forallb_forall in H.",
+                        "VernacExtend",
+                        "ca73771a8fe04b412f7c37dcb7f0e16d1c0c0740"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (H p (all_list_forall p)).",
+                        "VernacExtend",
+                        "448c4688143e4888b353c5d975c35b078274fd7b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold rev' in H; rewrite <- rev_alt in H.",
+                        "VernacExtend",
+                        "8e3f3eaecbe3a12d5bcbd822ddcbbae7ed1c2ba1"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply TerminalSet.subset_2; intuition.",
+                        "VernacExtend",
+                        "e81d2d7c0d7c8dd1c1f1fa186d3c3bb302fd653e"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "is_start_future_correct",
+            "line_nb": 83,
+            "steps": [
+                {
+                    "command": [
+                        "unfold is_start_future, start_future.",
+                        "VernacExtend",
+                        "f277424335fbe8d663451de55b9a9d0fd5805363"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite forallb_forall in H.",
+                        "VernacExtend",
+                        "ca73771a8fe04b412f7c37dcb7f0e16d1c0c0740"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (H init (all_list_forall _)).",
+                        "VernacExtend",
+                        "d98f6e0bbe7afaf2c69846e1c8aa8b12a6ba63be"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite forallb_forall in H.",
+                        "VernacExtend",
+                        "ca73771a8fe04b412f7c37dcb7f0e16d1c0c0740"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (H p (all_list_forall _)).",
+                        "VernacExtend",
+                        "36c7889a7cdf4eb0d47a6567c6a1d5391e50ce02"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- compare_eqb_iff in H0.",
+                        "VernacExtend",
+                        "c4cf01dee94230c37363342b4b5e9812f5a6ddfb"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H0 in H.",
+                        "VernacExtend",
+                        "7452e3cc0dd69f3f801875694ef5fef26bb0a630"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite forallb_forall in H.",
+                        "VernacExtend",
+                        "ca73771a8fe04b412f7c37dcb7f0e16d1c0c0740"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (H t (all_list_forall _)).",
+                        "VernacExtend",
+                        "19d600454501a819b7c48167b83131f4de9de0c3"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists 0.",
+                        "VernacExtend",
+                        "b12b8acd7a1526ef0683513a127984e4864502d9"
+                    ]
+                },
+                {
+                    "command": [
+                        "split.",
+                        "VernacExtend",
+                        "55abc140132bd88981001ac656020469a8d503eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply rev_alt.",
+                        "VernacExtend",
+                        "6e515e10df608483276053ee6c5b94d1fafec1f3"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply TerminalSet.mem_2; eauto.",
+                        "VernacExtend",
+                        "36b3902c5c0946a9fdc40429faa0c5ee4f76d32c"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "is_terminal_shift_correct",
+            "line_nb": 101,
+            "steps": [
+                {
+                    "command": [
+                        "unfold is_terminal_shift, terminal_shift.",
+                        "VernacExtend",
+                        "b388e6d3497f60a3215ba904e307118cf3406c87"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (forallb_items_spec _ H _ _ _ _ H0 (fun _ _ fut look => _)).",
+                        "VernacExtend",
+                        "f994d625fcd4c78c715d86d18e808ce3b74e0e94"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (future_of_prod prod0 pos) as [|[]] eqn:?; intuition.",
+                        "VernacExtend",
+                        "d1635bde82f82a4cdd0fe7aabba951ddb273455c"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (action_table st); intuition.",
+                        "VernacExtend",
+                        "05748152b44fdefe0b957373d3796a38da0d2432"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (l0 t); intuition.",
+                        "VernacExtend",
+                        "dc435dd7cf9a3b2070f04060e2ae12e94b6c41b2"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists (S pos).",
+                        "VernacExtend",
+                        "82a81b669e832eb9ae669b129fc8022e8024f144"
+                    ]
+                },
+                {
+                    "command": [
+                        "split.",
+                        "VernacExtend",
+                        "55abc140132bd88981001ac656020469a8d503eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold future_of_prod in *.",
+                        "VernacExtend",
+                        "0761ef227c63df4e91a95c389fac2c3ba97f3e03"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Heql; reflexivity.",
+                        "VernacExtend",
+                        "c7b4406cac72e35abbe251e0da883cad6a60f114"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (TerminalSet.subset_2 H2); intuition.",
+                        "VernacExtend",
+                        "844a2930b0078398b9d3292857e9e6da9f6cc666"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "is_end_reduce_correct",
+            "line_nb": 117,
+            "steps": [
+                {
+                    "command": [
+                        "unfold is_end_reduce, end_reduce.",
+                        "VernacExtend",
+                        "27c7b2c58112b5f8dc8f39afa17a2fe99be74783"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "revert H1.",
+                        "VernacExtend",
+                        "f960614533a2a55b448cbf376832532eaf449c34"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (forallb_items_spec _ H _ _ _ _ H0 (fun st prod fut look => _ -> match action_table st with | Default_reduce_act p => p = prod | _ => _ end)).",
+                        "VernacExtend",
+                        "f5a643222e5fceadd8f8e5ae58c67ad0fa8cec10"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H3 in H2.",
+                        "VernacExtend",
+                        "cd6e90473b6ddc3ec3eb78a9c40980b4c1f2a641"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (action_table st); intuition.",
+                        "VernacExtend",
+                        "05748152b44fdefe0b957373d3796a38da0d2432"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply compare_eqb_iff; intuition.",
+                        "VernacExtend",
+                        "b8295e4d0fc4e46441fc7fbd0a7b48cac458944a"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite TerminalSet.fold_1 in H2.",
+                        "VernacExtend",
+                        "a7c1b9ced534bb76ad76d890a7144ad00caf77d4"
+                    ]
+                },
+                {
+                    "command": [
+                        "revert H2.",
+                        "VernacExtend",
+                        "bf608dd02211921a8a3468ac1ffcc4e8bdf3c9e3"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize true at 1.",
+                        "VernacExtend",
+                        "819c8b53ddb6ea219943490855662c0ec4c57697"
+                    ]
+                },
+                {
+                    "command": [
+                        "pose proof (TerminalSet.elements_1 H1).",
+                        "VernacExtend",
+                        "918931e2ba691ad58fcf8d7a2848a7038d148a23"
+                    ]
+                },
+                {
+                    "command": [
+                        "induction H2.",
+                        "VernacExtend",
+                        "951bbbec963ad1faf7953248242dfa5ae7a3bc03"
+                    ]
+                },
+                {
+                    "command": [
+                        "pose proof (compare_eq _ _ H2).",
+                        "VernacExtend",
+                        "e5aa9d79f94a3d34fe438739359332cf2106753c"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H4.",
+                        "VernacExtend",
+                        "9ae390e4b039d96b643e4c1e0cd28291b37e7b3e"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (fold_left (fun (a : bool) (e : TerminalSet.elt) => match l e with | Shift_act _ _ => false | Reduce_act p => (a && compare_eqb p prod0)%bool | Fail_act => false end) l0 false = true -> False).",
+                        "VernacExtend",
+                        "1b377f9a2e34ba13ddf9eb2e7174dca81f602133"
+                    ]
+                },
+                {
+                    "command": [
+                        "induction l0; intuition.",
+                        "VernacExtend",
+                        "36fd5c04552070b9f7d684d1d91ebd8d032ce01d"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply IHl0.",
+                        "VernacExtend",
+                        "7af050d68392be8d79d4c924d524bef6defc11e2"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H4.",
+                        "VernacExtend",
+                        "31358c428a532f17f4c3cd16100d65b9f5ba8243"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (l a); intuition.",
+                        "VernacExtend",
+                        "a479d3cc00b447988c9562af5ea277d1884716a0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (l lookahead0); intuition.",
+                        "VernacExtend",
+                        "337665fb8025518119ace920b94cae0a9e11bce2"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply compare_eqb_iff.",
+                        "VernacExtend",
+                        "6875036bfa9044fe222052714c3782c70ed1ae29"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (compare_eqb p prod0); intuition.",
+                        "VernacExtend",
+                        "151b9810f48c2fecf472b8d7dda7a8e84d3db4cd"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct b; intuition.",
+                        "VernacExtend",
+                        "f1c7d9cc28fdc7746fe5798fab66de6e9d278486"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl; intros.",
+                        "VernacExtend",
+                        "429a59199da524088af55673600740ccc58db31e"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply IHInA; eauto.",
+                        "VernacExtend",
+                        "8c52080dd3929fc1c2f0062b1658f26f83e27b1c"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "is_non_terminal_goto_correct",
+            "line_nb": 148,
+            "steps": [
+                {
+                    "command": [
+                        "unfold is_non_terminal_goto, non_terminal_goto.",
+                        "VernacExtend",
+                        "9bd409d369d18eb57be953e13b70a2b71ba68f6d"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (forallb_items_spec _ H _ _ _ _ H0 (fun st prod fut look => match fut with | NT nt :: q => match goto_table st nt with | Some _ => _ | None => forall p f l, state_has_future st p f l -> (_:Prop) end | _ => _ end)).",
+                        "VernacExtend",
+                        "2024278ea3898d890bcb0f9a84ac429e098c16ca"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (future_of_prod prod0 pos) as [|[]] eqn:?; intuition.",
+                        "VernacExtend",
+                        "d1635bde82f82a4cdd0fe7aabba951ddb273455c"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (goto_table st n) as [[]|].",
+                        "VernacExtend",
+                        "51d45609c4a64e09fa58b3f410b18f2363e026be"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists (S pos).",
+                        "VernacExtend",
+                        "82a81b669e832eb9ae669b129fc8022e8024f144"
+                    ]
+                },
+                {
+                    "command": [
+                        "split.",
+                        "VernacExtend",
+                        "55abc140132bd88981001ac656020469a8d503eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold future_of_prod in *.",
+                        "VernacExtend",
+                        "0761ef227c63df4e91a95c389fac2c3ba97f3e03"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Heql; reflexivity.",
+                        "VernacExtend",
+                        "c7b4406cac72e35abbe251e0da883cad6a60f114"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (TerminalSet.subset_2 H2); intuition.",
+                        "VernacExtend",
+                        "844a2930b0078398b9d3292857e9e6da9f6cc666"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "remember st in H2; revert Heqs.",
+                        "VernacExtend",
+                        "320185832a74269cd8d1258636238f287c90ce94"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (forallb_items_spec _ H2 _ _ _ _ H3 (fun st' prod fut look => s = st' -> match fut return Prop with [] => _ | _ => _ end)); intros.",
+                        "VernacExtend",
+                        "5d033ff2d1484b74a093239acb33675d78b01c63"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- compare_eqb_iff in H6; rewrite H6 in H5.",
+                        "VernacExtend",
+                        "97eb88aa962191a4d673311d542ce2118dcb70c6"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (future_of_prod prod1 pos0) as [|[]]; intuition.",
+                        "VernacExtend",
+                        "37f77d4bed22fc3d2b2b4ccb821757b44735e5c2"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- compare_eqb_iff in H7; rewrite H7 in H5.",
+                        "VernacExtend",
+                        "781ccbecd75afdd67c5b218cdeb8bcac784ea143"
+                    ]
+                },
+                {
+                    "command": [
+                        "discriminate.",
+                        "VernacExtend",
+                        "66ca81b65e1a53372a2515fdfdd2a6b0677cb9c8"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "is_start_goto_correct",
+            "line_nb": 170,
+            "steps": [
+                {
+                    "command": [
+                        "unfold is_start_goto, start_goto.",
+                        "VernacExtend",
+                        "6967b3debcc96d22bf48a561d12b3ddca7562c93"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite forallb_forall.",
+                        "VernacExtend",
+                        "23cb0ed1a597e4ba55be3b687b89af2d8252af29"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (H init (all_list_forall _)).",
+                        "VernacExtend",
+                        "d98f6e0bbe7afaf2c69846e1c8aa8b12a6ba63be"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (goto_table init (start_nt init)); congruence.",
+                        "VernacExtend",
+                        "eeeeb4a7c869605844aded6da1b80133e22e2ef7"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "is_non_terminal_closed_correct",
+            "line_nb": 179,
+            "steps": [
+                {
+                    "command": [
+                        "unfold is_non_terminal_closed, non_terminal_closed.",
+                        "VernacExtend",
+                        "93f89525ccd3f9277f327e06149f1986c28fc452"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (forallb_items_spec _ H _ _ _ _ H0 (fun st prod fut look => match fut with | NT nt :: q => forall p l, _ -> _ -> state_has_future st _ _ _ | _ => _ end)).",
+                        "VernacExtend",
+                        "86bfa2e4797d701c05de2abc188d75258060c131"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (future_of_prod prod0 pos); intuition.",
+                        "VernacExtend",
+                        "244a3d2f19510a6322ffcd52ebd8b5b7b08e7343"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct s; eauto; intros.",
+                        "VernacExtend",
+                        "f83800b71dacc7dfed033a249e47cab2c9f70e7c"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite forallb_forall in H2.",
+                        "VernacExtend",
+                        "3ec3a800f190f8786fc93583f64017878b7b9feb"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (H2 p (all_list_forall p)).",
+                        "VernacExtend",
+                        "9376db63b7800d34dfebdfa72828b768a301e2bc"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- compare_eqb_iff in H3.",
+                        "VernacExtend",
+                        "fb5a92b6b6dedfdb635a6109da063646a437c3ac"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H3 in H2.",
+                        "VernacExtend",
+                        "cd6e90473b6ddc3ec3eb78a9c40980b4c1f2a641"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Bool.andb_true_iff in H2.",
+                        "VernacExtend",
+                        "22b3b845e5ae2724dd394654c484a1b51ccf6857"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H2.",
+                        "VernacExtend",
+                        "7d33163a064bad536ec0f601f214b86de6ac5ab6"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists 0.",
+                        "VernacExtend",
+                        "b12b8acd7a1526ef0683513a127984e4864502d9"
+                    ]
+                },
+                {
+                    "command": [
+                        "split.",
+                        "VernacExtend",
+                        "55abc140132bd88981001ac656020469a8d503eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply rev_alt.",
+                        "VernacExtend",
+                        "6e515e10df608483276053ee6c5b94d1fafec1f3"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H4 as [|[]]; subst.",
+                        "VernacExtend",
+                        "eb9dd4e49c5b500f4ef9e7ec25f1f28142eb366c"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (TerminalSet.subset_2 H5); intuition.",
+                        "VernacExtend",
+                        "8c9a3b2a89b1e6c4a1e60a8ed9b3fa14c6472353"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H6 in H2.",
+                        "VernacExtend",
+                        "026f63f1c2e21c23a58b11f5e9080f3528807842"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (TerminalSet.subset_2 H2); intuition.",
+                        "VernacExtend",
+                        "844a2930b0078398b9d3292857e9e6da9f6cc666"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "is_complete_correct",
+            "line_nb": 202,
+            "steps": [
+                {
+                    "command": [
+                        "unfold is_complete, complete.",
+                        "VernacExtend",
+                        "f370ec81e34d046add49e43b2d3299998ee57197"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat rewrite Bool.andb_true_iff.",
+                        "VernacExtend",
+                        "0128a969d7d03185d79ee7b00145fa2245cab43f"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition.",
+                        "VernacExtend",
+                        "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply is_nullable_stable_correct; assumption.",
+                        "VernacExtend",
+                        "0d76872faffb060e859009386a22053e0fd9029f"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply is_first_stable_correct; assumption.",
+                        "VernacExtend",
+                        "85870724c734116a7a4d11ddf3c6b7952b4c7076"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply is_start_future_correct; assumption.",
+                        "VernacExtend",
+                        "95e809fadb8d34e20802f3be6ecfb639cf63abd0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply is_terminal_shift_correct; assumption.",
+                        "VernacExtend",
+                        "0c73905451cd06c60fec1a30738ac5be87c81c29"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply is_end_reduce_correct; assumption.",
+                        "VernacExtend",
+                        "4f47527fe8c32b3fb0460b531405e019446562a2"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply is_non_terminal_goto_correct; assumption.",
+                        "VernacExtend",
+                        "de526dff3640c1c08483a5bcd201a6d9e4738759"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply is_start_goto_correct; assumption.",
+                        "VernacExtend",
+                        "128a5af2e6a92cb4b6e935e49df268c324fbfe63"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply is_non_terminal_closed_correct; assumption.",
+                        "VernacExtend",
+                        "45d0ecda7321a6cd781df76314f74deea922efc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

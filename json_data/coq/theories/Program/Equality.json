@@ -1,0 +1,850 @@
+{
+    "filename": "theories/Program/Equality.v",
+    "coq_project": "coq",
+    "vernac_cmds": [
+        [
+            "Require Export JMeq.",
+            "VernacRequire",
+            "2deb0088d387ce5a84c5c487acca0826e4748a5b"
+        ],
+        [
+            "Require Import Coq.Program.Tactics.",
+            "VernacRequire",
+            "4a5faf9c06c6b8a982a49ae4608c6c7278eb982c"
+        ],
+        [
+            "Ltac is_ground_goal := match goal with |- ?T => is_ground T end.",
+            "VernacExtend",
+            "c7d9d06cf1bd33625d52bd46f0788389a2b57523"
+        ],
+        [
+            "Hint Extern 10 => is_ground_goal ; progress exfalso : exfalso.",
+            "VernacHints",
+            "972054f9c3839bd9567f1f351d759f1dc5bf39e0"
+        ],
+        [
+            "Definition block {A : Type} (a : A) := a.",
+            "VernacDefinition",
+            "5f1a5858205d2a89fcdc6c6fc84e1f99213dcc9b"
+        ],
+        [
+            "Ltac block_goal := match goal with [ |- ?T ] => change (block T) end.",
+            "VernacExtend",
+            "ac4974e1bebdca19f079b47effa509d416ccd97f"
+        ],
+        [
+            "Ltac unblock_goal := unfold block in *.",
+            "VernacExtend",
+            "d0e0e5e1d0ff0b5a749e2c53226581db52295232"
+        ],
+        [
+            "Notation \" x ~= y \" := (@JMeq _ x _ y) (at level 70, no associativity).",
+            "VernacNotation",
+            "824dd4b85c48392ea4ff9e47210f0483edb7f74f"
+        ],
+        [
+            "Ltac on_JMeq tac := match goal with | [ H : @JMeq ?x ?X ?y ?Y |- _ ] => tac H end.",
+            "VernacExtend",
+            "838ed59eb6698283056d45a947b02eebb9a3bbf3"
+        ],
+        [
+            "Ltac simpl_one_JMeq := on_JMeq ltac:(fun H => apply JMeq_eq in H).",
+            "VernacExtend",
+            "c599df8986da06336738f9de33e2638928d39213"
+        ],
+        [
+            "Ltac simpl_JMeq := repeat simpl_one_JMeq.",
+            "VernacExtend",
+            "e00568849bc9c37e7a856d949e0c4d637edc5b3c"
+        ],
+        [
+            "Ltac simpl_one_dep_JMeq := on_JMeq ltac:(fun H => let H' := fresh \"H\" in assert (H' := JMeq_eq H)).",
+            "VernacExtend",
+            "6ce7f3055adaa0427dc507e95fef8967824bf3f7"
+        ],
+        [
+            "Require Import Eqdep.",
+            "VernacRequire",
+            "a499933d0898d4c0e235af789d9252f633426d20"
+        ],
+        [
+            "Ltac simpl_existT := match goal with [ H : existT _ ?x _ = existT _ ?x _ |- _ ] => let Hi := fresh H in assert(Hi:=inj_pairT2 _ _ _ _ _ H) ; clear H end.",
+            "VernacExtend",
+            "c397bd96657a5f7b0f98454391625153316bc65c"
+        ],
+        [
+            "Ltac simpl_existTs := repeat simpl_existT.",
+            "VernacExtend",
+            "924fae3a9fb5772d1604af2c34780ba267d81a86"
+        ],
+        [
+            "Ltac elim_eq_rect := match goal with | [ |- ?t ] => match t with | context [ @eq_rect _ _ _ _ _ ?p ] => let P := fresh \"P\" in set (P := p); simpl in P ; ((case P ; clear P) || (clearbody P; rewrite (UIP_refl _ _ P); clear P)) | context [ @eq_rect _ _ _ _ _ ?p _ ] => let P := fresh \"P\" in set (P := p); simpl in P ; ((case P ; clear P) || (clearbody P; rewrite (UIP_refl _ _ P); clear P)) end end.",
+            "VernacExtend",
+            "4d9bbcfff58b4b37bc6d02441d0e7178c90529bc"
+        ],
+        [
+            "Ltac simpl_uip := match goal with [ H : ?X = ?X |- _ ] => rewrite (UIP_refl _ _ H) in *; clear H end.",
+            "VernacExtend",
+            "da6d7847dfbe16484c984cdccb4fc21299fe9782"
+        ],
+        [
+            "Ltac simpl_eq := simpl ; unfold eq_rec_r, eq_rec ; repeat (elim_eq_rect ; simpl) ; repeat (simpl_uip ; simpl).",
+            "VernacExtend",
+            "bde235c5b6ec342fcec58444c5d14ae7476ba2ee"
+        ],
+        [
+            "Ltac abstract_eq_hyp H' p := let ty := type of p in let tyred := eval simpl in ty in match tyred with ?X = ?Y => match goal with | [ H : X = Y |- _ ] => fail 1 | _ => set (H':=p) ; try (change p with H') ; clearbody H' ; simpl in H' end end.",
+            "VernacExtend",
+            "8dcbb848444e1e5a5cb53e1230b3bb4ecfc7f98b"
+        ],
+        [
+            "Ltac on_coerce_proof tac T := match T with | context [ eq_rect _ _ _ _ ?p ] => tac p end.",
+            "VernacExtend",
+            "6869ddb1b3390487e7bc5361f5184b4e0782550d"
+        ],
+        [
+            "Ltac on_coerce_proof_gl tac := match goal with [ |- ?T ] => on_coerce_proof tac T end.",
+            "VernacExtend",
+            "25f2b33a70c1cd8bf7cbe31fe23eebb04a0248de"
+        ],
+        [
+            "Ltac abstract_eq_proof := on_coerce_proof_gl ltac:(fun p => let H := fresh \"eqH\" in abstract_eq_hyp H p).",
+            "VernacExtend",
+            "bfe870332492849c69ee0cd6c7b789b75992e40a"
+        ],
+        [
+            "Ltac abstract_eq_proofs := repeat abstract_eq_proof.",
+            "VernacExtend",
+            "25cd6ca4946fc6d0f81cf4fb7b2ed9340f05edac"
+        ],
+        [
+            "Ltac pi_eq_proof_hyp p := let ty := type of p in let tyred := eval simpl in ty in match tyred with ?X = ?Y => match goal with | [ H : X = Y |- _ ] => match p with | H => fail 2 | _ => rewrite (UIP _ X Y p H) end | _ => fail \" No hypothesis with same type \" end end.",
+            "VernacExtend",
+            "9742b76b84945f0c82cdbeb94d1b571d4a8c1af9"
+        ],
+        [
+            "Ltac pi_eq_proof := on_coerce_proof_gl pi_eq_proof_hyp.",
+            "VernacExtend",
+            "912b76881a7a933b78820367046f56c0081d4dfe"
+        ],
+        [
+            "Ltac pi_eq_proofs := repeat pi_eq_proof.",
+            "VernacExtend",
+            "2cf032c69cc2c363afcec58018ac287cd06b9a5f"
+        ],
+        [
+            "Ltac clear_eq_proofs := abstract_eq_proofs ; pi_eq_proofs.",
+            "VernacExtend",
+            "1ec366432ce83e6b9e78617fc64bcd7eeb5c0f46"
+        ],
+        [
+            "Hint Rewrite <- eq_rect_eq : refl_id.",
+            "VernacExtend",
+            "87875e901f169838137c941fa65c0556ccc2aeac"
+        ],
+        [
+            "Lemma JMeq_eq_refl {A} (x : A) : JMeq_eq (@JMeq_refl _ x) = eq_refl.",
+            "VernacStartTheoremProof",
+            "fe3dc6a7dc4e3dd6c671ea5f54f8206598f3605e"
+        ],
+        [
+            "apply UIP.",
+            "VernacExtend",
+            "cf0f3c8e09a1bab861ece7d6133e9cdabe1e5ebd"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma UIP_refl_refl A (x : A) : Eqdep.EqdepTheory.UIP_refl A x eq_refl = eq_refl.",
+            "VernacStartTheoremProof",
+            "c91fcbd977d1c3909ed38ed3ae06a7fe8c329cf3"
+        ],
+        [
+            "apply UIP_refl.",
+            "VernacExtend",
+            "b67aac8d9aacba7bb4231a740bacf4967c5ac420"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma inj_pairT2_refl A (x : A) (P : A -> Type) (p : P x) : Eqdep.EqdepTheory.inj_pairT2 A P x p p eq_refl = eq_refl.",
+            "VernacStartTheoremProof",
+            "4573f9864c819aafe0e2e0a873656aaf91fe63a5"
+        ],
+        [
+            "apply UIP_refl.",
+            "VernacExtend",
+            "b67aac8d9aacba7bb4231a740bacf4967c5ac420"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Hint Rewrite @JMeq_eq_refl @UIP_refl_refl @inj_pairT2_refl : refl_id.",
+            "VernacExtend",
+            "6eb922e97480eb465e1ad6a04422238aac9dca11"
+        ],
+        [
+            "Ltac rewrite_refl_id := autorewrite with refl_id.",
+            "VernacExtend",
+            "035121941f03550d9da0fb1f28ff2b217e3ded48"
+        ],
+        [
+            "Ltac clear_eq_ctx := rewrite_refl_id ; clear_eq_proofs.",
+            "VernacExtend",
+            "2e97607cebd0c1f00f8c62c882155e366cc9cddf"
+        ],
+        [
+            "Ltac simpl_eqs := repeat (elim_eq_rect ; simpl ; clear_eq_ctx).",
+            "VernacExtend",
+            "28d967cf6454151313e62f49c3ac43395ab77613"
+        ],
+        [
+            "Ltac clear_refl_eq := match goal with [ H : ?X = ?X |- _ ] => clear H end.",
+            "VernacExtend",
+            "a3cf85ee38038fd1750fb2deb4c2327372ce70c3"
+        ],
+        [
+            "Ltac clear_refl_eqs := repeat clear_refl_eq.",
+            "VernacExtend",
+            "e3f198d24174b73556712f7bb8f864f55dc15fc9"
+        ],
+        [
+            "Ltac clear_eq := match goal with [ H : _ = _ |- _ ] => clear H end.",
+            "VernacExtend",
+            "6c5699a749e4d1d2fa060971200c3ade072d4e65"
+        ],
+        [
+            "Ltac clear_eqs := repeat clear_eq.",
+            "VernacExtend",
+            "98293c0ed1511462ec6172c9d2c4b8afb341668b"
+        ],
+        [
+            "Ltac simplify_eqs := simpl ; simpl_eqs ; clear_eq_ctx ; clear_refl_eqs ; try subst ; simpl ; repeat simpl_uip ; rewrite_refl_id.",
+            "VernacExtend",
+            "c1ddd4fc8f60b262907b139de5911b7e157a6cf2"
+        ],
+        [
+            "Ltac simplify_IH_hyps := repeat match goal with | [ hyp : context [ block _ ] |- _ ] => specialize_eqs hyp end.",
+            "VernacExtend",
+            "a6d0239fb7b0cb73bcbcdb11f933807ca19e6936"
+        ],
+        [
+            "Ltac subst_left_no_fail := repeat (match goal with [ H : ?X = ?Y |- _ ] => subst X end).",
+            "VernacExtend",
+            "127d58252c937a8a3292c8fa8a2c0c6425121b62"
+        ],
+        [
+            "Ltac subst_right_no_fail := repeat (match goal with [ H : ?X = ?Y |- _ ] => subst Y end).",
+            "VernacExtend",
+            "d6686094a90c72be48a5d0a075bd4d15065324ff"
+        ],
+        [
+            "Ltac inject_left H := progress (inversion H ; subst_left_no_fail ; clear_dups) ; clear H.",
+            "VernacExtend",
+            "ddf838ce409dac8f205bf49c56ffa42aef74333e"
+        ],
+        [
+            "Ltac inject_right H := progress (inversion H ; subst_right_no_fail ; clear_dups) ; clear H.",
+            "VernacExtend",
+            "6221f95e096f40457ded7d3703bc0c563cc11da6"
+        ],
+        [
+            "Ltac autoinjections_left := repeat autoinjection ltac:(inject_left).",
+            "VernacExtend",
+            "d1f8a43ee4a368d8fdefde9fef3840f8cfe6df31"
+        ],
+        [
+            "Ltac autoinjections_right := repeat autoinjection ltac:(inject_right).",
+            "VernacExtend",
+            "297f9d090786534b30b231f299937491cdcb878f"
+        ],
+        [
+            "Ltac simpl_depind := subst_no_fail ; autoinjections ; try discriminates ; simpl_JMeq ; simpl_existTs ; simplify_IH_hyps.",
+            "VernacExtend",
+            "869673f2e19d71ecbc98d361969daba06e261468"
+        ],
+        [
+            "Ltac simpl_depind_l := subst_left_no_fail ; autoinjections_left ; try discriminates ; simpl_JMeq ; simpl_existTs ; simplify_IH_hyps.",
+            "VernacExtend",
+            "f5a4fc9bffb16f36dea0f4cc20db4856d4681d06"
+        ],
+        [
+            "Ltac simpl_depind_r := subst_right_no_fail ; autoinjections_right ; try discriminates ; simpl_JMeq ; simpl_existTs ; simplify_IH_hyps.",
+            "VernacExtend",
+            "9ed452a0736826b9dcb69a6655bf84593f7e1d3c"
+        ],
+        [
+            "Ltac blocked t := block_goal ; t ; unblock_goal.",
+            "VernacExtend",
+            "0de9d6816c6aa9b3a325201eb56bf96e6708be89"
+        ],
+        [
+            "Class DependentEliminationPackage (A : Type) := { elim_type : Type ; elim : elim_type }.",
+            "VernacInductive",
+            "2007e8df5239b7f317a02f2d83b598106811c178"
+        ],
+        [
+            "Ltac elim_tac tac p := let ty := type of p in let eliminator := eval simpl in (@elim (_ : DependentEliminationPackage ty)) in tac p eliminator.",
+            "VernacExtend",
+            "c12d046c5462a12b0152422638a2166422e875b6"
+        ],
+        [
+            "Ltac elim_case p := elim_tac ltac:(fun p el => destruct p using el) p.",
+            "VernacExtend",
+            "367cc05325fbad10fe482de5d5c0c9d6c3ca7ee1"
+        ],
+        [
+            "Ltac elim_ind p := elim_tac ltac:(fun p el => induction p using el) p.",
+            "VernacExtend",
+            "6c668f1470cbc6966317dd50bf3c35eeb3bfa80e"
+        ],
+        [
+            "Lemma solution_left A (B : A -> Type) (t : A) : B t -> (forall x, x = t -> B x).",
+            "VernacStartTheoremProof",
+            "713d0ec2c7f807dd3a85e0904588a79768b98b91"
+        ],
+        [
+            "intros; subst; assumption.",
+            "VernacExtend",
+            "732464341b6d67564bcbff417546f0660477ecd7"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Lemma solution_right A (B : A -> Type) (t : A) : B t -> (forall x, t = x -> B x).",
+            "VernacStartTheoremProof",
+            "94d8a7216bda4e4941cafb0997741a8fdd1eebd7"
+        ],
+        [
+            "intros; subst; assumption.",
+            "VernacExtend",
+            "732464341b6d67564bcbff417546f0660477ecd7"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Lemma deletion A B (t : A) : B -> (t = t -> B).",
+            "VernacStartTheoremProof",
+            "53de01f71535911f94d69f0cba6a1eaf346defde"
+        ],
+        [
+            "intros; assumption.",
+            "VernacExtend",
+            "5cc15d3651e27d2e3e1e2b44ec8880d58345a162"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Lemma simplification_heq A B (x y : A) : (x = y -> B) -> (JMeq x y -> B).",
+            "VernacStartTheoremProof",
+            "71886d3feb8504e1c8850cd7cef945e0631a089a"
+        ],
+        [
+            "intros H J; apply H; apply (JMeq_eq J).",
+            "VernacExtend",
+            "af9b4add6492c276f38e28315871b6e540c8e00f"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Definition conditional_eq {A} (x y : A) := eq x y.",
+            "VernacDefinition",
+            "94412a7047c4d989363d1264875459e51c9773d4"
+        ],
+        [
+            "Lemma simplification_existT2 A (P : A -> Type) B (p : A) (x y : P p) : (x = y -> B) -> (conditional_eq (existT P p x) (existT P p y) -> B).",
+            "VernacStartTheoremProof",
+            "41702a3f0b7cec7c08a17b6413ef826b005ddd00"
+        ],
+        [
+            "intros H E.",
+            "VernacExtend",
+            "87c23d16f6f731bd5ed7d48b5b7d55df1d3d4ed5"
+        ],
+        [
+            "apply H.",
+            "VernacExtend",
+            "4b47b71ad0f800d57cbdc591d68949e07decb540"
+        ],
+        [
+            "apply inj_pair2.",
+            "VernacExtend",
+            "600ca47a7799a93e11d38a6b7399efe82718af8d"
+        ],
+        [
+            "assumption.",
+            "VernacExtend",
+            "41f0308313ff87e6ab2782f90d6021ec4b55d932"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Lemma simplification_existT1 A (P : A -> Type) B (p q : A) (x : P p) (y : P q) : (p = q -> conditional_eq (existT P p x) (existT P q y) -> B) -> (existT P p x = existT P q y -> B).",
+            "VernacStartTheoremProof",
+            "36df6b81f7a4587803d82bc0da9d06e653845318"
+        ],
+        [
+            "injection 2.",
+            "VernacExtend",
+            "6a899ac8a9685c23887eb1e7179f1858f79a80fa"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Lemma simplification_K A (x : A) (B : x = x -> Type) : B eq_refl -> (forall p : x = x, B p).",
+            "VernacStartTheoremProof",
+            "883caf12aa2ce6fd140060cf2656b9e64ebca626"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite (UIP_refl A).",
+            "VernacExtend",
+            "e5742a968fb769bd55456a5aa6f8e8050bc4571f"
+        ],
+        [
+            "assumption.",
+            "VernacExtend",
+            "41f0308313ff87e6ab2782f90d6021ec4b55d932"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Hint Unfold solution_left solution_right deletion simplification_heq simplification_existT1 simplification_existT2 simplification_K eq_rect_r eq_rec eq_ind : dep_elim.",
+            "VernacHints",
+            "062c26749b6250398cbf637e038a55593ad4fa7d"
+        ],
+        [
+            "Ltac simplify_one_dep_elim_term c := match c with | @JMeq _ _ _ _ -> _ => refine (simplification_heq _ _ _ _ _) | ?t = ?t -> _ => intros _ || refine (simplification_K _ t _ _) | eq (existT _ _ _) (existT _ _ _) -> _ => refine (simplification_existT1 _ _ _ _ _ _ _ _) | conditional_eq (existT _ _ _) (existT _ _ _) -> _ => refine (simplification_existT2 _ _ _ _ _ _ _) || (unfold conditional_eq; intro) | ?x = ?y -> _ => (unfold x) || (unfold y) || (let hyp := fresh in intros hyp ; move hyp before x ; revert_until hyp ; generalize dependent x ; refine (solution_left _ _ _ _)) || (let hyp := fresh in intros hyp ; move hyp before y ; revert_until hyp ; generalize dependent y ; refine (solution_right _ _ _ _)) | ?f ?x = ?g ?y -> _ => let H := fresh in progress (intros H ; simple injection H; clear H) | ?t = ?u -> _ => let hyp := fresh in intros hyp ; exfalso ; discriminate | ?x = ?y -> _ => let hyp := fresh in intros hyp ; (try (clear hyp ; fail 1)) ; case hyp ; clear hyp | block ?T => fail 1 | forall x, _ => intro x || (let H := fresh x in rename x into H ; intro x) | _ => intro end.",
+            "VernacExtend",
+            "117bfd64c04879d7ec3b2af5f5d96a2a033e874b"
+        ],
+        [
+            "Ltac simplify_one_dep_elim := match goal with | [ |- ?gl ] => simplify_one_dep_elim_term gl end.",
+            "VernacExtend",
+            "1306474cd93f897b459fdf9446ca891f69462d6a"
+        ],
+        [
+            "Ltac simplify_dep_elim := repeat simplify_one_dep_elim.",
+            "VernacExtend",
+            "1b6c244fc348376d816b95c1a77dad151e98de20"
+        ],
+        [
+            "Ltac destruct_last := on_last_hyp ltac:(fun id => simpl in id ; generalize_eqs id ; destruct id).",
+            "VernacExtend",
+            "96fcf31318fed8587d8ef0b9631b7cbe57c80f72"
+        ],
+        [
+            "Ltac introduce p := first [ match p with _ => generalize dependent p ; intros p end | intros until p | intros until 1 | intros ].",
+            "VernacExtend",
+            "e228237537e1d3ff06697dfffbc18ad49692beb2"
+        ],
+        [
+            "Ltac do_case p := introduce p ; (destruct p || elim_case p || (case p ; clear p)).",
+            "VernacExtend",
+            "305c0dc769e445f5049d24d8ca811675c8c321a6"
+        ],
+        [
+            "Ltac do_ind p := introduce p ; (induction p || elim_ind p).",
+            "VernacExtend",
+            "42b6ca569423213b3a9fb4bcc7ea8af2b09cc9c7"
+        ],
+        [
+            "Ltac is_introduced H := match goal with | [ H' : _ |- _ ] => match H' with H => idtac end end.",
+            "VernacExtend",
+            "a1d3dfe6c8252c2bde329b3835f01220f41a56eb"
+        ],
+        [
+            "Tactic Notation \"intro_block\" hyp(H) := (is_introduced H ; block_goal ; revert_until H ; block_goal) || (let H' := fresh H in intros until H' ; block_goal) || (intros ; block_goal).",
+            "VernacExtend",
+            "64fa936026cf739316ac828e19263d094144f0a0"
+        ],
+        [
+            "Tactic Notation \"intro_block_id\" ident(H) := (is_introduced H ; block_goal ; revert_until H; block_goal) || (let H' := fresh H in intros until H' ; block_goal) || (intros ; block_goal).",
+            "VernacExtend",
+            "86d46a036ca4f5bf0cac49660d1f754e9b4b69fb"
+        ],
+        [
+            "Ltac unblock_dep_elim := match goal with | |- block ?T => match T with context [ block _ ] => change T ; intros ; unblock_goal end | _ => unblock_goal end.",
+            "VernacExtend",
+            "39b1279742b181ab66ec5fae1a5cbf5c1e4e2247"
+        ],
+        [
+            "Ltac simpl_dep_elim := simplify_dep_elim ; simplify_IH_hyps ; unblock_dep_elim.",
+            "VernacExtend",
+            "35b6850c6cddab9e9ec879503d9786a67c7a9fc9"
+        ],
+        [
+            "Ltac do_intros H := (try intros until H) ; (intro_block_id H || intro_block H).",
+            "VernacExtend",
+            "0cfce80fce1f8fd2c0974ed0bac78170ed99e619"
+        ],
+        [
+            "Ltac do_depelim_nosimpl tac H := do_intros H ; generalize_eqs H ; tac H.",
+            "VernacExtend",
+            "9a59c4d4e3b1ee12b2e8074158ca8128c848ef00"
+        ],
+        [
+            "Ltac do_depelim tac H := do_depelim_nosimpl tac H ; simpl_dep_elim.",
+            "VernacExtend",
+            "8d251e0f2bc27734d9ac231822810114e29f1f5c"
+        ],
+        [
+            "Ltac do_depind tac H := (try intros until H) ; intro_block H ; generalize_eqs_vars H ; tac H ; simpl_dep_elim.",
+            "VernacExtend",
+            "7a2a12f06a009ce92068cc012f0a183c805e79ad"
+        ],
+        [
+            "Ltac depelim id := do_depelim ltac:(fun hyp => do_case hyp) id.",
+            "VernacExtend",
+            "54db053d25edc21b737cb529bd68c58d70877fbe"
+        ],
+        [
+            "Ltac depelim_nosimpl id := do_depelim_nosimpl ltac:(fun hyp => do_case hyp) id.",
+            "VernacExtend",
+            "23ab52121ae1da6991930ad771df542e0431038a"
+        ],
+        [
+            "Ltac depind id := do_depind ltac:(fun hyp => do_ind hyp) id.",
+            "VernacExtend",
+            "c746c4a340fa609f309ef8adf56ec76eac3bf8db"
+        ],
+        [
+            "Ltac do_depelim' rev tac H := (try intros until H) ; block_goal ; (try revert_until H ; block_goal) ; generalize_eqs H ; rev H ; tac H ; simpl_dep_elim.",
+            "VernacExtend",
+            "accdb10afd55618bfad2e105c48f04b544c9ca20"
+        ],
+        [
+            "Tactic Notation \"dependent\" \"destruction\" ident(H) := do_depelim' ltac:(fun hyp => idtac) ltac:(fun hyp => do_case hyp) H.",
+            "VernacExtend",
+            "ee8263e5ff3be6041d453c9e56983ddde0f6237d"
+        ],
+        [
+            "Tactic Notation \"dependent\" \"destruction\" ident(H) \"using\" constr(c) := do_depelim' ltac:(fun hyp => idtac) ltac:(fun hyp => destruct hyp using c) H.",
+            "VernacExtend",
+            "7143082f1ec85e3806be1ad14438d704149f3728"
+        ],
+        [
+            "Tactic Notation \"dependent\" \"destruction\" ident(H) \"generalizing\" ne_hyp_list(l) := do_depelim' ltac:(fun hyp => revert l) ltac:(fun hyp => do_case hyp) H.",
+            "VernacExtend",
+            "4d869c8d1f019b4fe41c37b247138a26d91a93fe"
+        ],
+        [
+            "Tactic Notation \"dependent\" \"destruction\" ident(H) \"generalizing\" ne_hyp_list(l) \"using\" constr(c) := do_depelim' ltac:(fun hyp => revert l) ltac:(fun hyp => destruct hyp using c) H.",
+            "VernacExtend",
+            "a2abbf926083ca9a8ba619ebf77e0d3d6888004e"
+        ],
+        [
+            "Tactic Notation \"dependent\" \"induction\" ident(H) := do_depind ltac:(fun hyp => do_ind hyp) H.",
+            "VernacExtend",
+            "22b3d0f054d84ab0c01c2f2ce4b1323452ff235a"
+        ],
+        [
+            "Tactic Notation \"dependent\" \"induction\" ident(H) \"using\" constr(c) := do_depind ltac:(fun hyp => induction hyp using c) H.",
+            "VernacExtend",
+            "30cdf7b860f2a6e5b31e3276e04c1df8d7014d80"
+        ],
+        [
+            "Tactic Notation \"dependent\" \"induction\" ident(H) \"generalizing\" ne_hyp_list(l) := do_depelim' ltac:(fun hyp => revert l) ltac:(fun hyp => do_ind hyp) H.",
+            "VernacExtend",
+            "e9c5e5eee961ca5931cc2a23614022b5b965397e"
+        ],
+        [
+            "Tactic Notation \"dependent\" \"induction\" ident(H) \"generalizing\" ne_hyp_list(l) \"using\" constr(c) := do_depelim' ltac:(fun hyp => revert l) ltac:(fun hyp => induction hyp using c) H.",
+            "VernacExtend",
+            "90f6101570f9dac4c33b0e9383e77c0fe99fbba5"
+        ],
+        [
+            "Tactic Notation \"dependent\" \"induction\" ident(H) \"in\" ne_hyp_list(l) := do_depelim' ltac:(fun hyp => idtac) ltac:(fun hyp => induction hyp in l) H.",
+            "VernacExtend",
+            "9c3153bc7fb1981e61c67f54b38afe9f5ff91fbd"
+        ],
+        [
+            "Tactic Notation \"dependent\" \"induction\" ident(H) \"in\" ne_hyp_list(l) \"using\" constr(c) := do_depelim' ltac:(fun hyp => idtac) ltac:(fun hyp => induction hyp in l using c) H.",
+            "VernacExtend",
+            "096b188a32e72e73f0ced73d67c3b7af7ec2cf42"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "JMeq_eq_refl",
+            "line_nb": 28,
+            "steps": [
+                {
+                    "command": [
+                        "apply UIP.",
+                        "VernacExtend",
+                        "cf0f3c8e09a1bab861ece7d6133e9cdabe1e5ebd"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "UIP_refl_refl",
+            "line_nb": 31,
+            "steps": [
+                {
+                    "command": [
+                        "apply UIP_refl.",
+                        "VernacExtend",
+                        "b67aac8d9aacba7bb4231a740bacf4967c5ac420"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "inj_pairT2_refl",
+            "line_nb": 34,
+            "steps": [
+                {
+                    "command": [
+                        "apply UIP_refl.",
+                        "VernacExtend",
+                        "b67aac8d9aacba7bb4231a740bacf4967c5ac420"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "solution_left",
+            "line_nb": 61,
+            "steps": [
+                {
+                    "command": [
+                        "intros; subst; assumption.",
+                        "VernacExtend",
+                        "732464341b6d67564bcbff417546f0660477ecd7"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "solution_right",
+            "line_nb": 64,
+            "steps": [
+                {
+                    "command": [
+                        "intros; subst; assumption.",
+                        "VernacExtend",
+                        "732464341b6d67564bcbff417546f0660477ecd7"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "deletion",
+            "line_nb": 67,
+            "steps": [
+                {
+                    "command": [
+                        "intros; assumption.",
+                        "VernacExtend",
+                        "5cc15d3651e27d2e3e1e2b44ec8880d58345a162"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "simplification_heq",
+            "line_nb": 70,
+            "steps": [
+                {
+                    "command": [
+                        "intros H J; apply H; apply (JMeq_eq J).",
+                        "VernacExtend",
+                        "af9b4add6492c276f38e28315871b6e540c8e00f"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "simplification_existT2",
+            "line_nb": 74,
+            "steps": [
+                {
+                    "command": [
+                        "intros H E.",
+                        "VernacExtend",
+                        "87c23d16f6f731bd5ed7d48b5b7d55df1d3d4ed5"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply H.",
+                        "VernacExtend",
+                        "4b47b71ad0f800d57cbdc591d68949e07decb540"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply inj_pair2.",
+                        "VernacExtend",
+                        "600ca47a7799a93e11d38a6b7399efe82718af8d"
+                    ]
+                },
+                {
+                    "command": [
+                        "assumption.",
+                        "VernacExtend",
+                        "41f0308313ff87e6ab2782f90d6021ec4b55d932"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "simplification_existT1",
+            "line_nb": 80,
+            "steps": [
+                {
+                    "command": [
+                        "injection 2.",
+                        "VernacExtend",
+                        "6a899ac8a9685c23887eb1e7179f1858f79a80fa"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "simplification_K",
+            "line_nb": 84,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (UIP_refl A).",
+                        "VernacExtend",
+                        "e5742a968fb769bd55456a5aa6f8e8050bc4571f"
+                    ]
+                },
+                {
+                    "command": [
+                        "assumption.",
+                        "VernacExtend",
+                        "41f0308313ff87e6ab2782f90d6021ec4b55d932"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        }
+    ]
+}

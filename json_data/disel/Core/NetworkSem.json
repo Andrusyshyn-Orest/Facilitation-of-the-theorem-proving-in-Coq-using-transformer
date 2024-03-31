@@ -1,0 +1,944 @@
+{
+    "filename": "Core/NetworkSem.v",
+    "coq_project": "disel",
+    "vernac_cmds": [
+        [
+            "From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq.",
+            "VernacRequire",
+            "037d2ffdc90053d89d1b918c36daaeab721d2d83"
+        ],
+        [
+            "From mathcomp Require Import path.",
+            "VernacRequire",
+            "7c70f445c754a2a74114416d587d02e512c693e2"
+        ],
+        [
+            "Require Import Eqdep.",
+            "VernacRequire",
+            "a499933d0898d4c0e235af789d9252f633426d20"
+        ],
+        [
+            "Require Import Relation_Operators.",
+            "VernacRequire",
+            "5c09f52be79db9d019c350cc3153659920102fbb"
+        ],
+        [
+            "From fcsl Require Import axioms pred prelude ordtype finmap pcm unionmap heap.",
+            "VernacRequire",
+            "576c96e5dbde92d8f1878b78d95e36aa980a0403"
+        ],
+        [
+            "From DiSeL Require Import Freshness State EqTypeX Protocols Worlds.",
+            "VernacRequire",
+            "36432922628d96eace9ec947d57638818c34cf21"
+        ],
+        [
+            "Set Implicit Arguments.",
+            "VernacSetOption",
+            "9e84ff8896f028601d8aded48c1d4aebe60aa584"
+        ],
+        [
+            "Unset Strict Implicit.",
+            "VernacUnsetOption",
+            "2842adaf6959318f2042805935c46f513bdc0348"
+        ],
+        [
+            "Unset Printing Implicit Defensive.",
+            "VernacUnsetOption",
+            "444e5f0be4b25d9b1fd556943a447ec10046d151"
+        ],
+        [
+            "Section NetworkSemantics.",
+            "VernacBeginSection",
+            "a360d397221efe8f059bceeb4090297c3b405396"
+        ],
+        [
+            "Variable w : world.",
+            "VernacAssumption",
+            "a4b108a65a0ce993960245fb85c96388568f2c47"
+        ],
+        [
+            "Variable this: nid.",
+            "VernacAssumption",
+            "242c7869c0bef3fe166243583278f6bbaa63bbf4"
+        ],
+        [
+            "Notation getl := (getLocal).",
+            "VernacSyntacticDefinition",
+            "c02530774b9258f86a548e5ba9576641b4951fec"
+        ],
+        [
+            "Notation gets := (getStatelet).",
+            "VernacSyntacticDefinition",
+            "9f68d12b3e25dbeeaaee2f15b8ee921724c23279"
+        ],
+        [
+            "Notation getp := (@getProtocol w).",
+            "VernacSyntacticDefinition",
+            "46298e1ace67a85ac17cf561d6bd527d14485682"
+        ],
+        [
+            "Definition get_coh l := @coh (getp l).",
+            "VernacDefinition",
+            "28ed132c9c365125f82e00dcf3631a9f7bffa3db"
+        ],
+        [
+            "Definition get_st l := @snd_trans (getp l).",
+            "VernacDefinition",
+            "f6b7c7c05215d6fe12f21eae487ce1a0d7371f76"
+        ],
+        [
+            "Definition get_rt l := @rcv_trans (getp l).",
+            "VernacDefinition",
+            "d1e47d34174087a48da62b61dff3f4337f040889"
+        ],
+        [
+            "Lemma getsE l s : l \\in dom s -> find l s = Some (gets s l).",
+            "VernacStartTheoremProof",
+            "7ec3fe760b1eb141a2d0d65b91f0dd31633f8297"
+        ],
+        [
+            "move=>D.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "rewrite /gets; case f: (find l s)=>[v|]=>//.",
+            "VernacExtend",
+            "80e7cce19c53eb5d5a21aafd83e552d37e23084a"
+        ],
+        [
+            "by move: (find_none f); move/negbTE; rewrite D.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma coh_s l s: Coh w s -> coh (getp l) (gets s l).",
+            "VernacStartTheoremProof",
+            "568e200764d1377cef6f264c2b6ff634cd1c6ad6"
+        ],
+        [
+            "by case=>_ _ _ /(_ l).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma Coh_dom l s : l \\in dom s -> Coh w s -> dom (dstate (gets s l)) =i nodes (getp l) (gets s l).",
+            "VernacStartTheoremProof",
+            "7587d844ccb876540f2fe8fe40973e229fd3aec0"
+        ],
+        [
+            "by move=>D; case:w=>c h [] W V K E /(_ l); apply:cohDom.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition all_hooks_fire (h : hooks) l st s n (msg : seq nat) to := forall z lc hk, Some hk = find ((z, lc), (l, st)) h -> lc \\in dom s -> l \\in dom s -> let: core_local := getl n (gets s lc) in let: client_local := getl n (gets s l) in hk core_local client_local msg to.",
+            "VernacDefinition",
+            "7122eabc40bfc56033b27a7da3aa382eb0ea6a14"
+        ],
+        [
+            "Inductive network_step (s1 s2 : state) : Prop := Idle of s1 \\In Coh w /\\ s1 = s2 | SendMsg l st (_ : st \\In @get_st l) to msg b (pf: this \\in (nodes (getp l) (gets s1 l))) (pf' : l \\in dom s1) (C: Coh w s1) (S : send_safe st this to (gets s1 l) msg) (pf_hooks : all_hooks_fire (geth w) l (t_snd st) s1 this msg to) (spf : Some b = send_step S) of let: d := gets s1 l in let: f' := upd this b (dstate d) in let: s' := (post_msg (dsoup d) (Msg (TMsg (t_snd st) msg) this to true)).1 in s2 = upd l (DStatelet f' s') s1 | ReceiveMsg l rt (_ : rt \\In @get_rt l) i from (pf: this \\in (nodes (getp l)) (gets s1 l)) (pf': l \\in dom s1) (C: Coh w s1) (msg : TaggedMessage) (pf': tag msg = t_rcv rt) of let: d := (gets s1 l) in let: f := dstate d in let: s := dsoup d in [/\\ find i s = Some (Msg msg from this true), msg_wf rt (coh_s l C) this from msg & let loc' := receive_step rt from msg (coh_s l C) pf in let: f' := upd this loc' f in let: s'' := consume_msg s i in s2 = upd l (DStatelet f' s'') s1].",
+            "VernacInductive",
+            "6edc4638b235cdc0bdf63020f5c9d694ed1bbb35"
+        ],
+        [
+            "Lemma step_coh s1 s2: network_step s1 s2 -> Coh w s1 /\\ Coh w s2.",
+            "VernacStartTheoremProof",
+            "2f065d39dd9da41f6fc550a1ce2b6fc80136bb2b"
+        ],
+        [
+            "case=>[[H1 <-] | l st _ to a loc' pf D C S Ph Spf ->/= | l rt _ i from pf D C H1 msg [H3 H4->/=]]//; split=>//.",
+            "VernacExtend",
+            "ba44c9d0281a02110ce54645304e6d990debd9c0"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "case: (C)=>W V K E H; split=>//; first by rewrite validU/= V.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "move=>z; rewrite domU/= !inE V.",
+            "VernacExtend",
+            "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+        ],
+        [
+            "by case b: (z == l)=>//; move/eqP: b=>?; subst; rewrite E D.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "move=>k; case b: (k == l); rewrite /gets findU b/=; last by apply: H.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "rewrite V/=; move/eqP: b=>Z; subst k=>/=.",
+            "VernacExtend",
+            "a833b3bf0d956d1094f48b394f064884ddd0b86d"
+        ],
+        [
+            "case: st a S Ph Spf => /= t_snd ssafe G1 G2 sstep Y G3 a S Ph Spf.",
+            "VernacExtend",
+            "e00fff71ff314c991514fc71c41a3556702e444a"
+        ],
+        [
+            "have X: exists b pf, sstep this to (gets s1 l) a pf = Some b by exists loc', S.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "move/Y: X=>X; move: (G1 _ _ _ _ X) (G2 _ _ _ _ X)=>{G1 G2}G1 G2; apply: G3.",
+            "VernacExtend",
+            "039a00b0dce1e4f2531d76077ff1806d71d5b41c"
+        ],
+        [
+            "rewrite /gets in Spf; rewrite Spf; move: (coh_s l C)=>G1'.",
+            "VernacExtend",
+            "b345a98309aa7ab8cda40640c4e38cf8e04d8cc4"
+        ],
+        [
+            "by rewrite -(pf_irr X S).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "case: (C)=>W V K E H; split=>//; first by rewrite validU/= V.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "move=>z; rewrite domU/= !inE V.",
+            "VernacExtend",
+            "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+        ],
+        [
+            "by case b: (z == l)=>//; move/eqP: b=>?; subst; rewrite E D.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "move=>k; case b: (k == l); rewrite /gets findU b/=; last by apply: H.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "move: (coh_s l (And5 W V K E H))=>G1.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "rewrite V; move/eqP: b=>Z; subst k=>/=.",
+            "VernacExtend",
+            "a833b3bf0d956d1094f48b394f064884ddd0b86d"
+        ],
+        [
+            "have pf' : this \\in dom (dstate (gets s1 l)) by move: (pf); rewrite -(Coh_dom D C).",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "case: rt H1 H3 msg H4=>/= r_rcvwf mwf rstep G msg T F M.",
+            "VernacExtend",
+            "e00fff71ff314c991514fc71c41a3556702e444a"
+        ],
+        [
+            "rewrite -(pf_irr (H l) (coh_s l C)) in M.",
+            "VernacExtend",
+            "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+        ],
+        [
+            "move: (G (gets s1 l) from this i (H l) pf msg pf' T M F); rewrite /gets.",
+            "VernacExtend",
+            "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+        ],
+        [
+            "by move: (H l)=>G1'; rewrite -(pf_irr G1 G1').",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma step_preserves_labels s1 s2 : network_step s1 s2 -> dom s1 =i dom s2.",
+            "VernacStartTheoremProof",
+            "5f908d601fc44eeb5ef201f2722c8d5b0a9c6a01"
+        ],
+        [
+            "by move/step_coh=>[[_ _ _ E1 _][_ _ _ E2 _]]z; rewrite -E1 -E2.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma step_is_local s1 s2 l: network_step s1 s2 -> forall z, z != this -> find z (dstate (gets s1 l)) = find z (dstate (gets s2 l)).",
+            "VernacStartTheoremProof",
+            "23aa16a6168314ea9d1ed20631fccddfe8f1b5f1"
+        ],
+        [
+            "move=>S z N; case: S; first by case=>_ Z; subst s2.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "move=>k st ? to a b pf D C S Ph Spf Z; subst s2; case B: (l == k); rewrite /gets findU B //= (cohS C)/=.",
+            "VernacExtend",
+            "afa875764e9c5ef7651804a664d93fbd7b31dfa4"
+        ],
+        [
+            "by move/negbTE: N; rewrite findU=>->/=; move/eqP: B=>->.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "move=>k rt ? i from H1 H2 C msg T/= [H3 H4]Z; subst s2.",
+            "VernacExtend",
+            "87cbbf7fb3f94f52b29d627f425bb70ea94ec73c"
+        ],
+        [
+            "case B: (l == k); rewrite /gets findU B //= (cohS C)/=.",
+            "VernacExtend",
+            "90a2acb29b7a5304b0ab6ba5269c420638ddef63"
+        ],
+        [
+            "by move/negbTE: N; rewrite findU=>->/=; move/eqP: B=>->.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma stepV1 s1 s2: network_step s1 s2 -> valid s1.",
+            "VernacStartTheoremProof",
+            "6e6bb0fe0f8de20c5936f11d65a2ebf3f65368d6"
+        ],
+        [
+            "by case/step_coh=>/cohS.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma stepV2 s1 s2: network_step s1 s2 -> valid s2.",
+            "VernacStartTheoremProof",
+            "2979a6414d93c898f5efb44d250f857909616bb7"
+        ],
+        [
+            "by case/step_coh=>_ /cohS.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma step_preserves_node_ids s1 s2 l: l \\in dom s1 -> network_step s1 s2 -> dom (dstate (gets s1 l)) =i dom (dstate (gets s2 l)).",
+            "VernacStartTheoremProof",
+            "da3af4d0960dcb4753ef5cc354e7ec6cbbf548b3"
+        ],
+        [
+            "move=>D S; case: (S); first by case=>C<-.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "move=> l' st H to msg b H1 H2 C _ _ _ Z; subst s2.",
+            "VernacExtend",
+            "87cbbf7fb3f94f52b29d627f425bb70ea94ec73c"
+        ],
+        [
+            "rewrite /gets findU; case B: (l == l')=>//=; rewrite (stepV1 S)/==>n.",
+            "VernacExtend",
+            "2253759ff5c580854290fce82296a80357452125"
+        ],
+        [
+            "move/eqP: B=>B; subst l'; rewrite domU/= !inE; case B: (n == this)=>//.",
+            "VernacExtend",
+            "f0b41946209a95cf2f91982b9775bec255438d99"
+        ],
+        [
+            "move/eqP:B=>B; subst n; rewrite -(Coh_dom D C) in H1; rewrite H1.",
+            "VernacExtend",
+            "4d2143c2cc90a20dafc270cf813476286c938ea9"
+        ],
+        [
+            "by case: C=>_ _ _ _/(_ l)/cohVl->.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "move=>l' rt _ m from H1 D' C msg E[F]W/=Z; subst s2.",
+            "VernacExtend",
+            "87cbbf7fb3f94f52b29d627f425bb70ea94ec73c"
+        ],
+        [
+            "rewrite /gets findU; case B: (l == l')=>//=; rewrite (stepV1 S)/==>n.",
+            "VernacExtend",
+            "2253759ff5c580854290fce82296a80357452125"
+        ],
+        [
+            "move/eqP: B=>B; subst l'; rewrite domU/= !inE; case B: (n == this)=>//.",
+            "VernacExtend",
+            "f0b41946209a95cf2f91982b9775bec255438d99"
+        ],
+        [
+            "move/eqP:B=>B; subst n; clear S; rewrite -(Coh_dom D C) in H1; rewrite H1.",
+            "VernacExtend",
+            "eb19cc006e9ecfc14ee5324913d6f377b7277bb1"
+        ],
+        [
+            "by case: (C)=>_ _ _ _/(_ l)/cohVl->.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End NetworkSemantics.",
+            "VernacEndSegment",
+            "b119efc131a936d0b4f60c87743c11136d028074"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "getsE",
+            "line_nb": 18,
+            "steps": [
+                {
+                    "command": [
+                        "move=>D.",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite /gets; case f: (find l s)=>[v|]=>//.",
+                        "VernacExtend",
+                        "80e7cce19c53eb5d5a21aafd83e552d37e23084a"
+                    ]
+                },
+                {
+                    "command": [
+                        "by move: (find_none f); move/negbTE; rewrite D.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "coh_s",
+            "line_nb": 23,
+            "steps": [
+                {
+                    "command": [
+                        "by case=>_ _ _ /(_ l).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Coh_dom",
+            "line_nb": 26,
+            "steps": [
+                {
+                    "command": [
+                        "by move=>D; case:w=>c h [] W V K E /(_ l); apply:cohDom.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "step_coh",
+            "line_nb": 31,
+            "steps": [
+                {
+                    "command": [
+                        "case=>[[H1 <-] | l st _ to a loc' pf D C S Ph Spf ->/= | l rt _ i from pf D C H1 msg [H3 H4->/=]]//; split=>//.",
+                        "VernacExtend",
+                        "ba44c9d0281a02110ce54645304e6d990debd9c0"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "case: (C)=>W V K E H; split=>//; first by rewrite validU/= V.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "move=>z; rewrite domU/= !inE V.",
+                        "VernacExtend",
+                        "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+                    ]
+                },
+                {
+                    "command": [
+                        "by case b: (z == l)=>//; move/eqP: b=>?; subst; rewrite E D.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "move=>k; case b: (k == l); rewrite /gets findU b/=; last by apply: H.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite V/=; move/eqP: b=>Z; subst k=>/=.",
+                        "VernacExtend",
+                        "a833b3bf0d956d1094f48b394f064884ddd0b86d"
+                    ]
+                },
+                {
+                    "command": [
+                        "case: st a S Ph Spf => /= t_snd ssafe G1 G2 sstep Y G3 a S Ph Spf.",
+                        "VernacExtend",
+                        "e00fff71ff314c991514fc71c41a3556702e444a"
+                    ]
+                },
+                {
+                    "command": [
+                        "have X: exists b pf, sstep this to (gets s1 l) a pf = Some b by exists loc', S.",
+                        "VernacExtend",
+                        "406cde1174359c53bf162a2a18c4eede395555f9"
+                    ]
+                },
+                {
+                    "command": [
+                        "move/Y: X=>X; move: (G1 _ _ _ _ X) (G2 _ _ _ _ X)=>{G1 G2}G1 G2; apply: G3.",
+                        "VernacExtend",
+                        "039a00b0dce1e4f2531d76077ff1806d71d5b41c"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite /gets in Spf; rewrite Spf; move: (coh_s l C)=>G1'.",
+                        "VernacExtend",
+                        "b345a98309aa7ab8cda40640c4e38cf8e04d8cc4"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite -(pf_irr X S).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "case: (C)=>W V K E H; split=>//; first by rewrite validU/= V.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "move=>z; rewrite domU/= !inE V.",
+                        "VernacExtend",
+                        "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+                    ]
+                },
+                {
+                    "command": [
+                        "by case b: (z == l)=>//; move/eqP: b=>?; subst; rewrite E D.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "move=>k; case b: (k == l); rewrite /gets findU b/=; last by apply: H.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "move: (coh_s l (And5 W V K E H))=>G1.",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite V; move/eqP: b=>Z; subst k=>/=.",
+                        "VernacExtend",
+                        "a833b3bf0d956d1094f48b394f064884ddd0b86d"
+                    ]
+                },
+                {
+                    "command": [
+                        "have pf' : this \\in dom (dstate (gets s1 l)) by move: (pf); rewrite -(Coh_dom D C).",
+                        "VernacExtend",
+                        "406cde1174359c53bf162a2a18c4eede395555f9"
+                    ]
+                },
+                {
+                    "command": [
+                        "case: rt H1 H3 msg H4=>/= r_rcvwf mwf rstep G msg T F M.",
+                        "VernacExtend",
+                        "e00fff71ff314c991514fc71c41a3556702e444a"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite -(pf_irr (H l) (coh_s l C)) in M.",
+                        "VernacExtend",
+                        "2a624b3f8ed2cb60890f98119d86e3031fa09e35"
+                    ]
+                },
+                {
+                    "command": [
+                        "move: (G (gets s1 l) from this i (H l) pf msg pf' T M F); rewrite /gets.",
+                        "VernacExtend",
+                        "057edeb0967475c7ea5e8c98c449ddc5613eddc1"
+                    ]
+                },
+                {
+                    "command": [
+                        "by move: (H l)=>G1'; rewrite -(pf_irr G1 G1').",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "step_preserves_labels",
+            "line_nb": 58,
+            "steps": [
+                {
+                    "command": [
+                        "by move/step_coh=>[[_ _ _ E1 _][_ _ _ E2 _]]z; rewrite -E1 -E2.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "step_is_local",
+            "line_nb": 61,
+            "steps": [
+                {
+                    "command": [
+                        "move=>S z N; case: S; first by case=>_ Z; subst s2.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "move=>k st ? to a b pf D C S Ph Spf Z; subst s2; case B: (l == k); rewrite /gets findU B //= (cohS C)/=.",
+                        "VernacExtend",
+                        "afa875764e9c5ef7651804a664d93fbd7b31dfa4"
+                    ]
+                },
+                {
+                    "command": [
+                        "by move/negbTE: N; rewrite findU=>->/=; move/eqP: B=>->.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "move=>k rt ? i from H1 H2 C msg T/= [H3 H4]Z; subst s2.",
+                        "VernacExtend",
+                        "87cbbf7fb3f94f52b29d627f425bb70ea94ec73c"
+                    ]
+                },
+                {
+                    "command": [
+                        "case B: (l == k); rewrite /gets findU B //= (cohS C)/=.",
+                        "VernacExtend",
+                        "90a2acb29b7a5304b0ab6ba5269c420638ddef63"
+                    ]
+                },
+                {
+                    "command": [
+                        "by move/negbTE: N; rewrite findU=>->/=; move/eqP: B=>->.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "stepV1",
+            "line_nb": 70,
+            "steps": [
+                {
+                    "command": [
+                        "by case/step_coh=>/cohS.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "stepV2",
+            "line_nb": 73,
+            "steps": [
+                {
+                    "command": [
+                        "by case/step_coh=>_ /cohS.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "step_preserves_node_ids",
+            "line_nb": 76,
+            "steps": [
+                {
+                    "command": [
+                        "move=>D S; case: (S); first by case=>C<-.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "move=> l' st H to msg b H1 H2 C _ _ _ Z; subst s2.",
+                        "VernacExtend",
+                        "87cbbf7fb3f94f52b29d627f425bb70ea94ec73c"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite /gets findU; case B: (l == l')=>//=; rewrite (stepV1 S)/==>n.",
+                        "VernacExtend",
+                        "2253759ff5c580854290fce82296a80357452125"
+                    ]
+                },
+                {
+                    "command": [
+                        "move/eqP: B=>B; subst l'; rewrite domU/= !inE; case B: (n == this)=>//.",
+                        "VernacExtend",
+                        "f0b41946209a95cf2f91982b9775bec255438d99"
+                    ]
+                },
+                {
+                    "command": [
+                        "move/eqP:B=>B; subst n; rewrite -(Coh_dom D C) in H1; rewrite H1.",
+                        "VernacExtend",
+                        "4d2143c2cc90a20dafc270cf813476286c938ea9"
+                    ]
+                },
+                {
+                    "command": [
+                        "by case: C=>_ _ _ _/(_ l)/cohVl->.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "move=>l' rt _ m from H1 D' C msg E[F]W/=Z; subst s2.",
+                        "VernacExtend",
+                        "87cbbf7fb3f94f52b29d627f425bb70ea94ec73c"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite /gets findU; case B: (l == l')=>//=; rewrite (stepV1 S)/==>n.",
+                        "VernacExtend",
+                        "2253759ff5c580854290fce82296a80357452125"
+                    ]
+                },
+                {
+                    "command": [
+                        "move/eqP: B=>B; subst l'; rewrite domU/= !inE; case B: (n == this)=>//.",
+                        "VernacExtend",
+                        "f0b41946209a95cf2f91982b9775bec255438d99"
+                    ]
+                },
+                {
+                    "command": [
+                        "move/eqP:B=>B; subst n; clear S; rewrite -(Coh_dom D C) in H1; rewrite H1.",
+                        "VernacExtend",
+                        "eb19cc006e9ecfc14ee5324913d6f377b7277bb1"
+                    ]
+                },
+                {
+                    "command": [
+                        "by case: (C)=>_ _ _ _/(_ l)/cohVl->.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

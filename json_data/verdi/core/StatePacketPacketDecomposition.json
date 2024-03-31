@@ -1,0 +1,809 @@
+{
+    "filename": "core/StatePacketPacketDecomposition.v",
+    "coq_project": "verdi",
+    "vernac_cmds": [
+        [
+            "Require Import Verdi.Verdi.",
+            "VernacRequire",
+            "0e1dbcd85e6257dada3df6be709464bd18aff5ac"
+        ],
+        [
+            "Local Arguments update {_} {_} _ _ _ _ _ : simpl never.",
+            "VernacArguments",
+            "58518d3b0cf998daca73acf32f30d0de10e4973c"
+        ],
+        [
+            "Fixpoint distinct_pairs_and {A} (R : A -> A -> Prop) (l : list A) : Prop := match l with | [] => True | x :: xs => (forall y, In y xs -> R x y) /\\ distinct_pairs_and R xs end.",
+            "VernacFixpoint",
+            "7b513d380158205fa7784a3c8c454825ca214b29"
+        ],
+        [
+            "Class Decomposition (B : BaseParams) (M : MultiParams B) := { state_invariant : (name -> data) -> Prop; network_invariant : (name -> data) -> packet -> Prop; network_network_invariant : packet -> packet -> Prop; network_network_invariant_sym : forall p1 p2, network_network_invariant p1 p2 -> network_network_invariant p2 p1 ; state_invariant_init : state_invariant init_handlers; state_invariant_maintained_input : forall h inp sigma st' out ps, input_handlers h inp (sigma h) = (out, st', ps) -> state_invariant sigma -> state_invariant (update name_eq_dec sigma h st'); state_invariant_maintained_deliver : forall p sigma st' out ps, net_handlers (pDst p) (pSrc p) (pBody p) (sigma (pDst p)) = (out, st', ps) -> state_invariant sigma -> network_invariant sigma p -> state_invariant (update name_eq_dec sigma (pDst p) st'); network_invariant_maintained_input_old : forall h inp sigma st' out ps p, input_handlers h inp (sigma h) = (out, st', ps) -> state_invariant sigma -> network_invariant sigma p -> network_invariant (update name_eq_dec sigma h st') p; network_invariant_maintained_input_new : forall h inp sigma st' out ps p, input_handlers h inp (sigma h) = (out, st', ps) -> state_invariant sigma -> In (pDst p, pBody p) ps -> pSrc p = h -> network_invariant (update name_eq_dec sigma h st') p; network_invariant_maintained_deliver_old : forall sigma st' out ps p q, net_handlers (pDst p) (pSrc p) (pBody p) (sigma (pDst p)) = (out, st', ps) -> state_invariant sigma -> network_invariant sigma p -> network_invariant sigma q -> network_network_invariant p q -> network_invariant (update name_eq_dec sigma (pDst p) st') q; network_invariant_maintained_deliver_new : forall sigma st' out ps p p', net_handlers (pDst p) (pSrc p) (pBody p) (sigma (pDst p)) = (out, st', ps) -> state_invariant sigma -> network_invariant sigma p -> In (pDst p', pBody p') ps -> pSrc p' = pDst p -> network_invariant (update name_eq_dec sigma (pDst p) st') p'; network_network_invariant_maintained_input_old : forall h inp sigma st' out ps p p', input_handlers h inp (sigma h) = (out, st', ps) -> state_invariant sigma -> network_invariant sigma p -> In (pDst p', pBody p') ps -> pSrc p' = h -> network_network_invariant p p'; network_network_invariant_maintained_input_new : forall h inp sigma st' out ps, input_handlers h inp (sigma h) = (out, st', ps) -> state_invariant sigma -> distinct_pairs_and network_network_invariant (map (fun m => mkPacket h (fst m) (snd m)) ps); network_network_invariant_maintained_deliver_old : forall sigma st' out ps p p' q, net_handlers (pDst p) (pSrc p) (pBody p) (sigma (pDst p)) = (out, st', ps) -> state_invariant sigma -> network_invariant sigma p -> network_invariant sigma q -> network_network_invariant p q -> In (pDst p', pBody p') ps -> pSrc p' = pDst p -> network_network_invariant p' q; network_network_invariant_maintained_deliver_new : forall sigma st' out ps p, net_handlers (pDst p) (pSrc p) (pBody p) (sigma (pDst p)) = (out, st', ps) -> state_invariant sigma -> network_invariant sigma p -> distinct_pairs_and network_network_invariant (map (fun m => mkPacket (pDst p) (fst m) (snd m)) ps) }.",
+            "VernacInductive",
+            "28539cffa1b14eabad1f87ec41a61286ccefee6b"
+        ],
+        [
+            "Section Decomposition.",
+            "VernacBeginSection",
+            "047be3514750050bbf7f6757d3866f69383a5dae"
+        ],
+        [
+            "Context `{d : Decomposition}.",
+            "VernacContext",
+            "8419d38929330a1393bca8f66af46bf823492221"
+        ],
+        [
+            "Definition packet_eq_dec : forall p1 p2 : packet, {p1 = p2} + {p1 <> p2}.",
+            "VernacDefinition",
+            "1800ed4287ceb533c7eb326f005a77345015dc09"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "decide equality; eauto using name_eq_dec,msg_eq_dec.",
+            "VernacExtend",
+            "b167b51401f8c9b47c668f6434597a02643ed260"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Definition composed_invariant net := (state_invariant (nwState net)) /\\ (forall p, In p (nwPackets net) -> network_invariant (nwState net) p) /\\ (distinct_pairs_and network_network_invariant (nwPackets net)).",
+            "VernacDefinition",
+            "1cee9e580dc884be6e4b6c1ae8ffdba43b34155f"
+        ],
+        [
+            "Lemma post_net_analyze_sent_packet : forall h p ms xs ys, In p (map (fun m => mkPacket h (fst m) (snd m)) ms ++ xs ++ ys) -> (In (pDst p, pBody p) ms /\\ h = pSrc p) \\/ In p (xs ++ ys).",
+            "VernacStartTheoremProof",
+            "9f40f4e028899b02684815851ae849f8299f36c2"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "in_crush.",
+            "VernacExtend",
+            "1cec37b1df9aed7611c9dc2928e77e203488f72a"
+        ],
+        [
+            "destruct x; simpl in *; eauto.",
+            "VernacExtend",
+            "57d36d2a376a758922e33999047589dbae132da8"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma post_input_analyze_sent_packet : forall h p ms l, In p (map (fun m => mkPacket h (fst m) (snd m)) ms ++ l) -> (In (pDst p, pBody p) ms /\\ h = pSrc p) \\/ In p l.",
+            "VernacStartTheoremProof",
+            "72d724bd9fe6707425d012918ec2d5d6c85b0985"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "in_crush; destruct x; simpl in *; eauto.",
+            "VernacExtend",
+            "3817ab18bb8ccbe0f50dd471cb75c8bed9d90a05"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma nw_nw_distinct_pairs_and_elim : forall xs a b ys l, l = xs ++ a :: ys -> In b (xs ++ ys) -> distinct_pairs_and network_network_invariant l -> network_network_invariant a b.",
+            "VernacStartTheoremProof",
+            "b280839e4664f07eedd993e0ef2b27c71b0125f5"
+        ],
+        [
+            "induction xs; intros; subst; simpl in *; intuition eauto; subst; eauto.",
+            "VernacExtend",
+            "9eff46e0745498d5146e3520605c79a1c0aec9ee"
+        ],
+        [
+            "apply network_network_invariant_sym.",
+            "VernacExtend",
+            "2db4fb6b0a46ba3ee4b079f60a915cdb8ed9d869"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma distinct_pairs_and_app_cons : forall A R xs p ys l, l = (xs ++ p :: ys) -> distinct_pairs_and (A:=A) R l -> distinct_pairs_and R (xs ++ ys).",
+            "VernacStartTheoremProof",
+            "c50dafc3122decadc8a39464eca360af6bdaa184"
+        ],
+        [
+            "induction xs; intros; subst; simpl in *; intuition eauto.",
+            "VernacExtend",
+            "1fa27993f5f82e0f6e189e5faba5c8990ec4148c"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma distinct_pairs_and_app : forall A R l1 l2, distinct_pairs_and (A := A) R l1 -> distinct_pairs_and R l2 -> (forall x y, In x l1 -> In y l2 -> R x y) -> distinct_pairs_and R (l1 ++ l2).",
+            "VernacStartTheoremProof",
+            "c2d7df4fba600f4c0192ab08ede3b9d49b225bdd"
+        ],
+        [
+            "induction l1; intros; simpl in *; intuition.",
+            "VernacExtend",
+            "17a1fae096ebe0e1f5f53c77ead68b67c307a0f1"
+        ],
+        [
+            "find_apply_lem_hyp in_app_or.",
+            "VernacExtend",
+            "1f1a801d914844a4f384986a688079f26f455121"
+        ],
+        [
+            "intuition eauto.",
+            "VernacExtend",
+            "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem decomposition_invariant : inductive_invariant step_async step_async_init composed_invariant.",
+            "VernacStartTheoremProof",
+            "547036071765aa8a82177727001a43fcd05e0d6a"
+        ],
+        [
+            "unfold inductive_invariant.",
+            "VernacExtend",
+            "ff0688d428d7788d7a9f769f47a4da7798de583f"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "unfold composed_invariant.",
+            "VernacExtend",
+            "ae1ac674748624d847b38da959464f6f8b37d45f"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "intuition auto using state_invariant_init.",
+            "VernacExtend",
+            "c6bcbe36e7f36f1595745682b3b0a96d2027b205"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "unfold inductive, composed_invariant.",
+            "VernacExtend",
+            "3fea3eef846466e4d03872033b3fbbd54337d875"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "match goal with H : step_async _ _ _ |- _ => invcs H end; intuition; simpl in *.",
+            "VernacExtend",
+            "4bc434d106b60349f037b1bf6fdd7fec9ecaf911"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "eauto using state_invariant_maintained_deliver.",
+            "VernacExtend",
+            "d49a95ae8a1067f44f9de3e83971ac57cf432ae9"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "find_apply_lem_hyp post_net_analyze_sent_packet.",
+            "VernacExtend",
+            "3c08ce00d73c740f21c0f400ef1865fa8c14be31"
+        ],
+        [
+            "intuition eauto 10 using network_invariant_maintained_deliver_new, network_invariant_maintained_deliver_old, nw_nw_distinct_pairs_and_elim, network_network_invariant_sym.",
+            "VernacExtend",
+            "028b35316c28c2a2889d98d6c2d3bd90b0885871"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply distinct_pairs_and_app; eauto using network_network_invariant_maintained_deliver_new, distinct_pairs_and_app_cons.",
+            "VernacExtend",
+            "88edce373a696c5a1c5e455c50b6039dbe95c8d6"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "do_in_map.",
+            "VernacExtend",
+            "fa0be9321c6684e706bb9aefb585d66dc4eaa336"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "eapply network_network_invariant_maintained_deliver_old; eauto using nw_nw_distinct_pairs_and_elim.",
+            "VernacExtend",
+            "dcd2245d84e326e595dde65e0a11283e8e4015e1"
+        ],
+        [
+            "simpl; now rewrite <- surjective_pairing.",
+            "VernacExtend",
+            "afa3b77a5b0ea472be87568acc243c0b910ff54b"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "eauto using state_invariant_maintained_input.",
+            "VernacExtend",
+            "58151cac63cfb121583bf0c103155f7d68733597"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "find_apply_lem_hyp post_input_analyze_sent_packet.",
+            "VernacExtend",
+            "8c070f69dac02b30372003c30cd1fdeb9b4fe6b6"
+        ],
+        [
+            "intuition eauto using network_invariant_maintained_input_new, network_invariant_maintained_input_old.",
+            "VernacExtend",
+            "08c6e5bb7c0bc00f0c252c79e766cf1665aaa083"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply distinct_pairs_and_app; eauto using network_network_invariant_maintained_input_new.",
+            "VernacExtend",
+            "11a9de25eb332c14ce623567b2e44e1a9c629205"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "do_in_map.",
+            "VernacExtend",
+            "fa0be9321c6684e706bb9aefb585d66dc4eaa336"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "apply network_network_invariant_sym.",
+            "VernacExtend",
+            "2db4fb6b0a46ba3ee4b079f60a915cdb8ed9d869"
+        ],
+        [
+            "eapply network_network_invariant_maintained_input_old; eauto.",
+            "VernacExtend",
+            "e542cdf90262cf8a925f3789379af992a5b73c8d"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "now rewrite <- surjective_pairing.",
+            "VernacExtend",
+            "c15041c41a36b1b219398d7e034454d275416513"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End Decomposition.",
+            "VernacEndSegment",
+            "e12d5d448c9d55523658586bd9b2fa5915491c5f"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "packet_eq_dec",
+            "line_nb": 6,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "decide equality; eauto using name_eq_dec,msg_eq_dec.",
+                        "VernacExtend",
+                        "b167b51401f8c9b47c668f6434597a02643ed260"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "post_net_analyze_sent_packet",
+            "line_nb": 11,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "in_crush.",
+                        "VernacExtend",
+                        "1cec37b1df9aed7611c9dc2928e77e203488f72a"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct x; simpl in *; eauto.",
+                        "VernacExtend",
+                        "57d36d2a376a758922e33999047589dbae132da8"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "post_input_analyze_sent_packet",
+            "line_nb": 16,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "in_crush; destruct x; simpl in *; eauto.",
+                        "VernacExtend",
+                        "3817ab18bb8ccbe0f50dd471cb75c8bed9d90a05"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "nw_nw_distinct_pairs_and_elim",
+            "line_nb": 20,
+            "steps": [
+                {
+                    "command": [
+                        "induction xs; intros; subst; simpl in *; intuition eauto; subst; eauto.",
+                        "VernacExtend",
+                        "9eff46e0745498d5146e3520605c79a1c0aec9ee"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply network_network_invariant_sym.",
+                        "VernacExtend",
+                        "2db4fb6b0a46ba3ee4b079f60a915cdb8ed9d869"
+                    ]
+                },
+                {
+                    "command": [
+                        "eauto.",
+                        "VernacExtend",
+                        "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "distinct_pairs_and_app_cons",
+            "line_nb": 25,
+            "steps": [
+                {
+                    "command": [
+                        "induction xs; intros; subst; simpl in *; intuition eauto.",
+                        "VernacExtend",
+                        "1fa27993f5f82e0f6e189e5faba5c8990ec4148c"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "distinct_pairs_and_app",
+            "line_nb": 28,
+            "steps": [
+                {
+                    "command": [
+                        "induction l1; intros; simpl in *; intuition.",
+                        "VernacExtend",
+                        "17a1fae096ebe0e1f5f53c77ead68b67c307a0f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "find_apply_lem_hyp in_app_or.",
+                        "VernacExtend",
+                        "1f1a801d914844a4f384986a688079f26f455121"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition eauto.",
+                        "VernacExtend",
+                        "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "decomposition_invariant",
+            "line_nb": 33,
+            "steps": [
+                {
+                    "command": [
+                        "unfold inductive_invariant.",
+                        "VernacExtend",
+                        "ff0688d428d7788d7a9f769f47a4da7798de583f"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition.",
+                        "VernacExtend",
+                        "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold composed_invariant.",
+                        "VernacExtend",
+                        "ae1ac674748624d847b38da959464f6f8b37d45f"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition auto using state_invariant_init.",
+                        "VernacExtend",
+                        "c6bcbe36e7f36f1595745682b3b0a96d2027b205"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold inductive, composed_invariant.",
+                        "VernacExtend",
+                        "3fea3eef846466e4d03872033b3fbbd54337d875"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "match goal with H : step_async _ _ _ |- _ => invcs H end; intuition; simpl in *.",
+                        "VernacExtend",
+                        "4bc434d106b60349f037b1bf6fdd7fec9ecaf911"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "eauto using state_invariant_maintained_deliver.",
+                        "VernacExtend",
+                        "d49a95ae8a1067f44f9de3e83971ac57cf432ae9"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "find_apply_lem_hyp post_net_analyze_sent_packet.",
+                        "VernacExtend",
+                        "3c08ce00d73c740f21c0f400ef1865fa8c14be31"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition eauto 10 using network_invariant_maintained_deliver_new, network_invariant_maintained_deliver_old, nw_nw_distinct_pairs_and_elim, network_network_invariant_sym.",
+                        "VernacExtend",
+                        "028b35316c28c2a2889d98d6c2d3bd90b0885871"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply distinct_pairs_and_app; eauto using network_network_invariant_maintained_deliver_new, distinct_pairs_and_app_cons.",
+                        "VernacExtend",
+                        "88edce373a696c5a1c5e455c50b6039dbe95c8d6"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "do_in_map.",
+                        "VernacExtend",
+                        "fa0be9321c6684e706bb9aefb585d66dc4eaa336"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst.",
+                        "VernacExtend",
+                        "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply network_network_invariant_maintained_deliver_old; eauto using nw_nw_distinct_pairs_and_elim.",
+                        "VernacExtend",
+                        "dcd2245d84e326e595dde65e0a11283e8e4015e1"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl; now rewrite <- surjective_pairing.",
+                        "VernacExtend",
+                        "afa3b77a5b0ea472be87568acc243c0b910ff54b"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "eauto using state_invariant_maintained_input.",
+                        "VernacExtend",
+                        "58151cac63cfb121583bf0c103155f7d68733597"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "find_apply_lem_hyp post_input_analyze_sent_packet.",
+                        "VernacExtend",
+                        "8c070f69dac02b30372003c30cd1fdeb9b4fe6b6"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition eauto using network_invariant_maintained_input_new, network_invariant_maintained_input_old.",
+                        "VernacExtend",
+                        "08c6e5bb7c0bc00f0c252c79e766cf1665aaa083"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply distinct_pairs_and_app; eauto using network_network_invariant_maintained_input_new.",
+                        "VernacExtend",
+                        "11a9de25eb332c14ce623567b2e44e1a9c629205"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "do_in_map.",
+                        "VernacExtend",
+                        "fa0be9321c6684e706bb9aefb585d66dc4eaa336"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst.",
+                        "VernacExtend",
+                        "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply network_network_invariant_sym.",
+                        "VernacExtend",
+                        "2db4fb6b0a46ba3ee4b079f60a915cdb8ed9d869"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply network_network_invariant_maintained_input_old; eauto.",
+                        "VernacExtend",
+                        "e542cdf90262cf8a925f3789379af992a5b73c8d"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "now rewrite <- surjective_pairing.",
+                        "VernacExtend",
+                        "c15041c41a36b1b219398d7e034454d275416513"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,2214 @@
+{
+    "filename": "abstract/abstract_machine.v",
+    "coq_project": "distributed-reference-counting",
+    "vernac_cmds": [
+        [
+            "Require Import List.",
+            "VernacRequire",
+            "d9bcce4a390afeb160107bf87c6f7abe3d82c6d6"
+        ],
+        [
+            "Require Export fifo.",
+            "VernacRequire",
+            "9f750d8e7632d5d2f0ef4af62c1f7a78eef61901"
+        ],
+        [
+            "Require Export table.",
+            "VernacRequire",
+            "59a172ce1371531ae42f8c5034ac72062058cab5"
+        ],
+        [
+            "Require Export reduce.",
+            "VernacRequire",
+            "b667fdf6ad033d12d99b9c6957039f342680c4a4"
+        ],
+        [
+            "Require Export sigma2.",
+            "VernacRequire",
+            "0450b9a31442f74d490593f5db95ff5c665ce2c9"
+        ],
+        [
+            "Unset Standard Proposition Elimination Names.",
+            "VernacUnsetOption",
+            "911574cdf91989455d0d3d11c7a9b0ca10fd1ae6"
+        ],
+        [
+            "Section MACHINE.",
+            "VernacBeginSection",
+            "2a4c33abdd1bd8c6414dba913e058d2264cca83c"
+        ],
+        [
+            "Parameter Site : Set.",
+            "VernacAssumption",
+            "aa4e9d691891e818e89b58f5b1cf1220bc5048c2"
+        ],
+        [
+            "Parameter owner : Site.",
+            "VernacAssumption",
+            "579643637eb4886cacf1dc53e6190c7873e79faf"
+        ],
+        [
+            "Axiom eq_site_dec : eq_dec Site.",
+            "VernacAssumption",
+            "8ff51039c70ec97359776f4a96cd90f5e2c25e18"
+        ],
+        [
+            "Definition change_site (E : Set) := change_x0 Site E eq_site_dec.",
+            "VernacDefinition",
+            "3a409c50654614bd433d73092c27949d88fdd457"
+        ],
+        [
+            "Lemma that_site : forall (E : Set) (f : Site -> E) (s0 : Site) (x : E), change_site E f s0 x s0 = x.",
+            "VernacStartTheoremProof",
+            "092882e4b2d2ea5ff8f9765195ce9e7f9452bb3b"
+        ],
+        [
+            "intros; unfold change_site in |- *; apply here.",
+            "VernacExtend",
+            "b2fd00df89e1e303cae40e971813d6edcd2a3eb7"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma other_site : forall (E : Set) (f : Site -> E) (s0 s1 : Site) (x : E), s0 <> s1 -> change_site E f s0 x s1 = f s1.",
+            "VernacStartTheoremProof",
+            "7fa3a54b055f22d3d9baa05650bf05e29bc07a87"
+        ],
+        [
+            "intros; unfold change_site in |- *; apply elsewhere; trivial.",
+            "VernacExtend",
+            "ab2a869c7d9b4d1d423dc1077a1203d70307967b"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition eq_queue_dec := eq_couple_dec Site Site eq_site_dec eq_site_dec.",
+            "VernacDefinition",
+            "963eb246e0fadb4d74c7cddba726e9e4251bac84"
+        ],
+        [
+            "Definition change_queue (Q : Set) := update2_table Site eq_site_dec Q.",
+            "VernacDefinition",
+            "834e1aaa455386a9cd6f06e96464dbbe8fb9b500"
+        ],
+        [
+            "Lemma that_queue : forall (E : Set) (f : Site -> Site -> E) (s0 s1 : Site) (x : E), change_queue E f s0 s1 x s0 s1 = x.",
+            "VernacStartTheoremProof",
+            "700cb76b70465e5bd98a66c0deddf737e27a6f3b"
+        ],
+        [
+            "intros; unfold change_queue in |- *; unfold update2_table in |- *; apply here2.",
+            "VernacExtend",
+            "f2f73bec3aed2a6b53c44a700ee752eec2120975"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma other_queue : forall (E : Set) (f : Site -> Site -> E) (s0 s1 s2 s3 : Site) (x : E), s2 <> s0 \\/ s3 <> s1 -> change_queue E f s0 s1 x s2 s3 = f s2 s3.",
+            "VernacStartTheoremProof",
+            "1e590a18f9e728cd566b63fbad1a41fe1419ff63"
+        ],
+        [
+            "intros; unfold change_queue in |- *; unfold update2_table in |- *; apply elsewhere2; trivial.",
+            "VernacExtend",
+            "326502bc80c9e87f12d6a514eb025a0b35c74285"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Parameter LS : list Site.",
+            "VernacAssumption",
+            "1fabffc4b6c2ce871fbf1fa20aa217898d76daaf"
+        ],
+        [
+            "Axiom finite_site : list_of_elements Site eq_site_dec LS.",
+            "VernacAssumption",
+            "b5d38f6daadae1ce7e650789139a02265aeee0c1"
+        ],
+        [
+            "Lemma in_s_LS : forall s : Site, In s LS.",
+            "VernacStartTheoremProof",
+            "5efd090f8df6ecd3d75b7d88c8c9a42c47ca8177"
+        ],
+        [
+            "intros; apply only_once_in with (eq_E_dec := eq_site_dec); exact (finite_site s).",
+            "VernacExtend",
+            "431e2140576f2edee1c05b26fd9ddcd7bf660beb"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Variable Data : Set.",
+            "VernacAssumption",
+            "7446282a857ab9cc128824e6e375b6a772a1b753"
+        ],
+        [
+            "Definition Bag_of_Data := Site -> Site -> queue Data.",
+            "VernacDefinition",
+            "e0c5c0c35a22f925bd6fd2de89efda60158e83ca"
+        ],
+        [
+            "End MACHINE.",
+            "VernacEndSegment",
+            "6d85b4d126df11713d8d0b2111ddfeb0dad41215"
+        ],
+        [
+            "Section M_ACTION.",
+            "VernacBeginSection",
+            "7e4bcf0c3348d384d374bf76acd2dbae6d27205b"
+        ],
+        [
+            "Variable Message : Set.",
+            "VernacAssumption",
+            "d4c4857ca2f4fe47bf8a46dce81cdb168f758042"
+        ],
+        [
+            "Let Bag_of_message := Bag_of_Data Message.",
+            "VernacDefinition",
+            "ae5219007418b596da8f0360db422427368eb05e"
+        ],
+        [
+            "Definition Post_message (m0 : Message) (b0 : Bag_of_message) (s0 s1 : Site) := change_queue (queue Message) b0 s0 s1 (input Message m0 (b0 s0 s1)).",
+            "VernacDefinition",
+            "d982948572f09b9ed3e78721f86917fe8e1d6aef"
+        ],
+        [
+            "Definition Collect_message (b0 : Bag_of_message) (s0 s1 : Site) := change_queue (queue Message) b0 s0 s1 (first_out Message (b0 s0 s1)).",
+            "VernacDefinition",
+            "5ef3069eb7c5c683491abdedb3a2b718d02ce9c2"
+        ],
+        [
+            "Lemma post_here : forall (b0 : Bag_of_message) (m0 : Message) (s0 s1 : Site), Post_message m0 b0 s0 s1 s0 s1 = input Message m0 (b0 s0 s1).",
+            "VernacStartTheoremProof",
+            "e2138be339dab0dffd2260925dacd6f754540e92"
+        ],
+        [
+            "intros; unfold Post_message in |- *; apply that_queue.",
+            "VernacExtend",
+            "312dc767aa86b64a8890fcd4b0afe980602dfefa"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma post_elsewhere : forall (b0 : Bag_of_message) (m0 : Message) (s0 s1 s2 s3 : Site), s0 <> s2 \\/ s1 <> s3 -> Post_message m0 b0 s0 s1 s2 s3 = b0 s2 s3.",
+            "VernacStartTheoremProof",
+            "629b2e8356b1ea01bf1f84853832a0554b71fc4b"
+        ],
+        [
+            "intros; unfold Post_message in |- *; apply other_queue; elim H; auto.",
+            "VernacExtend",
+            "6d20aa8ffcccdf6af06717f8b254c182ba5634e0"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma collect_here : forall (b0 : Bag_of_message) (s0 s1 : Site), Collect_message b0 s0 s1 s0 s1 = first_out Message (b0 s0 s1).",
+            "VernacStartTheoremProof",
+            "4d4c953120e8e9ccc9cad21dfe1a5f2209c7ee1b"
+        ],
+        [
+            "intros; unfold Collect_message in |- *; apply that_queue.",
+            "VernacExtend",
+            "2229ad72345c9068a3480236a5590259e190a9a8"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma collect_elsewhere : forall (b0 : Bag_of_message) (s0 s1 s2 s3 : Site), s0 <> s2 \\/ s1 <> s3 -> Collect_message b0 s0 s1 s2 s3 = b0 s2 s3.",
+            "VernacStartTheoremProof",
+            "7889c685b01a56def8de8fe9d05d796eee9c3a52"
+        ],
+        [
+            "intros; unfold Collect_message in |- *; apply other_queue; elim H; auto.",
+            "VernacExtend",
+            "68fc688eadba8fd01ea3a4f90acc6d63c33fd67b"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End M_ACTION.",
+            "VernacEndSegment",
+            "ca98bd37d6d54056eb38708a3a931471ad351688"
+        ],
+        [
+            "Section IN_Q_EFFECT.",
+            "VernacBeginSection",
+            "3499ad6c125f7169bdeaecbad8e0947e8b6cd850"
+        ],
+        [
+            "Variable Message : Set.",
+            "VernacAssumption",
+            "d4c4857ca2f4fe47bf8a46dce81cdb168f758042"
+        ],
+        [
+            "Let Bag_of_message := Bag_of_Data Message.",
+            "VernacDefinition",
+            "ae5219007418b596da8f0360db422427368eb05e"
+        ],
+        [
+            "Lemma in_post : forall (m m' : Message) (bom : Bag_of_message) (s1 s2 s3 s4 : Site), m <> m' -> In_queue Message m (Post_message Message m' bom s1 s2 s3 s4) -> In_queue Message m (bom s3 s4).",
+            "VernacStartTheoremProof",
+            "2fe80bdc27ffb2359d1064b12f5ec40de1fc739f"
+        ],
+        [
+            "intros m m' bom s1 s2 s3 s4; case (eq_queue_dec s1 s3 s2 s4); intro.",
+            "VernacExtend",
+            "8d9ca350c2960ef90d0ccc1e45b43a20c802ed9c"
+        ],
+        [
+            "decompose [and] a; rewrite H; rewrite H0.",
+            "VernacExtend",
+            "18cd064c78b3c1c1effe2c0ca3a309694d1e16b9"
+        ],
+        [
+            "rewrite post_here.",
+            "VernacExtend",
+            "03d251b582897cf202586893796e7130bba75657"
+        ],
+        [
+            "intros; apply in_q_input with (d' := m'); trivial.",
+            "VernacExtend",
+            "b01c1def88c54ad036ba499711955448977816c7"
+        ],
+        [
+            "rewrite post_elsewhere; auto.",
+            "VernacExtend",
+            "b85763a970270130074268d475535c5f2f6516e9"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma not_in_post : forall (m m' : Message) (bom : Bag_of_message) (s1 s2 s3 s4 : Site), m <> m' -> ~ In_queue Message m (bom s3 s4) -> ~ In_queue Message m (Post_message Message m' bom s1 s2 s3 s4).",
+            "VernacStartTheoremProof",
+            "159a4df836fdd32dc4942309ee1e3ce06d54110c"
+        ],
+        [
+            "intros m m' bom s1 s2 s3 s4; case (eq_queue_dec s1 s3 s2 s4); intro.",
+            "VernacExtend",
+            "8d9ca350c2960ef90d0ccc1e45b43a20c802ed9c"
+        ],
+        [
+            "decompose [and] a; rewrite H; rewrite H0.",
+            "VernacExtend",
+            "18cd064c78b3c1c1effe2c0ca3a309694d1e16b9"
+        ],
+        [
+            "rewrite post_here.",
+            "VernacExtend",
+            "03d251b582897cf202586893796e7130bba75657"
+        ],
+        [
+            "intros H1 H2.",
+            "VernacExtend",
+            "1a279bc44908e178ace5c31cb5040905c4829477"
+        ],
+        [
+            "simpl in |- *.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "intros H H0.",
+            "VernacExtend",
+            "90bdfc30bf7350754c3a8a5cfe1259219564aa47"
+        ],
+        [
+            "rewrite post_elsewhere.",
+            "VernacExtend",
+            "7d930a7a33576d11a232bb3887268b94e65b8fd7"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma not_in_collect : forall (m : Message) (bom : Bag_of_message) (s1 s2 s3 s4 : Site), ~ In_queue Message m (bom s3 s4) -> ~ In_queue Message m (Collect_message Message bom s1 s2 s3 s4).",
+            "VernacStartTheoremProof",
+            "af1b7db1e46fd61fd74f3e95cf0dd8e5b42aba05"
+        ],
+        [
+            "intros m bom s1 s2 s3 s4; case (eq_queue_dec s1 s3 s2 s4); intro.",
+            "VernacExtend",
+            "218c0142cf62035439967275eed6f98908f45cce"
+        ],
+        [
+            "decompose [and] a; rewrite H; rewrite H0.",
+            "VernacExtend",
+            "18cd064c78b3c1c1effe2c0ca3a309694d1e16b9"
+        ],
+        [
+            "rewrite collect_here.",
+            "VernacExtend",
+            "2cd62cce75b06fd3502901aafba2e7220ccbf3a9"
+        ],
+        [
+            "intro H1.",
+            "VernacExtend",
+            "d2fcc9516b33dbca4f189b9ddbee105efc1235d1"
+        ],
+        [
+            "apply not_in_q_output.",
+            "VernacExtend",
+            "9a1b196debfd272409c269d4f4e4f6adbb5a4d6e"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "intros H1.",
+            "VernacExtend",
+            "ba8e6c21eb83603690828b8ea37ea25a6f2962f3"
+        ],
+        [
+            "rewrite collect_elsewhere.",
+            "VernacExtend",
+            "7d75b6d8a231457a3fa3c65d95a5d44cbcd8a0c7"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma in_collect : forall (m : Message) (bom : Bag_of_message) (s1 s2 s3 s4 : Site), In_queue Message m (Collect_message Message bom s1 s2 s3 s4) -> In_queue Message m (bom s3 s4).",
+            "VernacStartTheoremProof",
+            "09e7c2af72ebb1a6a9ab40febef677d818602c7a"
+        ],
+        [
+            "intros m bom s1 s2 s3 s4; case (eq_queue_dec s1 s3 s2 s4); intro.",
+            "VernacExtend",
+            "218c0142cf62035439967275eed6f98908f45cce"
+        ],
+        [
+            "decompose [and] a; rewrite H; rewrite H0.",
+            "VernacExtend",
+            "18cd064c78b3c1c1effe2c0ca3a309694d1e16b9"
+        ],
+        [
+            "rewrite collect_here; intros; apply in_q_output; trivial.",
+            "VernacExtend",
+            "4c4e90c04ae33fb1cfdb2b82cc54f9959ec582ac"
+        ],
+        [
+            "rewrite collect_elsewhere; auto.",
+            "VernacExtend",
+            "eb9ff4676b9a20898f6ba50eba0a8125ab95d0b1"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Hypothesis eq_message_dec : eq_dec Message.",
+            "VernacAssumption",
+            "8db38a2a684aa06904d1f491ea984b08559e1172"
+        ],
+        [
+            "Lemma in_queue_decidable : forall (m : Message) (q : queue Message), {In_queue Message m q} + {~ In_queue Message m q}.",
+            "VernacStartTheoremProof",
+            "77ea4faed529ddc937782bb4b4a514cd7790583b"
+        ],
+        [
+            "simple induction q.",
+            "VernacExtend",
+            "b29a7ae3c796338a34a84188f229370f6a944551"
+        ],
+        [
+            "right; simpl in |- *.",
+            "VernacExtend",
+            "35b1cff6c48417a1fdb9730bf7c020629f5c7a25"
+        ],
+        [
+            "simpl in |- *; red in |- *; trivial.",
+            "VernacExtend",
+            "41daa50f6f061a7b59f42b1465e659280b8de8d0"
+        ],
+        [
+            "intros d q0 H.",
+            "VernacExtend",
+            "44b45f42fa211e75c025864a7591b2053dc52bae"
+        ],
+        [
+            "case (eq_message_dec m d).",
+            "VernacExtend",
+            "00a8fe159a1a763f37eea2d9a52d5a113f9d7940"
+        ],
+        [
+            "intro; left; left.",
+            "VernacExtend",
+            "effe97fb1241f06e342dee283b85a75f45f9ab44"
+        ],
+        [
+            "trivial.",
+            "VernacExtend",
+            "6704630005ea37c1f66f817f0d3cb83967ca08c5"
+        ],
+        [
+            "intro; simpl in |- *; elim H.",
+            "VernacExtend",
+            "4a7f9d4d3a1dac6c045a7ad9bdac99c96fb5a48e"
+        ],
+        [
+            "left; right; auto.",
+            "VernacExtend",
+            "9729522883c290cbce64be154870e9dde81b81f3"
+        ],
+        [
+            "intro; right; intuition.",
+            "VernacExtend",
+            "ca5c7ef3face49166af143d486b7b2eef2fcd948"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End IN_Q_EFFECT.",
+            "VernacEndSegment",
+            "f2f473a0c8cb59138afd04af1c4537fecfd27476"
+        ],
+        [
+            "Section REDUCE_EFFECT.",
+            "VernacBeginSection",
+            "d01a424498a0ac842e3578957d58f57f8fb8bb7b"
+        ],
+        [
+            "Variable Message : Set.",
+            "VernacAssumption",
+            "d4c4857ca2f4fe47bf8a46dce81cdb168f758042"
+        ],
+        [
+            "Let Bag_of_message := Bag_of_Data Message.",
+            "VernacDefinition",
+            "ae5219007418b596da8f0360db422427368eb05e"
+        ],
+        [
+            "Variable f : Message -> Z.",
+            "VernacAssumption",
+            "f10f94814aaf75de48213f913188410e47b59002"
+        ],
+        [
+            "Lemma reduce_post_message : forall (m : Message) (s1 s2 : Site) (b : Bag_of_message), reduce Message f (Post_message Message m b s1 s2 s1 s2) = (reduce Message f (b s1 s2) + f m)%Z.",
+            "VernacStartTheoremProof",
+            "141abfbf24584d8344c8d389d133c9d4cba366de"
+        ],
+        [
+            "intros m s1 s2 b.",
+            "VernacExtend",
+            "06f6df6ae78213f95840502817950058422e35c7"
+        ],
+        [
+            "rewrite post_here.",
+            "VernacExtend",
+            "03d251b582897cf202586893796e7130bba75657"
+        ],
+        [
+            "apply reduce_append_nil1.",
+            "VernacExtend",
+            "29714441a657245d325f4c0db36819430f8d434b"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma reduce_collect_message : forall (m : Message) (s1 s2 : Site) (b : Bag_of_message), first Message (b s1 s2) = value Message m -> reduce Message f (Collect_message Message b s1 s2 s1 s2) = (reduce Message f (b s1 s2) - f m)%Z.",
+            "VernacStartTheoremProof",
+            "efd5f54e9c564c90597ed3ed503b82f3b3f12eff"
+        ],
+        [
+            "intros m s1 s2 b H.",
+            "VernacExtend",
+            "dd02ea4f43f60484f3b9ddb4a306f3077da302d9"
+        ],
+        [
+            "rewrite collect_here.",
+            "VernacExtend",
+            "2cd62cce75b06fd3502901aafba2e7220ccbf3a9"
+        ],
+        [
+            "apply reduce_first_out.",
+            "VernacExtend",
+            "f533ad34eb9db34254da9b3a14ab1c039ed80d9b"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma reduce_post_message_null : forall (m : Message) (s1 s2 s3 s4 : Site) (b : Bag_of_message), f m = 0%Z -> reduce Message f (Post_message Message m b s1 s2 s3 s4) = reduce Message f (b s3 s4).",
+            "VernacStartTheoremProof",
+            "fcd2dd911c1e2e447c4f35c06e5c4afee3b636aa"
+        ],
+        [
+            "intros m s1 s2 s3 s4 b H.",
+            "VernacExtend",
+            "5fb5a5c9e782323b104fc65dda92a9f9447d6889"
+        ],
+        [
+            "case (eq_queue_dec s1 s3 s2 s4).",
+            "VernacExtend",
+            "e0f112abe02fac30bf13442c3ec9cc463441ddba"
+        ],
+        [
+            "intros a.",
+            "VernacExtend",
+            "9fef235d1a71132a4c9de7f87ab95d540098d91d"
+        ],
+        [
+            "decompose [and] a.",
+            "VernacExtend",
+            "70befa15a8813c279ab9c11f3f1c3e867150edbb"
+        ],
+        [
+            "rewrite H0; rewrite H1.",
+            "VernacExtend",
+            "85e84d2667b53456606ab747d4b84d4de959182c"
+        ],
+        [
+            "rewrite post_here.",
+            "VernacExtend",
+            "03d251b582897cf202586893796e7130bba75657"
+        ],
+        [
+            "simpl in |- *.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite H.",
+            "VernacExtend",
+            "6192df8b89486a3ba89a78e26e0d70cae2dc94c2"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "intro o.",
+            "VernacExtend",
+            "2922b6c09948f65f6bb43a19be80f2932fc4cced"
+        ],
+        [
+            "rewrite post_elsewhere.",
+            "VernacExtend",
+            "7d930a7a33576d11a232bb3887268b94e65b8fd7"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma reduce_collect_message_null : forall (m : Message) (s1 s2 s3 s4 : Site) (b : Bag_of_message), first Message (b s1 s2) = value Message m -> f m = 0%Z -> reduce Message f (Collect_message Message b s1 s2 s3 s4) = reduce Message f (b s3 s4).",
+            "VernacStartTheoremProof",
+            "7542bf97c216dffeb2c35d17442f3f13d058cbee"
+        ],
+        [
+            "intros m s1 s2 s3 s4 b H H0.",
+            "VernacExtend",
+            "fad6a29cd0c5f636b168c85add9043796eed966a"
+        ],
+        [
+            "case (eq_queue_dec s1 s3 s2 s4).",
+            "VernacExtend",
+            "e0f112abe02fac30bf13442c3ec9cc463441ddba"
+        ],
+        [
+            "intros a.",
+            "VernacExtend",
+            "9fef235d1a71132a4c9de7f87ab95d540098d91d"
+        ],
+        [
+            "decompose [and] a.",
+            "VernacExtend",
+            "70befa15a8813c279ab9c11f3f1c3e867150edbb"
+        ],
+        [
+            "rewrite H1; rewrite H2.",
+            "VernacExtend",
+            "8d018a8547fa22724706a4da5d7a7d5d3ce49c8e"
+        ],
+        [
+            "rewrite collect_here.",
+            "VernacExtend",
+            "2cd62cce75b06fd3502901aafba2e7220ccbf3a9"
+        ],
+        [
+            "rewrite reduce_first_out with (m := m).",
+            "VernacExtend",
+            "f525240c8cea69a4c611b6f83a76f71f79813df8"
+        ],
+        [
+            "rewrite H0.",
+            "VernacExtend",
+            "1a54b13ac1654793174947eafd5c41a3f024eb49"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "rewrite <- H1; rewrite <- H2; auto.",
+            "VernacExtend",
+            "77f43787cae2fe572d11bad61e51056929a47687"
+        ],
+        [
+            "intro o.",
+            "VernacExtend",
+            "2922b6c09948f65f6bb43a19be80f2932fc4cced"
+        ],
+        [
+            "rewrite collect_elsewhere.",
+            "VernacExtend",
+            "7d75b6d8a231457a3fa3c65d95a5d44cbcd8a0c7"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End REDUCE_EFFECT.",
+            "VernacEndSegment",
+            "a29a8b1706c3583d1ddbc408b97792300e8917f0"
+        ],
+        [
+            "Section SIG_SEND.",
+            "VernacBeginSection",
+            "ad91b23b4573935523246ddde8bbab1b3584e7a0"
+        ],
+        [
+            "Let Send_T := Site -> Z.",
+            "VernacDefinition",
+            "ebea6732aec2813cf7be27af79bb8f0cbbf50317"
+        ],
+        [
+            "Definition sigma_send_table (t : Send_T) := sigma_table Site LS Z (fun (s : Site) (x : Z) => x) t.",
+            "VernacDefinition",
+            "cbe3319e4d3951e5b405b8bf5ea2e37a7fc2f5e1"
+        ],
+        [
+            "Definition Inc_send_table (t0 : Send_T) (s0 : Site) := update_table Site eq_site_dec Z t0 s0 (t0 s0 + 1)%Z.",
+            "VernacDefinition",
+            "703e58153c922b08a550e30e3ba62a580e7568dd"
+        ],
+        [
+            "Definition Dec_send_table (t0 : Send_T) (s0 : Site) := update_table Site eq_site_dec Z t0 s0 (t0 s0 - 1)%Z.",
+            "VernacDefinition",
+            "23a89b6f8cf89f3e685db7c4433b690daf623a02"
+        ],
+        [
+            "Let Date_T := Site -> nat.",
+            "VernacDefinition",
+            "9fb8ed33ac24add1c9f8898d7ebe18d117e602c7"
+        ],
+        [
+            "Definition Set_date_table (d0 : Date_T) (s0 : Site) (new_date : nat) := update_table Site eq_site_dec nat d0 s0 new_date.",
+            "VernacDefinition",
+            "d154a4f28fec6c7be45a7e591ce5a563237c61da"
+        ],
+        [
+            "End SIG_SEND.",
+            "VernacEndSegment",
+            "6569ff5662beb3ab56fdadb3f3bbcde979bf4486"
+        ],
+        [
+            "Section SEND_EFFECT.",
+            "VernacBeginSection",
+            "5d648079eb89d20426b800266d2bed7eb5e3f12d"
+        ],
+        [
+            "Let Send_T := Site -> Z.",
+            "VernacDefinition",
+            "ebea6732aec2813cf7be27af79bb8f0cbbf50317"
+        ],
+        [
+            "Lemma sigma_inc_send_table : forall (t : Send_T) (s : Site), sigma_send_table (Inc_send_table t s) = (sigma_send_table t + 1)%Z.",
+            "VernacStartTheoremProof",
+            "94fe891aa6562406621ff365557946e7a20c3ce5"
+        ],
+        [
+            "intros t s.",
+            "VernacExtend",
+            "790e83e89cc21a9bed6bfee824e5141ee323400f"
+        ],
+        [
+            "unfold Inc_send_table in |- *.",
+            "VernacExtend",
+            "9b57a795fc6d2f7b81e5054ce03c0595d199d856"
+        ],
+        [
+            "unfold sigma_send_table in |- *.",
+            "VernacExtend",
+            "ef31542973fe3576d0aa3f7b1eb124d497f20927"
+        ],
+        [
+            "rewrite (sigma_table_change Site eq_site_dec LS Z t s (t s + 1)%Z (fun (s : Site) (x : Z) => x)).",
+            "VernacExtend",
+            "65ca65b4b4ab7315da576f5fdef848eb501b63d3"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "apply finite_site.",
+            "VernacExtend",
+            "fdf26cd988bca1255dc3b5cd9db36d473e2f0c07"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma sigma_dec_send_table : forall (t : Send_T) (s : Site), sigma_send_table (Dec_send_table t s) = (sigma_send_table t - 1)%Z.",
+            "VernacStartTheoremProof",
+            "e8d4c5b9d063738ce3b4f25f70ef749cd243b074"
+        ],
+        [
+            "intros t s.",
+            "VernacExtend",
+            "790e83e89cc21a9bed6bfee824e5141ee323400f"
+        ],
+        [
+            "unfold Dec_send_table in |- *.",
+            "VernacExtend",
+            "020f4c4d94a351490bb4d7d88fc7594f2c06ee80"
+        ],
+        [
+            "unfold sigma_send_table in |- *.",
+            "VernacExtend",
+            "ef31542973fe3576d0aa3f7b1eb124d497f20927"
+        ],
+        [
+            "rewrite (sigma_table_change Site eq_site_dec LS Z t s (t s - 1)%Z (fun (s : Site) (x : Z) => x)).",
+            "VernacExtend",
+            "a58b011f90846716718d62929286ae6b354d8ddb"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "apply finite_site.",
+            "VernacExtend",
+            "fdf26cd988bca1255dc3b5cd9db36d473e2f0c07"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End SEND_EFFECT.",
+            "VernacEndSegment",
+            "81f2a85d316da04d43dfcdaea64aef82d8f3cf28"
+        ],
+        [
+            "Section SIG_RECV.",
+            "VernacBeginSection",
+            "a9f853d1edf3611b94bb65f33686a863dea65df9"
+        ],
+        [
+            "Let Recv_T := Site -> bool.",
+            "VernacDefinition",
+            "be9818bc9f0656f6d7fda09f85c286045458cf5f"
+        ],
+        [
+            "Definition sigma_receive_table (t : Recv_T) := sigma_table Site LS bool (fun s : Site => Int) t.",
+            "VernacDefinition",
+            "8e867ba9de62d2d02dbb5efdb8ecdcda5da32e67"
+        ],
+        [
+            "Definition Set_rec_table (r0 : Recv_T) (s0 : Site) := change_site bool r0 s0 true.",
+            "VernacDefinition",
+            "9d8249c77c510a490fb6a2ca9b646e996166806d"
+        ],
+        [
+            "Definition Reset_rec_table (r0 : Recv_T) (s0 : Site) := change_site bool r0 s0 false.",
+            "VernacDefinition",
+            "7021178f598af849d897c68fb0c06716949d8c90"
+        ],
+        [
+            "Lemma sigma_set_receive_table : forall (t : Recv_T) (s : Site), t s = false -> sigma_receive_table (Set_rec_table t s) = (sigma_receive_table t + 1)%Z.",
+            "VernacStartTheoremProof",
+            "17da050715fe29c894feed0551bb5487a202d9a7"
+        ],
+        [
+            "intros t s H.",
+            "VernacExtend",
+            "3c53e41ab238ad180da52f7c2f84a61def097c25"
+        ],
+        [
+            "unfold Set_rec_table in |- *.",
+            "VernacExtend",
+            "4cafde117fe10933d4cf8a22f94031f885134e49"
+        ],
+        [
+            "unfold sigma_receive_table in |- *.",
+            "VernacExtend",
+            "021678bfd69e7413aab2775168520d32306d849a"
+        ],
+        [
+            "rewrite (sigma_table_change Site eq_site_dec LS bool t s true).",
+            "VernacExtend",
+            "d85b23e5103503be28cf7d38a29ce8cf30e6884e"
+        ],
+        [
+            "rewrite H.",
+            "VernacExtend",
+            "6192df8b89486a3ba89a78e26e0d70cae2dc94c2"
+        ],
+        [
+            "simpl in |- *.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "apply finite_site.",
+            "VernacExtend",
+            "fdf26cd988bca1255dc3b5cd9db36d473e2f0c07"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma sigma_reset_receive_table : forall (t : Recv_T) (s : Site), t s = true -> sigma_receive_table (Reset_rec_table t s) = (sigma_receive_table t - 1)%Z.",
+            "VernacStartTheoremProof",
+            "84391309b000e17aec43e09fb793e5012625c8c8"
+        ],
+        [
+            "intros t s H.",
+            "VernacExtend",
+            "3c53e41ab238ad180da52f7c2f84a61def097c25"
+        ],
+        [
+            "unfold Reset_rec_table in |- *.",
+            "VernacExtend",
+            "aaaba51992ca6de903acbede11c32e3b0667136b"
+        ],
+        [
+            "unfold sigma_receive_table in |- *.",
+            "VernacExtend",
+            "021678bfd69e7413aab2775168520d32306d849a"
+        ],
+        [
+            "rewrite (sigma_table_change Site eq_site_dec LS bool t s false).",
+            "VernacExtend",
+            "f241d920e2aba2e56ee2d6cfab78a489a7b1f462"
+        ],
+        [
+            "rewrite H.",
+            "VernacExtend",
+            "6192df8b89486a3ba89a78e26e0d70cae2dc94c2"
+        ],
+        [
+            "simpl in |- *.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "apply finite_site.",
+            "VernacExtend",
+            "fdf26cd988bca1255dc3b5cd9db36d473e2f0c07"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End SIG_RECV.",
+            "VernacEndSegment",
+            "621f2f160ea950bc1f14768b786a53317c524c0b"
+        ],
+        [
+            "Section BUT_OWNER.",
+            "VernacBeginSection",
+            "b06b1bfca69b1ef4b37644d4a5afe20ea39d45ae"
+        ],
+        [
+            "Variable Data : Set.",
+            "VernacAssumption",
+            "7446282a857ab9cc128824e6e375b6a772a1b753"
+        ],
+        [
+            "Let Table := Site -> Data.",
+            "VernacDefinition",
+            "cf14d619ad7fdca3dc2e789cc36c8f2be0f535bc"
+        ],
+        [
+            "Variable f : Site -> Data -> Z.",
+            "VernacAssumption",
+            "921a7562996d9014f841853e643a1b540cff643d"
+        ],
+        [
+            "Definition sigma_table_but_owner (st : Table) := sigma_but Site owner eq_site_dec LS (fun s : Site => f s (st s)).",
+            "VernacDefinition",
+            "cc76a40bae463ceabe49ed00131f39935e35ccac"
+        ],
+        [
+            "Lemma sigma_sigma_but_owner : forall t : Table, sigma_table Site LS Data f t = (sigma_table_but_owner t + f owner (t owner))%Z.",
+            "VernacStartTheoremProof",
+            "18bba101e15b8f55e2d7b2f917f8bc2ec10f850b"
+        ],
+        [
+            "intros t.",
+            "VernacExtend",
+            "3c4fe6f257739f9d979bf15fca5e899c1914c76d"
+        ],
+        [
+            "unfold sigma_table_but_owner in |- *.",
+            "VernacExtend",
+            "e90bb4d312f7f25ad1e0490be42b188dac43c82b"
+        ],
+        [
+            "unfold sigma_table in |- *.",
+            "VernacExtend",
+            "f8f0c4f3275b88a0373c9c017ff6a4aea9f3eebc"
+        ],
+        [
+            "rewrite (sigma_sigma_but Site owner eq_site_dec).",
+            "VernacExtend",
+            "a97bf6ca0a96ab9cd31c9ea5f908a7488c76e3f5"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "apply finite_site.",
+            "VernacExtend",
+            "fdf26cd988bca1255dc3b5cd9db36d473e2f0c07"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End BUT_OWNER.",
+            "VernacEndSegment",
+            "d260a2d28295b395332a47db0850bd548935edf0"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "that_site",
+            "line_nb": 11,
+            "steps": [
+                {
+                    "command": [
+                        "intros; unfold change_site in |- *; apply here.",
+                        "VernacExtend",
+                        "b2fd00df89e1e303cae40e971813d6edcd2a3eb7"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "other_site",
+            "line_nb": 14,
+            "steps": [
+                {
+                    "command": [
+                        "intros; unfold change_site in |- *; apply elsewhere; trivial.",
+                        "VernacExtend",
+                        "ab2a869c7d9b4d1d423dc1077a1203d70307967b"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "that_queue",
+            "line_nb": 19,
+            "steps": [
+                {
+                    "command": [
+                        "intros; unfold change_queue in |- *; unfold update2_table in |- *; apply here2.",
+                        "VernacExtend",
+                        "f2f73bec3aed2a6b53c44a700ee752eec2120975"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "other_queue",
+            "line_nb": 22,
+            "steps": [
+                {
+                    "command": [
+                        "intros; unfold change_queue in |- *; unfold update2_table in |- *; apply elsewhere2; trivial.",
+                        "VernacExtend",
+                        "326502bc80c9e87f12d6a514eb025a0b35c74285"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "in_s_LS",
+            "line_nb": 27,
+            "steps": [
+                {
+                    "command": [
+                        "intros; apply only_once_in with (eq_E_dec := eq_site_dec); exact (finite_site s).",
+                        "VernacExtend",
+                        "431e2140576f2edee1c05b26fd9ddcd7bf660beb"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "post_here",
+            "line_nb": 38,
+            "steps": [
+                {
+                    "command": [
+                        "intros; unfold Post_message in |- *; apply that_queue.",
+                        "VernacExtend",
+                        "312dc767aa86b64a8890fcd4b0afe980602dfefa"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "post_elsewhere",
+            "line_nb": 41,
+            "steps": [
+                {
+                    "command": [
+                        "intros; unfold Post_message in |- *; apply other_queue; elim H; auto.",
+                        "VernacExtend",
+                        "6d20aa8ffcccdf6af06717f8b254c182ba5634e0"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "collect_here",
+            "line_nb": 44,
+            "steps": [
+                {
+                    "command": [
+                        "intros; unfold Collect_message in |- *; apply that_queue.",
+                        "VernacExtend",
+                        "2229ad72345c9068a3480236a5590259e190a9a8"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "collect_elsewhere",
+            "line_nb": 47,
+            "steps": [
+                {
+                    "command": [
+                        "intros; unfold Collect_message in |- *; apply other_queue; elim H; auto.",
+                        "VernacExtend",
+                        "68fc688eadba8fd01ea3a4f90acc6d63c33fd67b"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "in_post",
+            "line_nb": 54,
+            "steps": [
+                {
+                    "command": [
+                        "intros m m' bom s1 s2 s3 s4; case (eq_queue_dec s1 s3 s2 s4); intro.",
+                        "VernacExtend",
+                        "8d9ca350c2960ef90d0ccc1e45b43a20c802ed9c"
+                    ]
+                },
+                {
+                    "command": [
+                        "decompose [and] a; rewrite H; rewrite H0.",
+                        "VernacExtend",
+                        "18cd064c78b3c1c1effe2c0ca3a309694d1e16b9"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite post_here.",
+                        "VernacExtend",
+                        "03d251b582897cf202586893796e7130bba75657"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros; apply in_q_input with (d' := m'); trivial.",
+                        "VernacExtend",
+                        "b01c1def88c54ad036ba499711955448977816c7"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite post_elsewhere; auto.",
+                        "VernacExtend",
+                        "b85763a970270130074268d475535c5f2f6516e9"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "not_in_post",
+            "line_nb": 61,
+            "steps": [
+                {
+                    "command": [
+                        "intros m m' bom s1 s2 s3 s4; case (eq_queue_dec s1 s3 s2 s4); intro.",
+                        "VernacExtend",
+                        "8d9ca350c2960ef90d0ccc1e45b43a20c802ed9c"
+                    ]
+                },
+                {
+                    "command": [
+                        "decompose [and] a; rewrite H; rewrite H0.",
+                        "VernacExtend",
+                        "18cd064c78b3c1c1effe2c0ca3a309694d1e16b9"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite post_here.",
+                        "VernacExtend",
+                        "03d251b582897cf202586893796e7130bba75657"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros H1 H2.",
+                        "VernacExtend",
+                        "1a279bc44908e178ace5c31cb5040905c4829477"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in |- *.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition.",
+                        "VernacExtend",
+                        "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros H H0.",
+                        "VernacExtend",
+                        "90bdfc30bf7350754c3a8a5cfe1259219564aa47"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite post_elsewhere.",
+                        "VernacExtend",
+                        "7d930a7a33576d11a232bb3887268b94e65b8fd7"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "not_in_collect",
+            "line_nb": 73,
+            "steps": [
+                {
+                    "command": [
+                        "intros m bom s1 s2 s3 s4; case (eq_queue_dec s1 s3 s2 s4); intro.",
+                        "VernacExtend",
+                        "218c0142cf62035439967275eed6f98908f45cce"
+                    ]
+                },
+                {
+                    "command": [
+                        "decompose [and] a; rewrite H; rewrite H0.",
+                        "VernacExtend",
+                        "18cd064c78b3c1c1effe2c0ca3a309694d1e16b9"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite collect_here.",
+                        "VernacExtend",
+                        "2cd62cce75b06fd3502901aafba2e7220ccbf3a9"
+                    ]
+                },
+                {
+                    "command": [
+                        "intro H1.",
+                        "VernacExtend",
+                        "d2fcc9516b33dbca4f189b9ddbee105efc1235d1"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply not_in_q_output.",
+                        "VernacExtend",
+                        "9a1b196debfd272409c269d4f4e4f6adbb5a4d6e"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros H1.",
+                        "VernacExtend",
+                        "ba8e6c21eb83603690828b8ea37ea25a6f2962f3"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite collect_elsewhere.",
+                        "VernacExtend",
+                        "7d75b6d8a231457a3fa3c65d95a5d44cbcd8a0c7"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "in_collect",
+            "line_nb": 85,
+            "steps": [
+                {
+                    "command": [
+                        "intros m bom s1 s2 s3 s4; case (eq_queue_dec s1 s3 s2 s4); intro.",
+                        "VernacExtend",
+                        "218c0142cf62035439967275eed6f98908f45cce"
+                    ]
+                },
+                {
+                    "command": [
+                        "decompose [and] a; rewrite H; rewrite H0.",
+                        "VernacExtend",
+                        "18cd064c78b3c1c1effe2c0ca3a309694d1e16b9"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite collect_here; intros; apply in_q_output; trivial.",
+                        "VernacExtend",
+                        "4c4e90c04ae33fb1cfdb2b82cc54f9959ec582ac"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite collect_elsewhere; auto.",
+                        "VernacExtend",
+                        "eb9ff4676b9a20898f6ba50eba0a8125ab95d0b1"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "in_queue_decidable",
+            "line_nb": 92,
+            "steps": [
+                {
+                    "command": [
+                        "simple induction q.",
+                        "VernacExtend",
+                        "b29a7ae3c796338a34a84188f229370f6a944551"
+                    ]
+                },
+                {
+                    "command": [
+                        "right; simpl in |- *.",
+                        "VernacExtend",
+                        "35b1cff6c48417a1fdb9730bf7c020629f5c7a25"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in |- *; red in |- *; trivial.",
+                        "VernacExtend",
+                        "41daa50f6f061a7b59f42b1465e659280b8de8d0"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros d q0 H.",
+                        "VernacExtend",
+                        "44b45f42fa211e75c025864a7591b2053dc52bae"
+                    ]
+                },
+                {
+                    "command": [
+                        "case (eq_message_dec m d).",
+                        "VernacExtend",
+                        "00a8fe159a1a763f37eea2d9a52d5a113f9d7940"
+                    ]
+                },
+                {
+                    "command": [
+                        "intro; left; left.",
+                        "VernacExtend",
+                        "effe97fb1241f06e342dee283b85a75f45f9ab44"
+                    ]
+                },
+                {
+                    "command": [
+                        "trivial.",
+                        "VernacExtend",
+                        "6704630005ea37c1f66f817f0d3cb83967ca08c5"
+                    ]
+                },
+                {
+                    "command": [
+                        "intro; simpl in |- *; elim H.",
+                        "VernacExtend",
+                        "4a7f9d4d3a1dac6c045a7ad9bdac99c96fb5a48e"
+                    ]
+                },
+                {
+                    "command": [
+                        "left; right; auto.",
+                        "VernacExtend",
+                        "9729522883c290cbce64be154870e9dde81b81f3"
+                    ]
+                },
+                {
+                    "command": [
+                        "intro; right; intuition.",
+                        "VernacExtend",
+                        "ca5c7ef3face49166af143d486b7b2eef2fcd948"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "reduce_post_message",
+            "line_nb": 109,
+            "steps": [
+                {
+                    "command": [
+                        "intros m s1 s2 b.",
+                        "VernacExtend",
+                        "06f6df6ae78213f95840502817950058422e35c7"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite post_here.",
+                        "VernacExtend",
+                        "03d251b582897cf202586893796e7130bba75657"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply reduce_append_nil1.",
+                        "VernacExtend",
+                        "29714441a657245d325f4c0db36819430f8d434b"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "reduce_collect_message",
+            "line_nb": 114,
+            "steps": [
+                {
+                    "command": [
+                        "intros m s1 s2 b H.",
+                        "VernacExtend",
+                        "dd02ea4f43f60484f3b9ddb4a306f3077da302d9"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite collect_here.",
+                        "VernacExtend",
+                        "2cd62cce75b06fd3502901aafba2e7220ccbf3a9"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply reduce_first_out.",
+                        "VernacExtend",
+                        "f533ad34eb9db34254da9b3a14ab1c039ed80d9b"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "reduce_post_message_null",
+            "line_nb": 120,
+            "steps": [
+                {
+                    "command": [
+                        "intros m s1 s2 s3 s4 b H.",
+                        "VernacExtend",
+                        "5fb5a5c9e782323b104fc65dda92a9f9447d6889"
+                    ]
+                },
+                {
+                    "command": [
+                        "case (eq_queue_dec s1 s3 s2 s4).",
+                        "VernacExtend",
+                        "e0f112abe02fac30bf13442c3ec9cc463441ddba"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros a.",
+                        "VernacExtend",
+                        "9fef235d1a71132a4c9de7f87ab95d540098d91d"
+                    ]
+                },
+                {
+                    "command": [
+                        "decompose [and] a.",
+                        "VernacExtend",
+                        "70befa15a8813c279ab9c11f3f1c3e867150edbb"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H0; rewrite H1.",
+                        "VernacExtend",
+                        "85e84d2667b53456606ab747d4b84d4de959182c"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite post_here.",
+                        "VernacExtend",
+                        "03d251b582897cf202586893796e7130bba75657"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in |- *.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H.",
+                        "VernacExtend",
+                        "6192df8b89486a3ba89a78e26e0d70cae2dc94c2"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "intro o.",
+                        "VernacExtend",
+                        "2922b6c09948f65f6bb43a19be80f2932fc4cced"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite post_elsewhere.",
+                        "VernacExtend",
+                        "7d930a7a33576d11a232bb3887268b94e65b8fd7"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "reduce_collect_message_null",
+            "line_nb": 135,
+            "steps": [
+                {
+                    "command": [
+                        "intros m s1 s2 s3 s4 b H H0.",
+                        "VernacExtend",
+                        "fad6a29cd0c5f636b168c85add9043796eed966a"
+                    ]
+                },
+                {
+                    "command": [
+                        "case (eq_queue_dec s1 s3 s2 s4).",
+                        "VernacExtend",
+                        "e0f112abe02fac30bf13442c3ec9cc463441ddba"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros a.",
+                        "VernacExtend",
+                        "9fef235d1a71132a4c9de7f87ab95d540098d91d"
+                    ]
+                },
+                {
+                    "command": [
+                        "decompose [and] a.",
+                        "VernacExtend",
+                        "70befa15a8813c279ab9c11f3f1c3e867150edbb"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H1; rewrite H2.",
+                        "VernacExtend",
+                        "8d018a8547fa22724706a4da5d7a7d5d3ce49c8e"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite collect_here.",
+                        "VernacExtend",
+                        "2cd62cce75b06fd3502901aafba2e7220ccbf3a9"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite reduce_first_out with (m := m).",
+                        "VernacExtend",
+                        "f525240c8cea69a4c611b6f83a76f71f79813df8"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H0.",
+                        "VernacExtend",
+                        "1a54b13ac1654793174947eafd5c41a3f024eb49"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- H1; rewrite <- H2; auto.",
+                        "VernacExtend",
+                        "77f43787cae2fe572d11bad61e51056929a47687"
+                    ]
+                },
+                {
+                    "command": [
+                        "intro o.",
+                        "VernacExtend",
+                        "2922b6c09948f65f6bb43a19be80f2932fc4cced"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite collect_elsewhere.",
+                        "VernacExtend",
+                        "7d75b6d8a231457a3fa3c65d95a5d44cbcd8a0c7"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "sigma_inc_send_table",
+            "line_nb": 162,
+            "steps": [
+                {
+                    "command": [
+                        "intros t s.",
+                        "VernacExtend",
+                        "790e83e89cc21a9bed6bfee824e5141ee323400f"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold Inc_send_table in |- *.",
+                        "VernacExtend",
+                        "9b57a795fc6d2f7b81e5054ce03c0595d199d856"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold sigma_send_table in |- *.",
+                        "VernacExtend",
+                        "ef31542973fe3576d0aa3f7b1eb124d497f20927"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (sigma_table_change Site eq_site_dec LS Z t s (t s + 1)%Z (fun (s : Site) (x : Z) => x)).",
+                        "VernacExtend",
+                        "65ca65b4b4ab7315da576f5fdef848eb501b63d3"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply finite_site.",
+                        "VernacExtend",
+                        "fdf26cd988bca1255dc3b5cd9db36d473e2f0c07"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "sigma_dec_send_table",
+            "line_nb": 170,
+            "steps": [
+                {
+                    "command": [
+                        "intros t s.",
+                        "VernacExtend",
+                        "790e83e89cc21a9bed6bfee824e5141ee323400f"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold Dec_send_table in |- *.",
+                        "VernacExtend",
+                        "020f4c4d94a351490bb4d7d88fc7594f2c06ee80"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold sigma_send_table in |- *.",
+                        "VernacExtend",
+                        "ef31542973fe3576d0aa3f7b1eb124d497f20927"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (sigma_table_change Site eq_site_dec LS Z t s (t s - 1)%Z (fun (s : Site) (x : Z) => x)).",
+                        "VernacExtend",
+                        "a58b011f90846716718d62929286ae6b354d8ddb"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply finite_site.",
+                        "VernacExtend",
+                        "fdf26cd988bca1255dc3b5cd9db36d473e2f0c07"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "sigma_set_receive_table",
+            "line_nb": 184,
+            "steps": [
+                {
+                    "command": [
+                        "intros t s H.",
+                        "VernacExtend",
+                        "3c53e41ab238ad180da52f7c2f84a61def097c25"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold Set_rec_table in |- *.",
+                        "VernacExtend",
+                        "4cafde117fe10933d4cf8a22f94031f885134e49"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold sigma_receive_table in |- *.",
+                        "VernacExtend",
+                        "021678bfd69e7413aab2775168520d32306d849a"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (sigma_table_change Site eq_site_dec LS bool t s true).",
+                        "VernacExtend",
+                        "d85b23e5103503be28cf7d38a29ce8cf30e6884e"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H.",
+                        "VernacExtend",
+                        "6192df8b89486a3ba89a78e26e0d70cae2dc94c2"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in |- *.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply finite_site.",
+                        "VernacExtend",
+                        "fdf26cd988bca1255dc3b5cd9db36d473e2f0c07"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "sigma_reset_receive_table",
+            "line_nb": 194,
+            "steps": [
+                {
+                    "command": [
+                        "intros t s H.",
+                        "VernacExtend",
+                        "3c53e41ab238ad180da52f7c2f84a61def097c25"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold Reset_rec_table in |- *.",
+                        "VernacExtend",
+                        "aaaba51992ca6de903acbede11c32e3b0667136b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold sigma_receive_table in |- *.",
+                        "VernacExtend",
+                        "021678bfd69e7413aab2775168520d32306d849a"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (sigma_table_change Site eq_site_dec LS bool t s false).",
+                        "VernacExtend",
+                        "f241d920e2aba2e56ee2d6cfab78a489a7b1f462"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H.",
+                        "VernacExtend",
+                        "6192df8b89486a3ba89a78e26e0d70cae2dc94c2"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in |- *.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply finite_site.",
+                        "VernacExtend",
+                        "fdf26cd988bca1255dc3b5cd9db36d473e2f0c07"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "sigma_sigma_but_owner",
+            "line_nb": 210,
+            "steps": [
+                {
+                    "command": [
+                        "intros t.",
+                        "VernacExtend",
+                        "3c4fe6f257739f9d979bf15fca5e899c1914c76d"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold sigma_table_but_owner in |- *.",
+                        "VernacExtend",
+                        "e90bb4d312f7f25ad1e0490be42b188dac43c82b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold sigma_table in |- *.",
+                        "VernacExtend",
+                        "f8f0c4f3275b88a0373c9c017ff6a4aea9f3eebc"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (sigma_sigma_but Site owner eq_site_dec).",
+                        "VernacExtend",
+                        "a97bf6ca0a96ab9cd31c9ea5f908a7488c76e3f5"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply finite_site.",
+                        "VernacExtend",
+                        "fdf26cd988bca1255dc3b5cd9db36d473e2f0c07"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,208 @@
+{
+    "filename": "theories/Generic/Ind.v",
+    "coq_project": "coq-ext-lib",
+    "vernac_cmds": [
+        [
+            "Require Import List String.",
+            "VernacRequire",
+            "01a459a9859fe35058df6a97ed1f62bdc7dbf1a7"
+        ],
+        [
+            "Require Import ExtLib.Structures.CoMonad.",
+            "VernacRequire",
+            "b4bbfd323d8e8e44e15d310b8a5766dc7670bb45"
+        ],
+        [
+            "Set Implicit Arguments.",
+            "VernacSetOption",
+            "9e84ff8896f028601d8aded48c1d4aebe60aa584"
+        ],
+        [
+            "Set Strict Implicit.",
+            "VernacSetOption",
+            "6b94f70716dd2a2fc34140a20b87bb0e87225ff4"
+        ],
+        [
+            "Inductive type : Type := | Self : type | Inj : Type -> type.",
+            "VernacInductive",
+            "157cd8663cf961ae5efbf0ad7502a027e4e2be1d"
+        ],
+        [
+            "Definition product := list type.",
+            "VernacDefinition",
+            "946802f872bfc6c0cb3e8989789659dc6bd9772f"
+        ],
+        [
+            "Definition variant := list product.",
+            "VernacDefinition",
+            "0ca6c5be2f2c83cac10ecebc5da35e1cdb03548c"
+        ],
+        [
+            "Section denote.",
+            "VernacBeginSection",
+            "7dde687af5a4f16bae2f0cd7b3f820815f8c9bc7"
+        ],
+        [
+            "Variable M : Type.",
+            "VernacAssumption",
+            "90590d9ba28788d6f7abe3108635380b34fd4e0f"
+        ],
+        [
+            "Definition typeD (t : type) : Type := match t with | Self => M | Inj t => t end.",
+            "VernacDefinition",
+            "e296ae29c843933e81bc6d260fbe97674c5bf1b3"
+        ],
+        [
+            "Definition func (T : Type) (v : product) : Type := fold_right (fun x acc => typeD x -> acc) T v.",
+            "VernacDefinition",
+            "856a8cf049973f85dc837ab71afc4f2737d59f60"
+        ],
+        [
+            "Definition data (v : product) : Type := fold_right (fun x acc => typeD x * acc)%type unit v.",
+            "VernacDefinition",
+            "bc10468e9a8704675eeaaa72e3f95c7abaa823ec"
+        ],
+        [
+            "Definition matchD (T : Type) (v : variant) : Type := fold_right (fun x acc => func T x -> acc)%type T v.",
+            "VernacDefinition",
+            "77996205069490c89ced7f679e92a5452691d849"
+        ],
+        [
+            "Definition dataD (v : variant) : Type := fold_right (fun x acc => data x + acc)%type Empty_set v.",
+            "VernacDefinition",
+            "2b7ca4d19505452cdd80efccd4a31f35cd0290d1"
+        ],
+        [
+            "Definition recD (T : Type) (c : Type -> Type) (v : variant) : Type := fold_right (fun x acc => fold_right (fun x acc => match x with | Inj t => t | Self => c T end -> acc) (c T) x -> acc) (M -> T) v.",
+            "VernacDefinition",
+            "66a8d3aafd8959b547953f120957518cc30980a0"
+        ],
+        [
+            "End denote.",
+            "VernacEndSegment",
+            "11e47397e6496b0ee639b4f85fe03761a36f71eb"
+        ],
+        [
+            "Class Data (T : Type) : Type := { repr : variant ; into : dataD T repr -> T ; outof : T -> forall A, matchD T A repr ; rec : forall c {_ : CoMonad c}, forall A, recD T A c repr }.",
+            "VernacInductive",
+            "a0388c45b39f3174d61de6b352c964232e24dec8"
+        ],
+        [
+            "Local Open Scope string_scope.",
+            "VernacOpenCloseScope",
+            "347f91aff322dccfab9c81382e495d8430d8e803"
+        ],
+        [
+            "Global Instance Data_nat : Data nat := { repr := nil :: (Self :: nil) :: nil ; outof := fun x _ z s => match x with | 0 => z | S n => s n end ; into := fun d => match d with | inl tt => 0 | inr (inl (n, tt)) => n | inr (inr x) => match x with end end ; rec := fun c _ A z s d => coret ((fix recur (d : nat) {struct d} : c A := match d with | 0 => z | S n => s (recur n) end) d) }.",
+            "VernacInstance",
+            "ac28e732bc2d39dd9ac852fbaf9bc711daa1b638"
+        ],
+        [
+            "Global Instance Data_list {A} : Data (list A) := { repr := (nil) :: (Inj A :: Self :: nil) :: nil ; outof := fun x _ n c => match x with | nil => n | x :: xs => c x xs end ; into := fun d => match d with | inl tt => nil | inr (inl (x, (xs, tt))) => x :: xs | inr (inr x) => match x with end end ; rec := fun c _ T n co d => coret ((fix recur (ds : list A) {struct ds} : c T := match ds with | nil => n | d :: ds => co d (recur ds) end) d) }.",
+            "VernacInstance",
+            "9897e9587a38faaedb787b900b7186ab99621081"
+        ],
+        [
+            "Require Import ExtLib.Programming.Show.",
+            "VernacRequire",
+            "33ecce3e17b8f5e0e2bd7cabf6f21bf44fa05ebd"
+        ],
+        [
+            "Require Import ExtLib.Data.Monads.IdentityMonad.",
+            "VernacRequire",
+            "ee9a94294a3c1dce1ec504019afb3b06d32bc837"
+        ],
+        [
+            "Require Import ExtLib.Structures.Monads.",
+            "VernacRequire",
+            "ccf62bc956bb7986dbd78c1c436059408e19738b"
+        ],
+        [
+            "Global Instance Comoand_Id : CoMonad id := { coret := fun _ x => x ; cobind := fun _ _ f x => x f }.",
+            "VernacInstance",
+            "fd2f385ebbbf108ab939793b81308f8416243abf"
+        ],
+        [
+            "Definition ProductResolve (C : Type -> Type) (r : product) : Type := fold_right (fun t acc => match t with | Inj t => C t * acc | Self => acc end)%type unit r.",
+            "VernacDefinition",
+            "e454e1ac48236a575926caf8bb6c6a50eb99e114"
+        ],
+        [
+            "Definition VariantResolve (C : Type -> Type) (r : variant) : Type := fold_right (fun p acc => ProductResolve C p * acc)%type unit r.",
+            "VernacDefinition",
+            "34f6290c062bbd3ad66c0eb23f16ed8eb2153f87"
+        ],
+        [
+            "Existing Class VariantResolve.",
+            "VernacDeclareClass",
+            "3fc2fc4de7b3cb876314ceba8c484e2d7fdf4f64"
+        ],
+        [
+            "Ltac all_resolve := simpl VariantResolve; simpl ProductResolve; repeat match goal with | |- unit => apply tt | |- (unit * _)%type => constructor; [ apply tt | ] | |- (_ * _)%type => constructor | |- _ => solve [ eauto with typeclass_instances ] end.",
+            "VernacExtend",
+            "36fe35753212d68b4210b4bfd53be04c3d1b58b1"
+        ],
+        [
+            "Hint Extern 0 (ProductResolve _ _) => all_resolve : typeclass_instances.",
+            "VernacHints",
+            "a5e7e46b0fa8a6254f226e84b970514a7da41c8e"
+        ],
+        [
+            "Hint Extern 0 (VariantResolve _ _) => all_resolve : typeclass_instances.",
+            "VernacHints",
+            "6daedba41ee72490fcf7065ec4173a7e498bf5a6"
+        ],
+        [
+            "Definition comma_before (b : bool) (s : showM) : showM := if b then cat (show_exact \",\") s else s.",
+            "VernacDefinition",
+            "222daaa7076fe7b369780305bf7fdf5b45b3820a"
+        ],
+        [
+            "Fixpoint show_product (first : bool) (r : list type) {struct r} : ProductResolve Show r -> (showM -> showM) -> (fold_right (fun (x : type) (acc : Type) => match x with | Self => showM | Inj t => t end -> acc) (showM) r).",
+            "VernacFixpoint",
+            "97f7a114dc4441e50c6e115323b0ac8a6cac4810"
+        ],
+        [
+            "refine ( match r as r return ProductResolve Show r -> (showM -> showM) -> (fold_right (fun (x : type) (acc : Type) => match x with | Self => showM | Inj t => t end -> acc) (showM) r) with | nil => fun _ f => f empty | Self :: rs => fun a f s => @show_product false rs a (fun s' => f (cat s (comma_before first s'))) | Inj t :: rs => fun a f x => @show_product false rs (snd a) (fun s' => f (cat ((fst a) x) (comma_before first s'))) end); simpl in *.",
+            "VernacExtend",
+            "24360ea68fcb2afa5c62e7ca4d9916f48950f0af"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Global Instance Show_data (T : Type) (d : Data T) (AS : VariantResolve Show repr) : Show T := { show := (fix recur (repr : variant) : VariantResolve Show repr -> recD T showM id repr -> T -> showM := match repr as repr return VariantResolve Show repr -> recD T showM id repr -> T -> showM with | nil => fun _ x => x | r :: rs => fun a k' => recur rs (snd a) (k' (show_product true _ (fst a) (fun s' => cat (show_exact \"-\") (cat (show_exact \"(\") (cat s' (show_exact \")\")))))) end) repr AS (rec (c := id) showM) }.",
+            "VernacInstance",
+            "258e91d406bd46625e1933b9f72997d8c161be28"
+        ],
+        [
+            "Eval compute in to_string (M := Show_data _ _) (5 :: 6 :: 7 :: nil).",
+            "VernacCheckMayEval",
+            "4df999357a98f5b5f44384992abada12e147fc39"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "show_product",
+            "line_nb": 31,
+            "steps": [
+                {
+                    "command": [
+                        "refine ( match r as r return ProductResolve Show r -> (showM -> showM) -> (fold_right (fun (x : type) (acc : Type) => match x with | Self => showM | Inj t => t end -> acc) (showM) r) with | nil => fun _ f => f empty | Self :: rs => fun a f s => @show_product false rs a (fun s' => f (cat s (comma_before first s'))) | Inj t :: rs => fun a f x => @show_product false rs (snd a) (fun s' => f (cat ((fst a) x) (comma_before first s'))) end); simpl in *.",
+                        "VernacExtend",
+                        "24360ea68fcb2afa5c62e7ca4d9916f48950f0af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        }
+    ]
+}

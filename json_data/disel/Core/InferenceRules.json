@@ -1,0 +1,1063 @@
+{
+    "filename": "Core/InferenceRules.v",
+    "coq_project": "disel",
+    "vernac_cmds": [
+        [
+            "From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq.",
+            "VernacRequire",
+            "037d2ffdc90053d89d1b918c36daaeab721d2d83"
+        ],
+        [
+            "From mathcomp Require Import path.",
+            "VernacRequire",
+            "7c70f445c754a2a74114416d587d02e512c693e2"
+        ],
+        [
+            "Require Import Eqdep.",
+            "VernacRequire",
+            "a499933d0898d4c0e235af789d9252f633426d20"
+        ],
+        [
+            "Require Import Relation_Operators.",
+            "VernacRequire",
+            "5c09f52be79db9d019c350cc3153659920102fbb"
+        ],
+        [
+            "From fcsl Require Import pred prelude ordtype finmap pcm unionmap heap.",
+            "VernacRequire",
+            "41347af8188b8bd95ca7fa1d9e375300903274c8"
+        ],
+        [
+            "From DiSeL Require Import Domain Freshness State EqTypeX DepMaps Protocols Worlds NetworkSem Rely.",
+            "VernacRequire",
+            "92146348786ae8d4e6b443a6287cdc4dd9200516"
+        ],
+        [
+            "From DiSeL Require Import Actions Injection Process Always HoareTriples InductiveInv.",
+            "VernacRequire",
+            "f8013684336dd3c27b77146fd029d8ff4b9c87f7"
+        ],
+        [
+            "Set Implicit Arguments.",
+            "VernacSetOption",
+            "9e84ff8896f028601d8aded48c1d4aebe60aa584"
+        ],
+        [
+            "Unset Strict Implicit.",
+            "VernacUnsetOption",
+            "2842adaf6959318f2042805935c46f513bdc0348"
+        ],
+        [
+            "Import Prenex Implicits.",
+            "VernacUnsetOption",
+            "444e5f0be4b25d9b1fd556943a447ec10046d151"
+        ],
+        [
+            "Definition logvar {B A} (s : A -> spec B) : spec B := (fun i => exists x : A, (s x).1 i, fun y i m => forall x : A, (s x).2 y i m).",
+            "VernacDefinition",
+            "03a9a9aefdc8bab4222d2333ec50320510daa6d7"
+        ],
+        [
+            "Definition binarify {A} (p : pre) (q : cont A) : spec A := (p, fun i y m => p i -> q y m).",
+            "VernacDefinition",
+            "d217ad459d1af6ef5551de3b2cb4fea0d6eac960"
+        ],
+        [
+            "Notation \"'DHT' [ this , W ] ( p , q ) \" := (DTbin this W (binarify p q)) (at level 0, format \"'[hv ' DHT [ this , W ] ( '[' p , '/' q ']' ) ']'\").",
+            "VernacNotation",
+            "754cb5e2bf1e560f8306165f1834e3b68c19d757"
+        ],
+        [
+            "Notation \"{ x .. y }, 'DHT' [ this , W ] ( p , q )\" := (DTbin this W (logvar (fun x => .. (logvar (fun y => binarify p q)) .. ))) (at level 0, x binder, y binder, right associativity, format \"'[hv ' { x .. y }, '/ ' DHT [ this , W ] ( '[' p , '/' q ']' ) ']'\").",
+            "VernacNotation",
+            "ce465a2b432aa64f1dac0c36b3258f6e03a6084f"
+        ],
+        [
+            "Section BasicRules.",
+            "VernacBeginSection",
+            "ca70a939a7c948036d9604e16d02af4cd25ab7bf"
+        ],
+        [
+            "Variable this : nid.",
+            "VernacAssumption",
+            "242c7869c0bef3fe166243583278f6bbaa63bbf4"
+        ],
+        [
+            "Lemma vrf_coh W A (e : DT this W A) i r : (i \\In Coh W -> verify i e r) -> verify i e r.",
+            "VernacStartTheoremProof",
+            "341a0dbf4f680e1f61382fc4e842abf67b0e671e"
+        ],
+        [
+            "by move=>H C; apply: H.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma vrf_pre W A (e : DT this W A) i i' (k : cont A) : verify i e k -> network_rely W this i i' -> verify i' e k.",
+            "VernacStartTheoremProof",
+            "efe2d2152a552d10f0fbc238ecebaf7fd282f2b5"
+        ],
+        [
+            "move=>H M Ci' t H'; case: (rely_coh M)=>Ci _.",
+            "VernacExtend",
+            "a01b3d93f426ff68d360351709a5fa5af822af32"
+        ],
+        [
+            "by apply: aft_imp (alw_envs (H Ci t H') M).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma vrf_post W A (e : DT this W A) i (k : cont A) : verify i e k -> verify i e (fun x m => forall m', network_rely W this m m' -> k x m').",
+            "VernacStartTheoremProof",
+            "029a8f5c541aced42926dad7c1502e7a3eff51e3"
+        ],
+        [
+            "move=>H Ci t H'; move: (alw_envsq (H Ci t H')).",
+            "VernacExtend",
+            "8b784377bdc4d565ff66d4cf36a6041e9354c156"
+        ],
+        [
+            "apply: alw_imp=>s p Cs H2 s3 M v E; apply: H2 E _ M.",
+            "VernacExtend",
+            "8d9dae45eeb3a769b8a865cef8ae476451f63802"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma bind_rule W A B (e1 : DT this W A) (e2 : A -> DT this W B) i (q : cont A) (r : cont B) : verify i e1 q -> (forall y j, q y j -> j \\In Coh W -> verify j (e2 y) r) -> verify i (bind e1 e2) r.",
+            "VernacStartTheoremProof",
+            "88dc8eb9207f60bf23e748c3df3c46db0e1d6f15"
+        ],
+        [
+            "move=>H1 H2 Ci t [->|[t'][H3 H4]].",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by apply: alw_unfin=>//; move/alw_coh: (H1 Unfinished (prog_unfin e1)).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "by apply: aft_bnd H3 _; move/(H1 Ci): H4; apply: aft_imp=>y j Cj H; apply: H2.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Arguments bind_rule [W A B e1 e2 i].",
+            "VernacArguments",
+            "832e66fdfa49591b95ffc359d8390de0c0ef1209"
+        ],
+        [
+            "Lemma step W A B (e1 : DT this W A) (e2 : A -> DT this W B) i (r : cont B) : verify i e1 (fun y m => verify m (e2 y) r) -> verify i (bind e1 e2) r.",
+            "VernacStartTheoremProof",
+            "b409598d133998852dcb14791c5b6937251b9b5c"
+        ],
+        [
+            "by move=>H; apply: (bind_rule (fun y m => verify m (e2 y) r)).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma call_rule' W A i (f : DT this W A) (k : cont A) : (i \\In Coh W -> pre_of f i) -> (forall x m, post_of f i x m -> m \\In Coh W -> k x m) -> verify i f k.",
+            "VernacStartTheoremProof",
+            "a06216f6da47524ad44864862409b8e6d79c27dd"
+        ],
+        [
+            "case: f=>s [e] /= H H1 H2 Ci t H3.",
+            "VernacExtend",
+            "e00fff71ff314c991514fc71c41a3556702e444a"
+        ],
+        [
+            "apply: aft_imp (H i t (H1 Ci) Ci H3).",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "by move=>v m Cm H4; apply: H2.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma call_rule W A (p : Pred state) (q : A -> Pred state) i {e} (k : cont A) : (i \\In Coh W -> p i) -> (forall x m, q x m -> m \\In Coh W -> k x m) -> verify i (@with_spec this W A (binarify p q) e) k.",
+            "VernacStartTheoremProof",
+            "c45457d06cb559b5f050464916b6bddb58e54b0b"
+        ],
+        [
+            "move=>H1 H2; apply: vrf_coh=>C; apply: call_rule'=>//.",
+            "VernacExtend",
+            "e374b6c583d80c9d8b579c06df7953342f99f751"
+        ],
+        [
+            "by move=>x m /(_ (H1 C)); apply: H2.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Section GhostRules.",
+            "VernacBeginSection",
+            "9f473b57558e7cac5e0bab3abac7d20aa60777e3"
+        ],
+        [
+            "Variables (W : world) (A B C : Type).",
+            "VernacAssumption",
+            "f97b68d7675d2658e1bb50381b6a2e3018b703f0"
+        ],
+        [
+            "Lemma vrf_mono (e : DT this W A) i (r1 r2 : cont A) : r1 <== r2 -> verify i e r1 -> verify i e r2.",
+            "VernacStartTheoremProof",
+            "e315cf7ae518718ec469d503d9c654c8c7cce37e"
+        ],
+        [
+            "by move=>T H1 C' t; move/(H1 C'); apply: aft_imp=>v m _; apply: T.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Variable (e : DT this W A).",
+            "VernacAssumption",
+            "f31599446b36e75eb7f5e1b2644348074faa70ad"
+        ],
+        [
+            "Lemma ghE (s : B -> C -> spec A) : conseq e (logvar (fun x => logvar (s x))) <-> conseq e (logvar (fun xy => s xy.1 xy.2)).",
+            "VernacStartTheoremProof",
+            "67e720dde00c7e1004853ccd334350c9cd7b0a03"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "move=>/= H1 i [[x y]] H2.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "have: exists x1 y1, (s x1 y1).1 i by exists x, y.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by move/H1; apply: vrf_mono=>y1 m1 T1 [x2 y2]; apply: (T1 x2 y2).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "move=>/= H1 i [x][y] H2.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "have: exists x, (s x.1 x.2).1 i by exists (x, y).",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by move/H1; apply: vrf_mono=>y1 m1 T1 x2 y2; apply: (T1 (x2, y2)).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma ghC (p : B -> pre) (q : B -> A -> pre) : (forall i x, p x i -> i \\In Coh W -> verify i e (q x)) -> conseq e (logvar (fun x => binarify (p x) (q x))).",
+            "VernacStartTheoremProof",
+            "06d0b25d935d911d220c98e892a157e6b2874b81"
+        ],
+        [
+            "move=>H i /= [x Hp] Ci t Ht.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "have S : alwsafe i t by apply: alw_imp (H i x Hp Ci Ci t Ht).",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by apply/aftA=>// y; apply/aftI=>// /H; apply.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Variables (s : C -> spec A) (f : DTbin this W (logvar s)).",
+            "VernacAssumption",
+            "8741c2a82cf0182ffc6313180bfd2bf4c11f6271"
+        ],
+        [
+            "Lemma gh_conseq t : conseq f (s t).",
+            "VernacStartTheoremProof",
+            "430fabbf2f50600388b0d807ceea6e97bab4bdb1"
+        ],
+        [
+            "case E: (s t)=>[a b] h /= H; apply: call_rule'=>[|x m].",
+            "VernacExtend",
+            "d62e4c271de3f2a9ff5062b8b89d3c57d965c518"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by exists t; rewrite E.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "by move/(_ t); rewrite E.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma gh_ex g i (k : cont A) : verify i (do' (@gh_conseq g)) k -> verify i (@with_spec this W A (logvar s) f) k.",
+            "VernacStartTheoremProof",
+            "f2a9883565e88eecd7e384100ef74ebbe0191694"
+        ],
+        [
+            "by [].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End GhostRules.",
+            "VernacEndSegment",
+            "5bc41d52281debb488ab797cd9d6e76ef66786f9"
+        ],
+        [
+            "Arguments gh_ex [W A C s f].",
+            "VernacArguments",
+            "70c0b84c1a6bab2cc536f1481eef773661b2d423"
+        ],
+        [
+            "Lemma act_rule W A (a: action W A this) i (r : cont A) : (forall j, network_rely W this i j -> a_safe a j /\\ forall y k m, (exists pf : a_safe a j, a_step pf k y) -> network_rely W this k m -> r y m) -> verify i (act a) r.",
+            "VernacStartTheoremProof",
+            "ac1b847beea4db687b2537d8826e64a88156a8ff"
+        ],
+        [
+            "move=>H C p; case=>Z; subst p; first by apply: (alw_unfin C).",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "apply: (alw_act C)=>j R; case: (H j R)=>{H}S H; exists S.",
+            "VernacExtend",
+            "7271250e984ceb1ba4efd541f6cf4dbbd0075a49"
+        ],
+        [
+            "split=>//k v m St R' v'[]<-.",
+            "VernacExtend",
+            "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+        ],
+        [
+            "have X: (exists pf : a_safe a j, a_step pf k v) by exists S.",
+            "VernacExtend",
+            "406cde1174359c53bf162a2a18c4eede395555f9"
+        ],
+        [
+            "by apply: (H _ _ _ X R').",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma ret_rule W A i (v : A) (r : cont A) : (forall m, network_rely W this i m -> r v m) -> verify i (ret this W v) r.",
+            "VernacStartTheoremProof",
+            "0f0a121ecaab4feebede5d2a9dc9a783209e1ca4"
+        ],
+        [
+            "move=>H C p; case=>Z; subst p; first by apply: alw_unfin.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "by apply: alw_ret=>//m R v'[]<-; apply: H.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End BasicRules.",
+            "VernacEndSegment",
+            "3ee5616e218dd6a86d9d4a3aea9ab9a4fc3909e4"
+        ],
+        [
+            "Section InjectLemmas.",
+            "VernacBeginSection",
+            "e4120d13a53a43597fd04d412cf1e1cd321395fc"
+        ],
+        [
+            "Variable this : nid.",
+            "VernacAssumption",
+            "242c7869c0bef3fe166243583278f6bbaa63bbf4"
+        ],
+        [
+            "Variables (W V : world) (K : hooks) (A : Type) (w : injects V W K).",
+            "VernacAssumption",
+            "7e995450cd15ea2eb1deeaca0c8d9b8502357630"
+        ],
+        [
+            "Notation W2 := (inj_ext w).",
+            "VernacSyntacticDefinition",
+            "c7a8c3ce43aa605c3f289f38ff7c82776c55ae74"
+        ],
+        [
+            "Variable (e1 : DT this V A).",
+            "VernacAssumption",
+            "4af9afdb2d6b5fc7e39ecd055903ec9f0b7c6847"
+        ],
+        [
+            "Lemma inject_rule i j (r : cont A) : i \\In Coh V -> verify i e1 (fun x i' => forall j', i' \\+ j' \\In Coh W -> network_rely W2 this j j' -> r x (i' \\+ j')) -> verify (i \\+ j) (inject w e1) r.",
+            "VernacStartTheoremProof",
+            "cc7902e11ddfa620b100c1ce2bd028e4f992aa10"
+        ],
+        [
+            "move=>Ci H C t [->|[t' [H' ->{t}]]]; first by apply: alw_unfin.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "move/aft_inject: {H H'} (H Ci _ H'); move/(_ _ _ w _ C).",
+            "VernacExtend",
+            "8b784377bdc4d565ff66d4cf36a6041e9354c156"
+        ],
+        [
+            "apply: aft_imp=>v s Cs [i'][j'][E] Ci' S'.",
+            "VernacExtend",
+            "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+        ],
+        [
+            "by rewrite {s}E in Cs *; apply.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End InjectLemmas.",
+            "VernacEndSegment",
+            "97829b52393559a32e53ceedfaaf66b3567adf4c"
+        ],
+        [
+            "Section InductiveInvLemmas.",
+            "VernacBeginSection",
+            "2e0727498f20f045209b125dcc1968cc8d365877"
+        ],
+        [
+            "Variable pr : protocol.",
+            "VernacAssumption",
+            "d6790772eb3e4aa6e3d921860f3249ca87b4f0f4"
+        ],
+        [
+            "Notation l := (plab pr).",
+            "VernacSyntacticDefinition",
+            "70cefb7a5b2500da653faa3042413b33e5c3a49e"
+        ],
+        [
+            "Variable I : dstatelet -> pred nid -> Prop.",
+            "VernacAssumption",
+            "d24dd684b16718059d65754269e40f62bc07f5e4"
+        ],
+        [
+            "Variable ii : InductiveInv pr I.",
+            "VernacAssumption",
+            "9e0a00beb44958f6d361567e90d4971ed69b712d"
+        ],
+        [
+            "Variables (A : Type) (this: nid).",
+            "VernacAssumption",
+            "bfb9a170673c785934c00855e41e8f7ae638fe42"
+        ],
+        [
+            "Notation V := (mkWorld pr).",
+            "VernacSyntacticDefinition",
+            "7ad8b8c12324745ceecc43fd86d0a3078dcdb3b5"
+        ],
+        [
+            "Notation W := (mkWorld (ProtocolWithIndInv ii)).",
+            "VernacSyntacticDefinition",
+            "423010b81a46b9c209c8faa3c7ee9cc2646ccfd4"
+        ],
+        [
+            "Variable (e : DT this V A).",
+            "VernacAssumption",
+            "84ae548b43d6c49f0b5d00064c0fbdf266bef597"
+        ],
+        [
+            "Notation getS i := (getStatelet i l).",
+            "VernacSyntacticDefinition",
+            "b469b3fcd4fe91d452f8f4fe2aa5f5a738e78646"
+        ],
+        [
+            "Lemma with_inv_rule' i (r : cont A) : verify i e (fun x m => I (getS m) (nodes pr (getS m)) -> r x m) -> verify i (with_inv ii e) r.",
+            "VernacStartTheoremProof",
+            "c193a193224ab5ec5b4af3b57c26171ed63e61ed"
+        ],
+        [
+            "move=> H C t [->|[t' [H' ->{t}]]]; first by apply: alw_unfin.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "move/aft_ind_inv: {H H'}(H (with_inv_coh C) _ H')=>/(_ _ _ C).",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "apply: aft_imp=>v m _[C']; apply.",
+            "VernacExtend",
+            "d2db5e4c6380ef5fe53e553c4321ddd3aea367f2"
+        ],
+        [
+            "by case: C'=>_ _ _ _/(_ l); rewrite prEq; case.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma with_inv_rule i (r : cont A) : verify i e (fun x m => r x m) -> verify i (with_inv ii e) r.",
+            "VernacStartTheoremProof",
+            "e3cb1cf935ad5797205a151bfa908918456e16b7"
+        ],
+        [
+            "move=>H; apply: with_inv_rule'.",
+            "VernacExtend",
+            "d6ebf3361f380a12d5c2c9bbb7ea363132c48b36"
+        ],
+        [
+            "by move=>H1 p H2; move: (H H1 p H2)=>G; apply: (aft_imp _ G).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End InductiveInvLemmas.",
+            "VernacEndSegment",
+            "c4c7d761b0fa8eb265689bcc9805f056c9b0ea7a"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "vrf_coh",
+            "line_nb": 16,
+            "steps": [
+                {
+                    "command": [
+                        "by move=>H C; apply: H.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "vrf_pre",
+            "line_nb": 19,
+            "steps": [
+                {
+                    "command": [
+                        "move=>H M Ci' t H'; case: (rely_coh M)=>Ci _.",
+                        "VernacExtend",
+                        "a01b3d93f426ff68d360351709a5fa5af822af32"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply: aft_imp (alw_envs (H Ci t H') M).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "vrf_post",
+            "line_nb": 23,
+            "steps": [
+                {
+                    "command": [
+                        "move=>H Ci t H'; move: (alw_envsq (H Ci t H')).",
+                        "VernacExtend",
+                        "8b784377bdc4d565ff66d4cf36a6041e9354c156"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply: alw_imp=>s p Cs H2 s3 M v E; apply: H2 E _ M.",
+                        "VernacExtend",
+                        "8d9dae45eeb3a769b8a865cef8ae476451f63802"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "bind_rule",
+            "line_nb": 27,
+            "steps": [
+                {
+                    "command": [
+                        "move=>H1 H2 Ci t [->|[t'][H3 H4]].",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply: alw_unfin=>//; move/alw_coh: (H1 Unfinished (prog_unfin e1)).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply: aft_bnd H3 _; move/(H1 Ci): H4; apply: aft_imp=>y j Cj H; apply: H2.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "step",
+            "line_nb": 34,
+            "steps": [
+                {
+                    "command": [
+                        "by move=>H; apply: (bind_rule (fun y m => verify m (e2 y) r)).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "vrf_mono",
+            "line_nb": 48,
+            "steps": [
+                {
+                    "command": [
+                        "by move=>T H1 C' t; move/(H1 C'); apply: aft_imp=>v m _; apply: T.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ghE",
+            "line_nb": 52,
+            "steps": [
+                {
+                    "command": [
+                        "split.",
+                        "VernacExtend",
+                        "55abc140132bd88981001ac656020469a8d503eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "move=>/= H1 i [[x y]] H2.",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "have: exists x1 y1, (s x1 y1).1 i by exists x, y.",
+                        "VernacExtend",
+                        "406cde1174359c53bf162a2a18c4eede395555f9"
+                    ]
+                },
+                {
+                    "command": [
+                        "by move/H1; apply: vrf_mono=>y1 m1 T1 [x2 y2]; apply: (T1 x2 y2).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "move=>/= H1 i [x][y] H2.",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "have: exists x, (s x.1 x.2).1 i by exists (x, y).",
+                        "VernacExtend",
+                        "406cde1174359c53bf162a2a18c4eede395555f9"
+                    ]
+                },
+                {
+                    "command": [
+                        "by move/H1; apply: vrf_mono=>y1 m1 T1 x2 y2; apply: (T1 (x2, y2)).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ghC",
+            "line_nb": 62,
+            "steps": [
+                {
+                    "command": [
+                        "move=>H i /= [x Hp] Ci t Ht.",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "have S : alwsafe i t by apply: alw_imp (H i x Hp Ci Ci t Ht).",
+                        "VernacExtend",
+                        "406cde1174359c53bf162a2a18c4eede395555f9"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply/aftA=>// y; apply/aftI=>// /H; apply.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "gh_ex",
+            "line_nb": 74,
+            "steps": [
+                {
+                    "command": [
+                        "by [].",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "act_rule",
+            "line_nb": 79,
+            "steps": [
+                {
+                    "command": [
+                        "move=>H C p; case=>Z; subst p; first by apply: (alw_unfin C).",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply: (alw_act C)=>j R; case: (H j R)=>{H}S H; exists S.",
+                        "VernacExtend",
+                        "7271250e984ceb1ba4efd541f6cf4dbbd0075a49"
+                    ]
+                },
+                {
+                    "command": [
+                        "split=>//k v m St R' v'[]<-.",
+                        "VernacExtend",
+                        "3c42b53d0efc26db114b00541ac5e7fcb29e6aeb"
+                    ]
+                },
+                {
+                    "command": [
+                        "have X: (exists pf : a_safe a j, a_step pf k v) by exists S.",
+                        "VernacExtend",
+                        "406cde1174359c53bf162a2a18c4eede395555f9"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply: (H _ _ _ X R').",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ret_rule",
+            "line_nb": 86,
+            "steps": [
+                {
+                    "command": [
+                        "move=>H C p; case=>Z; subst p; first by apply: alw_unfin.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply: alw_ret=>//m R v'[]<-; apply: H.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "inject_rule",
+            "line_nb": 96,
+            "steps": [
+                {
+                    "command": [
+                        "move=>Ci H C t [->|[t' [H' ->{t}]]]; first by apply: alw_unfin.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "move/aft_inject: {H H'} (H Ci _ H'); move/(_ _ _ w _ C).",
+                        "VernacExtend",
+                        "8b784377bdc4d565ff66d4cf36a6041e9354c156"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply: aft_imp=>v s Cs [i'][j'][E] Ci' S'.",
+                        "VernacExtend",
+                        "4bd6fa79b17bcd2bfb7af091fb325367a20385d6"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite {s}E in Cs *; apply.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "with_inv_rule'",
+            "line_nb": 113,
+            "steps": [
+                {
+                    "command": [
+                        "move=> H C t [->|[t' [H' ->{t}]]]; first by apply: alw_unfin.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "move/aft_ind_inv: {H H'}(H (with_inv_coh C) _ H')=>/(_ _ _ C).",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply: aft_imp=>v m _[C']; apply.",
+                        "VernacExtend",
+                        "d2db5e4c6380ef5fe53e553c4321ddd3aea367f2"
+                    ]
+                },
+                {
+                    "command": [
+                        "by case: C'=>_ _ _ _/(_ l); rewrite prEq; case.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,1854 @@
+{
+    "filename": "raft-proofs/LeaderCompletenessProof.v",
+    "coq_project": "verdi-raft",
+    "vernac_cmds": [
+        [
+            "Require Import Sumbool.",
+            "VernacRequire",
+            "555a25fa361ace801dc7927d5872def951dfbee5"
+        ],
+        [
+            "Require Import VerdiRaft.Raft.",
+            "VernacRequire",
+            "36b0b9afd1c52050ce42daf3c5fa4abb91993f25"
+        ],
+        [
+            "Require Import VerdiRaft.CommonTheorems.",
+            "VernacRequire",
+            "7741fdc8f1b779bdc4f3d3ad167d1a5d2532d984"
+        ],
+        [
+            "Require Import VerdiRaft.RaftRefinementInterface.",
+            "VernacRequire",
+            "927926da3b5a03c3f12be5b77cf55cd407b249d6"
+        ],
+        [
+            "Require Import VerdiRaft.RefinementCommonDefinitions.",
+            "VernacRequire",
+            "2d66be7ea13a35ec414811d217e4d4bc73296c0c"
+        ],
+        [
+            "Require Import VerdiRaft.LeaderCompletenessInterface.",
+            "VernacRequire",
+            "aca3e243ad16d5074a0bde484fd03094037dcb1b"
+        ],
+        [
+            "Require Import VerdiRaft.PrefixWithinTermInterface.",
+            "VernacRequire",
+            "022489ad6938dc85f0e7ce6e6414f2a6a896cb3f"
+        ],
+        [
+            "Require Import VerdiRaft.LeaderLogsTermSanityInterface.",
+            "VernacRequire",
+            "53da240f3d8778664af5d06e2fbcecf1b2112729"
+        ],
+        [
+            "Require Import VerdiRaft.LeaderLogsPreservedInterface.",
+            "VernacRequire",
+            "8a56148ad97a75146bf790de55da60d0142af736"
+        ],
+        [
+            "Require Import VerdiRaft.EveryEntryWasCreatedInterface.",
+            "VernacRequire",
+            "ba47472e8fdbe764a6d615a70715c67c24f1d8d0"
+        ],
+        [
+            "Require Import VerdiRaft.LeaderLogsVotesWithLogInterface.",
+            "VernacRequire",
+            "619c69a5dec1737d8d8e35f2e4bac18eada5daaa"
+        ],
+        [
+            "Require Import VerdiRaft.AllEntriesVotesWithLogInterface.",
+            "VernacRequire",
+            "b08340f84f9e55eac6829d90d5e4921aad7bc32a"
+        ],
+        [
+            "Require Import VerdiRaft.VotesWithLogSortedInterface.",
+            "VernacRequire",
+            "682353e95e2d7c622740e46cd2bbc6a16c86638a"
+        ],
+        [
+            "Require Import VerdiRaft.TermsAndIndicesFromOneInterface.",
+            "VernacRequire",
+            "1cabce8e1fb1fc4f49e6cfe1d77edc3466645afd"
+        ],
+        [
+            "Require Import VerdiRaft.LeaderLogsLogMatchingInterface.",
+            "VernacRequire",
+            "c6e088cac0b02994ea8f9304865e1dc2cdf541c5"
+        ],
+        [
+            "Section LeaderCompleteness.",
+            "VernacBeginSection",
+            "841eeb4fb9d081ddfeca93c7d70d7e59e1070b23"
+        ],
+        [
+            "Context {orig_base_params : BaseParams}.",
+            "VernacContext",
+            "69028e681894580fbc36a6124a9136decfafb159"
+        ],
+        [
+            "Context {one_node_params : OneNodeParams orig_base_params}.",
+            "VernacContext",
+            "013ed31ca1bcacb0528fc416f1059cfa49b9df65"
+        ],
+        [
+            "Context {raft_params : RaftParams orig_base_params}.",
+            "VernacContext",
+            "f5c24333154da8ee6ae37600b526f95496c92448"
+        ],
+        [
+            "Context {rri : raft_refinement_interface}.",
+            "VernacContext",
+            "34acb9bc0df96db7775fdb1297478e309d48058c"
+        ],
+        [
+            "Context {pwti : prefix_within_term_interface}.",
+            "VernacContext",
+            "670e58cb4bff58ecd428768eb44cb8fd82ab4c34"
+        ],
+        [
+            "Context {lltsi : leaderLogs_term_sanity_interface}.",
+            "VernacContext",
+            "ebaf95621c7401b5609e1757709227d5b5e8514d"
+        ],
+        [
+            "Context {llpi : leaderLogs_preserved_interface}.",
+            "VernacContext",
+            "dba5c7923695d9f9cbbd6705430ff7b91a77266b"
+        ],
+        [
+            "Context {eewci : every_entry_was_created_interface}.",
+            "VernacContext",
+            "9df2139726bbe03cd8dd15c854e1879d34700382"
+        ],
+        [
+            "Context {llvwli : leaderLogs_votesWithLog_interface}.",
+            "VernacContext",
+            "281110116ee81c21e32b37174ec6a9d27c08cbdf"
+        ],
+        [
+            "Context {aevwli : allEntries_votesWithLog_interface}.",
+            "VernacContext",
+            "2cd60ac8d889c0d32c363b64d5bffb7e2ae2f69b"
+        ],
+        [
+            "Context {vwlsi : votesWithLog_sorted_interface}.",
+            "VernacContext",
+            "f9fb76f44ea8c152f021b60e3e0a4398007d7b21"
+        ],
+        [
+            "Context {taifoi : terms_and_indices_from_one_interface}.",
+            "VernacContext",
+            "86ca2993edbccc910fc70f125d5bca73585e44fd"
+        ],
+        [
+            "Context {lllmi : leaderLogs_entries_match_interface}.",
+            "VernacContext",
+            "a3145224451d2ca7941c6e7c9615d4635cb78311"
+        ],
+        [
+            "Fixpoint contradicting_leader_logs_on_leader l t e := match l with | (t', log') :: l' => if (sumbool_and _ _ _ _ (lt_dec t t') (sumbool_not _ _ (in_dec entry_eq_dec e log'))) then (t', log') :: contradicting_leader_logs_on_leader l' t e else contradicting_leader_logs_on_leader l' t e | [] => [] end.",
+            "VernacFixpoint",
+            "c649cbdb59c9adb909f9c6d57eebd1136ee55080"
+        ],
+        [
+            "Fixpoint contradicting_leader_logs net nodes t e : list (term * name * list entry) := match nodes with | h :: nodes' => (map (fun l => (fst l, h, snd l)) (contradicting_leader_logs_on_leader (leaderLogs (fst (nwState net h))) t e)) ++ contradicting_leader_logs net nodes' t e | [] => [] end.",
+            "VernacFixpoint",
+            "05bd0036abb2797b9116d013b587ad5b24a63013"
+        ],
+        [
+            "Definition minimal_contradicting_leader_log net t e := argmin (fun l => fst (fst l)) (contradicting_leader_logs net nodes t e).",
+            "VernacDefinition",
+            "805038edb98a365fb75db7560f3cba162b101aeb"
+        ],
+        [
+            "Lemma contradicting_leader_logs_on_leader_empty : forall l t e, contradicting_leader_logs_on_leader l t e = [] -> forall t' log, In (t', log) l -> t' > t -> In e log.",
+            "VernacStartTheoremProof",
+            "b98e81fe45a27567ec748e91f41829efb9c69e45"
+        ],
+        [
+            "induction l; intros; simpl in *; intuition; subst; repeat break_match; subst; simpl in *; intuition eauto; congruence.",
+            "VernacExtend",
+            "1211afb4b44ebf4266089df1eb624a4db0955aad"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma contradicting_leader_logs_empty : forall net nodes t e, contradicting_leader_logs net nodes t e = [] -> forall h, In h nodes -> contradicting_leader_logs_on_leader (leaderLogs (fst (nwState net h))) t e = [].",
+            "VernacStartTheoremProof",
+            "0d90c9d5ae8ff8877c0e597d84753e5ef0775419"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "induction nodes; simpl in *; intuition; subst; find_apply_lem_hyp app_eq_nil; intuition; find_apply_lem_hyp map_eq_nil; auto.",
+            "VernacExtend",
+            "65a1adbdafa362d880aa3f26c9d161f157d5cb06"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma minimal_contradicting_leader_log_None : forall net t e, minimal_contradicting_leader_log net t e = None -> forall t' log h, In (t', log) (leaderLogs (fst (nwState net h))) -> t' > t -> In e log.",
+            "VernacStartTheoremProof",
+            "0138ce2cb2a16e385a96052b98ce9e19d3f42aa5"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "find_apply_lem_hyp argmin_None.",
+            "VernacExtend",
+            "a81fbe27db424ed2decf4f511993caf1fb53dfea"
+        ],
+        [
+            "eapply contradicting_leader_logs_on_leader_empty; eauto.",
+            "VernacExtend",
+            "3a13360bb158ddf1f7cc5437ccfcff5491a77bb3"
+        ],
+        [
+            "eapply contradicting_leader_logs_empty; eauto.",
+            "VernacExtend",
+            "76bd3154fed0ade0b7619ecc6881d1ae40ffbc7d"
+        ],
+        [
+            "apply all_fin_all.",
+            "VernacExtend",
+            "9864c7e2e691137e8b3f85a90e5a9c3439900ae4"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma In_contradicting_logs_on_leader_elim : forall l t e t' l', In (t', l') (contradicting_leader_logs_on_leader l t e) -> In (t', l') l /\\ t < t' /\\ ~ In e l'.",
+            "VernacStartTheoremProof",
+            "62c4beadedf39f913440156a55aea6072f96aaba"
+        ],
+        [
+            "intros; induction l; simpl in *; intuition; repeat break_match; subst; simpl in *; intuition; find_inversion; intuition.",
+            "VernacExtend",
+            "34059b934194277ce825fbd71365af2bfb7934ab"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma in_contradicting_leader_logs : forall net nodes t e t' h l, In (t', h, l) (contradicting_leader_logs net nodes t e) -> In (t', l) (contradicting_leader_logs_on_leader (leaderLogs (fst (nwState net h))) t e).",
+            "VernacStartTheoremProof",
+            "ace840d6dd16fbaa2862815da2ac467eb45bc95c"
+        ],
+        [
+            "induction nodes; intros; simpl in *; intuition.",
+            "VernacExtend",
+            "d3d0bcd32835351ce3058f45d4edcebbc5d051da"
+        ],
+        [
+            "do_in_app.",
+            "VernacExtend",
+            "2c9b69d223e1c158780a58bcb9177572208a6dad"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "do_in_map.",
+            "VernacExtend",
+            "fa0be9321c6684e706bb9aefb585d66dc4eaa336"
+        ],
+        [
+            "find_inversion.",
+            "VernacExtend",
+            "f1dd355c7c2f63f8f275fc6f55ac72ee2c39f687"
+        ],
+        [
+            "rewrite <- surjective_pairing.",
+            "VernacExtend",
+            "e7bdfaa3cbace889578359d1e96dd4bf4c7deae9"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma in_contradicting_leader_logs_on_leader_in_leaderLog : forall ll t e t' l, In (t', l) (contradicting_leader_logs_on_leader ll t e) -> In (t', l) ll.",
+            "VernacStartTheoremProof",
+            "5f5d1ee2d149b89d53f290157f32b958c21b04cc"
+        ],
+        [
+            "induction ll; intros; simpl in *; intuition.",
+            "VernacExtend",
+            "5533722e65a82b7edeaee661c6cdf99bc2428635"
+        ],
+        [
+            "repeat break_match; simpl in *; intuition eauto.",
+            "VernacExtend",
+            "3aeff48eee175b05ededb807753203d8e8c40ebf"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma in_contradicting_leader_logs_on_leader_not_in_log : forall t' l ll t e, In (t', l) (contradicting_leader_logs_on_leader ll t e) -> In e l -> False.",
+            "VernacStartTheoremProof",
+            "8adabf154d2e44aa8bb7ea8b7275d207b57d89ac"
+        ],
+        [
+            "induction ll; intros; simpl in *; intuition.",
+            "VernacExtend",
+            "5533722e65a82b7edeaee661c6cdf99bc2428635"
+        ],
+        [
+            "repeat break_match; simpl in *; intuition eauto.",
+            "VernacExtend",
+            "3aeff48eee175b05ededb807753203d8e8c40ebf"
+        ],
+        [
+            "find_inversion.",
+            "VernacExtend",
+            "f1dd355c7c2f63f8f275fc6f55ac72ee2c39f687"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma in_contradicting_leader_logs_on_leader_term_lt : forall t' l ll t e, In (t', l) (contradicting_leader_logs_on_leader ll t e) -> t < t'.",
+            "VernacStartTheoremProof",
+            "0df59cf67127dc2cface0b054755662346390151"
+        ],
+        [
+            "induction ll; intros; simpl in *; intuition.",
+            "VernacExtend",
+            "5533722e65a82b7edeaee661c6cdf99bc2428635"
+        ],
+        [
+            "repeat break_match; simpl in *; intuition; repeat find_inversion; eauto.",
+            "VernacExtend",
+            "1e4644d3ebcb6d14bd301b3487390cc8516f731a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma contradicting_leader_logs_on_leader_complete : forall t e t' l ll, In (t', l) ll -> t < t' -> ~ In e l -> In (t', l) (contradicting_leader_logs_on_leader ll t e).",
+            "VernacStartTheoremProof",
+            "85e709a905bbf7bfb0aee7ed3d66dad51f3e213d"
+        ],
+        [
+            "induction ll; intros; simpl in *; intuition; repeat break_match; repeat find_inversion; simpl in *; intuition.",
+            "VernacExtend",
+            "026c18e93c19ef959e5c6f00ec8bc20bc09c41d3"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma contradicting_leader_logs_complete : forall net nodes h t e l t', In h nodes -> In (t', l) (contradicting_leader_logs_on_leader (leaderLogs (fst (nwState net h))) t e) -> In (t', h, l) (contradicting_leader_logs net nodes t e).",
+            "VernacStartTheoremProof",
+            "1fcf3d53f786fc3dc2570177144fbc680a04c002"
+        ],
+        [
+            "induction nodes; intros; simpl in *; intuition.",
+            "VernacExtend",
+            "d3d0bcd32835351ce3058f45d4edcebbc5d051da"
+        ],
+        [
+            "apply in_or_app.",
+            "VernacExtend",
+            "5d96e3be59ed2c78adfe02ab12e779d3ca3f43c0"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "apply in_map_iff.",
+            "VernacExtend",
+            "b128e1e6f601182342113d742a28792f5aaec52c"
+        ],
+        [
+            "eexists.",
+            "VernacExtend",
+            "bab8b1d1a3889cd604eb78d9fc8d0c299d5c3fd6"
+        ],
+        [
+            "intuition eauto.",
+            "VernacExtend",
+            "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma minimal_contradicting_leader_log_elim : forall net t e t' h l, minimal_contradicting_leader_log net t e = Some (t', h, l) -> (t < t' /\\ In (t', l) (leaderLogs (fst (nwState net h))) /\\ ~ In e l /\\ (forall h' t'' l', In (t'', l') (leaderLogs (fst (nwState net h'))) -> (t'' <= t \\/ t'' >= t' \\/ In e l'))).",
+            "VernacStartTheoremProof",
+            "e6ba5b849570d2e72c8de033e502b860c4dd453b"
+        ],
+        [
+            "unfold minimal_contradicting_leader_log.",
+            "VernacExtend",
+            "17412f5b9bab05451d50d1865aa1f622a1e8541e"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "find_apply_lem_hyp argmin_elim.",
+            "VernacExtend",
+            "e097ede3b9c962850f080419a10a382a97a53e70"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "eauto using in_contradicting_leader_logs_on_leader_term_lt, in_contradicting_leader_logs.",
+            "VernacExtend",
+            "14433bed5701b7547ad2db2a18a9f5a058c45c0e"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "eauto using in_contradicting_leader_logs, in_contradicting_leader_logs_on_leader_in_leaderLog.",
+            "VernacExtend",
+            "e1b12fcfc964046f7e9e95aa0cbe6179a51c276b"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "eauto using in_contradicting_leader_logs, in_contradicting_leader_logs_on_leader_not_in_log.",
+            "VernacExtend",
+            "c6f546ceb51e1f490dacb371b631a718cec90111"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct (le_lt_dec t'' t); auto.",
+            "VernacExtend",
+            "87057a4e8e7e3a4bb3d03c0cc1ed80fcb8a276fa"
+        ],
+        [
+            "destruct (le_lt_dec t' t''); auto.",
+            "VernacExtend",
+            "badc6dafaa0876b1088dbe7b9b5fed7021b67ba6"
+        ],
+        [
+            "destruct (in_dec entry_eq_dec e l'); auto.",
+            "VernacExtend",
+            "6517be91c2b388743c43705b617878140de75438"
+        ],
+        [
+            "find_eapply_lem_hyp contradicting_leader_logs_on_leader_complete; eauto.",
+            "VernacExtend",
+            "b49211aed469163b395d26f6513c0cdf2a17f3a7"
+        ],
+        [
+            "find_eapply_lem_hyp contradicting_leader_logs_complete; [|solve [apply all_fin_all]].",
+            "VernacExtend",
+            "e7adc25ba046e98eff22f722bacfb774bbbd8181"
+        ],
+        [
+            "find_apply_hyp_hyp.",
+            "VernacExtend",
+            "5383dcfa01573f561f26c2e7f308613c889a9c8b"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma maxTerm_zero_or_entry : forall l, maxTerm l = 0 \\/ exists e, In e l /\\ eTerm e = maxTerm l.",
+            "VernacStartTheoremProof",
+            "309f121c89e01e9e30e00a8fa6555aaa076f9667"
+        ],
+        [
+            "destruct l; simpl; eauto.",
+            "VernacExtend",
+            "60919470663a62b0fec49b2189f08a34b8d957aa"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma maxIndex_zero_or_entry : forall l, maxIndex l = 0 \\/ exists e, In e l /\\ eIndex e = maxIndex l.",
+            "VernacStartTheoremProof",
+            "9742932401fb2c69090cacca5b17930c3ca680b4"
+        ],
+        [
+            "destruct l; simpl; eauto.",
+            "VernacExtend",
+            "60919470663a62b0fec49b2189f08a34b8d957aa"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem leader_completeness_directly_committed_invariant : forall net, refined_raft_intermediate_reachable net -> leader_completeness_directly_committed net.",
+            "VernacStartTheoremProof",
+            "94663fbf5d21de951c76644371026eb4138cdc3d"
+        ],
+        [
+            "unfold leader_completeness_directly_committed in *.",
+            "VernacExtend",
+            "6281ee0d1e24155867e9fd01046d932fa3d25ee0"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold directly_committed in *.",
+            "VernacExtend",
+            "2416642474741fe6fa334c3424a90905b9d44d82"
+        ],
+        [
+            "destruct (minimal_contradicting_leader_log net (eTerm e) e) eqn:?; eauto using minimal_contradicting_leader_log_None.",
+            "VernacExtend",
+            "8255d7b114c509a2c61983dfda03c8389eeea0ae"
+        ],
+        [
+            "repeat destruct p.",
+            "VernacExtend",
+            "ebb3e56dd3d9f2373e94d5f40ccc306726fa978e"
+        ],
+        [
+            "find_apply_lem_hyp minimal_contradicting_leader_log_elim.",
+            "VernacExtend",
+            "59976524ddb36a148fcf5f23f834556b207da089"
+        ],
+        [
+            "match goal with | [ H : exists _, _ |- _ ] => destruct H as [quorum] end.",
+            "VernacExtend",
+            "9554894751f35fa892662e4f0c6c9560d260d795"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "destruct (le_lt_dec n t).",
+            "VernacExtend",
+            "566d48490c4c9b385ff120666f0b535a58f6f91a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "exfalso.",
+            "VernacExtend",
+            "f6514338e7c49f3c5a647bc69b7154700a8e57f1"
+        ],
+        [
+            "assert (forall e', In e' l -> (eTerm e' < eTerm e) \\/ (eTerm e' = eTerm e /\\ eIndex e' < eIndex e)).",
+            "VernacExtend",
+            "477648ce57d8e31f78de781dee2e1dd638d9e696"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct (lt_eq_lt_dec (eTerm e') (eTerm e)).",
+            "VernacExtend",
+            "6de1ea916d2c57fe8c5419294655839d818c18fa"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "destruct (le_lt_dec (eIndex e) (eIndex e')); auto.",
+            "VernacExtend",
+            "8f78e1f70df9ac82a674daa7ac5b7e82cdbdf455"
+        ],
+        [
+            "assert (exists x, In x quorum).",
+            "VernacExtend",
+            "48ea51750ab0605cbbaea6a0664135d5b94bbda7"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "destruct quorum.",
+            "VernacExtend",
+            "eb539899fbfa4f429d1741552161c3477712336d"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "break_exists.",
+            "VernacExtend",
+            "7914403b406cb602431a8c9ec3a15a70b4d83870"
+        ],
+        [
+            "assert (prefix_within_term (map snd (allEntries (fst (nwState net x)))) l) by (eapply allEntries_leaderLogs_prefix_within_term_invariant; eauto).",
+            "VernacExtend",
+            "aa0fbe02b15ffc6c71e13cef2b2f9643d0b23242"
+        ],
+        [
+            "unfold prefix_within_term in *.",
+            "VernacExtend",
+            "08f2eceef9515f7dce415ec6950e406911d5da80"
+        ],
+        [
+            "exfalso.",
+            "VernacExtend",
+            "f6514338e7c49f3c5a647bc69b7154700a8e57f1"
+        ],
+        [
+            "find_false.",
+            "VernacExtend",
+            "7e33dd334313875602db2ee0c359a86633fe6124"
+        ],
+        [
+            "match goal with | [ H : _ |- _ ] => eapply H; try eassumption; auto; [apply in_map_iff; eexists; split; [|eauto]; auto] end.",
+            "VernacExtend",
+            "13c51070ff63aed2c00f976045c6c24a70a38f9e"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "assert (leaderLogs_term_sanity net) by eauto using leaderLogs_term_sanity_invariant.",
+            "VernacExtend",
+            "70cdd0ba109923d5fd8f34896e35cfd77af07e05"
+        ],
+        [
+            "unfold leaderLogs_term_sanity in *.",
+            "VernacExtend",
+            "aa50114bc0f5bd5cbc1d112e1728c4d07a3ed53c"
+        ],
+        [
+            "assert (eTerm e' < n) by eauto.",
+            "VernacExtend",
+            "f332d720537069b35054582fcaeb3d5218eca4ac"
+        ],
+        [
+            "assert (every_entry_was_created net) by eauto using every_entry_was_created_invariant.",
+            "VernacExtend",
+            "df9e6660a04c6fd02d158e2a86c323eef98606bc"
+        ],
+        [
+            "unfold every_entry_was_created in *.",
+            "VernacExtend",
+            "d73469efa2cd72914bf21ac2f2f18d7f378a2bc6"
+        ],
+        [
+            "find_insterU.",
+            "VernacExtend",
+            "6ca0746835268766fb0820cb40b08242267de6ae"
+        ],
+        [
+            "find_insterU.",
+            "VernacExtend",
+            "6ca0746835268766fb0820cb40b08242267de6ae"
+        ],
+        [
+            "find_insterU.",
+            "VernacExtend",
+            "6ca0746835268766fb0820cb40b08242267de6ae"
+        ],
+        [
+            "find_insterU.",
+            "VernacExtend",
+            "6ca0746835268766fb0820cb40b08242267de6ae"
+        ],
+        [
+            "conclude_using eauto.",
+            "VernacExtend",
+            "484033c221f8c05ef8a18ca87dd6110341b96b77"
+        ],
+        [
+            "conclude_using eauto.",
+            "VernacExtend",
+            "484033c221f8c05ef8a18ca87dd6110341b96b77"
+        ],
+        [
+            "unfold term_was_created in *.",
+            "VernacExtend",
+            "d4b62c8f1f4e5a837abf1cc4c4db8945d1ad677f"
+        ],
+        [
+            "break_exists.",
+            "VernacExtend",
+            "7914403b406cb602431a8c9ec3a15a70b4d83870"
+        ],
+        [
+            "find_copy_apply_hyp_hyp.",
+            "VernacExtend",
+            "aba02b402190dc320a04604cb11be166badfee2e"
+        ],
+        [
+            "repeat break_or_hyp; try omega.",
+            "VernacExtend",
+            "45a2e923c8c8dd268812e1d3a5123550bec15c18"
+        ],
+        [
+            "assert (leaderLogs_preserved net) by eauto using leaderLogs_preserved_invariant.",
+            "VernacExtend",
+            "388ddda1e5366ef2589df1f1dc9815ad0b3157ae"
+        ],
+        [
+            "unfold leaderLogs_preserved in *.",
+            "VernacExtend",
+            "f5a98d01912144a18d2523f82ac039854e8705ef"
+        ],
+        [
+            "exfalso.",
+            "VernacExtend",
+            "f6514338e7c49f3c5a647bc69b7154700a8e57f1"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "assert (leaderLogs_votesWithLog net) by eauto using leaderLogs_votesWithLog_invariant.",
+            "VernacExtend",
+            "8b72601af068b4ba1fc87a023e7ca934cc7d48c2"
+        ],
+        [
+            "unfold leaderLogs_votesWithLog in *.",
+            "VernacExtend",
+            "3a5a56692eb57a4bb7deba3f9b61aa056a99ea9a"
+        ],
+        [
+            "find_apply_hyp_hyp.",
+            "VernacExtend",
+            "5383dcfa01573f561f26c2e7f308613c889a9c8b"
+        ],
+        [
+            "match goal with | [ H : exists _, _ |- _ ] => destruct H as [quorum'] end.",
+            "VernacExtend",
+            "6e7f79e9cbac95407090b2ff666ab148969525ba"
+        ],
+        [
+            "break_and.",
+            "VernacExtend",
+            "90a213dc7b4fc55cb8bc34300101c3eaa0ead551"
+        ],
+        [
+            "assert (NoDup nodes) by eauto using all_fin_NoDup.",
+            "VernacExtend",
+            "b3e309eda03e625df1d41117af929a474997e0bc"
+        ],
+        [
+            "match goal with | H : NoDup nodes, _ : NoDup ?l1, _ : NoDup ?l2 |- _ => eapply pigeon with (l := nodes) (sub1 := l1) (sub2 := l2) in H end; eauto using all_fin_all, name_eq_dec, div2_correct.",
+            "VernacExtend",
+            "6b9f5d411801e1161e948f366f7958d75962b4b5"
+        ],
+        [
+            "match goal with | [ H : exists _, _ |- _ ] => destruct H as [a] end.",
+            "VernacExtend",
+            "ed6ffea1fc111ec11a750e3a5ddc3bcb9f132c77"
+        ],
+        [
+            "break_and.",
+            "VernacExtend",
+            "90a213dc7b4fc55cb8bc34300101c3eaa0ead551"
+        ],
+        [
+            "find_apply_hyp_hyp.",
+            "VernacExtend",
+            "5383dcfa01573f561f26c2e7f308613c889a9c8b"
+        ],
+        [
+            "find_apply_hyp_hyp.",
+            "VernacExtend",
+            "5383dcfa01573f561f26c2e7f308613c889a9c8b"
+        ],
+        [
+            "break_exists.",
+            "VernacExtend",
+            "7914403b406cb602431a8c9ec3a15a70b4d83870"
+        ],
+        [
+            "break_and.",
+            "VernacExtend",
+            "90a213dc7b4fc55cb8bc34300101c3eaa0ead551"
+        ],
+        [
+            "assert (In e x).",
+            "VernacExtend",
+            "92398afea326ccce3781658a896498c5b03b91b3"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "assert (allEntries_votesWithLog net) by eauto using allEntries_votesWithLog_invariant.",
+            "VernacExtend",
+            "820738d356b1cfa03323b2ffffdad9554878297e"
+        ],
+        [
+            "unfold allEntries_votesWithLog in *.",
+            "VernacExtend",
+            "e73cf8e9456dc8654d1b64267b6a4a3fc42a704e"
+        ],
+        [
+            "eapply_prop_hyp In In; eauto.",
+            "VernacExtend",
+            "7c715c9383578d893dc4ecaad962d1689edd8b1a"
+        ],
+        [
+            "break_or_hyp; auto.",
+            "VernacExtend",
+            "bc0936ba30757f549bd44c8dfa8ab884e3750a9a"
+        ],
+        [
+            "break_exists.",
+            "VernacExtend",
+            "7914403b406cb602431a8c9ec3a15a70b4d83870"
+        ],
+        [
+            "break_and.",
+            "VernacExtend",
+            "90a213dc7b4fc55cb8bc34300101c3eaa0ead551"
+        ],
+        [
+            "match goal with | [ H : context [ In _ _ -> _ \\/ _ ], H' : In _ _ |- _ ] => eapply H in H' end.",
+            "VernacExtend",
+            "17561436416e18a32dfe8e9d4a342ccda6c326a1"
+        ],
+        [
+            "repeat (try break_or_hyp; break_and); try omega.",
+            "VernacExtend",
+            "e4d39f6acabfbf65554600c54d579a22b3abe3b4"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "assert (sorted x) by (eapply votesWithLog_sorted_invariant; eauto).",
+            "VernacExtend",
+            "c0dca82155441707bfea932cf08cb699854ce879"
+        ],
+        [
+            "assert (maxTerm x >= eTerm e) by eauto using maxTerm_is_max.",
+            "VernacExtend",
+            "d4e23afc852ffc8da005e55bc097ebbb1ebc3820"
+        ],
+        [
+            "assert (maxIndex x >= eIndex e) by eauto using maxIndex_is_max.",
+            "VernacExtend",
+            "d08bf1bb792206e0559b46acf9fd82e88db3b877"
+        ],
+        [
+            "assert (exists e', In e' l /\\ eTerm e' = maxTerm l /\\ eIndex e' = maxIndex l).",
+            "VernacExtend",
+            "4856e2d62458199e00511cd3075140c450818070"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "assert (eTerm e >= 1 /\\ eIndex e >= 1) by match goal with | [ H : In _ (votesWithLog _) |- _ ] => solve [eapply terms_and_indices_from_one_invariant in H; eauto] end.",
+            "VernacExtend",
+            "b1d209db9bca98b10e2f5cda08f8fb2b0c98f66e"
+        ],
+        [
+            "destruct l.",
+            "VernacExtend",
+            "a4218804e377a0d685aafec59adbc3652d543b9c"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "unfold moreUpToDate in *.",
+            "VernacExtend",
+            "7ac62bd0aceb414238a85952a21d9881e8f77093"
+        ],
+        [
+            "do_bool.",
+            "VernacExtend",
+            "d118a15e0fdc019b84bfe1183a76e968b591dc36"
+        ],
+        [
+            "repeat (intuition; do_bool); try omega.",
+            "VernacExtend",
+            "50c2e40cd7545bbd2374c97d12aed41bf36ffc51"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "match goal with | [ H : exists _, _ |- _ ] => destruct H as [e'] end.",
+            "VernacExtend",
+            "a5780eb9072d4adbb41b89c2d574a86a438b7f10"
+        ],
+        [
+            "break_and.",
+            "VernacExtend",
+            "90a213dc7b4fc55cb8bc34300101c3eaa0ead551"
+        ],
+        [
+            "find_apply_hyp_hyp.",
+            "VernacExtend",
+            "5383dcfa01573f561f26c2e7f308613c889a9c8b"
+        ],
+        [
+            "unfold moreUpToDate in *.",
+            "VernacExtend",
+            "7ac62bd0aceb414238a85952a21d9881e8f77093"
+        ],
+        [
+            "do_bool; repeat (try break_or_hyp; break_and; do_bool); omega.",
+            "VernacExtend",
+            "a3f18caf853a1bc1064596dc1d0e37841c08ae04"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "match goal with | [ H : context [In], H' : context [In] |- _ ] => apply H in H'; intuition; omega end.",
+            "VernacExtend",
+            "5d2260b987883c64fb93081d76a9ce3a8af8bff8"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem leader_completeness_committed_invariant : forall net, refined_raft_intermediate_reachable net -> leader_completeness_committed net.",
+            "VernacStartTheoremProof",
+            "c6c476c2a40ca684fb68e5b3322ce949b6a55bca"
+        ],
+        [
+            "unfold leader_completeness_committed, committed.",
+            "VernacExtend",
+            "9574cefc628e30cebc7147150f1ceef79ad856ce"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "break_exists.",
+            "VernacExtend",
+            "7914403b406cb602431a8c9ec3a15a70b4d83870"
+        ],
+        [
+            "break_and.",
+            "VernacExtend",
+            "90a213dc7b4fc55cb8bc34300101c3eaa0ead551"
+        ],
+        [
+            "find_copy_apply_lem_hyp leader_completeness_directly_committed_invariant.",
+            "VernacExtend",
+            "56ca822dc275cbb564e20e6b1218b10bbe12b39d"
+        ],
+        [
+            "unfold leader_completeness_directly_committed in *.",
+            "VernacExtend",
+            "6281ee0d1e24155867e9fd01046d932fa3d25ee0"
+        ],
+        [
+            "match goal with | [ H : _, H' : directly_committed _ _ |- _ ] => eapply H in H' end; [ | |eauto]; [| omega].",
+            "VernacExtend",
+            "b9c0a261520eb981acba1556e0795cf3f5f70f13"
+        ],
+        [
+            "assert (entries_match (Raft.log (snd (nwState net x))) log) by (eapply leaderLogs_entries_match_invariant; eauto).",
+            "VernacExtend",
+            "d69c4ab350f9978fdc3782386a685275b925afa5"
+        ],
+        [
+            "match goal with | [ H : entries_match _ _ |- _ ] => eapply H end; eauto.",
+            "VernacExtend",
+            "e26a23b2150084e675f5cb12a9c05e873a07886c"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem leader_completeness_invariant : forall net, refined_raft_intermediate_reachable net -> leader_completeness net.",
+            "VernacStartTheoremProof",
+            "517b9ea4ccd3abc316d903afc4f0e5fcb84bb39b"
+        ],
+        [
+            "unfold leader_completeness.",
+            "VernacExtend",
+            "5b7fd7969fad61834afa43cdaa04c6dbd3b5c4d7"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "auto using leader_completeness_directly_committed_invariant.",
+            "VernacExtend",
+            "c9d84c9ebcf4678a0d603320c5a048d099eae85b"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "auto using leader_completeness_committed_invariant.",
+            "VernacExtend",
+            "1f9d9b9a77f94dda3cfc40e4541def8b5634cf69"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Instance lci : leader_completeness_interface.",
+            "VernacInstance",
+            "5c0b1be7e507f49483fde7f753718c520acc3a37"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "exact leader_completeness_invariant.",
+            "VernacExtend",
+            "658c3cda41212ede92c050f765953c6712ead9df"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End LeaderCompleteness.",
+            "VernacEndSegment",
+            "d1995299ff8bdfa944539cf9fbeb73d87cdbd5d9"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "contradicting_leader_logs_on_leader_empty",
+            "line_nb": 32,
+            "steps": [
+                {
+                    "command": [
+                        "induction l; intros; simpl in *; intuition; subst; repeat break_match; subst; simpl in *; intuition eauto; congruence.",
+                        "VernacExtend",
+                        "1211afb4b44ebf4266089df1eb624a4db0955aad"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "contradicting_leader_logs_empty",
+            "line_nb": 35,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "induction nodes; simpl in *; intuition; subst; find_apply_lem_hyp app_eq_nil; intuition; find_apply_lem_hyp map_eq_nil; auto.",
+                        "VernacExtend",
+                        "65a1adbdafa362d880aa3f26c9d161f157d5cb06"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "minimal_contradicting_leader_log_None",
+            "line_nb": 39,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "find_apply_lem_hyp argmin_None.",
+                        "VernacExtend",
+                        "a81fbe27db424ed2decf4f511993caf1fb53dfea"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply contradicting_leader_logs_on_leader_empty; eauto.",
+                        "VernacExtend",
+                        "3a13360bb158ddf1f7cc5437ccfcff5491a77bb3"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply contradicting_leader_logs_empty; eauto.",
+                        "VernacExtend",
+                        "76bd3154fed0ade0b7619ecc6881d1ae40ffbc7d"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply all_fin_all.",
+                        "VernacExtend",
+                        "9864c7e2e691137e8b3f85a90e5a9c3439900ae4"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "In_contradicting_logs_on_leader_elim",
+            "line_nb": 46,
+            "steps": [
+                {
+                    "command": [
+                        "intros; induction l; simpl in *; intuition; repeat break_match; subst; simpl in *; intuition; find_inversion; intuition.",
+                        "VernacExtend",
+                        "34059b934194277ce825fbd71365af2bfb7934ab"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "in_contradicting_leader_logs",
+            "line_nb": 49,
+            "steps": [
+                {
+                    "command": [
+                        "induction nodes; intros; simpl in *; intuition.",
+                        "VernacExtend",
+                        "d3d0bcd32835351ce3058f45d4edcebbc5d051da"
+                    ]
+                },
+                {
+                    "command": [
+                        "do_in_app.",
+                        "VernacExtend",
+                        "2c9b69d223e1c158780a58bcb9177572208a6dad"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition.",
+                        "VernacExtend",
+                        "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+                    ]
+                },
+                {
+                    "command": [
+                        "do_in_map.",
+                        "VernacExtend",
+                        "fa0be9321c6684e706bb9aefb585d66dc4eaa336"
+                    ]
+                },
+                {
+                    "command": [
+                        "find_inversion.",
+                        "VernacExtend",
+                        "f1dd355c7c2f63f8f275fc6f55ac72ee2c39f687"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- surjective_pairing.",
+                        "VernacExtend",
+                        "e7bdfaa3cbace889578359d1e96dd4bf4c7deae9"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "in_contradicting_leader_logs_on_leader_in_leaderLog",
+            "line_nb": 58,
+            "steps": [
+                {
+                    "command": [
+                        "induction ll; intros; simpl in *; intuition.",
+                        "VernacExtend",
+                        "5533722e65a82b7edeaee661c6cdf99bc2428635"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat break_match; simpl in *; intuition eauto.",
+                        "VernacExtend",
+                        "3aeff48eee175b05ededb807753203d8e8c40ebf"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "in_contradicting_leader_logs_on_leader_not_in_log",
+            "line_nb": 62,
+            "steps": [
+                {
+                    "command": [
+                        "induction ll; intros; simpl in *; intuition.",
+                        "VernacExtend",
+                        "5533722e65a82b7edeaee661c6cdf99bc2428635"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat break_match; simpl in *; intuition eauto.",
+                        "VernacExtend",
+                        "3aeff48eee175b05ededb807753203d8e8c40ebf"
+                    ]
+                },
+                {
+                    "command": [
+                        "find_inversion.",
+                        "VernacExtend",
+                        "f1dd355c7c2f63f8f275fc6f55ac72ee2c39f687"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "in_contradicting_leader_logs_on_leader_term_lt",
+            "line_nb": 68,
+            "steps": [
+                {
+                    "command": [
+                        "induction ll; intros; simpl in *; intuition.",
+                        "VernacExtend",
+                        "5533722e65a82b7edeaee661c6cdf99bc2428635"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat break_match; simpl in *; intuition; repeat find_inversion; eauto.",
+                        "VernacExtend",
+                        "1e4644d3ebcb6d14bd301b3487390cc8516f731a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "contradicting_leader_logs_on_leader_complete",
+            "line_nb": 72,
+            "steps": [
+                {
+                    "command": [
+                        "induction ll; intros; simpl in *; intuition; repeat break_match; repeat find_inversion; simpl in *; intuition.",
+                        "VernacExtend",
+                        "026c18e93c19ef959e5c6f00ec8bc20bc09c41d3"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "minimal_contradicting_leader_log_elim",
+            "line_nb": 86,
+            "steps": [
+                {
+                    "command": [
+                        "unfold minimal_contradicting_leader_log.",
+                        "VernacExtend",
+                        "17412f5b9bab05451d50d1865aa1f622a1e8541e"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "find_apply_lem_hyp argmin_elim.",
+                        "VernacExtend",
+                        "e097ede3b9c962850f080419a10a382a97a53e70"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition.",
+                        "VernacExtend",
+                        "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "eauto using in_contradicting_leader_logs_on_leader_term_lt, in_contradicting_leader_logs.",
+                        "VernacExtend",
+                        "14433bed5701b7547ad2db2a18a9f5a058c45c0e"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "eauto using in_contradicting_leader_logs, in_contradicting_leader_logs_on_leader_in_leaderLog.",
+                        "VernacExtend",
+                        "e1b12fcfc964046f7e9e95aa0cbe6179a51c276b"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "eauto using in_contradicting_leader_logs, in_contradicting_leader_logs_on_leader_not_in_log.",
+                        "VernacExtend",
+                        "c6f546ceb51e1f490dacb371b631a718cec90111"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (le_lt_dec t'' t); auto.",
+                        "VernacExtend",
+                        "87057a4e8e7e3a4bb3d03c0cc1ed80fcb8a276fa"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (le_lt_dec t' t''); auto.",
+                        "VernacExtend",
+                        "badc6dafaa0876b1088dbe7b9b5fed7021b67ba6"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (in_dec entry_eq_dec e l'); auto.",
+                        "VernacExtend",
+                        "6517be91c2b388743c43705b617878140de75438"
+                    ]
+                },
+                {
+                    "command": [
+                        "find_eapply_lem_hyp contradicting_leader_logs_on_leader_complete; eauto.",
+                        "VernacExtend",
+                        "b49211aed469163b395d26f6513c0cdf2a17f3a7"
+                    ]
+                },
+                {
+                    "command": [
+                        "find_eapply_lem_hyp contradicting_leader_logs_complete; [|solve [apply all_fin_all]].",
+                        "VernacExtend",
+                        "e7adc25ba046e98eff22f722bacfb774bbbd8181"
+                    ]
+                },
+                {
+                    "command": [
+                        "find_apply_hyp_hyp.",
+                        "VernacExtend",
+                        "5383dcfa01573f561f26c2e7f308613c889a9c8b"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "maxTerm_zero_or_entry",
+            "line_nb": 107,
+            "steps": [
+                {
+                    "command": [
+                        "destruct l; simpl; eauto.",
+                        "VernacExtend",
+                        "60919470663a62b0fec49b2189f08a34b8d957aa"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "maxIndex_zero_or_entry",
+            "line_nb": 110,
+            "steps": [
+                {
+                    "command": [
+                        "destruct l; simpl; eauto.",
+                        "VernacExtend",
+                        "60919470663a62b0fec49b2189f08a34b8d957aa"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "leader_completeness_committed_invariant",
+            "line_nb": 218,
+            "steps": [
+                {
+                    "command": [
+                        "unfold leader_completeness_committed, committed.",
+                        "VernacExtend",
+                        "9574cefc628e30cebc7147150f1ceef79ad856ce"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "break_exists.",
+                        "VernacExtend",
+                        "7914403b406cb602431a8c9ec3a15a70b4d83870"
+                    ]
+                },
+                {
+                    "command": [
+                        "break_and.",
+                        "VernacExtend",
+                        "90a213dc7b4fc55cb8bc34300101c3eaa0ead551"
+                    ]
+                },
+                {
+                    "command": [
+                        "find_copy_apply_lem_hyp leader_completeness_directly_committed_invariant.",
+                        "VernacExtend",
+                        "56ca822dc275cbb564e20e6b1218b10bbe12b39d"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold leader_completeness_directly_committed in *.",
+                        "VernacExtend",
+                        "6281ee0d1e24155867e9fd01046d932fa3d25ee0"
+                    ]
+                },
+                {
+                    "command": [
+                        "match goal with | [ H : _, H' : directly_committed _ _ |- _ ] => eapply H in H' end; [ | |eauto]; [| omega].",
+                        "VernacExtend",
+                        "b9c0a261520eb981acba1556e0795cf3f5f70f13"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (entries_match (Raft.log (snd (nwState net x))) log) by (eapply leaderLogs_entries_match_invariant; eauto).",
+                        "VernacExtend",
+                        "d69c4ab350f9978fdc3782386a685275b925afa5"
+                    ]
+                },
+                {
+                    "command": [
+                        "match goal with | [ H : entries_match _ _ |- _ ] => eapply H end; eauto.",
+                        "VernacExtend",
+                        "e26a23b2150084e675f5cb12a9c05e873a07886c"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "leader_completeness_invariant",
+            "line_nb": 229,
+            "steps": [
+                {
+                    "command": [
+                        "unfold leader_completeness.",
+                        "VernacExtend",
+                        "5b7fd7969fad61834afa43cdaa04c6dbd3b5c4d7"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition.",
+                        "VernacExtend",
+                        "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto using leader_completeness_directly_committed_invariant.",
+                        "VernacExtend",
+                        "c9d84c9ebcf4678a0d603320c5a048d099eae85b"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto using leader_completeness_committed_invariant.",
+                        "VernacExtend",
+                        "1f9d9b9a77f94dda3cfc40e4541def8b5634cf69"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "lci",
+            "line_nb": 237,
+            "steps": [
+                {
+                    "command": [
+                        "split.",
+                        "VernacExtend",
+                        "55abc140132bd88981001ac656020469a8d503eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "exact leader_completeness_invariant.",
+                        "VernacExtend",
+                        "658c3cda41212ede92c050f765953c6712ead9df"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

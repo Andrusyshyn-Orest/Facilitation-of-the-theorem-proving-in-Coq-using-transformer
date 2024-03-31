@@ -1,0 +1,1215 @@
+{
+    "filename": "x86/NeedOp.v",
+    "coq_project": "CompCert",
+    "vernac_cmds": [
+        [
+            "Require Import Coqlib.",
+            "VernacRequire",
+            "bbbe15041aca3a03300067f7acd445b462d537cc"
+        ],
+        [
+            "Require Import AST Integers Floats Values Memory Globalenvs.",
+            "VernacRequire",
+            "3f78d8bda743ee0004f3459dc922ad72301c9647"
+        ],
+        [
+            "Require Import Op NeedDomain RTL.",
+            "VernacRequire",
+            "0135a6b8cb2f51955387bb42f1e5f0bbafd46a8c"
+        ],
+        [
+            "Definition op1 (nv: nval) := nv :: nil.",
+            "VernacDefinition",
+            "6b0872d938036b005b84474386a1c672b09f7b20"
+        ],
+        [
+            "Definition op2 (nv: nval) := nv :: nv :: nil.",
+            "VernacDefinition",
+            "8e37d510b41fd84c91b3c0d377c4e00312fc767f"
+        ],
+        [
+            "Definition needs_of_condition (cond: condition): list nval := match cond with | Cmaskzero n | Cmasknotzero n => op1 (maskzero n) | _ => nil end.",
+            "VernacDefinition",
+            "df74cdbcdeb6f2eff88cee54b83f61566b64ecdb"
+        ],
+        [
+            "Definition needs_of_addressing_32 (addr: addressing) (nv: nval): list nval := match addr with | Aindexed n => op1 (modarith nv) | Aindexed2 n => op2 (modarith nv) | Ascaled sc ofs => op1 (modarith (modarith nv)) | Aindexed2scaled sc ofs => op2 (modarith nv) | Aglobal s ofs => nil | Abased s ofs => op1 (modarith nv) | Abasedscaled sc s ofs => op1 (modarith (modarith nv)) | Ainstack ofs => nil end.",
+            "VernacDefinition",
+            "8a486453f9e1d67a558cbe1c6e7402c5c2c9724a"
+        ],
+        [
+            "Definition needs_of_addressing_64 (addr: addressing) (nv: nval): list nval := match addr with | Aindexed n => op1 (default nv) | Aindexed2 n => op2 (default nv) | Ascaled sc ofs => op1 (default nv) | Aindexed2scaled sc ofs => op2 (default nv) | Aglobal s ofs => nil | Abased s ofs => op1 (default nv) | Abasedscaled sc s ofs => op1 (default nv) | Ainstack ofs => nil end.",
+            "VernacDefinition",
+            "3b64ad61acc85e7122f4991c8a62ae7ae9414a04"
+        ],
+        [
+            "Definition needs_of_addressing (addr: addressing) (nv: nval): list nval := if Archi.ptr64 then needs_of_addressing_64 addr nv else needs_of_addressing_32 addr nv.",
+            "VernacDefinition",
+            "3dfd05c55d08cf1ba0f7934de688744865cd61bf"
+        ],
+        [
+            "Definition needs_of_operation (op: operation) (nv: nval): list nval := match op with | Omove => op1 nv | Ointconst n => nil | Olongconst n => nil | Ofloatconst n => nil | Osingleconst n => nil | Oindirectsymbol id => nil | Ocast8signed => op1 (sign_ext 8 nv) | Ocast8unsigned => op1 (zero_ext 8 nv) | Ocast16signed => op1 (sign_ext 16 nv) | Ocast16unsigned => op1 (zero_ext 16 nv) | Oneg => op1 (modarith nv) | Osub => op2 (default nv) | Omul => op2 (modarith nv) | Omulimm n => op1 (modarith nv) | Omulhs | Omulhu | Odiv | Odivu | Omod | Omodu => op2 (default nv) | Oand => op2 (bitwise nv) | Oandimm n => op1 (andimm nv n) | Oor => op2 (bitwise nv) | Oorimm n => op1 (orimm nv n) | Oxor => op2 (bitwise nv) | Oxorimm n => op1 (bitwise nv) | Onot => op1 (bitwise nv) | Oshl => op2 (default nv) | Oshlimm n => op1 (shlimm nv n) | Oshr => op2 (default nv) | Oshrimm n => op1 (shrimm nv n) | Oshrximm n => op1 (default nv) | Oshru => op2 (default nv) | Oshruimm n => op1 (shruimm nv n) | Ororimm n => op1 (ror nv n) | Oshldimm n => op1 (default nv) | Olea addr => needs_of_addressing_32 addr nv | Omakelong => op2 (default nv) | Olowlong | Ohighlong => op1 (default nv) | Ocast32signed => op1 (default nv) | Ocast32unsigned => op1 (default nv) | Onegl => op1 (default nv) | Oaddlimm _ => op1 (default nv) | Osubl => op2 (default nv) | Omull => op2 (default nv) | Omullimm _ => op1 (default nv) | Omullhs | Omullhu | Odivl | Odivlu | Omodl | Omodlu => op2 (default nv) | Oandl => op2 (default nv) | Oandlimm _ => op1 (default nv) | Oorl => op2 (default nv) | Oorlimm _ => op1 (default nv) | Oxorl => op2 (default nv) | Oxorlimm _ => op1 (default nv) | Onotl => op1 (default nv) | Oshll => op2 (default nv) | Oshllimm _ => op1 (default nv) | Oshrl => op2 (default nv) | Oshrlimm _ => op1 (default nv) | Oshrxlimm n => op1 (default nv) | Oshrlu => op2 (default nv) | Oshrluimm _ => op1 (default nv) | Ororlimm _ => op1 (default nv) | Oleal addr => needs_of_addressing_64 addr nv | Onegf | Oabsf => op1 (default nv) | Oaddf | Osubf | Omulf | Odivf => op2 (default nv) | Onegfs | Oabsfs => op1 (default nv) | Oaddfs | Osubfs | Omulfs | Odivfs => op2 (default nv) | Osingleoffloat | Ofloatofsingle => op1 (default nv) | Ointoffloat | Ofloatofint | Ointofsingle | Osingleofint => op1 (default nv) | Olongoffloat | Ofloatoflong | Olongofsingle | Osingleoflong => op1 (default nv) | Ocmp c => needs_of_condition c end.",
+            "VernacDefinition",
+            "c01cca38236f37723071ee532ca05816e0021dee"
+        ],
+        [
+            "Definition operation_is_redundant (op: operation) (nv: nval): bool := match op with | Ocast8signed => sign_ext_redundant 8 nv | Ocast8unsigned => zero_ext_redundant 8 nv | Ocast16signed => sign_ext_redundant 16 nv | Ocast16unsigned => zero_ext_redundant 16 nv | Oandimm n => andimm_redundant nv n | Oorimm n => orimm_redundant nv n | _ => false end.",
+            "VernacDefinition",
+            "9075a0bd16c0e38b3d31e8805766c69b358ccea2"
+        ],
+        [
+            "Ltac InvAgree := match goal with | [H: vagree_list nil _ _ |- _ ] => inv H; InvAgree | [H: vagree_list (_::_) _ _ |- _ ] => inv H; InvAgree | _ => idtac end.",
+            "VernacExtend",
+            "7cf4274dd9922c1fb0fc3eba3cad79c249a25e0b"
+        ],
+        [
+            "Ltac TrivialExists := match goal with | [ |- exists v, Some ?x = Some v /\\ _ ] => exists x; split; auto | _ => idtac end.",
+            "VernacExtend",
+            "2835c9ef584488292e85a172793639897553db5a"
+        ],
+        [
+            "Section SOUNDNESS.",
+            "VernacBeginSection",
+            "e6bbdd6134d7e98db7d2ebb5be46b84296dd8af8"
+        ],
+        [
+            "Variable ge: genv.",
+            "VernacAssumption",
+            "5dcbd76196753bb6e2da03561ae76151d62a94d8"
+        ],
+        [
+            "Variable sp: block.",
+            "VernacAssumption",
+            "a3dde6ef32946049a345907e86bc5cb3ddf56534"
+        ],
+        [
+            "Variables m m': mem.",
+            "VernacAssumption",
+            "c5780df19097e49bbf0449e5708caf5460bdc821"
+        ],
+        [
+            "Hypothesis PERM: forall b ofs k p, Mem.perm m b ofs k p -> Mem.perm m' b ofs k p.",
+            "VernacAssumption",
+            "d54a8f69a40a2a62c06530b58539f4d1d196353b"
+        ],
+        [
+            "Lemma needs_of_condition_sound: forall cond args b args', eval_condition cond args m = Some b -> vagree_list args args' (needs_of_condition cond) -> eval_condition cond args' m' = Some b.",
+            "VernacStartTheoremProof",
+            "5f8848dcae76c28a7066dec2fe10b94eb0fc80c3"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct cond; simpl in H; try (eapply default_needs_of_condition_sound; eauto; fail); simpl in *; FuncInv; InvAgree.",
+            "VernacExtend",
+            "2c772f0142b2e124bf824b4e5e4b80a83c801cd8"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "eapply maskzero_sound; eauto.",
+            "VernacExtend",
+            "920d8c2c21cbd1436e30985e2b7b54b5993726eb"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct (Val.maskzero_bool v n) as [b'|] eqn:MZ; try discriminate.",
+            "VernacExtend",
+            "b004f6fbfdd54f718c29df36e047d2bfa250e2da"
+        ],
+        [
+            "erewrite maskzero_sound; eauto.",
+            "VernacExtend",
+            "1c99bd913160a16e30e08067dc2cf7b5e7e4dfcf"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma needs_of_addressing_32_sound: forall sp addr args v nv args', eval_addressing32 ge (Vptr sp Ptrofs.zero) addr args = Some v -> vagree_list args args' (needs_of_addressing_32 addr nv) -> exists v', eval_addressing32 ge (Vptr sp Ptrofs.zero) addr args' = Some v' /\\ vagree v v' nv.",
+            "VernacStartTheoremProof",
+            "bdc2cd2caac08928aa177f2fca54bac6b3e35640"
+        ],
+        [
+            "unfold needs_of_addressing_32; intros.",
+            "VernacExtend",
+            "545c96524868493972b35b2ddde43536087c2b15"
+        ],
+        [
+            "destruct addr; simpl in *; FuncInv; InvAgree; TrivialExists; auto using add_sound, mul_sound with na.",
+            "VernacExtend",
+            "a4e3fa1a5ab35b37c39e358dfdda216fe624d5ba"
+        ],
+        [
+            "apply add_sound; auto with na.",
+            "VernacExtend",
+            "725bb00b69d9d151b207764139e99069742d98bc"
+        ],
+        [
+            "apply add_sound; rewrite modarith_idem; auto.",
+            "VernacExtend",
+            "e7ae268f8d58d02fbed5315e68626c564150e7b7"
+        ],
+        [
+            "apply add_sound; auto.",
+            "VernacExtend",
+            "098b768990e015ff5b621beda94e57cbb2a02ac0"
+        ],
+        [
+            "apply add_sound; rewrite modarith_idem; auto with na.",
+            "VernacExtend",
+            "1ba4c2ee058e66f25ba957507bae1d0ba0db4537"
+        ],
+        [
+            "apply mul_sound; rewrite modarith_idem; auto with na.",
+            "VernacExtend",
+            "e492925443aff2953097bff830cb5ca82503d628"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma needs_of_operation_sound: forall op args v nv args', eval_operation ge (Vptr sp Ptrofs.zero) op args m = Some v -> vagree_list args args' (needs_of_operation op nv) -> nv <> Nothing -> exists v', eval_operation ge (Vptr sp Ptrofs.zero) op args' m' = Some v' /\\ vagree v v' nv.",
+            "VernacStartTheoremProof",
+            "2fff053eaf4b4c375924b18593b46f3e44c6583f"
+        ],
+        [
+            "unfold needs_of_operation; intros; destruct op; try (eapply default_needs_of_operation_sound; eauto; fail); simpl in *; FuncInv; InvAgree; TrivialExists.",
+            "VernacExtend",
+            "91d90f8d56fb345b9251b89ad898349b100fdb7c"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply sign_ext_sound; auto.",
+            "VernacExtend",
+            "7c4e8f436ab31794a34ab057feb0fb6873f4b585"
+        ],
+        [
+            "compute; auto.",
+            "VernacExtend",
+            "1311beca6cdf16cb2f815d9c6adb8bab9eb2d9e0"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply zero_ext_sound; auto.",
+            "VernacExtend",
+            "bf62e537fe7e2106331034ae7137b7645e7f5dd0"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply sign_ext_sound; auto.",
+            "VernacExtend",
+            "7c4e8f436ab31794a34ab057feb0fb6873f4b585"
+        ],
+        [
+            "compute; auto.",
+            "VernacExtend",
+            "1311beca6cdf16cb2f815d9c6adb8bab9eb2d9e0"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply zero_ext_sound; auto.",
+            "VernacExtend",
+            "bf62e537fe7e2106331034ae7137b7645e7f5dd0"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply neg_sound; auto.",
+            "VernacExtend",
+            "442a92b5a9df6959462f0a871f779e29dd9e6288"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply mul_sound; auto.",
+            "VernacExtend",
+            "e78b714d58c4cffafa814d142f1243ea2a4585f4"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply mul_sound; auto with na.",
+            "VernacExtend",
+            "54a34433ef036d85cf0cac29a12490919e596aa9"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply and_sound; auto.",
+            "VernacExtend",
+            "247a8633ce565bb39cdfda10d748d031e48b2a2a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply andimm_sound; auto.",
+            "VernacExtend",
+            "5ec943ec6d21ea289c6c4c51c4e78d5a2608c1a1"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply or_sound; auto.",
+            "VernacExtend",
+            "bba494b85769290eb0149bea07f5662d4ef35cc3"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply orimm_sound; auto.",
+            "VernacExtend",
+            "c8847bc690bade30f782104652822a72bc2be773"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply xor_sound; auto.",
+            "VernacExtend",
+            "ec499e6f49e50771924f1ca393e04f195ed465bf"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply xor_sound; auto with na.",
+            "VernacExtend",
+            "ef7ddfd87f43504150c6db59892ab1d72b199cf1"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply notint_sound; auto.",
+            "VernacExtend",
+            "0e7cb6ecf40467c368254e1c098d75e235347cf9"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply shlimm_sound; auto.",
+            "VernacExtend",
+            "7dd22f67277bd60def13060527192737b1c806a5"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply shrimm_sound; auto.",
+            "VernacExtend",
+            "035df6fc05c07f546edc82437c9cb6d0bd838ff4"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply shruimm_sound; auto.",
+            "VernacExtend",
+            "c44dd3bab00442cb5007a3e6a104f3653c91d00d"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply ror_sound; auto.",
+            "VernacExtend",
+            "22f519c44874a40e4ddb0973f6245f2aafdd0d47"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "eapply needs_of_addressing_32_sound; eauto.",
+            "VernacExtend",
+            "95261391d09745b0d6e23305fc9713af39aa0b5a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "change (eval_addressing64 ge (Vptr sp Ptrofs.zero) a args') with (eval_operation ge (Vptr sp Ptrofs.zero) (Oleal a) args' m').",
+            "VernacExtend",
+            "d775f90c3d4bcecab0e4c4f05fa44a4d4c75d2c8"
+        ],
+        [
+            "eapply default_needs_of_operation_sound; eauto.",
+            "VernacExtend",
+            "63184dddeb1bfa13502166761d0e9018d2dd1c1a"
+        ],
+        [
+            "destruct a; simpl in H0; auto.",
+            "VernacExtend",
+            "d7da3a95bf97a6d1cad2468e259617110a2323eb"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct (eval_condition cond args m) as [b|] eqn:EC; simpl in H2.",
+            "VernacExtend",
+            "3a64b67171bee0bd5915696b7b6af22b26988ea6"
+        ],
+        [
+            "erewrite needs_of_condition_sound by eauto.",
+            "VernacExtend",
+            "28af8d53933a8c9f165c64130158b16a55c76960"
+        ],
+        [
+            "subst v; simpl.",
+            "VernacExtend",
+            "3c65c95e4452afff6ce94fbe487fd75ff67ab043"
+        ],
+        [
+            "auto with na.",
+            "VernacExtend",
+            "e76455f19744185c78de02eff1027cb52afe6c75"
+        ],
+        [
+            "subst v; auto with na.",
+            "VernacExtend",
+            "068c94260767225c7bcef06b263aeacefdddd444"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma operation_is_redundant_sound: forall op nv arg1 args v arg1' args', operation_is_redundant op nv = true -> eval_operation ge (Vptr sp Ptrofs.zero) op (arg1 :: args) m = Some v -> vagree_list (arg1 :: args) (arg1' :: args') (needs_of_operation op nv) -> vagree v arg1' nv.",
+            "VernacStartTheoremProof",
+            "a3d31fe3bf4cf7426efbc9eaa68ea90025de2bd3"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct op; simpl in *; try discriminate; inv H1; FuncInv; subst.",
+            "VernacExtend",
+            "631cb11d6958ae04cfd59e92577db817a792a71a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply sign_ext_redundant_sound; auto.",
+            "VernacExtend",
+            "20337c435092e2bef3a5f975a9532a12395490da"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply zero_ext_redundant_sound; auto.",
+            "VernacExtend",
+            "a4b1db8254c2dc968d88919a84b313cb48524a6a"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply sign_ext_redundant_sound; auto.",
+            "VernacExtend",
+            "20337c435092e2bef3a5f975a9532a12395490da"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply zero_ext_redundant_sound; auto.",
+            "VernacExtend",
+            "a4b1db8254c2dc968d88919a84b313cb48524a6a"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply andimm_redundant_sound; auto.",
+            "VernacExtend",
+            "97960bb033dc0f8d6340613c6dca3e8fdd45682c"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply orimm_redundant_sound; auto.",
+            "VernacExtend",
+            "b55facf1b171688ecaf0ff9b8159aafccbf3bc54"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End SOUNDNESS.",
+            "VernacEndSegment",
+            "439afe52c0215156c65a775d7ff784e814b001bc"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "needs_of_condition_sound",
+            "line_nb": 18,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct cond; simpl in H; try (eapply default_needs_of_condition_sound; eauto; fail); simpl in *; FuncInv; InvAgree.",
+                        "VernacExtend",
+                        "2c772f0142b2e124bf824b4e5e4b80a83c801cd8"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply maskzero_sound; eauto.",
+                        "VernacExtend",
+                        "920d8c2c21cbd1436e30985e2b7b54b5993726eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (Val.maskzero_bool v n) as [b'|] eqn:MZ; try discriminate.",
+                        "VernacExtend",
+                        "b004f6fbfdd54f718c29df36e047d2bfa250e2da"
+                    ]
+                },
+                {
+                    "command": [
+                        "erewrite maskzero_sound; eauto.",
+                        "VernacExtend",
+                        "1c99bd913160a16e30e08067dc2cf7b5e7e4dfcf"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "needs_of_addressing_32_sound",
+            "line_nb": 27,
+            "steps": [
+                {
+                    "command": [
+                        "unfold needs_of_addressing_32; intros.",
+                        "VernacExtend",
+                        "545c96524868493972b35b2ddde43536087c2b15"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct addr; simpl in *; FuncInv; InvAgree; TrivialExists; auto using add_sound, mul_sound with na.",
+                        "VernacExtend",
+                        "a4e3fa1a5ab35b37c39e358dfdda216fe624d5ba"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply add_sound; auto with na.",
+                        "VernacExtend",
+                        "725bb00b69d9d151b207764139e99069742d98bc"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply add_sound; rewrite modarith_idem; auto.",
+                        "VernacExtend",
+                        "e7ae268f8d58d02fbed5315e68626c564150e7b7"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply add_sound; auto.",
+                        "VernacExtend",
+                        "098b768990e015ff5b621beda94e57cbb2a02ac0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply add_sound; rewrite modarith_idem; auto with na.",
+                        "VernacExtend",
+                        "1ba4c2ee058e66f25ba957507bae1d0ba0db4537"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply mul_sound; rewrite modarith_idem; auto with na.",
+                        "VernacExtend",
+                        "e492925443aff2953097bff830cb5ca82503d628"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "needs_of_operation_sound",
+            "line_nb": 36,
+            "steps": [
+                {
+                    "command": [
+                        "unfold needs_of_operation; intros; destruct op; try (eapply default_needs_of_operation_sound; eauto; fail); simpl in *; FuncInv; InvAgree; TrivialExists.",
+                        "VernacExtend",
+                        "91d90f8d56fb345b9251b89ad898349b100fdb7c"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply sign_ext_sound; auto.",
+                        "VernacExtend",
+                        "7c4e8f436ab31794a34ab057feb0fb6873f4b585"
+                    ]
+                },
+                {
+                    "command": [
+                        "compute; auto.",
+                        "VernacExtend",
+                        "1311beca6cdf16cb2f815d9c6adb8bab9eb2d9e0"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply zero_ext_sound; auto.",
+                        "VernacExtend",
+                        "bf62e537fe7e2106331034ae7137b7645e7f5dd0"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply sign_ext_sound; auto.",
+                        "VernacExtend",
+                        "7c4e8f436ab31794a34ab057feb0fb6873f4b585"
+                    ]
+                },
+                {
+                    "command": [
+                        "compute; auto.",
+                        "VernacExtend",
+                        "1311beca6cdf16cb2f815d9c6adb8bab9eb2d9e0"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply zero_ext_sound; auto.",
+                        "VernacExtend",
+                        "bf62e537fe7e2106331034ae7137b7645e7f5dd0"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply neg_sound; auto.",
+                        "VernacExtend",
+                        "442a92b5a9df6959462f0a871f779e29dd9e6288"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply mul_sound; auto.",
+                        "VernacExtend",
+                        "e78b714d58c4cffafa814d142f1243ea2a4585f4"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply mul_sound; auto with na.",
+                        "VernacExtend",
+                        "54a34433ef036d85cf0cac29a12490919e596aa9"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply and_sound; auto.",
+                        "VernacExtend",
+                        "247a8633ce565bb39cdfda10d748d031e48b2a2a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply andimm_sound; auto.",
+                        "VernacExtend",
+                        "5ec943ec6d21ea289c6c4c51c4e78d5a2608c1a1"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply or_sound; auto.",
+                        "VernacExtend",
+                        "bba494b85769290eb0149bea07f5662d4ef35cc3"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply orimm_sound; auto.",
+                        "VernacExtend",
+                        "c8847bc690bade30f782104652822a72bc2be773"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply xor_sound; auto.",
+                        "VernacExtend",
+                        "ec499e6f49e50771924f1ca393e04f195ed465bf"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply xor_sound; auto with na.",
+                        "VernacExtend",
+                        "ef7ddfd87f43504150c6db59892ab1d72b199cf1"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply notint_sound; auto.",
+                        "VernacExtend",
+                        "0e7cb6ecf40467c368254e1c098d75e235347cf9"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply shlimm_sound; auto.",
+                        "VernacExtend",
+                        "7dd22f67277bd60def13060527192737b1c806a5"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply shrimm_sound; auto.",
+                        "VernacExtend",
+                        "035df6fc05c07f546edc82437c9cb6d0bd838ff4"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply shruimm_sound; auto.",
+                        "VernacExtend",
+                        "c44dd3bab00442cb5007a3e6a104f3653c91d00d"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply ror_sound; auto.",
+                        "VernacExtend",
+                        "22f519c44874a40e4ddb0973f6245f2aafdd0d47"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply needs_of_addressing_32_sound; eauto.",
+                        "VernacExtend",
+                        "95261391d09745b0d6e23305fc9713af39aa0b5a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "change (eval_addressing64 ge (Vptr sp Ptrofs.zero) a args') with (eval_operation ge (Vptr sp Ptrofs.zero) (Oleal a) args' m').",
+                        "VernacExtend",
+                        "d775f90c3d4bcecab0e4c4f05fa44a4d4c75d2c8"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply default_needs_of_operation_sound; eauto.",
+                        "VernacExtend",
+                        "63184dddeb1bfa13502166761d0e9018d2dd1c1a"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a; simpl in H0; auto.",
+                        "VernacExtend",
+                        "d7da3a95bf97a6d1cad2468e259617110a2323eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (eval_condition cond args m) as [b|] eqn:EC; simpl in H2.",
+                        "VernacExtend",
+                        "3a64b67171bee0bd5915696b7b6af22b26988ea6"
+                    ]
+                },
+                {
+                    "command": [
+                        "erewrite needs_of_condition_sound by eauto.",
+                        "VernacExtend",
+                        "28af8d53933a8c9f165c64130158b16a55c76960"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst v; simpl.",
+                        "VernacExtend",
+                        "3c65c95e4452afff6ce94fbe487fd75ff67ab043"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto with na.",
+                        "VernacExtend",
+                        "e76455f19744185c78de02eff1027cb52afe6c75"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst v; auto with na.",
+                        "VernacExtend",
+                        "068c94260767225c7bcef06b263aeacefdddd444"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "operation_is_redundant_sound",
+            "line_nb": 91,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct op; simpl in *; try discriminate; inv H1; FuncInv; subst.",
+                        "VernacExtend",
+                        "631cb11d6958ae04cfd59e92577db817a792a71a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply sign_ext_redundant_sound; auto.",
+                        "VernacExtend",
+                        "20337c435092e2bef3a5f975a9532a12395490da"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply zero_ext_redundant_sound; auto.",
+                        "VernacExtend",
+                        "a4b1db8254c2dc968d88919a84b313cb48524a6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply sign_ext_redundant_sound; auto.",
+                        "VernacExtend",
+                        "20337c435092e2bef3a5f975a9532a12395490da"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply zero_ext_redundant_sound; auto.",
+                        "VernacExtend",
+                        "a4b1db8254c2dc968d88919a84b313cb48524a6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply andimm_redundant_sound; auto.",
+                        "VernacExtend",
+                        "97960bb033dc0f8d6340613c6dca3e8fdd45682c"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply orimm_redundant_sound; auto.",
+                        "VernacExtend",
+                        "b55facf1b171688ecaf0ff9b8159aafccbf3bc54"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

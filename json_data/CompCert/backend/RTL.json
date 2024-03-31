@@ -1,0 +1,2448 @@
+{
+    "filename": "backend/RTL.v",
+    "coq_project": "CompCert",
+    "vernac_cmds": [
+        [
+            "Require Import Coqlib Maps.",
+            "VernacRequire",
+            "2eb17a425fb3d46ed3d3895043ba33b1c484f324"
+        ],
+        [
+            "Require Import AST Integers Values Events Memory Globalenvs Smallstep.",
+            "VernacRequire",
+            "1b6394edbfcd5ba7774802305f6c164a980aefd2"
+        ],
+        [
+            "Require Import Op Registers.",
+            "VernacRequire",
+            "737041ada834bb354254cc55b0e508d6e34ab4a7"
+        ],
+        [
+            "Definition node := positive.",
+            "VernacDefinition",
+            "4a7016b903dcbad8c67a189dfd088b15da5bfefc"
+        ],
+        [
+            "Inductive instruction: Type := | Inop: node -> instruction | Iop: operation -> list reg -> reg -> node -> instruction | Iload: memory_chunk -> addressing -> list reg -> reg -> node -> instruction | Istore: memory_chunk -> addressing -> list reg -> reg -> node -> instruction | Icall: signature -> reg + ident -> list reg -> reg -> node -> instruction | Itailcall: signature -> reg + ident -> list reg -> instruction | Ibuiltin: external_function -> list (builtin_arg reg) -> builtin_res reg -> node -> instruction | Icond: condition -> list reg -> node -> node -> instruction | Ijumptable: reg -> list node -> instruction | Ireturn: option reg -> instruction.",
+            "VernacInductive",
+            "2e883b3bb79b1875fd563233cb256914e336c6f0"
+        ],
+        [
+            "Definition code: Type := PTree.t instruction.",
+            "VernacDefinition",
+            "1350e7452834b32fda944c4ff4c27b436b63d11d"
+        ],
+        [
+            "Record function: Type := mkfunction { fn_sig: signature; fn_params: list reg; fn_stacksize: Z; fn_code: code; fn_entrypoint: node }.",
+            "VernacInductive",
+            "984f28d288a36296d6ca61ec9898d366cfa02517"
+        ],
+        [
+            "Definition fundef := AST.fundef function.",
+            "VernacDefinition",
+            "9cf622c746a9b58a51cebc97469342b997e49284"
+        ],
+        [
+            "Definition program := AST.program fundef unit.",
+            "VernacDefinition",
+            "cfadb9a12e6df9faa40df706d0e99e4d4aa89bc3"
+        ],
+        [
+            "Definition funsig (fd: fundef) := match fd with | Internal f => fn_sig f | External ef => ef_sig ef end.",
+            "VernacDefinition",
+            "3019fbefbd0cd5f95111e16722a932ed704587d5"
+        ],
+        [
+            "Definition genv := Genv.t fundef unit.",
+            "VernacDefinition",
+            "558ae6d6506288d7eeb39bb497dd26e4fa2a28e4"
+        ],
+        [
+            "Definition regset := Regmap.t val.",
+            "VernacDefinition",
+            "4728a0fded07f8d7323d8a8d957f46a6d56e4a5e"
+        ],
+        [
+            "Fixpoint init_regs (vl: list val) (rl: list reg) {struct rl} : regset := match rl, vl with | r1 :: rs, v1 :: vs => Regmap.set r1 v1 (init_regs vs rs) | _, _ => Regmap.init Vundef end.",
+            "VernacFixpoint",
+            "803c36564f7e8f07f031ea91dc8e89b93b0110a8"
+        ],
+        [
+            "Inductive stackframe : Type := | Stackframe: forall (res: reg) (f: function) (sp: val) (pc: node) (rs: regset), stackframe.",
+            "VernacInductive",
+            "091eb069a148dd6feec55afb27a6fc8763f21ee5"
+        ],
+        [
+            "Inductive state : Type := | State: forall (stack: list stackframe) (f: function) (sp: val) (pc: node) (rs: regset) (m: mem), state | Callstate: forall (stack: list stackframe) (f: fundef) (args: list val) (m: mem), state | Returnstate: forall (stack: list stackframe) (v: val) (m: mem), state.",
+            "VernacInductive",
+            "ec98a798b94a260788a920d42c838c29dd2de894"
+        ],
+        [
+            "Section RELSEM.",
+            "VernacBeginSection",
+            "56cea622d6c9a9251b433cfd4de33058b7d80bb5"
+        ],
+        [
+            "Variable ge: genv.",
+            "VernacAssumption",
+            "5dcbd76196753bb6e2da03561ae76151d62a94d8"
+        ],
+        [
+            "Definition find_function (ros: reg + ident) (rs: regset) : option fundef := match ros with | inl r => Genv.find_funct ge rs#r | inr symb => match Genv.find_symbol ge symb with | None => None | Some b => Genv.find_funct_ptr ge b end end.",
+            "VernacDefinition",
+            "670619ece5ebfeb5d8a17086fa8f883e9431baa8"
+        ],
+        [
+            "Inductive step: state -> trace -> state -> Prop := | exec_Inop: forall s f sp pc rs m pc', (fn_code f)!pc = Some(Inop pc') -> step (State s f sp pc rs m) E0 (State s f sp pc' rs m) | exec_Iop: forall s f sp pc rs m op args res pc' v, (fn_code f)!pc = Some(Iop op args res pc') -> eval_operation ge sp op rs##args m = Some v -> step (State s f sp pc rs m) E0 (State s f sp pc' (rs#res <- v) m) | exec_Iload: forall s f sp pc rs m chunk addr args dst pc' a v, (fn_code f)!pc = Some(Iload chunk addr args dst pc') -> eval_addressing ge sp addr rs##args = Some a -> Mem.loadv chunk m a = Some v -> step (State s f sp pc rs m) E0 (State s f sp pc' (rs#dst <- v) m) | exec_Istore: forall s f sp pc rs m chunk addr args src pc' a m', (fn_code f)!pc = Some(Istore chunk addr args src pc') -> eval_addressing ge sp addr rs##args = Some a -> Mem.storev chunk m a rs#src = Some m' -> step (State s f sp pc rs m) E0 (State s f sp pc' rs m') | exec_Icall: forall s f sp pc rs m sig ros args res pc' fd, (fn_code f)!pc = Some(Icall sig ros args res pc') -> find_function ros rs = Some fd -> funsig fd = sig -> step (State s f sp pc rs m) E0 (Callstate (Stackframe res f sp pc' rs :: s) fd rs##args m) | exec_Itailcall: forall s f stk pc rs m sig ros args fd m', (fn_code f)!pc = Some(Itailcall sig ros args) -> find_function ros rs = Some fd -> funsig fd = sig -> Mem.free m stk 0 f.(fn_stacksize) = Some m' -> step (State s f (Vptr stk Ptrofs.zero) pc rs m) E0 (Callstate s fd rs##args m') | exec_Ibuiltin: forall s f sp pc rs m ef args res pc' vargs t vres m', (fn_code f)!pc = Some(Ibuiltin ef args res pc') -> eval_builtin_args ge (fun r => rs#r) sp m args vargs -> external_call ef ge vargs m t vres m' -> step (State s f sp pc rs m) t (State s f sp pc' (regmap_setres res vres rs) m') | exec_Icond: forall s f sp pc rs m cond args ifso ifnot b pc', (fn_code f)!pc = Some(Icond cond args ifso ifnot) -> eval_condition cond rs##args m = Some b -> pc' = (if b then ifso else ifnot) -> step (State s f sp pc rs m) E0 (State s f sp pc' rs m) | exec_Ijumptable: forall s f sp pc rs m arg tbl n pc', (fn_code f)!pc = Some(Ijumptable arg tbl) -> rs#arg = Vint n -> list_nth_z tbl (Int.unsigned n) = Some pc' -> step (State s f sp pc rs m) E0 (State s f sp pc' rs m) | exec_Ireturn: forall s f stk pc rs m or m', (fn_code f)!pc = Some(Ireturn or) -> Mem.free m stk 0 f.(fn_stacksize) = Some m' -> step (State s f (Vptr stk Ptrofs.zero) pc rs m) E0 (Returnstate s (regmap_optget or Vundef rs) m') | exec_function_internal: forall s f args m m' stk, Mem.alloc m 0 f.(fn_stacksize) = (m', stk) -> step (Callstate s (Internal f) args m) E0 (State s f (Vptr stk Ptrofs.zero) f.(fn_entrypoint) (init_regs args f.(fn_params)) m') | exec_function_external: forall s ef args res t m m', external_call ef ge args m t res m' -> step (Callstate s (External ef) args m) t (Returnstate s res m') | exec_return: forall res f sp pc rs s vres m, step (Returnstate (Stackframe res f sp pc rs :: s) vres m) E0 (State s f sp pc (rs#res <- vres) m).",
+            "VernacInductive",
+            "ff3b2a9617180064835a8347a323292abafdc288"
+        ],
+        [
+            "Lemma exec_Iop': forall s f sp pc rs m op args res pc' rs' v, (fn_code f)!pc = Some(Iop op args res pc') -> eval_operation ge sp op rs##args m = Some v -> rs' = (rs#res <- v) -> step (State s f sp pc rs m) E0 (State s f sp pc' rs' m).",
+            "VernacStartTheoremProof",
+            "eb42cbe42040f6700c3ba8a8a1dfd6d622fbc77a"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "subst rs'.",
+            "VernacExtend",
+            "9838b7316626165aaf5ebddb71c766b3e45c5e05"
+        ],
+        [
+            "eapply exec_Iop; eauto.",
+            "VernacExtend",
+            "f1df713b8f8562641db9513625be5585515bfe65"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma exec_Iload': forall s f sp pc rs m chunk addr args dst pc' rs' a v, (fn_code f)!pc = Some(Iload chunk addr args dst pc') -> eval_addressing ge sp addr rs##args = Some a -> Mem.loadv chunk m a = Some v -> rs' = (rs#dst <- v) -> step (State s f sp pc rs m) E0 (State s f sp pc' rs' m).",
+            "VernacStartTheoremProof",
+            "9e769891bfb1fd63b2f71cff3137c66630329846"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "subst rs'.",
+            "VernacExtend",
+            "9838b7316626165aaf5ebddb71c766b3e45c5e05"
+        ],
+        [
+            "eapply exec_Iload; eauto.",
+            "VernacExtend",
+            "37a64c383b66a18ce977d9d9ec13d449f192bedc"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End RELSEM.",
+            "VernacEndSegment",
+            "5456b4faa708cb7309b5b1832a554cb5674e5dd1"
+        ],
+        [
+            "Inductive initial_state (p: program): state -> Prop := | initial_state_intro: forall b f m0, let ge := Genv.globalenv p in Genv.init_mem p = Some m0 -> Genv.find_symbol ge p.(prog_main) = Some b -> Genv.find_funct_ptr ge b = Some f -> funsig f = signature_main -> initial_state p (Callstate nil f nil m0).",
+            "VernacInductive",
+            "7074806eb889f5310a38a28b81368118d308912f"
+        ],
+        [
+            "Inductive final_state: state -> int -> Prop := | final_state_intro: forall r m, final_state (Returnstate nil (Vint r) m) r.",
+            "VernacInductive",
+            "addfd673accf1f49f968ddbe927115ff03560629"
+        ],
+        [
+            "Definition semantics (p: program) := Semantics step (initial_state p) final_state (Genv.globalenv p).",
+            "VernacDefinition",
+            "ea50aca4c4f5ef70e455221b5ef33d1d328493b4"
+        ],
+        [
+            "Lemma semantics_receptive: forall (p: program), receptive (semantics p).",
+            "VernacStartTheoremProof",
+            "fa9c80be50300136206c9029debf75c1f3dae0f9"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "constructor; simpl; intros.",
+            "VernacExtend",
+            "dcd76c351204acf8d4b7d76eea612fabf67729fc"
+        ],
+        [
+            "assert (t1 = E0 -> exists s2, step (Genv.globalenv p) s t2 s2).",
+            "VernacExtend",
+            "1c610db354300c07155abd8cf33a2cc2e9b7507e"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "inv H0.",
+            "VernacExtend",
+            "52c34ef20c88d5292e2350aff94f149a3968b772"
+        ],
+        [
+            "exists s1; auto.",
+            "VernacExtend",
+            "b635d662d92c9a6dd854d136739e1523825b06df"
+        ],
+        [
+            "inversion H; subst; auto.",
+            "VernacExtend",
+            "3ac5a8efa0f6861868f1bfc9ce7119d14816504c"
+        ],
+        [
+            "exploit external_call_receptive; eauto.",
+            "VernacExtend",
+            "42171c2cba80f4eaa15b793c138fdf9ec3791cb3"
+        ],
+        [
+            "intros [vres2 [m2 EC2]].",
+            "VernacExtend",
+            "ac3db512f72453ba4230bfb0223cb22b519318c5"
+        ],
+        [
+            "exists (State s0 f sp pc' (regmap_setres res vres2 rs) m2).",
+            "VernacExtend",
+            "d5fc24dad0323a91235bc86695a22abfe90d3658"
+        ],
+        [
+            "eapply exec_Ibuiltin; eauto.",
+            "VernacExtend",
+            "8f43d5c3d33a540e13b92ed4750b03354d88944c"
+        ],
+        [
+            "exploit external_call_receptive; eauto.",
+            "VernacExtend",
+            "42171c2cba80f4eaa15b793c138fdf9ec3791cb3"
+        ],
+        [
+            "intros [vres2 [m2 EC2]].",
+            "VernacExtend",
+            "ac3db512f72453ba4230bfb0223cb22b519318c5"
+        ],
+        [
+            "exists (Returnstate s0 vres2 m2).",
+            "VernacExtend",
+            "38de0e7be24011c359df9be106c5adaafa4921ed"
+        ],
+        [
+            "econstructor; eauto.",
+            "VernacExtend",
+            "faa93781fb8bbf289e651728c4588af1c4169d34"
+        ],
+        [
+            "red; intros; inv H; simpl; try omega.",
+            "VernacExtend",
+            "19e663cc541e05cf15264266be6705fb5bc54e11"
+        ],
+        [
+            "eapply external_call_trace_length; eauto.",
+            "VernacExtend",
+            "fc64ba54b5a49450d119093603ca66dec9a15f8d"
+        ],
+        [
+            "eapply external_call_trace_length; eauto.",
+            "VernacExtend",
+            "fc64ba54b5a49450d119093603ca66dec9a15f8d"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Section TRANSF.",
+            "VernacBeginSection",
+            "d77d93e60e2d5e254f5d732228a41fe3e568a981"
+        ],
+        [
+            "Variable transf: node -> instruction -> instruction.",
+            "VernacAssumption",
+            "20bf3c81b667360aae5376ed93f84d4fe0d44e06"
+        ],
+        [
+            "Definition transf_function (f: function) : function := mkfunction f.(fn_sig) f.(fn_params) f.(fn_stacksize) (PTree.map transf f.(fn_code)) f.(fn_entrypoint).",
+            "VernacDefinition",
+            "6621a4a706cc1c57a20a2411c0225232bbbbdbab"
+        ],
+        [
+            "End TRANSF.",
+            "VernacEndSegment",
+            "cd57ba1ec36c068d20f3d55c1672cc04c887e9e5"
+        ],
+        [
+            "Definition successors_instr (i: instruction) : list node := match i with | Inop s => s :: nil | Iop op args res s => s :: nil | Iload chunk addr args dst s => s :: nil | Istore chunk addr args src s => s :: nil | Icall sig ros args res s => s :: nil | Itailcall sig ros args => nil | Ibuiltin ef args res s => s :: nil | Icond cond args ifso ifnot => ifso :: ifnot :: nil | Ijumptable arg tbl => tbl | Ireturn optarg => nil end.",
+            "VernacDefinition",
+            "e65cb6f81c43b8920b7fddd9930dbad15fc8683e"
+        ],
+        [
+            "Definition successors_map (f: function) : PTree.t (list node) := PTree.map1 successors_instr f.(fn_code).",
+            "VernacDefinition",
+            "3fbae546974e6d6ef858cb526ace66b66cda5d21"
+        ],
+        [
+            "Definition instr_uses (i: instruction) : list reg := match i with | Inop s => nil | Iop op args res s => args | Iload chunk addr args dst s => args | Istore chunk addr args src s => src :: args | Icall sig (inl r) args res s => r :: args | Icall sig (inr id) args res s => args | Itailcall sig (inl r) args => r :: args | Itailcall sig (inr id) args => args | Ibuiltin ef args res s => params_of_builtin_args args | Icond cond args ifso ifnot => args | Ijumptable arg tbl => arg :: nil | Ireturn None => nil | Ireturn (Some arg) => arg :: nil end.",
+            "VernacDefinition",
+            "536b109cdd27823df643687ae6a4e7b69ddc55a8"
+        ],
+        [
+            "Definition instr_defs (i: instruction) : option reg := match i with | Inop s => None | Iop op args res s => Some res | Iload chunk addr args dst s => Some dst | Istore chunk addr args src s => None | Icall sig ros args res s => Some res | Itailcall sig ros args => None | Ibuiltin ef args res s => match res with BR r => Some r | _ => None end | Icond cond args ifso ifnot => None | Ijumptable arg tbl => None | Ireturn optarg => None end.",
+            "VernacDefinition",
+            "c577457a974373de7715455c152436d54793a6d0"
+        ],
+        [
+            "Definition max_pc_function (f: function) := PTree.fold (fun m pc i => Pos.max m pc) f.(fn_code) 1%positive.",
+            "VernacDefinition",
+            "e65862b0572d8390f1957ac2f148e671e998ee7b"
+        ],
+        [
+            "Lemma max_pc_function_sound: forall f pc i, f.(fn_code)!pc = Some i -> Ple pc (max_pc_function f).",
+            "VernacStartTheoremProof",
+            "b2517df14fbf88fae35bf10f5ba4c34c00012537"
+        ],
+        [
+            "intros until i.",
+            "VernacExtend",
+            "024130153c69509e16cb24095d428c78b5bdc272"
+        ],
+        [
+            "unfold max_pc_function.",
+            "VernacExtend",
+            "a6481e22c0e3caeb3d1832ea33332c799de31983"
+        ],
+        [
+            "apply PTree_Properties.fold_rec with (P := fun c m => c!pc = Some i -> Ple pc m).",
+            "VernacExtend",
+            "995ec92575a977024d595a87388617d51125b642"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply H0.",
+            "VernacExtend",
+            "c75b3371fc84f2aae811de7e80b1bdb43e4d249a"
+        ],
+        [
+            "rewrite H; auto.",
+            "VernacExtend",
+            "3e25713af8eaa76cddf9287af10d66733da2ee16"
+        ],
+        [
+            "rewrite PTree.gempty.",
+            "VernacExtend",
+            "02ad4f08527ee6f058bb5b2fc6b52855b65cf49f"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite PTree.gsspec in H2.",
+            "VernacExtend",
+            "b493a8c2dafa18120a204a32ee0ef517ce5e4f65"
+        ],
+        [
+            "destruct (peq pc k).",
+            "VernacExtend",
+            "21ce36809ee0da9d6f25d6cbdbb6e25dc0a63334"
+        ],
+        [
+            "inv H2.",
+            "VernacExtend",
+            "6144021562e950304ba8e947fdc2423691182458"
+        ],
+        [
+            "xomega.",
+            "VernacExtend",
+            "92dc13ff6a078243e0cd72420247996d076ca43b"
+        ],
+        [
+            "apply Ple_trans with a.",
+            "VernacExtend",
+            "a3f9f5f5b5e63f4c283d8dfa8e5633610172f188"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "xomega.",
+            "VernacExtend",
+            "92dc13ff6a078243e0cd72420247996d076ca43b"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition max_reg_instr (m: positive) (pc: node) (i: instruction) := match i with | Inop s => m | Iop op args res s => fold_left Pos.max args (Pos.max res m) | Iload chunk addr args dst s => fold_left Pos.max args (Pos.max dst m) | Istore chunk addr args src s => fold_left Pos.max args (Pos.max src m) | Icall sig (inl r) args res s => fold_left Pos.max args (Pos.max r (Pos.max res m)) | Icall sig (inr id) args res s => fold_left Pos.max args (Pos.max res m) | Itailcall sig (inl r) args => fold_left Pos.max args (Pos.max r m) | Itailcall sig (inr id) args => fold_left Pos.max args m | Ibuiltin ef args res s => fold_left Pos.max (params_of_builtin_args args) (fold_left Pos.max (params_of_builtin_res res) m) | Icond cond args ifso ifnot => fold_left Pos.max args m | Ijumptable arg tbl => Pos.max arg m | Ireturn None => m | Ireturn (Some arg) => Pos.max arg m end.",
+            "VernacDefinition",
+            "30cce6e403d49b48cdda5cdccb30df737d4b5b33"
+        ],
+        [
+            "Definition max_reg_function (f: function) := Pos.max (PTree.fold max_reg_instr f.(fn_code) 1%positive) (fold_left Pos.max f.(fn_params) 1%positive).",
+            "VernacDefinition",
+            "658ea0c50ee67507a6e279392b904820160cbd59"
+        ],
+        [
+            "Remark max_reg_instr_ge: forall m pc i, Ple m (max_reg_instr m pc i).",
+            "VernacStartTheoremProof",
+            "89d2973e2d95ccbe5e589040fb5fc56b9d654f01"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "assert (X: forall l n, Ple m n -> Ple m (fold_left Pos.max l n)).",
+            "VernacExtend",
+            "5eb67d9fe611de2bbbf23556add41fbdebe7fa5c"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "induction l; simpl; intros.",
+            "VernacExtend",
+            "34e9ea5965da389dfe8faf53c8ea4965d4fdcc22"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "apply IHl.",
+            "VernacExtend",
+            "af412c6009bba78f939aa53ab07dcd1baaf5888b"
+        ],
+        [
+            "xomega.",
+            "VernacExtend",
+            "92dc13ff6a078243e0cd72420247996d076ca43b"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "destruct i; simpl; try (destruct s0); repeat (apply X); try xomega.",
+            "VernacExtend",
+            "9bd89eb79a79a213331a16c5f4facf684d0f752b"
+        ],
+        [
+            "destruct o; xomega.",
+            "VernacExtend",
+            "3f165aac3caeb08fc74367cf3ddacb9c50bfebcd"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Remark max_reg_instr_def: forall m pc i r, instr_defs i = Some r -> Ple r (max_reg_instr m pc i).",
+            "VernacStartTheoremProof",
+            "2aee7faba3b973f87e015e21b17852bd569adc16"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "assert (X: forall l n, Ple r n -> Ple r (fold_left Pos.max l n)).",
+            "VernacExtend",
+            "5a4668acb243ac0c33bfb98d1d9751ad10db0ea5"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "induction l; simpl; intros.",
+            "VernacExtend",
+            "34e9ea5965da389dfe8faf53c8ea4965d4fdcc22"
+        ],
+        [
+            "xomega.",
+            "VernacExtend",
+            "92dc13ff6a078243e0cd72420247996d076ca43b"
+        ],
+        [
+            "apply IHl.",
+            "VernacExtend",
+            "af412c6009bba78f939aa53ab07dcd1baaf5888b"
+        ],
+        [
+            "xomega.",
+            "VernacExtend",
+            "92dc13ff6a078243e0cd72420247996d076ca43b"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "destruct i; simpl in *; inv H.",
+            "VernacExtend",
+            "5cc49107e56ba31304a38c4a15dbeeb61c3d5b4b"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply X.",
+            "VernacExtend",
+            "1a06263bf241d2c272a11be0f0a1522334cc2c93"
+        ],
+        [
+            "xomega.",
+            "VernacExtend",
+            "92dc13ff6a078243e0cd72420247996d076ca43b"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply X.",
+            "VernacExtend",
+            "1a06263bf241d2c272a11be0f0a1522334cc2c93"
+        ],
+        [
+            "xomega.",
+            "VernacExtend",
+            "92dc13ff6a078243e0cd72420247996d076ca43b"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct s0; apply X; xomega.",
+            "VernacExtend",
+            "217b225d70730d8ac24f46fd42adcc04c9c01715"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct b; inv H1.",
+            "VernacExtend",
+            "99073924988666d0e232263c47f72680d6e8dfe3"
+        ],
+        [
+            "apply X.",
+            "VernacExtend",
+            "1a06263bf241d2c272a11be0f0a1522334cc2c93"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "xomega.",
+            "VernacExtend",
+            "92dc13ff6a078243e0cd72420247996d076ca43b"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Remark max_reg_instr_uses: forall m pc i r, In r (instr_uses i) -> Ple r (max_reg_instr m pc i).",
+            "VernacStartTheoremProof",
+            "971a241c69b54bb6bc6cb644178339871e2851d4"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "assert (X: forall l n, In r l \\/ Ple r n -> Ple r (fold_left Pos.max l n)).",
+            "VernacExtend",
+            "d04f6b97dccce4f5464488b900ea5e427bb2870e"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "induction l; simpl; intros.",
+            "VernacExtend",
+            "34e9ea5965da389dfe8faf53c8ea4965d4fdcc22"
+        ],
+        [
+            "tauto.",
+            "VernacExtend",
+            "9bfafe84fb6724789bdf6cfd21cd721dd63fdabd"
+        ],
+        [
+            "apply IHl.",
+            "VernacExtend",
+            "af412c6009bba78f939aa53ab07dcd1baaf5888b"
+        ],
+        [
+            "destruct H0 as [[A|A]|A].",
+            "VernacExtend",
+            "25d964b3d9a89122bbf8dc7e56c5c37932d5dbcf"
+        ],
+        [
+            "right; subst; xomega.",
+            "VernacExtend",
+            "c46cbb3d30ff3f908eeca114dd01110618ba8169"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "right; xomega.",
+            "VernacExtend",
+            "411026dfdf4a5020081e2c5a430afccd83fa52f1"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "destruct i; simpl in *; try (destruct s0); try (apply X; auto).",
+            "VernacExtend",
+            "70d2e276a95e563c6daa13ba67de28ca7b921c8b"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "contradiction.",
+            "VernacExtend",
+            "9b6a5c45e1144cbbccd544effb2a97082518704a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct H.",
+            "VernacExtend",
+            "8b2bca015429da94c456243b461e17a2a0582c40"
+        ],
+        [
+            "right; subst; xomega.",
+            "VernacExtend",
+            "c46cbb3d30ff3f908eeca114dd01110618ba8169"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct H.",
+            "VernacExtend",
+            "8b2bca015429da94c456243b461e17a2a0582c40"
+        ],
+        [
+            "right; subst; xomega.",
+            "VernacExtend",
+            "c46cbb3d30ff3f908eeca114dd01110618ba8169"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct H.",
+            "VernacExtend",
+            "8b2bca015429da94c456243b461e17a2a0582c40"
+        ],
+        [
+            "right; subst; xomega.",
+            "VernacExtend",
+            "c46cbb3d30ff3f908eeca114dd01110618ba8169"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "subst; xomega.",
+            "VernacExtend",
+            "338a1905b65e59d0720f4d689e0297baef97556f"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct o; simpl in H; intuition.",
+            "VernacExtend",
+            "995089e33ad417746780da429831b3a4d416528c"
+        ],
+        [
+            "subst; xomega.",
+            "VernacExtend",
+            "338a1905b65e59d0720f4d689e0297baef97556f"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma max_reg_function_def: forall f pc i r, f.(fn_code)!pc = Some i -> instr_defs i = Some r -> Ple r (max_reg_function f).",
+            "VernacStartTheoremProof",
+            "022d197a95ebfb95211864e4bf61532f75a38ad1"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "assert (Ple r (PTree.fold max_reg_instr f.(fn_code) 1%positive)).",
+            "VernacExtend",
+            "2c505c8e02e70849069a56e0b30639cf836ae7bd"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "revert H.",
+            "VernacExtend",
+            "6842e040dd98a07b1eb54bbabc9c3f1076566a9a"
+        ],
+        [
+            "apply PTree_Properties.fold_rec with (P := fun c m => c!pc = Some i -> Ple r m).",
+            "VernacExtend",
+            "8770bd433eba1aa78ff67792304372012cb20f39"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite H in H1; auto.",
+            "VernacExtend",
+            "f92eb47541aab97af84f6defc62f6e6c333dfb8d"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite PTree.gempty; congruence.",
+            "VernacExtend",
+            "c7978d37b44a9a3e8631bffe5ae07d0882760552"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite PTree.gsspec in H3.",
+            "VernacExtend",
+            "078100d7a36c2cfa8cc07f73be12620f8f1dffee"
+        ],
+        [
+            "destruct (peq pc k).",
+            "VernacExtend",
+            "21ce36809ee0da9d6f25d6cbdbb6e25dc0a63334"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "inv H3.",
+            "VernacExtend",
+            "bf389b6bd23f97715c74ed9eca5a780ee9e91e3c"
+        ],
+        [
+            "eapply max_reg_instr_def; eauto.",
+            "VernacExtend",
+            "a0808905813f1a8434055e851be2b53d78bcc8e8"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply Ple_trans with a.",
+            "VernacExtend",
+            "a3f9f5f5b5e63f4c283d8dfa8e5633610172f188"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "apply max_reg_instr_ge.",
+            "VernacExtend",
+            "f5f0c0bbf41390c584152a9a69b5943f88a7b2ae"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "unfold max_reg_function.",
+            "VernacExtend",
+            "9ea2e278c100bcf43dddc1301091583d47596f90"
+        ],
+        [
+            "xomega.",
+            "VernacExtend",
+            "92dc13ff6a078243e0cd72420247996d076ca43b"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma max_reg_function_use: forall f pc i r, f.(fn_code)!pc = Some i -> In r (instr_uses i) -> Ple r (max_reg_function f).",
+            "VernacStartTheoremProof",
+            "763e55bef96e6731ba1eaef869b0c2d88918339a"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "assert (Ple r (PTree.fold max_reg_instr f.(fn_code) 1%positive)).",
+            "VernacExtend",
+            "2c505c8e02e70849069a56e0b30639cf836ae7bd"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "revert H.",
+            "VernacExtend",
+            "6842e040dd98a07b1eb54bbabc9c3f1076566a9a"
+        ],
+        [
+            "apply PTree_Properties.fold_rec with (P := fun c m => c!pc = Some i -> Ple r m).",
+            "VernacExtend",
+            "8770bd433eba1aa78ff67792304372012cb20f39"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite H in H1; auto.",
+            "VernacExtend",
+            "f92eb47541aab97af84f6defc62f6e6c333dfb8d"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite PTree.gempty; congruence.",
+            "VernacExtend",
+            "c7978d37b44a9a3e8631bffe5ae07d0882760552"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite PTree.gsspec in H3.",
+            "VernacExtend",
+            "078100d7a36c2cfa8cc07f73be12620f8f1dffee"
+        ],
+        [
+            "destruct (peq pc k).",
+            "VernacExtend",
+            "21ce36809ee0da9d6f25d6cbdbb6e25dc0a63334"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "inv H3.",
+            "VernacExtend",
+            "bf389b6bd23f97715c74ed9eca5a780ee9e91e3c"
+        ],
+        [
+            "eapply max_reg_instr_uses; eauto.",
+            "VernacExtend",
+            "4bec8d339f4d6b241e90c124c8e8b98e7916d6c7"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply Ple_trans with a.",
+            "VernacExtend",
+            "a3f9f5f5b5e63f4c283d8dfa8e5633610172f188"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "apply max_reg_instr_ge.",
+            "VernacExtend",
+            "f5f0c0bbf41390c584152a9a69b5943f88a7b2ae"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "unfold max_reg_function.",
+            "VernacExtend",
+            "9ea2e278c100bcf43dddc1301091583d47596f90"
+        ],
+        [
+            "xomega.",
+            "VernacExtend",
+            "92dc13ff6a078243e0cd72420247996d076ca43b"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma max_reg_function_params: forall f r, In r f.(fn_params) -> Ple r (max_reg_function f).",
+            "VernacStartTheoremProof",
+            "2fc9735bacd7c57a02ab9af6fe0f7c0423352da7"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "assert (X: forall l n, In r l \\/ Ple r n -> Ple r (fold_left Pos.max l n)).",
+            "VernacExtend",
+            "d04f6b97dccce4f5464488b900ea5e427bb2870e"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "induction l; simpl; intros.",
+            "VernacExtend",
+            "34e9ea5965da389dfe8faf53c8ea4965d4fdcc22"
+        ],
+        [
+            "tauto.",
+            "VernacExtend",
+            "9bfafe84fb6724789bdf6cfd21cd721dd63fdabd"
+        ],
+        [
+            "apply IHl.",
+            "VernacExtend",
+            "af412c6009bba78f939aa53ab07dcd1baaf5888b"
+        ],
+        [
+            "destruct H0 as [[A|A]|A].",
+            "VernacExtend",
+            "25d964b3d9a89122bbf8dc7e56c5c37932d5dbcf"
+        ],
+        [
+            "right; subst; xomega.",
+            "VernacExtend",
+            "c46cbb3d30ff3f908eeca114dd01110618ba8169"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "right; xomega.",
+            "VernacExtend",
+            "411026dfdf4a5020081e2c5a430afccd83fa52f1"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "assert (Y: Ple r (fold_left Pos.max f.(fn_params) 1%positive)).",
+            "VernacExtend",
+            "a6e4b0d4a61c2c0451d4bc6c927fb10d3eb5e94f"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "apply X; auto.",
+            "VernacExtend",
+            "c8281e68c13887bc54b8e25188e081ee75f88def"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "unfold max_reg_function.",
+            "VernacExtend",
+            "9ea2e278c100bcf43dddc1301091583d47596f90"
+        ],
+        [
+            "xomega.",
+            "VernacExtend",
+            "92dc13ff6a078243e0cd72420247996d076ca43b"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "exec_Iop'",
+            "line_nb": 19,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst rs'.",
+                        "VernacExtend",
+                        "9838b7316626165aaf5ebddb71c766b3e45c5e05"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply exec_Iop; eauto.",
+                        "VernacExtend",
+                        "f1df713b8f8562641db9513625be5585515bfe65"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "exec_Iload'",
+            "line_nb": 24,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst rs'.",
+                        "VernacExtend",
+                        "9838b7316626165aaf5ebddb71c766b3e45c5e05"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply exec_Iload; eauto.",
+                        "VernacExtend",
+                        "37a64c383b66a18ce977d9d9ec13d449f192bedc"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "semantics_receptive",
+            "line_nb": 33,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; simpl; intros.",
+                        "VernacExtend",
+                        "dcd76c351204acf8d4b7d76eea612fabf67729fc"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (t1 = E0 -> exists s2, step (Genv.globalenv p) s t2 s2).",
+                        "VernacExtend",
+                        "1c610db354300c07155abd8cf33a2cc2e9b7507e"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst.",
+                        "VernacExtend",
+                        "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H0.",
+                        "VernacExtend",
+                        "52c34ef20c88d5292e2350aff94f149a3968b772"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists s1; auto.",
+                        "VernacExtend",
+                        "b635d662d92c9a6dd854d136739e1523825b06df"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion H; subst; auto.",
+                        "VernacExtend",
+                        "3ac5a8efa0f6861868f1bfc9ce7119d14816504c"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit external_call_receptive; eauto.",
+                        "VernacExtend",
+                        "42171c2cba80f4eaa15b793c138fdf9ec3791cb3"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [vres2 [m2 EC2]].",
+                        "VernacExtend",
+                        "ac3db512f72453ba4230bfb0223cb22b519318c5"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists (State s0 f sp pc' (regmap_setres res vres2 rs) m2).",
+                        "VernacExtend",
+                        "d5fc24dad0323a91235bc86695a22abfe90d3658"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply exec_Ibuiltin; eauto.",
+                        "VernacExtend",
+                        "8f43d5c3d33a540e13b92ed4750b03354d88944c"
+                    ]
+                },
+                {
+                    "command": [
+                        "exploit external_call_receptive; eauto.",
+                        "VernacExtend",
+                        "42171c2cba80f4eaa15b793c138fdf9ec3791cb3"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [vres2 [m2 EC2]].",
+                        "VernacExtend",
+                        "ac3db512f72453ba4230bfb0223cb22b519318c5"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists (Returnstate s0 vres2 m2).",
+                        "VernacExtend",
+                        "38de0e7be24011c359df9be106c5adaafa4921ed"
+                    ]
+                },
+                {
+                    "command": [
+                        "econstructor; eauto.",
+                        "VernacExtend",
+                        "faa93781fb8bbf289e651728c4588af1c4169d34"
+                    ]
+                },
+                {
+                    "command": [
+                        "red; intros; inv H; simpl; try omega.",
+                        "VernacExtend",
+                        "19e663cc541e05cf15264266be6705fb5bc54e11"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply external_call_trace_length; eauto.",
+                        "VernacExtend",
+                        "fc64ba54b5a49450d119093603ca66dec9a15f8d"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply external_call_trace_length; eauto.",
+                        "VernacExtend",
+                        "fc64ba54b5a49450d119093603ca66dec9a15f8d"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "max_pc_function_sound",
+            "line_nb": 63,
+            "steps": [
+                {
+                    "command": [
+                        "intros until i.",
+                        "VernacExtend",
+                        "024130153c69509e16cb24095d428c78b5bdc272"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold max_pc_function.",
+                        "VernacExtend",
+                        "a6481e22c0e3caeb3d1832ea33332c799de31983"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply PTree_Properties.fold_rec with (P := fun c m => c!pc = Some i -> Ple pc m).",
+                        "VernacExtend",
+                        "995ec92575a977024d595a87388617d51125b642"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply H0.",
+                        "VernacExtend",
+                        "c75b3371fc84f2aae811de7e80b1bdb43e4d249a"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H; auto.",
+                        "VernacExtend",
+                        "3e25713af8eaa76cddf9287af10d66733da2ee16"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.gempty.",
+                        "VernacExtend",
+                        "02ad4f08527ee6f058bb5b2fc6b52855b65cf49f"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.gsspec in H2.",
+                        "VernacExtend",
+                        "b493a8c2dafa18120a204a32ee0ef517ce5e4f65"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (peq pc k).",
+                        "VernacExtend",
+                        "21ce36809ee0da9d6f25d6cbdbb6e25dc0a63334"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H2.",
+                        "VernacExtend",
+                        "6144021562e950304ba8e947fdc2423691182458"
+                    ]
+                },
+                {
+                    "command": [
+                        "xomega.",
+                        "VernacExtend",
+                        "92dc13ff6a078243e0cd72420247996d076ca43b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Ple_trans with a.",
+                        "VernacExtend",
+                        "a3f9f5f5b5e63f4c283d8dfa8e5633610172f188"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "xomega.",
+                        "VernacExtend",
+                        "92dc13ff6a078243e0cd72420247996d076ca43b"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "max_reg_instr_ge",
+            "line_nb": 83,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (X: forall l n, Ple m n -> Ple m (fold_left Pos.max l n)).",
+                        "VernacExtend",
+                        "5eb67d9fe611de2bbbf23556add41fbdebe7fa5c"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "induction l; simpl; intros.",
+                        "VernacExtend",
+                        "34e9ea5965da389dfe8faf53c8ea4965d4fdcc22"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply IHl.",
+                        "VernacExtend",
+                        "af412c6009bba78f939aa53ab07dcd1baaf5888b"
+                    ]
+                },
+                {
+                    "command": [
+                        "xomega.",
+                        "VernacExtend",
+                        "92dc13ff6a078243e0cd72420247996d076ca43b"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct i; simpl; try (destruct s0); repeat (apply X); try xomega.",
+                        "VernacExtend",
+                        "9bd89eb79a79a213331a16c5f4facf684d0f752b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct o; xomega.",
+                        "VernacExtend",
+                        "3f165aac3caeb08fc74367cf3ddacb9c50bfebcd"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "max_reg_instr_def",
+            "line_nb": 95,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (X: forall l n, Ple r n -> Ple r (fold_left Pos.max l n)).",
+                        "VernacExtend",
+                        "5a4668acb243ac0c33bfb98d1d9751ad10db0ea5"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "induction l; simpl; intros.",
+                        "VernacExtend",
+                        "34e9ea5965da389dfe8faf53c8ea4965d4fdcc22"
+                    ]
+                },
+                {
+                    "command": [
+                        "xomega.",
+                        "VernacExtend",
+                        "92dc13ff6a078243e0cd72420247996d076ca43b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply IHl.",
+                        "VernacExtend",
+                        "af412c6009bba78f939aa53ab07dcd1baaf5888b"
+                    ]
+                },
+                {
+                    "command": [
+                        "xomega.",
+                        "VernacExtend",
+                        "92dc13ff6a078243e0cd72420247996d076ca43b"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct i; simpl in *; inv H.",
+                        "VernacExtend",
+                        "5cc49107e56ba31304a38c4a15dbeeb61c3d5b4b"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply X.",
+                        "VernacExtend",
+                        "1a06263bf241d2c272a11be0f0a1522334cc2c93"
+                    ]
+                },
+                {
+                    "command": [
+                        "xomega.",
+                        "VernacExtend",
+                        "92dc13ff6a078243e0cd72420247996d076ca43b"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply X.",
+                        "VernacExtend",
+                        "1a06263bf241d2c272a11be0f0a1522334cc2c93"
+                    ]
+                },
+                {
+                    "command": [
+                        "xomega.",
+                        "VernacExtend",
+                        "92dc13ff6a078243e0cd72420247996d076ca43b"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct s0; apply X; xomega.",
+                        "VernacExtend",
+                        "217b225d70730d8ac24f46fd42adcc04c9c01715"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct b; inv H1.",
+                        "VernacExtend",
+                        "99073924988666d0e232263c47f72680d6e8dfe3"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply X.",
+                        "VernacExtend",
+                        "1a06263bf241d2c272a11be0f0a1522334cc2c93"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "xomega.",
+                        "VernacExtend",
+                        "92dc13ff6a078243e0cd72420247996d076ca43b"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "max_reg_instr_uses",
+            "line_nb": 119,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (X: forall l n, In r l \\/ Ple r n -> Ple r (fold_left Pos.max l n)).",
+                        "VernacExtend",
+                        "d04f6b97dccce4f5464488b900ea5e427bb2870e"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "induction l; simpl; intros.",
+                        "VernacExtend",
+                        "34e9ea5965da389dfe8faf53c8ea4965d4fdcc22"
+                    ]
+                },
+                {
+                    "command": [
+                        "tauto.",
+                        "VernacExtend",
+                        "9bfafe84fb6724789bdf6cfd21cd721dd63fdabd"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply IHl.",
+                        "VernacExtend",
+                        "af412c6009bba78f939aa53ab07dcd1baaf5888b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H0 as [[A|A]|A].",
+                        "VernacExtend",
+                        "25d964b3d9a89122bbf8dc7e56c5c37932d5dbcf"
+                    ]
+                },
+                {
+                    "command": [
+                        "right; subst; xomega.",
+                        "VernacExtend",
+                        "c46cbb3d30ff3f908eeca114dd01110618ba8169"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "right; xomega.",
+                        "VernacExtend",
+                        "411026dfdf4a5020081e2c5a430afccd83fa52f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct i; simpl in *; try (destruct s0); try (apply X; auto).",
+                        "VernacExtend",
+                        "70d2e276a95e563c6daa13ba67de28ca7b921c8b"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "contradiction.",
+                        "VernacExtend",
+                        "9b6a5c45e1144cbbccd544effb2a97082518704a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H.",
+                        "VernacExtend",
+                        "8b2bca015429da94c456243b461e17a2a0582c40"
+                    ]
+                },
+                {
+                    "command": [
+                        "right; subst; xomega.",
+                        "VernacExtend",
+                        "c46cbb3d30ff3f908eeca114dd01110618ba8169"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H.",
+                        "VernacExtend",
+                        "8b2bca015429da94c456243b461e17a2a0582c40"
+                    ]
+                },
+                {
+                    "command": [
+                        "right; subst; xomega.",
+                        "VernacExtend",
+                        "c46cbb3d30ff3f908eeca114dd01110618ba8169"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H.",
+                        "VernacExtend",
+                        "8b2bca015429da94c456243b461e17a2a0582c40"
+                    ]
+                },
+                {
+                    "command": [
+                        "right; subst; xomega.",
+                        "VernacExtend",
+                        "c46cbb3d30ff3f908eeca114dd01110618ba8169"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition.",
+                        "VernacExtend",
+                        "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst; xomega.",
+                        "VernacExtend",
+                        "338a1905b65e59d0720f4d689e0297baef97556f"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct o; simpl in H; intuition.",
+                        "VernacExtend",
+                        "995089e33ad417746780da429831b3a4d416528c"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst; xomega.",
+                        "VernacExtend",
+                        "338a1905b65e59d0720f4d689e0297baef97556f"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "max_reg_function_def",
+            "line_nb": 153,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (Ple r (PTree.fold max_reg_instr f.(fn_code) 1%positive)).",
+                        "VernacExtend",
+                        "2c505c8e02e70849069a56e0b30639cf836ae7bd"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "revert H.",
+                        "VernacExtend",
+                        "6842e040dd98a07b1eb54bbabc9c3f1076566a9a"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply PTree_Properties.fold_rec with (P := fun c m => c!pc = Some i -> Ple r m).",
+                        "VernacExtend",
+                        "8770bd433eba1aa78ff67792304372012cb20f39"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H in H1; auto.",
+                        "VernacExtend",
+                        "f92eb47541aab97af84f6defc62f6e6c333dfb8d"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.gempty; congruence.",
+                        "VernacExtend",
+                        "c7978d37b44a9a3e8631bffe5ae07d0882760552"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.gsspec in H3.",
+                        "VernacExtend",
+                        "078100d7a36c2cfa8cc07f73be12620f8f1dffee"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (peq pc k).",
+                        "VernacExtend",
+                        "21ce36809ee0da9d6f25d6cbdbb6e25dc0a63334"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H3.",
+                        "VernacExtend",
+                        "bf389b6bd23f97715c74ed9eca5a780ee9e91e3c"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply max_reg_instr_def; eauto.",
+                        "VernacExtend",
+                        "a0808905813f1a8434055e851be2b53d78bcc8e8"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Ple_trans with a.",
+                        "VernacExtend",
+                        "a3f9f5f5b5e63f4c283d8dfa8e5633610172f188"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply max_reg_instr_ge.",
+                        "VernacExtend",
+                        "f5f0c0bbf41390c584152a9a69b5943f88a7b2ae"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold max_reg_function.",
+                        "VernacExtend",
+                        "9ea2e278c100bcf43dddc1301091583d47596f90"
+                    ]
+                },
+                {
+                    "command": [
+                        "xomega.",
+                        "VernacExtend",
+                        "92dc13ff6a078243e0cd72420247996d076ca43b"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "max_reg_function_use",
+            "line_nb": 179,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (Ple r (PTree.fold max_reg_instr f.(fn_code) 1%positive)).",
+                        "VernacExtend",
+                        "2c505c8e02e70849069a56e0b30639cf836ae7bd"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "revert H.",
+                        "VernacExtend",
+                        "6842e040dd98a07b1eb54bbabc9c3f1076566a9a"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply PTree_Properties.fold_rec with (P := fun c m => c!pc = Some i -> Ple r m).",
+                        "VernacExtend",
+                        "8770bd433eba1aa78ff67792304372012cb20f39"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H in H1; auto.",
+                        "VernacExtend",
+                        "f92eb47541aab97af84f6defc62f6e6c333dfb8d"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.gempty; congruence.",
+                        "VernacExtend",
+                        "c7978d37b44a9a3e8631bffe5ae07d0882760552"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.gsspec in H3.",
+                        "VernacExtend",
+                        "078100d7a36c2cfa8cc07f73be12620f8f1dffee"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (peq pc k).",
+                        "VernacExtend",
+                        "21ce36809ee0da9d6f25d6cbdbb6e25dc0a63334"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H3.",
+                        "VernacExtend",
+                        "bf389b6bd23f97715c74ed9eca5a780ee9e91e3c"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply max_reg_instr_uses; eauto.",
+                        "VernacExtend",
+                        "4bec8d339f4d6b241e90c124c8e8b98e7916d6c7"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Ple_trans with a.",
+                        "VernacExtend",
+                        "a3f9f5f5b5e63f4c283d8dfa8e5633610172f188"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply max_reg_instr_ge.",
+                        "VernacExtend",
+                        "f5f0c0bbf41390c584152a9a69b5943f88a7b2ae"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold max_reg_function.",
+                        "VernacExtend",
+                        "9ea2e278c100bcf43dddc1301091583d47596f90"
+                    ]
+                },
+                {
+                    "command": [
+                        "xomega.",
+                        "VernacExtend",
+                        "92dc13ff6a078243e0cd72420247996d076ca43b"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "max_reg_function_params",
+            "line_nb": 205,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (X: forall l n, In r l \\/ Ple r n -> Ple r (fold_left Pos.max l n)).",
+                        "VernacExtend",
+                        "d04f6b97dccce4f5464488b900ea5e427bb2870e"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "induction l; simpl; intros.",
+                        "VernacExtend",
+                        "34e9ea5965da389dfe8faf53c8ea4965d4fdcc22"
+                    ]
+                },
+                {
+                    "command": [
+                        "tauto.",
+                        "VernacExtend",
+                        "9bfafe84fb6724789bdf6cfd21cd721dd63fdabd"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply IHl.",
+                        "VernacExtend",
+                        "af412c6009bba78f939aa53ab07dcd1baaf5888b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H0 as [[A|A]|A].",
+                        "VernacExtend",
+                        "25d964b3d9a89122bbf8dc7e56c5c37932d5dbcf"
+                    ]
+                },
+                {
+                    "command": [
+                        "right; subst; xomega.",
+                        "VernacExtend",
+                        "c46cbb3d30ff3f908eeca114dd01110618ba8169"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "right; xomega.",
+                        "VernacExtend",
+                        "411026dfdf4a5020081e2c5a430afccd83fa52f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (Y: Ple r (fold_left Pos.max f.(fn_params) 1%positive)).",
+                        "VernacExtend",
+                        "a6e4b0d4a61c2c0451d4bc6c927fb10d3eb5e94f"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply X; auto.",
+                        "VernacExtend",
+                        "c8281e68c13887bc54b8e25188e081ee75f88def"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold max_reg_function.",
+                        "VernacExtend",
+                        "9ea2e278c100bcf43dddc1301091583d47596f90"
+                    ]
+                },
+                {
+                    "command": [
+                        "xomega.",
+                        "VernacExtend",
+                        "92dc13ff6a078243e0cd72420247996d076ca43b"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,1038 @@
+{
+    "filename": "HoareLogic/TraceSemantics.v",
+    "coq_project": "UnifySL",
+    "vernac_cmds": [
+        [
+            "Require Import Coq.Relations.Relation_Operators.",
+            "VernacRequire",
+            "c8404747ba52b23d300cf51ff3bc522c19733ecb"
+        ],
+        [
+            "Require Import Logic.lib.Coqlib.",
+            "VernacRequire",
+            "075e5d7e5a261753a32e2d1ec79bc22503d420dc"
+        ],
+        [
+            "Require Import Logic.GeneralLogic.KripkeModel.",
+            "VernacRequire",
+            "6b79568e5e653c27c6a8e7063552aa2142ab9f3f"
+        ],
+        [
+            "Require Import Logic.SeparationLogic.Model.SeparationAlgebra.",
+            "VernacRequire",
+            "fff7e35feb20a10cad353e63f1dbfcd95597c6ca"
+        ],
+        [
+            "Require Import Logic.SeparationLogic.Model.OSAExamples.",
+            "VernacRequire",
+            "28757257b44025b94636a17b213846df4c4ded54"
+        ],
+        [
+            "Require Import Logic.SeparationLogic.Model.OSAGenerators.",
+            "VernacRequire",
+            "1497fe1441c96a62789ddcf5561619c9d599e79e"
+        ],
+        [
+            "Require Import Logic.HoareLogic.ImperativeLanguage.",
+            "VernacRequire",
+            "2567be926c29a7ce602472584cdfade122076b4b"
+        ],
+        [
+            "Require Import Logic.HoareLogic.ProgramState.",
+            "VernacRequire",
+            "8ffd4c3c26f3e73876d08ebc90fecae1cd31852b"
+        ],
+        [
+            "Require Import Logic.HoareLogic.BigStepSemantics.",
+            "VernacRequire",
+            "2f83358d20f8a1efe33058422dcfe9041af7b10b"
+        ],
+        [
+            "Local Open Scope kripke_model.",
+            "VernacOpenCloseScope",
+            "e49ee31afd7da8031602e71d800a363615169ff7"
+        ],
+        [
+            "Import KripkeModelNotation_Intuitionistic.",
+            "VernacImport",
+            "d7b7fe443374144a34554b0fe36caedd27cfce5b"
+        ],
+        [
+            "Class Action: Type := { action: Type; trace := list action; traces := trace -> Prop }.",
+            "VernacInductive",
+            "fe744636afe2cb49c9a0d8cd58f8c26303146afc"
+        ],
+        [
+            "Definition singleton_trace {Ac: Action} (a: action): trace := cons a nil.",
+            "VernacDefinition",
+            "fdfb344ae967747f86c4de26d497e75b472aa9a0"
+        ],
+        [
+            "Definition singleton_traces {Ac: Action} (tr: trace): traces := eq tr.",
+            "VernacDefinition",
+            "be02e971a8a63702ee6b01f477179d4bfd592505"
+        ],
+        [
+            "Definition trace_app {Ac: Action}: trace -> trace -> trace := @app _.",
+            "VernacDefinition",
+            "3f3eb02e81be097d82ae558d81bb9cb8a0b4d2e8"
+        ],
+        [
+            "Inductive traces_app {Ac: Action}: traces -> traces -> traces := traces_app_intro: forall tr1 tr2 (Tr1 Tr2: traces), Tr1 tr1 -> Tr2 tr2 -> traces_app Tr1 Tr2 (trace_app tr1 tr2).",
+            "VernacInductive",
+            "aeaf2f28d4e6c7eb80b12736f6c7874d1cb7737a"
+        ],
+        [
+            "Class Command2Traces (P: ProgrammingLanguage) (Ac: Action): Type := { cmd_denote: cmd -> traces }.",
+            "VernacInductive",
+            "7595202dfa1c8b0d5af564d594b74ad2bec9a56f"
+        ],
+        [
+            "Class ActionInterpret (state: Type) (Ac: Action): Type := { state_enable: action -> state -> MetaState state -> Prop }.",
+            "VernacInductive",
+            "906141de7181845a2bdfda77dd6fe2a31039c232"
+        ],
+        [
+            "Class TraceSemantics (P: ProgrammingLanguage) (state: Type) (Ac: Action): Type := { c2t :> Command2Traces P Ac; ac_sem :> ActionInterpret state Ac }.",
+            "VernacInductive",
+            "33cef2eb2d21027ebf7b0bc7224acc32790525a5"
+        ],
+        [
+            "Class Action_resource (Ac: Action) (Res: Resource) : Type := { Aacquire_res: resource -> action; Arelease_res: resource -> action; }.",
+            "VernacInductive",
+            "aa634131ae9bbdaf55143d1022f81dbc0bbe5d86"
+        ],
+        [
+            "Class NormalAction_resource (Ac: Action) (Res: Resource) {Acr: Action_resource Ac Res}: Type := { Aacquire_res_inv: forall r1 r2, Aacquire_res r1 = Aacquire_res r2 -> r1 = r2; Arelease_res_inv: forall r1 r2, Arelease_res r1 = Arelease_res r2 -> r1 = r2; Aacquire_Arelease_res: forall r1 r2, Aacquire_res r1 <> Arelease_res r2; }.",
+            "VernacInductive",
+            "9791da39a265186ed60751e1692e97cfd775005f"
+        ],
+        [
+            "Definition is_resource_action {Ac: Action} {Res: Resource} {Acr: Action_resource Ac Res} (r: resource) (a: action) := Aacquire_res r = a \\/ Arelease_res r = a.",
+            "VernacDefinition",
+            "ab075a6d8e5cb77458bc9f1dd6bfd824ac4bac2b"
+        ],
+        [
+            "Definition is_resources_action {Ac: Action} {Res: Resource} {Acr: Action_resource Ac Res} (a: action) := exists r, is_resource_action r a.",
+            "VernacDefinition",
+            "5a4babcfd8878e8b3123a32f26b233a1a392e863"
+        ],
+        [
+            "Ltac solve_resource_action := repeat match goal with | H: Aacquire_res ?r1 = Aacquire_res ?r2 |- _ => apply Aacquire_res_inv in H; subst | H: Arelease_res ?r1 = Arelease_res ?r2 |- _ => apply Arelease_res_inv in H; subst | H: Aacquire_res ?r1 = Arelease_res ?r2 |- _ => exfalso; apply Aacquire_Arelease_res in H; apply H | H: Arelease_res ?r1 = Aacquire_res ?r2 |- _ => exfalso; symmetry in H; apply Aacquire_Arelease_res in H; apply H | H: ~ is_resource_action ?r (Aacquire_res ?r) |- _ => exfalso; apply H; left; auto | H: ~ is_resource_action ?r (Arelease_res ?r) |- _ => exfalso; apply H; right; auto | H: ~ is_resources_action (Aacquire_res ?r) |- _ => exfalso; apply H; exists r; left; auto | H: ~ is_resources_action (Arelease_res ?r) |- _ => exfalso; apply H; exists r; right; auto end; repeat let HH := fresh \"H\" in match goal with | H: ~ is_resource_action ?r1 (Aacquire_res ?r2) |- _ => specialize (fun (HH: r2 = r1) => H (or_introl (f_equal Aacquire_res (eq_sym HH)))) | H: ~ is_resource_action ?r1 (Arelease_res ?r2) |- _ => specialize (fun (HH: r2 = r1) => H (or_intror (f_equal Arelease_res (eq_sym HH)))) end.",
+            "VernacExtend",
+            "732d624f909a24bedb0858b2d381c2941808965a"
+        ],
+        [
+            "Instance Res_Join (Res: Resource): Join resources := Pred_Join resource.",
+            "VernacInstance",
+            "dbbc1cbc8ee2e7b1f7dcb69ce7bc86f03a94fd89"
+        ],
+        [
+            "Instance Res_SA (Res: Resource): SeparationAlgebra resources := Pred_SA resource.",
+            "VernacInstance",
+            "f17b553378f045ba345e9bd130c0452222619a93"
+        ],
+        [
+            "Inductive res_enable {Ac: Action} {Res: Resource} {Acr: Action_resource Ac Res}: action -> resources -> resources -> resources -> Prop := | res_enable_acq: forall r A1 A1' A2, join A1 (eq r) A1' -> ~ A2 r -> res_enable (Aacquire_res r) A1 A1' A2 | res_enable_rel: forall r A1 A1' A2, join A1' (eq r) A1 -> res_enable (Arelease_res r) A1 A1' A2 | res_enable_other: forall a A1 A2, ~ is_resources_action a -> res_enable a A1 A1 A2.",
+            "VernacInductive",
+            "97dfc6f053fab80e41ab00b2105e75df643b0469"
+        ],
+        [
+            "Lemma res_enable_acq_inv {Ac: Action} {Res: Resource} {Acr: Action_resource Ac Res} {nAcr: NormalAction_resource Ac Res}: forall r A1 A1' A2, res_enable (Aacquire_res r) A1 A1' A2 -> join A1 (eq r) A1' /\\ ~ A2 r.",
+            "VernacStartTheoremProof",
+            "3dd56ff9929d5be53fa75b18c645b7893b122c44"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "inversion H; subst; solve_resource_action.",
+            "VernacExtend",
+            "f542b6d349e2a30ba9441b12d834f0904439c6f9"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma res_enable_rel_inv {Ac: Action} {Res: Resource} {Acr: Action_resource Ac Res} {nAcr: NormalAction_resource Ac Res}: forall r A1 A1' A2, res_enable (Arelease_res r) A1 A1' A2 -> join A1' (eq r) A1.",
+            "VernacStartTheoremProof",
+            "b91285aba81e344b0d005fe0ffff9798366f7cde"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "inversion H; subst; solve_resource_action.",
+            "VernacExtend",
+            "f542b6d349e2a30ba9441b12d834f0904439c6f9"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma res_enable_not_res_inv {Ac: Action} {Res: Resource} {Acr: Action_resource Ac Res} {nAcr: NormalAction_resource Ac Res}: forall a A1 A1' A2, ~ is_resources_action a -> res_enable a A1 A1' A2 -> A1 = A1'.",
+            "VernacStartTheoremProof",
+            "45f578f0b49ac7997b28a7f1bc2b8221c3007efc"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "inversion H0; subst; solve_resource_action.",
+            "VernacExtend",
+            "a139cd4191b28a3d69fdb048613d26e892a99768"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Inductive start_by_Aacq {Ac: Action} {Res: Resource} {Acr: Action_resource Ac Res}: resource -> trace -> Prop := | start_by_Aacq_nil: forall r, start_by_Aacq r nil | start_by_Aacq_acq: forall r tr, start_by_Arel r tr -> start_by_Aacq r (cons (Aacquire_res r) tr) | start_by_Aacq_irr: forall r a tr, ~ is_resource_action r a -> start_by_Aacq r tr -> start_by_Aacq r (cons a tr) with start_by_Arel {Ac: Action} {Res: Resource} {Acr: Action_resource Ac Res}: resource -> trace -> Prop := | start_by_Arel_rel: forall r tr, start_by_Aacq r tr -> start_by_Arel r (cons (Arelease_res r) tr) | start_by_Arel_irr: forall r a tr, ~ is_resource_action r a -> start_by_Arel r tr -> start_by_Arel r (cons a tr).",
+            "VernacInductive",
+            "7eb36c2c1ac3c00e0831623cf8a760aaf39b86a3"
+        ],
+        [
+            "Class Action_Parallel (Ac: Action): Type := { race: action; race_actions: action -> action -> Prop; }.",
+            "VernacInductive",
+            "192db66e86a2f7712f1c81ca3770640c51607f4a"
+        ],
+        [
+            "Class NormalAction_Parallel_resource (Ac: Action) (Res: Resource) {AcP: Action_Parallel Ac} {Acr: Action_resource Ac Res}: Type := { res_actions_no_race: forall a1 a2, race_actions a1 a2 -> ~ is_resources_action a1 /\\ ~ is_resources_action a2; race_not_resource: ~ is_resources_action race }.",
+            "VernacInductive",
+            "fe3a96eae685b5e1fe3c478ecf3b9b2b75ddaea0"
+        ],
+        [
+            "Inductive trace_interleave {Ac: Action} {Res: Resource} {AcP: Action_Parallel Ac} {Acr: Action_resource Ac Res}: resources -> resources -> trace -> trace -> trace -> Prop := | trace_interleave_nil_nil: forall (A1 A2: resources), trace_interleave A1 A2 nil nil nil | trace_interleave_race: forall (A1 A2: resources) a1 tr1 a2 tr2, race_actions a1 a2 -> trace_interleave A1 A2 (cons a1 tr1) (cons a2 tr2) (cons race nil) | trace_interleave_left: forall (A1 A1' A2: resources) a1 tr1 tr2 tr, res_enable a1 A1 A1' A2 -> trace_interleave A1' A2 tr1 tr2 tr -> trace_interleave A1 A2 (cons a1 tr1) tr2 (cons a1 tr) | trace_interleave_right: forall (A1 A2 A2': resources) tr1 a2 tr2 tr, res_enable a2 A2 A2' A1 -> trace_interleave A1 A2' tr1 tr2 tr -> trace_interleave A1 A2 tr1 (cons a2 tr2) (cons a2 tr).",
+            "VernacInductive",
+            "80cce7531410bb0c3a9ddbb6364775b9fa850603"
+        ],
+        [
+            "Inductive traces_interleave {Ac: Action} {Res: Resource} {AcP: Action_Parallel Ac} {Acr: Action_resource Ac Res}: traces -> traces -> traces := | traces_interleave_intro: forall (Tr1 Tr2: traces) tr1 tr2 tr, Tr1 tr1 -> Tr2 tr2 -> trace_interleave (fun _ => False) (fun _ => False) tr1 tr2 tr -> traces_interleave Tr1 Tr2 tr.",
+            "VernacInductive",
+            "7650a0cebe40632abc180e24733d845d49f33140"
+        ],
+        [
+            "Class ActionInterpret_resource (state: Type) (Ac: Action) (Res: Resource) {Acr: Action_resource Ac Res} (ac_sem: ActionInterpret (resources * state) Ac): Type := { state_enable_Aacquire_res: forall r (A1 A2: resources) (s: state), join A1 (eq r) A2 -> state_enable (Aacquire_res r) (A1, s) (Terminating (A2, s)); state_enable_Arelease_res: forall r (A1 A2: resources) (s: state), join A2 (eq r) A1 -> state_enable (Arelease_res r) (A1, s) (Terminating (A2, s)); state_enable_non_resource_action1: forall a (A1 A2: resources) (s1 s2: state), ~ is_resources_action a -> state_enable a (A1, s1) (Terminating (A2, s2)) -> A1 = A2; state_enable_non_resource_action2: forall a (A A': resources) (s: state) (ms: MetaState state), ~ is_resources_action a -> state_enable a (A, s) (lift_function (pair A) ms) -> state_enable a (A', s) (lift_function (pair A') ms) }.",
+            "VernacInductive",
+            "a271c268c43c528f6631df201742cfd320bc1b8e"
+        ],
+        [
+            "Class ActionInterpret_Parallel_resource (state: Type) {J: Join state} (Ac: Action) {AcP: Action_Parallel Ac} (Res: Resource) {Acr: Action_resource Ac Res} (ac_sem: ActionInterpret (resources * state) Ac): Type := { state_enable_race: forall A s ms, state_enable race (A, s) ms <-> ms = Error; state_enable_race_actions_spec: forall a1 a2 (A1 A2: resources) (s1 s2 s: state), race_actions a1 a2 -> ~ state_enable a1 (A1, s1) Error -> ~ state_enable a2 (A2, s2) Error -> join s1 s2 s -> False }.",
+            "VernacInductive",
+            "270fa5e8e4e23b7a221f32dd41c17085eeddf60d"
+        ],
+        [
+            "Class Command2Traces_Sresource (P: ProgrammingLanguage) (Ac: Action) (Res: Resource) {Acr: Action_resource Ac Res} {CPR: ConcurrentProgrammingLanguage_Sresource P Res} (c2t: Command2Traces P Ac): Type := { Sresource_denote: forall r c, cmd_denote (Sresource r c) = traces_app (singleton_traces (singleton_trace (Aacquire_res r))) (traces_app (cmd_denote c) (singleton_traces (singleton_trace (Arelease_res r)))) }.",
+            "VernacInductive",
+            "e0db2abb2ded44542b54e3afd9da5f9cca50b281"
+        ],
+        [
+            "Class Command2Traces_Sparallel_resource (P: ProgrammingLanguage) (state: Type) (Ac: Action) (Res: Resource) {AcP: Action_Parallel Ac} {Acr: Action_resource Ac Res} {CPP: ConcurrentProgrammingLanguage_Sparallel P} (c2t: Command2Traces P Ac): Type := { Sparallel_denote: forall c1 c2, cmd_denote (Sparallel c1 c2) = traces_interleave (cmd_denote c1) (cmd_denote c2) }.",
+            "VernacInductive",
+            "46a9037d73134f5e283fe553adf049800fc292e8"
+        ],
+        [
+            "Class StructuralResourceAccess (P: ProgrammingLanguage) (Ac: Action) (Res: Resource) {Acr: Action_resource Ac Res} (c2t: Command2Traces P Ac): Type := { resource_sequential: forall c r tr, cmd_denote c tr -> start_by_Aacq r tr }.",
+            "VernacInductive",
+            "c626a6e8c9daef3e93319262cfc789d79a414329"
+        ],
+        [
+            "Definition resource_no_occur {Ac: Action} {Res: Resource} {Acr: Action_resource Ac Res} (r: resource) (Tr: traces): Prop := forall tr, Tr tr -> ~ List.In (Aacquire_res r) tr /\\ ~ List.In (Arelease_res r) tr.",
+            "VernacDefinition",
+            "7bd17bbac0982472a1190a1e43245262ef01ac19"
+        ],
+        [
+            "Class SAActionInterpret_resource (state: Type) (Ac: Action) (ac_sem: ActionInterpret state Ac) {J: Join state} (G: action -> Prop) : Prop := { frame_property: forall (a: action) (m1 f n1: state) (n2: MetaState state), G a -> join m1 f n1 -> state_enable a n1 n2 -> exists m2, lift_join m2 (Terminating f) n2 /\\ state_enable a m1 m2 }.",
+            "VernacInductive",
+            "60056a8e3c9aa729e6ae0722db7a7837dde261d5"
+        ],
+        [
+            "Class KActionInterpret_resource (state: Type) (Ac: Action) (ac_sem: ActionInterpret state Ac) {state_R: Relation state}: Prop := { ordered_action_interpret: forall (a: action) (m1 n1: state) (n2: MetaState state), m1 <= n1 -> state_enable a n1 n2 -> exists m2, Partial.forward m2 n2 /\\ state_enable a m1 m2 }.",
+            "VernacInductive",
+            "63157efb3e95ca08c227bbb94d6608df028af4f6"
+        ],
+        [
+            "Class KSAActionInterpret_resource (state: Type) (Ac: Action) (ac_sem: ActionInterpret state Ac) {J: Join state} {state_R: Relation state} (G: action -> Prop): Prop := { ordered_frame_property: forall (a: action) (m1 f n1' n1: state) (n2: MetaState state), G a -> join m1 f n1' -> n1' <= n1 -> state_enable a n1 n2 -> exists m2 n2', lift_join m2 (Terminating f) n2' /\\ Partial.forward n2' n2 /\\ state_enable a m1 m2 }.",
+            "VernacInductive",
+            "14fd4ebc517ade40740bb6a9d777bbb42a4f4e81"
+        ],
+        [
+            "Lemma ordered_and_frame_AIr {state: Type} {Ac: Action} {ac_sem: ActionInterpret state Ac} {J: Join state} {state_R: Relation state} (G: action -> Prop): SAActionInterpret_resource state Ac ac_sem G -> KActionInterpret_resource state Ac ac_sem -> KSAActionInterpret_resource state Ac ac_sem G.",
+            "VernacStartTheoremProof",
+            "f18efcba2970a5ba4cce84f9d0b21e3255d44c60"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "pose proof ordered_action_interpret _ _ _ _ H3 H4 as [n2' [? ?]].",
+            "VernacExtend",
+            "a71a104dd06677893d14ba63fab6a0088a2aed5f"
+        ],
+        [
+            "pose proof frame_property _ _ _ _ _ H1 H2 H6 as [m2 [? ?]].",
+            "VernacExtend",
+            "d9029235f6480a14c81c540a52d3b1d31bed60f4"
+        ],
+        [
+            "exists m2, n2'; auto.",
+            "VernacExtend",
+            "6ed700131a923b567855afefd17892d7d5107883"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Inductive trace_access {state: Type} {Ac: Action} {ac_sem: ActionInterpret state Ac}: trace -> state -> MetaState state -> Prop := | trace_access_nil: forall s, trace_access nil s (Terminating s) | trace_access_NonTerminating: forall a tr s, state_enable a s NonTerminating -> trace_access (cons a tr) s NonTerminating | trace_access_Error: forall a tr s, state_enable a s Error -> trace_access (cons a tr) s Error | trace_access_Terminating: forall a tr s s' ms, state_enable a s (Terminating s') -> trace_access tr s' ms -> trace_access (cons a tr) s ms.",
+            "VernacInductive",
+            "d8a8278fbb900c6d38feff1a95067ccdaa2f7c3e"
+        ],
+        [
+            "Inductive traces_access {state: Type} {Ac: Action} {ac_sem: ActionInterpret state Ac}: traces -> state -> MetaState state -> Prop := | traces_access_intro: forall tr (Tr: traces) s ms, Tr tr -> trace_access tr s ms -> traces_access Tr s ms.",
+            "VernacInductive",
+            "b4ee9817b73a3e4ba8764359476a9f549bed17e7"
+        ],
+        [
+            "Lemma trace_access_Terminating_inv {state: Type} {Ac: Action} {ac_sem: ActionInterpret state Ac}: forall P a tr s ms, trace_access (cons a tr) s ms -> (forall ms', state_enable a s ms' -> exists s', P s' /\\ ms' = Terminating s') -> (exists s', P s' /\\ trace_access tr s' ms).",
+            "VernacStartTheoremProof",
+            "93eb32f453fc56eb00aa3c4ab5ab2f682f795303"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "inversion H; subst.",
+            "VernacExtend",
+            "123ebc73101dcac5781200440a60232218464ea1"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply H0 in H5.",
+            "VernacExtend",
+            "db40c93584133a6e75a269a4b3dd9629e0e9338e"
+        ],
+        [
+            "destruct H5 as [? [? ?]].",
+            "VernacExtend",
+            "f63ec14ace51ead7e2f0a0a8e5bb9123422fc5a3"
+        ],
+        [
+            "inversion H2.",
+            "VernacExtend",
+            "afdc959ca1f20d64005a6cd95d8f83134e6ae5f8"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply H0 in H5.",
+            "VernacExtend",
+            "db40c93584133a6e75a269a4b3dd9629e0e9338e"
+        ],
+        [
+            "destruct H5 as [? [? ?]].",
+            "VernacExtend",
+            "f63ec14ace51ead7e2f0a0a8e5bb9123422fc5a3"
+        ],
+        [
+            "inversion H2.",
+            "VernacExtend",
+            "afdc959ca1f20d64005a6cd95d8f83134e6ae5f8"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply H0 in H3.",
+            "VernacExtend",
+            "6ce74944a0ebf1f39c68ae69c10979913eb4e4a4"
+        ],
+        [
+            "destruct H3 as [? [? ?]].",
+            "VernacExtend",
+            "e95fe4065eb08a1abd6549dee889ca2bec13b9ad"
+        ],
+        [
+            "inversion H2; subst.",
+            "VernacExtend",
+            "cbe105a5addb129fa1e578ba8ef36c4763179006"
+        ],
+        [
+            "exists x; auto.",
+            "VernacExtend",
+            "d8b3edd09d34953d83a4fbc6350c30f804073b09"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition TS2BSS {P: ProgrammingLanguage} {state: Type} {Ac: Action} {Res: Resource} (TS: TraceSemantics P (resources * state) Ac): BigStepSemantics P state := Build_BigStepSemantics _ _ (fun s c ms => traces_access (cmd_denote c) (fun _ => False, s) (lift_function (pair ( fun _ => False)) ms)).",
+            "VernacDefinition",
+            "52b3b399112c38daa01178a4102e8f3a2fe6342c"
+        ],
+        [
+            "Definition is_upper_bound {A: Type} {R: Relation A} (s: A -> Prop) (a: A): Prop := forall a0, s a0 -> a0 <= a.",
+            "VernacDefinition",
+            "6c0bebb0472a759ed27cd63e5514322e459b13c1"
+        ],
+        [
+            "Definition greatest {A: Type} {R: Relation A} (s: A -> Prop) (a: A): Prop := s a /\\ is_upper_bound s a.",
+            "VernacDefinition",
+            "b5773e68a432090a3d8c2a8f984eacf41b0c6764"
+        ],
+        [
+            "Inductive thread_local_state_enable {state: Type} {Ac: Action} {Res: Resource} {J: Join state} {state_R: Relation state} {Acr: Action_resource Ac Res} {ac_sem: ActionInterpret (resources * state) Ac} (Inv: resource * (state -> Prop) -> Prop) : action -> resources * state -> MetaState (resources * state) -> Prop := | thread_local_state_enable_acq: forall r A1 A2 I m f n, join A1 (eq r) A2 -> Inv (r, I) -> I f -> join m f n -> thread_local_state_enable Inv (Aacquire_res r) (A1, m) (Terminating (A2, n)) | thread_local_state_enable_rel_succ: forall r A1 A2 I m n, join A2 (eq r) A1 -> Inv (r, I) -> greatest (fun n => exists f, I f /\\ join n f m) n -> thread_local_state_enable Inv (Arelease_res r) (A1, m) (Terminating (A2, n)) | thread_local_state_enable_rel_fail: forall r A1 A2 I m, join A2 (eq r) A1 -> Inv (r, I) -> (forall n, ~ exists f, I f /\\ join n f m) -> thread_local_state_enable Inv (Arelease_res r) (A1, m) Error | thread_local_state_enable_non_resource: forall a s s', ~ is_resources_action a -> state_enable a s s' -> thread_local_state_enable Inv a s s'.",
+            "VernacInductive",
+            "73ed1c9c871e619771f3dd52ee0da0f9ede5e058"
+        ],
+        [
+            "Lemma thread_local_state_enable_non_resource_action {state: Type} {Ac: Action} {Res: Resource} {J: Join state} {state_R: Relation state} {Acr: Action_resource Ac Res} {ac_sem: ActionInterpret (resources * state) Ac}: forall Inv a s s', ~ is_resources_action a -> (state_enable a s s' <-> thread_local_state_enable Inv a s s').",
+            "VernacStartTheoremProof",
+            "456f5a9b01d9801356f0be084312aea5c3398d3a"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "split; intros.",
+            "VernacExtend",
+            "3c0a2af2969d0c39838e9010244dfd28201b7f3e"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "constructor; auto.",
+            "VernacExtend",
+            "686f227fe0f57af60032eb35216aef1e62d0c0e5"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "inversion H0; subst; solve_resource_action.",
+            "VernacExtend",
+            "a139cd4191b28a3d69fdb048613d26e892a99768"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition ThreadLocal_ActionInterpret_resource {state: Type} {Ac: Action} {Res: Resource} {J: Join state} {state_R: Relation state} {Acr: Action_resource Ac Res} (ac_sem: ActionInterpret (resources * state) Ac) (Inv: resource * (state -> Prop) -> Prop): ActionInterpret (resources * state) Ac := Build_ActionInterpret _ _ (thread_local_state_enable Inv).",
+            "VernacDefinition",
+            "7224a41ac9a0533a87fc0511834bbfbb7ec8ece8"
+        ],
+        [
+            "Definition ThreadLocal_BSS {P: ProgrammingLanguage} {state: Type} {Ac: Action} {Res: Resource} {J: Join state} {state_R: Relation state} {Acr: Action_resource Ac Res} (TS: TraceSemantics P (resources * state) Ac) (Inv: resource * (state -> Prop) -> Prop): BigStepSemantics P state := TS2BSS (Build_TraceSemantics _ _ _ c2t (ThreadLocal_ActionInterpret_resource ac_sem Inv)).",
+            "VernacDefinition",
+            "896168a358822f01174e5f7ce8641d253dbcfc35"
+        ],
+        [
+            "Definition ThreadLocal_AIPr {state: Type} {Ac: Action} {Res: Resource} {J: Join state} {state_R: Relation state} {AcP: Action_Parallel Ac} {Acr: Action_resource Ac Res} {nAcPr: NormalAction_Parallel_resource Ac Res} {ac_sem: ActionInterpret (resources * state) Ac} {AIPr: ActionInterpret_Parallel_resource state Ac Res ac_sem}: forall (Inv: resource * (state -> Prop) -> Prop), ActionInterpret_Parallel_resource state Ac Res (ThreadLocal_ActionInterpret_resource ac_sem Inv).",
+            "VernacDefinition",
+            "27cef4b2924bcb68d944121ad13faa9cbb5ea056"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "constructor.",
+            "VernacExtend",
+            "3c77e6be855b5086df5e918bf2a0537e1010479a"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite <- (state_enable_race A s ms).",
+            "VernacExtend",
+            "e5d7607628e2eec690af3f898ff07fc29df38cb3"
+        ],
+        [
+            "rewrite (thread_local_state_enable_non_resource_action Inv) by (apply race_not_resource).",
+            "VernacExtend",
+            "0f02a9ee7c62836d89cd69e601f30186c285fb3f"
+        ],
+        [
+            "tauto.",
+            "VernacExtend",
+            "9bfafe84fb6724789bdf6cfd21cd721dd63fdabd"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "simpl in H0, H1.",
+            "VernacExtend",
+            "ad66d190184bac82449653c9a526e7e1630d6bbd"
+        ],
+        [
+            "destruct (res_actions_no_race _ _ H).",
+            "VernacExtend",
+            "8860fca1877d3d048e733a189a7443667ab2af84"
+        ],
+        [
+            "rewrite <- (thread_local_state_enable_non_resource_action Inv) in H0, H1 by auto.",
+            "VernacExtend",
+            "0e6d63454012e74ae2664749ab6dfca7026febbd"
+        ],
+        [
+            "revert H H0 H1 H2.",
+            "VernacExtend",
+            "b02588cf1003fe85eed352578987b9580b1f340f"
+        ],
+        [
+            "apply state_enable_race_actions_spec.",
+            "VernacExtend",
+            "eff7561a6d52082de8d5aaf2b60d24a0caaa5ba8"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "res_enable_acq_inv",
+            "line_nb": 27,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion H; subst; solve_resource_action.",
+                        "VernacExtend",
+                        "f542b6d349e2a30ba9441b12d834f0904439c6f9"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "res_enable_rel_inv",
+            "line_nb": 32,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion H; subst; solve_resource_action.",
+                        "VernacExtend",
+                        "f542b6d349e2a30ba9441b12d834f0904439c6f9"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "res_enable_not_res_inv",
+            "line_nb": 37,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion H0; subst; solve_resource_action.",
+                        "VernacExtend",
+                        "a139cd4191b28a3d69fdb048613d26e892a99768"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ordered_and_frame_AIr",
+            "line_nb": 56,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor.",
+                        "VernacExtend",
+                        "3c77e6be855b5086df5e918bf2a0537e1010479a"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "pose proof ordered_action_interpret _ _ _ _ H3 H4 as [n2' [? ?]].",
+                        "VernacExtend",
+                        "a71a104dd06677893d14ba63fab6a0088a2aed5f"
+                    ]
+                },
+                {
+                    "command": [
+                        "pose proof frame_property _ _ _ _ _ H1 H2 H6 as [m2 [? ?]].",
+                        "VernacExtend",
+                        "d9029235f6480a14c81c540a52d3b1d31bed60f4"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists m2, n2'; auto.",
+                        "VernacExtend",
+                        "6ed700131a923b567855afefd17892d7d5107883"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "trace_access_Terminating_inv",
+            "line_nb": 66,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion H; subst.",
+                        "VernacExtend",
+                        "123ebc73101dcac5781200440a60232218464ea1"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply H0 in H5.",
+                        "VernacExtend",
+                        "db40c93584133a6e75a269a4b3dd9629e0e9338e"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H5 as [? [? ?]].",
+                        "VernacExtend",
+                        "f63ec14ace51ead7e2f0a0a8e5bb9123422fc5a3"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion H2.",
+                        "VernacExtend",
+                        "afdc959ca1f20d64005a6cd95d8f83134e6ae5f8"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply H0 in H5.",
+                        "VernacExtend",
+                        "db40c93584133a6e75a269a4b3dd9629e0e9338e"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H5 as [? [? ?]].",
+                        "VernacExtend",
+                        "f63ec14ace51ead7e2f0a0a8e5bb9123422fc5a3"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion H2.",
+                        "VernacExtend",
+                        "afdc959ca1f20d64005a6cd95d8f83134e6ae5f8"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply H0 in H3.",
+                        "VernacExtend",
+                        "6ce74944a0ebf1f39c68ae69c10979913eb4e4a4"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H3 as [? [? ?]].",
+                        "VernacExtend",
+                        "e95fe4065eb08a1abd6549dee889ca2bec13b9ad"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion H2; subst.",
+                        "VernacExtend",
+                        "cbe105a5addb129fa1e578ba8ef36c4763179006"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists x; auto.",
+                        "VernacExtend",
+                        "d8b3edd09d34953d83a4fbc6350c30f804073b09"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "thread_local_state_enable_non_resource_action",
+            "line_nb": 87,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; intros.",
+                        "VernacExtend",
+                        "3c0a2af2969d0c39838e9010244dfd28201b7f3e"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; auto.",
+                        "VernacExtend",
+                        "686f227fe0f57af60032eb35216aef1e62d0c0e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion H0; subst; solve_resource_action.",
+                        "VernacExtend",
+                        "a139cd4191b28a3d69fdb048613d26e892a99768"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ThreadLocal_AIPr",
+            "line_nb": 98,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor.",
+                        "VernacExtend",
+                        "3c77e6be855b5086df5e918bf2a0537e1010479a"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- (state_enable_race A s ms).",
+                        "VernacExtend",
+                        "e5d7607628e2eec690af3f898ff07fc29df38cb3"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (thread_local_state_enable_non_resource_action Inv) by (apply race_not_resource).",
+                        "VernacExtend",
+                        "0f02a9ee7c62836d89cd69e601f30186c285fb3f"
+                    ]
+                },
+                {
+                    "command": [
+                        "tauto.",
+                        "VernacExtend",
+                        "9bfafe84fb6724789bdf6cfd21cd721dd63fdabd"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H0, H1.",
+                        "VernacExtend",
+                        "ad66d190184bac82449653c9a526e7e1630d6bbd"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (res_actions_no_race _ _ H).",
+                        "VernacExtend",
+                        "8860fca1877d3d048e733a189a7443667ab2af84"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- (thread_local_state_enable_non_resource_action Inv) in H0, H1 by auto.",
+                        "VernacExtend",
+                        "0e6d63454012e74ae2664749ab6dfca7026febbd"
+                    ]
+                },
+                {
+                    "command": [
+                        "revert H H0 H1 H2.",
+                        "VernacExtend",
+                        "b02588cf1003fe85eed352578987b9580b1f340f"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply state_enable_race_actions_spec.",
+                        "VernacExtend",
+                        "eff7561a6d52082de8d5aaf2b60d24a0caaa5ba8"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

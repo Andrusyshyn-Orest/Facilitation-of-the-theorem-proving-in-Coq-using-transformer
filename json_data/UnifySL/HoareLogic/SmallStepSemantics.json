@@ -1,0 +1,566 @@
+{
+    "filename": "HoareLogic/SmallStepSemantics.v",
+    "coq_project": "UnifySL",
+    "vernac_cmds": [
+        [
+            "Require Import Coq.Relations.Relation_Operators.",
+            "VernacRequire",
+            "c8404747ba52b23d300cf51ff3bc522c19733ecb"
+        ],
+        [
+            "Require Import Logic.lib.Stream.SigStream.",
+            "VernacRequire",
+            "df82fbedbcb4b0e4d5d19b6efd25adc81442e68f"
+        ],
+        [
+            "Require Import Logic.lib.Stream.StreamFunctions.",
+            "VernacRequire",
+            "2acdc595eab9c716929306d2cb4a4031a1a20601"
+        ],
+        [
+            "Require Import Coq.Relations.Relation_Operators.",
+            "VernacRequire",
+            "c8404747ba52b23d300cf51ff3bc522c19733ecb"
+        ],
+        [
+            "Require Import Logic.GeneralLogic.KripkeModel.",
+            "VernacRequire",
+            "6b79568e5e653c27c6a8e7063552aa2142ab9f3f"
+        ],
+        [
+            "Require Import Logic.SeparationLogic.Model.SeparationAlgebra.",
+            "VernacRequire",
+            "fff7e35feb20a10cad353e63f1dbfcd95597c6ca"
+        ],
+        [
+            "Require Import Logic.SeparationLogic.Model.OSAGenerators.",
+            "VernacRequire",
+            "1497fe1441c96a62789ddcf5561619c9d599e79e"
+        ],
+        [
+            "Require Import Logic.HoareLogic.ImperativeLanguage.",
+            "VernacRequire",
+            "2567be926c29a7ce602472584cdfade122076b4b"
+        ],
+        [
+            "Require Import Logic.HoareLogic.ProgramState.",
+            "VernacRequire",
+            "8ffd4c3c26f3e73876d08ebc90fecae1cd31852b"
+        ],
+        [
+            "Require Import Logic.HoareLogic.Trace.",
+            "VernacRequire",
+            "51179461a339f7e7234fd9127273babf79630b87"
+        ],
+        [
+            "Local Open Scope kripke_model.",
+            "VernacOpenCloseScope",
+            "e49ee31afd7da8031602e71d800a363615169ff7"
+        ],
+        [
+            "Import KripkeModelNotation_Intuitionistic.",
+            "VernacImport",
+            "d7b7fe443374144a34554b0fe36caedd27cfce5b"
+        ],
+        [
+            "Class SmallStepSemantics (P: ProgrammingLanguage) (state: Type): Type := { step: cmd * state -> MetaState (cmd * state) -> Prop }.",
+            "VernacInductive",
+            "3b0b0b8eedc1143a93138c6abc69a825760bfe8a"
+        ],
+        [
+            "Definition step_safe {P: ProgrammingLanguage} {state: Type} {SSS: SmallStepSemantics P state} (cs: cmd * state): Prop := ~ step cs Error.",
+            "VernacDefinition",
+            "f474b4419c95beaa155f60c35bf214e5e356ec20"
+        ],
+        [
+            "Definition step_term_norm {P: ProgrammingLanguage} {state: Type} {SSS: SmallStepSemantics P state} (cs: cmd * state): Prop := ~ step cs Error /\\ ~ step cs NonTerminating.",
+            "VernacDefinition",
+            "574ef9b6700c30d100872fc4b425360136fd1cc4"
+        ],
+        [
+            "Class SASmallStepSemantics (P: ProgrammingLanguage) (state: Type) {J: Join state} {state_R: Relation state} (SSS: SmallStepSemantics P state): Type := { frame_property: forall (m mf m': cmd * state) n', join (snd m) (snd mf) (snd m') -> step_safe m -> step m' n' -> exists n nf, snd nf <= snd mf /\\ @lift_join _ (@prod_Join cmd state (equiv_Join) J) n (Terminating nf) n' /\\ step m n }.",
+            "VernacInductive",
+            "e5d7baf6395482af062c974858ba065c065510f2"
+        ],
+        [
+            "Definition access {P: ProgrammingLanguage} {Imp: ImperativeProgrammingLanguage P} {state: Type} {SSS: SmallStepSemantics P state} (s: state) (c: cmd) (ms: MetaState state) := clos_refl_trans _ (lift_relation step) (Terminating (c, s)) (lift_function (pair Sskip) ms) \\/ ms = NonTerminating /\\ exists cs: nat -> cmd * state, cs 0 = (c, s) /\\ forall k, step (cs k) (Terminating (cs (S k))).",
+            "VernacDefinition",
+            "5997c16270f826c706e639311794fbecc7464e4a"
+        ],
+        [
+            "Module ImpSmallStepSemantics (D: FORWARD).",
+            "VernacDefineModule",
+            "8ab8d34c457cfb16d5101c5fcc5d0d5f7439ab20"
+        ],
+        [
+            "Export D.",
+            "VernacImport",
+            "5472c8bad39f86e0e558483eab625c224a384fb8"
+        ],
+        [
+            "Class ImpSmallStepSemantics (P: ProgrammingLanguage) {iP: ImperativeProgrammingLanguage P} (state: Type) {state_R: Relation state} (SSS: SmallStepSemantics P state): Type := { eval_bool: state -> bool_expr -> Prop; eval_bool_stable: forall b, Krelation_stable_Kdenote (fun s => eval_bool s b); step_defined: forall c s, c <> Sskip -> exists mcs, step (c, s) mcs; step_Sskip: forall s mcs, step (Sskip, s) mcs <-> False; step_Ssequence: forall c1 c2 s mcs, step (Ssequence c1 c2, s) mcs -> (exists ms', c1 = Sskip /\\ forward (Terminating s) ms' /\\ mcs = lift_function (pair c2) ms') \\/ (exists mcs', step (c1, s) mcs' /\\ mcs = lift_function (fun cs => (Ssequence (fst cs) c2, snd cs)) mcs'); step_Sifthenelse: forall b c1 c2 s mcs, step (Sifthenelse b c1 c2, s) mcs -> (eval_bool s b /\\ exists ms', forward (Terminating s) ms' /\\ mcs = lift_function (pair c1) ms') \\/ (~ eval_bool s b /\\ exists ms', forward (Terminating s) ms' /\\ mcs = lift_function (pair c2) ms'); step_Swhile: forall b c s mcs, step (Swhile b c, s) mcs -> (eval_bool s b /\\ exists ms', forward (Terminating s) ms' /\\ mcs = lift_function (pair (Ssequence c (Swhile b c))) ms') \\/ (~ eval_bool s b /\\ exists ms', forward (Terminating s) ms' /\\ mcs = lift_function (pair Sskip) ms') }.",
+            "VernacInductive",
+            "747506c9cd3045fabd8d7b7748506a8212912ce8"
+        ],
+        [
+            "End ImpSmallStepSemantics.",
+            "VernacEndSegment",
+            "f2b44fac0feb4e76affbb5ce9541ec1ae048d70b"
+        ],
+        [
+            "Module Partial := ImpSmallStepSemantics (ProgramState.Partial).",
+            "VernacDefineModule",
+            "f97c6899143790fea35725ba521db8e83baf9f2d"
+        ],
+        [
+            "Module Total := ImpSmallStepSemantics (ProgramState.Total).",
+            "VernacDefineModule",
+            "47d9df47c64ad2d52952e088b963533a05fc0a10"
+        ],
+        [
+            "Instance Total2Partial_ImpSmallStepSemantics {P: ProgrammingLanguage} {iP: ImperativeProgrammingLanguage P} (state: Type) {state_R: Relation state} {SSS: SmallStepSemantics P state} (iSSS: Total.ImpSmallStepSemantics P state SSS): Partial.ImpSmallStepSemantics P state SSS.",
+            "VernacInstance",
+            "33aab0af0d3a6403f793a7fb55901d6516a8c413"
+        ],
+        [
+            "refine (Partial.Build_ImpSmallStepSemantics _ _ _ _ _ Total.eval_bool Total.eval_bool_stable _ _ _ _ _).",
+            "VernacExtend",
+            "a4abb15f2336ee55718e87616a3736f6e885486f"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply Total.step_defined.",
+            "VernacExtend",
+            "f3420c6b7f4b0113d4d6d80a87906938d7d25d28"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply Total.step_Sskip.",
+            "VernacExtend",
+            "ce0d630165fe7d4495a5dd7d71db0cbea294deae"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "pose proof Total.step_Ssequence c1 c2 s mcs H as [[ms' [? [? ?]]] | [ms' [? ?]]].",
+            "VernacExtend",
+            "22bcc99df31bf1b36783bb65692aeea5518b3850"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "left; exists ms'; split; [| split]; auto.",
+            "VernacExtend",
+            "e3275833899e773d6edaa66a3df06e470e9c71fb"
+        ],
+        [
+            "apply Total2Partial_forward; auto.",
+            "VernacExtend",
+            "d3113f31e9a1bcc3a6015252358d5e2ab732fa33"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "right; exists ms'; auto.",
+            "VernacExtend",
+            "5f6e3306db5a583e9b2101d1c010eb37a56d3cbd"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "pose proof Total.step_Sifthenelse b c1 c2 s mcs H as [[? [ms' [? ?]]] | [? [ms' [? ?]]]].",
+            "VernacExtend",
+            "99bb586e57392a99e635ca9ffaf99c6513de7071"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "left; split; auto.",
+            "VernacExtend",
+            "839f21d27eb3d8616b1c18bc30b38cff7c9f8eb4"
+        ],
+        [
+            "exists ms'; split; auto.",
+            "VernacExtend",
+            "544c18588d3a0d16a59b4806ecf39fbdd93cb74d"
+        ],
+        [
+            "apply Total2Partial_forward; auto.",
+            "VernacExtend",
+            "d3113f31e9a1bcc3a6015252358d5e2ab732fa33"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "right; split; auto.",
+            "VernacExtend",
+            "1cc5054ad1405940e563f1d7ddce468251301130"
+        ],
+        [
+            "exists ms'; split; auto.",
+            "VernacExtend",
+            "544c18588d3a0d16a59b4806ecf39fbdd93cb74d"
+        ],
+        [
+            "apply Total2Partial_forward; auto.",
+            "VernacExtend",
+            "d3113f31e9a1bcc3a6015252358d5e2ab732fa33"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "pose proof Total.step_Swhile b c s mcs H as [[? [ms' [? ?]]] | [? [ms' [? ?]]]].",
+            "VernacExtend",
+            "44dccd3bef4feed7edced3d7bdcf93370defe451"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "left; split; auto.",
+            "VernacExtend",
+            "839f21d27eb3d8616b1c18bc30b38cff7c9f8eb4"
+        ],
+        [
+            "exists ms'; split; auto.",
+            "VernacExtend",
+            "544c18588d3a0d16a59b4806ecf39fbdd93cb74d"
+        ],
+        [
+            "apply Total2Partial_forward; auto.",
+            "VernacExtend",
+            "d3113f31e9a1bcc3a6015252358d5e2ab732fa33"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "right; split; auto.",
+            "VernacExtend",
+            "1cc5054ad1405940e563f1d7ddce468251301130"
+        ],
+        [
+            "exists ms'; split; auto.",
+            "VernacExtend",
+            "544c18588d3a0d16a59b4806ecf39fbdd93cb74d"
+        ],
+        [
+            "apply Total2Partial_forward; auto.",
+            "VernacExtend",
+            "d3113f31e9a1bcc3a6015252358d5e2ab732fa33"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "Total2Partial_ImpSmallStepSemantics",
+            "line_nb": 23,
+            "steps": [
+                {
+                    "command": [
+                        "refine (Partial.Build_ImpSmallStepSemantics _ _ _ _ _ Total.eval_bool Total.eval_bool_stable _ _ _ _ _).",
+                        "VernacExtend",
+                        "a4abb15f2336ee55718e87616a3736f6e885486f"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Total.step_defined.",
+                        "VernacExtend",
+                        "f3420c6b7f4b0113d4d6d80a87906938d7d25d28"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Total.step_Sskip.",
+                        "VernacExtend",
+                        "ce0d630165fe7d4495a5dd7d71db0cbea294deae"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "pose proof Total.step_Ssequence c1 c2 s mcs H as [[ms' [? [? ?]]] | [ms' [? ?]]].",
+                        "VernacExtend",
+                        "22bcc99df31bf1b36783bb65692aeea5518b3850"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "left; exists ms'; split; [| split]; auto.",
+                        "VernacExtend",
+                        "e3275833899e773d6edaa66a3df06e470e9c71fb"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Total2Partial_forward; auto.",
+                        "VernacExtend",
+                        "d3113f31e9a1bcc3a6015252358d5e2ab732fa33"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "right; exists ms'; auto.",
+                        "VernacExtend",
+                        "5f6e3306db5a583e9b2101d1c010eb37a56d3cbd"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "pose proof Total.step_Sifthenelse b c1 c2 s mcs H as [[? [ms' [? ?]]] | [? [ms' [? ?]]]].",
+                        "VernacExtend",
+                        "99bb586e57392a99e635ca9ffaf99c6513de7071"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "left; split; auto.",
+                        "VernacExtend",
+                        "839f21d27eb3d8616b1c18bc30b38cff7c9f8eb4"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists ms'; split; auto.",
+                        "VernacExtend",
+                        "544c18588d3a0d16a59b4806ecf39fbdd93cb74d"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Total2Partial_forward; auto.",
+                        "VernacExtend",
+                        "d3113f31e9a1bcc3a6015252358d5e2ab732fa33"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "right; split; auto.",
+                        "VernacExtend",
+                        "1cc5054ad1405940e563f1d7ddce468251301130"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists ms'; split; auto.",
+                        "VernacExtend",
+                        "544c18588d3a0d16a59b4806ecf39fbdd93cb74d"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Total2Partial_forward; auto.",
+                        "VernacExtend",
+                        "d3113f31e9a1bcc3a6015252358d5e2ab732fa33"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "pose proof Total.step_Swhile b c s mcs H as [[? [ms' [? ?]]] | [? [ms' [? ?]]]].",
+                        "VernacExtend",
+                        "44dccd3bef4feed7edced3d7bdcf93370defe451"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "left; split; auto.",
+                        "VernacExtend",
+                        "839f21d27eb3d8616b1c18bc30b38cff7c9f8eb4"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists ms'; split; auto.",
+                        "VernacExtend",
+                        "544c18588d3a0d16a59b4806ecf39fbdd93cb74d"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Total2Partial_forward; auto.",
+                        "VernacExtend",
+                        "d3113f31e9a1bcc3a6015252358d5e2ab732fa33"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "right; split; auto.",
+                        "VernacExtend",
+                        "1cc5054ad1405940e563f1d7ddce468251301130"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists ms'; split; auto.",
+                        "VernacExtend",
+                        "544c18588d3a0d16a59b4806ecf39fbdd93cb74d"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Total2Partial_forward; auto.",
+                        "VernacExtend",
+                        "d3113f31e9a1bcc3a6015252358d5e2ab732fa33"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

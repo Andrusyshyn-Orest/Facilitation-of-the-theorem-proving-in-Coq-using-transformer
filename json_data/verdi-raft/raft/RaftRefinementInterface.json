@@ -1,0 +1,666 @@
+{
+    "filename": "raft/RaftRefinementInterface.v",
+    "coq_project": "verdi-raft",
+    "vernac_cmds": [
+        [
+            "Require Import Verdi.GhostSimulations.",
+            "VernacRequire",
+            "891dab67151e6ddfd50d6b357dfdba6cdf4a4361"
+        ],
+        [
+            "Require Import VerdiRaft.Raft.",
+            "VernacRequire",
+            "36b0b9afd1c52050ce42daf3c5fa4abb91993f25"
+        ],
+        [
+            "Section RaftRefinementInterface.",
+            "VernacBeginSection",
+            "bbf96eda0b6e8734f4ab4c23a0e3e3dd1e072c0e"
+        ],
+        [
+            "Context {orig_base_params : BaseParams}.",
+            "VernacContext",
+            "69028e681894580fbc36a6124a9136decfafb159"
+        ],
+        [
+            "Context {one_node_params : OneNodeParams orig_base_params}.",
+            "VernacContext",
+            "013ed31ca1bcacb0528fc416f1059cfa49b9df65"
+        ],
+        [
+            "Context {raft_params : RaftParams orig_base_params}.",
+            "VernacContext",
+            "f5c24333154da8ee6ae37600b526f95496c92448"
+        ],
+        [
+            "Record electionsData := mkElectionsData { votes : list (term * name) ; votesWithLog : list (term * name * list entry) ; cronies : term -> list name ; leaderLogs : list (term * list entry) ; allEntries : list (term * entry) }.",
+            "VernacInductive",
+            "dd51bd700e1702b2af41a0559aa311e00d83985f"
+        ],
+        [
+            "Definition update_elections_data_requestVote (me : name) (src : name) t candidateId lastLogIndex lastLogTerm st := let (st', r) := handleRequestVote me (snd st) t candidateId lastLogIndex lastLogTerm in match (votedFor (snd st), votedFor st') with | (None, Some cid) => {| votes := (currentTerm st', cid) :: votes (fst st) ; votesWithLog := (currentTerm st', cid, log st') :: votesWithLog (fst st) ; cronies := cronies (fst st) ; leaderLogs := leaderLogs (fst st) ; allEntries := allEntries (fst st) |} | (Some cid, Some cid') => if andb (beq_nat (currentTerm (snd st)) (currentTerm st')) (if name_eq_dec cid cid' then true else false) then fst st else {| votes := (currentTerm st', cid') :: votes (fst st) ; votesWithLog := (currentTerm st', cid', log st') :: votesWithLog (fst st) ; cronies := cronies (fst st) ; leaderLogs := leaderLogs (fst st) ; allEntries := allEntries (fst st) |} | _ => fst st end.",
+            "VernacDefinition",
+            "35a32f9392ccd10e19f8b60fcd2db6da4c02b5c8"
+        ],
+        [
+            "Definition update_elections_data_requestVoteReply (me : name) (src : name) t voteGranted st := let st' := handleRequestVoteReply me (snd st) src t voteGranted in match (type st') with | Follower => fst st | Candidate => {| votes := votes (fst st) ; votesWithLog := votesWithLog (fst st) ; cronies := fun tm => (if eq_nat_dec tm (currentTerm st') then votesReceived st' else cronies (fst st) tm) ; leaderLogs := leaderLogs (fst st) ; allEntries := allEntries (fst st) |} | Leader => {| votes := votes (fst st) ; votesWithLog := votesWithLog (fst st) ; cronies := fun tm => (if eq_nat_dec tm (currentTerm st') then votesReceived st' else cronies (fst st) tm) ; leaderLogs := if serverType_eq_dec (type (snd st)) Candidate then (currentTerm st', log st') :: leaderLogs (fst st) else leaderLogs (fst st) ; allEntries := allEntries (fst st) |} end.",
+            "VernacDefinition",
+            "4853389d9f93277e7baab41ec7422a11ae11a50e"
+        ],
+        [
+            "Definition update_elections_data_appendEntries (me : name) st (t : term) (leaderId : name) (prevLogIndex : logIndex) (prevLogTerm : term) (entries : list entry) (leaderCommit : logIndex) := let (_, m) := handleAppendEntries me (snd st) t leaderId prevLogIndex prevLogTerm entries leaderCommit in match m with | AppendEntriesReply t entries true => {| votes := votes (fst st) ; votesWithLog := votesWithLog (fst st) ; cronies := cronies (fst st) ; leaderLogs := leaderLogs (fst st) ; allEntries := (map (fun e => (t, e)) entries) ++ allEntries (fst st) |} | _ => fst st end.",
+            "VernacDefinition",
+            "55c74e315c16582dffa4a3d7dbe9fd9d80fe4906"
+        ],
+        [
+            "Definition update_elections_data_net (me : name) (src: name) (m : msg) st : electionsData := match m with | RequestVote t candidateId lastLogIndex lastLogTerm => update_elections_data_requestVote me src t src lastLogIndex lastLogTerm st | RequestVoteReply t voteGranted => update_elections_data_requestVoteReply me src t voteGranted st | AppendEntries t lid prevLogIndex prevLogTerm entries leaderCommit => update_elections_data_appendEntries me st t lid prevLogIndex prevLogTerm entries leaderCommit | _ => fst st end.",
+            "VernacDefinition",
+            "0517b3c5d3fdd94b76c66976bb4173a12138592c"
+        ],
+        [
+            "Definition update_elections_data_timeout (me : name) st : electionsData := let '(_, st', _) := handleTimeout me (snd st) in match (votedFor st') with | Some cid => if serverType_eq_dec (type (snd st)) Leader then fst st else {| votes := (currentTerm st', cid) :: votes (fst st) ; votesWithLog := (currentTerm st', cid, log st') :: votesWithLog (fst st) ; cronies := if serverType_eq_dec (type st') Candidate then fun tm => (if eq_nat_dec tm (currentTerm st') then votesReceived st' else cronies (fst st) tm) else cronies (fst st) ; leaderLogs := leaderLogs (fst st) ; allEntries := allEntries (fst st) |} | None => fst st end.",
+            "VernacDefinition",
+            "70f3e809ca8a16f84ca48972a74c34a0ba8c611c"
+        ],
+        [
+            "Definition update_elections_data_client_request (me : name) st client id c : electionsData := let '(_, st', _) := handleClientRequest me (snd st) client id c in if length (log (snd st)) <? length (log st') then match (log st') with | e :: _ => {| votes := votes (fst st) ; votesWithLog := votesWithLog (fst st) ; cronies := cronies (fst st) ; leaderLogs := leaderLogs (fst st) ; allEntries := (currentTerm st', e) :: allEntries (fst st) |} | [] => fst st end else fst st.",
+            "VernacDefinition",
+            "7b52d6c85cba09fca7b5d26f5b90d0f325ace73b"
+        ],
+        [
+            "Definition update_elections_data_input (me : name) (inp : raft_input) st : electionsData := match inp with | Timeout => update_elections_data_timeout me st | ClientRequest client id c => update_elections_data_client_request me st client id c end.",
+            "VernacDefinition",
+            "df7e22b97bd035e238cb7316a896dfc1b7df72b3"
+        ],
+        [
+            "Instance elections_ghost_params : GhostMultiParams multi_params := { ghost_data := electionsData ; ghost_init := {| votes := [] ; votesWithLog := []; cronies := fun _ => []; leaderLogs := [] ; allEntries := [] |} ; ghost_net_handlers := update_elections_data_net ; ghost_input_handlers := update_elections_data_input }.",
+            "VernacInstance",
+            "9d7ab20f40aec5a1942796a800d8b5334e9a5043"
+        ],
+        [
+            "Definition raft_refined_base_params := refined_base_params.",
+            "VernacDefinition",
+            "d240ebd8f157295e09fe7740753b7b012e7846d8"
+        ],
+        [
+            "Definition raft_refined_multi_params := refined_multi_params.",
+            "VernacDefinition",
+            "3d472cd424e88a05355bd437a5fe4b7970b9185a"
+        ],
+        [
+            "Definition raft_refined_failure_params := refined_failure_params.",
+            "VernacDefinition",
+            "553253016defec954bf0e867308bf06b95808b45"
+        ],
+        [
+            "Hint Extern 4 (@BaseParams) => apply raft_refined_base_params : typeclass_instances.",
+            "VernacHints",
+            "65a8db98c9835b9c5b8441e4020d634368ab5acc"
+        ],
+        [
+            "Hint Extern 4 (@MultiParams _) => apply raft_refined_multi_params : typeclass_instances.",
+            "VernacHints",
+            "122e02ee5f8024489b59681e7a13b1ba1434e0a3"
+        ],
+        [
+            "Hint Extern 4 (@FailureParams _ _) => apply raft_refined_failure_params : typeclass_instances.",
+            "VernacHints",
+            "f702ee75e2782b064fecb6959de596b6e44028cb"
+        ],
+        [
+            "Inductive refined_raft_intermediate_reachable : network -> Prop := | RRIR_init : refined_raft_intermediate_reachable step_async_init | RRIR_step_failure : forall failed net failed' net' out, refined_raft_intermediate_reachable net -> step_failure (failed, net) (failed', net') out -> refined_raft_intermediate_reachable net' | RRIR_handleInput : forall net h inp gd out d l ps' st', refined_raft_intermediate_reachable net -> handleInput h inp (snd (nwState net h)) = (out, d, l) -> update_elections_data_input h inp (nwState net h) = gd -> (forall h', st' h' = update name_eq_dec (nwState net) h (gd, d) h') -> (forall p', In p' ps' -> In p' (nwPackets net) \\/ In p' (send_packets h l)) -> refined_raft_intermediate_reachable (mkNetwork ps' st') | RRIR_handleMessage : forall p net xs ys st' ps' gd d l, refined_raft_intermediate_reachable net -> handleMessage (pSrc p) (pDst p) (pBody p) (snd (nwState net (pDst p))) = (d, l) -> update_elections_data_net (pDst p) (pSrc p) (pBody p) (nwState net (pDst p)) = gd -> nwPackets net = xs ++ p :: ys -> (forall h, st' h = update name_eq_dec (nwState net) (pDst p) (gd, d) h) -> (forall p', In p' ps' -> In p' (xs ++ ys) \\/ In p' (send_packets (pDst p) l)) -> refined_raft_intermediate_reachable (mkNetwork ps' st') | RRIR_doLeader : forall net st' ps' h os gd d d' ms, refined_raft_intermediate_reachable net -> doLeader d h = (os, d', ms) -> nwState net h = (gd, d) -> (forall h', st' h' = update name_eq_dec (nwState net) h (gd, d') h') -> (forall p, In p ps' -> In p (nwPackets net) \\/ In p (send_packets h ms)) -> refined_raft_intermediate_reachable (mkNetwork ps' st') | RRIR_doGenericServer : forall net st' ps' os gd d d' ms h, refined_raft_intermediate_reachable net -> doGenericServer h d = (os, d', ms) -> nwState net h = (gd, d) -> (forall h', st' h' = update name_eq_dec (nwState net) h (gd, d') h') -> (forall p, In p ps' -> In p (nwPackets net) \\/ In p (send_packets h ms)) -> refined_raft_intermediate_reachable (mkNetwork ps' st').",
+            "VernacInductive",
+            "b2f6f0aaf52fa3b74a09179ad237218506166994"
+        ],
+        [
+            "Definition refined_raft_net_invariant_client_request (P : network -> Prop) := forall h net st' ps' gd out d l client id c, handleClientRequest h (snd (nwState net h)) client id c = (out, d, l) -> gd = update_elections_data_client_request h (nwState net h) client id c -> P net -> refined_raft_intermediate_reachable net -> (forall h', st' h' = update name_eq_dec (nwState net) h (gd, d) h') -> (forall p', In p' ps' -> In p' (nwPackets net) \\/ In p' (send_packets h l)) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "5101e0012625eb31a1f40a03f8a7377c7ac83a35"
+        ],
+        [
+            "Definition refined_raft_net_invariant_timeout (P : network -> Prop) := forall net h st' ps' gd out d l, handleTimeout h (snd (nwState net h)) = (out, d, l) -> gd = update_elections_data_timeout h (nwState net h) -> P net -> refined_raft_intermediate_reachable net -> (forall h', st' h' = update name_eq_dec (nwState net) h (gd, d) h') -> (forall p', In p' ps' -> In p' (nwPackets net) \\/ In p' (send_packets h l)) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "35986558e20eb22e0ab4ad87769a5a2815a37a60"
+        ],
+        [
+            "Definition refined_raft_net_invariant_append_entries (P : network -> Prop) := forall xs p ys net st' ps' gd d m t n pli plt es ci, handleAppendEntries (pDst p) (snd (nwState net (pDst p))) t n pli plt es ci = (d, m) -> gd = update_elections_data_appendEntries (pDst p) (nwState net (pDst p)) t n pli plt es ci -> pBody p = AppendEntries t n pli plt es ci -> P net -> refined_raft_intermediate_reachable net -> nwPackets net = xs ++ p :: ys -> (forall h, st' h = update name_eq_dec (nwState net) (pDst p) (gd, d) h) -> (forall p', In p' ps' -> In p' (xs ++ ys) \\/ p' = mkPacket (pDst p) (pSrc p) m) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "656181873e59e5e44e0a37e00cd278fce160290c"
+        ],
+        [
+            "Definition refined_raft_net_invariant_append_entries_reply (P : network -> Prop) := forall xs p ys net st' ps' gd d m t es res, handleAppendEntriesReply (pDst p) (snd (nwState net (pDst p))) (pSrc p) t es res = (d, m) -> gd = (fst (nwState net (pDst p))) -> pBody p = AppendEntriesReply t es res -> P net -> refined_raft_intermediate_reachable net -> nwPackets net = xs ++ p :: ys -> (forall h, st' h = update name_eq_dec (nwState net) (pDst p) (gd, d) h) -> (forall p', In p' ps' -> In p' (xs ++ ys) \\/ In p' (send_packets (pDst p) m)) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "6e39e98111b266392949b6d054fa12923d280755"
+        ],
+        [
+            "Definition refined_raft_net_invariant_request_vote (P : network -> Prop) := forall xs p ys net st' ps' gd d m t cid lli llt, handleRequestVote (pDst p) (snd (nwState net (pDst p))) t (pSrc p) lli llt = (d, m) -> gd = update_elections_data_requestVote (pDst p) (pSrc p) t (pSrc p) lli llt (nwState net (pDst p)) -> pBody p = RequestVote t cid lli llt -> P net -> refined_raft_intermediate_reachable net -> nwPackets net = xs ++ p :: ys -> (forall h, st' h = update name_eq_dec (nwState net) (pDst p) (gd, d) h) -> (forall p', In p' ps' -> In p' (xs ++ ys) \\/ p' = mkPacket (pDst p) (pSrc p) m) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "b4defa3e09fa2f3593802b1ed9e8fffe7b936e7d"
+        ],
+        [
+            "Definition refined_raft_net_invariant_request_vote_reply (P : network -> Prop) := forall xs p ys net st' ps' gd d t v, handleRequestVoteReply (pDst p) (snd (nwState net (pDst p))) (pSrc p) t v = d -> gd = update_elections_data_requestVoteReply (pDst p) (pSrc p) t v (nwState net (pDst p)) -> pBody p = RequestVoteReply t v -> P net -> refined_raft_intermediate_reachable net -> nwPackets net = xs ++ p :: ys -> (forall h, st' h = update name_eq_dec (nwState net) (pDst p) (gd, d) h) -> (forall p', In p' ps' -> In p' (xs ++ ys)) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "69d0fee63c1dfb7511828c74fe95ac1f5ae2fe86"
+        ],
+        [
+            "Definition refined_raft_net_invariant_do_leader (P : network -> Prop) := forall net st' ps' gd d h os d' ms, doLeader d h = (os, d', ms) -> P net -> refined_raft_intermediate_reachable net -> nwState net h = (gd, d) -> (forall h', st' h' = update name_eq_dec (nwState net) h (gd, d') h') -> (forall p, In p ps' -> In p (nwPackets net) \\/ In p (send_packets h ms)) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "d3dbb4a1e9579efa90dd697cf2e0ce3e298f25b7"
+        ],
+        [
+            "Definition refined_raft_net_invariant_do_generic_server (P : network -> Prop) := forall net st' ps' gd d os d' ms h, doGenericServer h d = (os, d', ms) -> P net -> refined_raft_intermediate_reachable net -> nwState net h = (gd, d) -> (forall h', st' h' = update name_eq_dec (nwState net) h (gd, d') h') -> (forall p, In p ps' -> In p (nwPackets net) \\/ In p (send_packets h ms)) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "f7ea7af3f370635500751705e8ed53f8affdb1c4"
+        ],
+        [
+            "Definition refined_raft_net_invariant_state_same_packet_subset (P : network -> Prop) := forall net net', (forall h, nwState net h = nwState net' h) -> (forall p, In p (nwPackets net') -> In p (nwPackets net)) -> P net -> refined_raft_intermediate_reachable net -> P net'.",
+            "VernacDefinition",
+            "9e8761af64f975b4b8e3cb836d6d91275d203207"
+        ],
+        [
+            "Definition refined_raft_net_invariant_reboot (P : network -> Prop) := forall net net' gd d h d', reboot d = d' -> P net -> refined_raft_intermediate_reachable net -> nwState net h = (gd, d) -> (forall h', nwState net' h' = update name_eq_dec (nwState net) h (gd, d') h') -> nwPackets net = nwPackets net' -> P net'.",
+            "VernacDefinition",
+            "da06ec720017607c209d0dc557c288a590d954e7"
+        ],
+        [
+            "Definition refined_raft_net_invariant_init (P : network -> Prop) := P step_async_init.",
+            "VernacDefinition",
+            "dcb6f55ca9ff020d962949dc3b223e4f11f8ef77"
+        ],
+        [
+            "Definition refined_raft_net_invariant_client_request' (P : network -> Prop) := forall h net st' ps' gd out d l client id c, handleClientRequest h (snd (nwState net h)) client id c = (out, d, l) -> gd = update_elections_data_client_request h (nwState net h) client id c -> P net -> refined_raft_intermediate_reachable net -> refined_raft_intermediate_reachable (mkNetwork ps' st') -> (forall h', st' h' = update name_eq_dec (nwState net) h (gd, d) h') -> (forall p', In p' ps' -> In p' (nwPackets net) \\/ In p' (send_packets h l)) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "be45897076f46dcdc515a23c4206efa4074aa408"
+        ],
+        [
+            "Definition refined_raft_net_invariant_timeout' (P : network -> Prop) := forall net h st' ps' gd out d l, handleTimeout h (snd (nwState net h)) = (out, d, l) -> gd = update_elections_data_timeout h (nwState net h) -> P net -> refined_raft_intermediate_reachable net -> refined_raft_intermediate_reachable (mkNetwork ps' st') -> (forall h', st' h' = update name_eq_dec (nwState net) h (gd, d) h') -> (forall p', In p' ps' -> In p' (nwPackets net) \\/ In p' (send_packets h l)) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "d4759ed9fd5cf66e1b4a61251716a7a2f6fd901e"
+        ],
+        [
+            "Definition refined_raft_net_invariant_append_entries' (P : network -> Prop) := forall xs p ys net st' ps' gd d m t n pli plt es ci, handleAppendEntries (pDst p) (snd (nwState net (pDst p))) t n pli plt es ci = (d, m) -> gd = update_elections_data_appendEntries (pDst p) (nwState net (pDst p)) t n pli plt es ci -> pBody p = AppendEntries t n pli plt es ci -> P net -> refined_raft_intermediate_reachable net -> refined_raft_intermediate_reachable (mkNetwork ps' st') -> nwPackets net = xs ++ p :: ys -> (forall h, st' h = update name_eq_dec (nwState net) (pDst p) (gd, d) h) -> (forall p', In p' ps' -> In p' (xs ++ ys) \\/ p' = mkPacket (pDst p) (pSrc p) m) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "16d29bb6e29fc383ff837a3a3f61b69b6e8ef28e"
+        ],
+        [
+            "Definition refined_raft_net_invariant_append_entries_reply' (P : network -> Prop) := forall xs p ys net st' ps' gd d m t es res, handleAppendEntriesReply (pDst p) (snd (nwState net (pDst p))) (pSrc p) t es res = (d, m) -> gd = (fst (nwState net (pDst p))) -> pBody p = AppendEntriesReply t es res -> P net -> refined_raft_intermediate_reachable net -> refined_raft_intermediate_reachable (mkNetwork ps' st') -> nwPackets net = xs ++ p :: ys -> (forall h, st' h = update name_eq_dec (nwState net) (pDst p) (gd, d) h) -> (forall p', In p' ps' -> In p' (xs ++ ys) \\/ In p' (send_packets (pDst p) m)) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "521933814eb5abd72e7596d8048b086b7289ec16"
+        ],
+        [
+            "Definition refined_raft_net_invariant_request_vote' (P : network -> Prop) := forall xs p ys net st' ps' gd d m t cid lli llt, handleRequestVote (pDst p) (snd (nwState net (pDst p))) t (pSrc p) lli llt = (d, m) -> gd = update_elections_data_requestVote (pDst p) (pSrc p) t (pSrc p) lli llt (nwState net (pDst p)) -> pBody p = RequestVote t cid lli llt -> P net -> refined_raft_intermediate_reachable net -> refined_raft_intermediate_reachable (mkNetwork ps' st') -> nwPackets net = xs ++ p :: ys -> (forall h, st' h = update name_eq_dec (nwState net) (pDst p) (gd, d) h) -> (forall p', In p' ps' -> In p' (xs ++ ys) \\/ p' = mkPacket (pDst p) (pSrc p) m) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "6b71074a8d2cd2abc64838306837a11090019ddc"
+        ],
+        [
+            "Definition refined_raft_net_invariant_request_vote_reply' (P : network -> Prop) := forall xs p ys net st' ps' gd d t v, handleRequestVoteReply (pDst p) (snd (nwState net (pDst p))) (pSrc p) t v = d -> gd = update_elections_data_requestVoteReply (pDst p) (pSrc p) t v (nwState net (pDst p)) -> pBody p = RequestVoteReply t v -> P net -> refined_raft_intermediate_reachable net -> refined_raft_intermediate_reachable (mkNetwork ps' st') -> nwPackets net = xs ++ p :: ys -> (forall h, st' h = update name_eq_dec (nwState net) (pDst p) (gd, d) h) -> (forall p', In p' ps' -> In p' (xs ++ ys)) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "55b939dfd5743018be9782bbb1a654cb812ca0b4"
+        ],
+        [
+            "Definition refined_raft_net_invariant_do_leader' (P : network -> Prop) := forall net st' ps' gd d h os d' ms, doLeader d h = (os, d', ms) -> P net -> refined_raft_intermediate_reachable net -> refined_raft_intermediate_reachable (mkNetwork ps' st') -> nwState net h = (gd, d) -> (forall h', st' h' = update name_eq_dec (nwState net) h (gd, d') h') -> (forall p, In p ps' -> In p (nwPackets net) \\/ In p (send_packets h ms)) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "e4f042d412b9d3b1c33d6f40c953b80fe4c36664"
+        ],
+        [
+            "Definition refined_raft_net_invariant_do_generic_server' (P : network -> Prop) := forall net st' ps' gd d os d' ms h, doGenericServer h d = (os, d', ms) -> P net -> refined_raft_intermediate_reachable net -> refined_raft_intermediate_reachable (mkNetwork ps' st') -> nwState net h = (gd, d) -> (forall h', st' h' = update name_eq_dec (nwState net) h (gd, d') h') -> (forall p, In p ps' -> In p (nwPackets net) \\/ In p (send_packets h ms)) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "eacc254e9b95ad7021258abaf72c9448d443a699"
+        ],
+        [
+            "Definition refined_raft_net_invariant_reboot' (P : network -> Prop) := forall net net' gd d h d', reboot d = d' -> P net -> refined_raft_intermediate_reachable net -> refined_raft_intermediate_reachable net' -> nwState net h = (gd, d) -> (forall h', nwState net' h' = update name_eq_dec (nwState net) h (gd, d') h') -> nwPackets net = nwPackets net' -> P net'.",
+            "VernacDefinition",
+            "7c8b4ed4e24d2289392b7fd03dc003998e09a6b2"
+        ],
+        [
+            "Lemma refined_raft_net_invariant_client_request'_weak : forall net, refined_raft_net_invariant_client_request net -> refined_raft_net_invariant_client_request' net.",
+            "VernacStartTheoremProof",
+            "885acedba98867c9ea8514013cd8d0147b6fcc91"
+        ],
+        [
+            "unfold refined_raft_net_invariant_client_request, refined_raft_net_invariant_client_request'.",
+            "VernacExtend",
+            "5a2d13a4ad4cc27cb59ffbe9a14ffc1c36a7f7fc"
+        ],
+        [
+            "intuition eauto.",
+            "VernacExtend",
+            "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma refined_raft_net_invariant_timeout'_weak : forall net, refined_raft_net_invariant_timeout net -> refined_raft_net_invariant_timeout' net.",
+            "VernacStartTheoremProof",
+            "9d82191caacf8324cd7423401dfd21aba075ef2c"
+        ],
+        [
+            "unfold refined_raft_net_invariant_timeout, refined_raft_net_invariant_timeout'.",
+            "VernacExtend",
+            "45562cea19785a38785a6bc8d1dfdc6de0a08b35"
+        ],
+        [
+            "intuition eauto.",
+            "VernacExtend",
+            "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma refined_raft_net_invariant_append_entries'_weak : forall net, refined_raft_net_invariant_append_entries net -> refined_raft_net_invariant_append_entries' net.",
+            "VernacStartTheoremProof",
+            "823197c14c21ac946f06862048839af18054b75a"
+        ],
+        [
+            "unfold refined_raft_net_invariant_append_entries, refined_raft_net_invariant_append_entries'.",
+            "VernacExtend",
+            "b396fe0d5e84348a08f91efcd4d0ef3bfd474bb2"
+        ],
+        [
+            "intuition eauto.",
+            "VernacExtend",
+            "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma refined_raft_net_invariant_append_entries_reply'_weak : forall net, refined_raft_net_invariant_append_entries_reply net -> refined_raft_net_invariant_append_entries_reply' net.",
+            "VernacStartTheoremProof",
+            "78803d097495f3333d7b10511a91e15d165e0eba"
+        ],
+        [
+            "unfold refined_raft_net_invariant_append_entries_reply, refined_raft_net_invariant_append_entries_reply'.",
+            "VernacExtend",
+            "06703e31edfd64e68844e8650b379808634cedb2"
+        ],
+        [
+            "intuition eauto.",
+            "VernacExtend",
+            "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma refined_raft_net_invariant_request_vote'_weak : forall net, refined_raft_net_invariant_request_vote net -> refined_raft_net_invariant_request_vote' net.",
+            "VernacStartTheoremProof",
+            "c4c58c023a19ed4a7cc4524fa34d43decf4fb277"
+        ],
+        [
+            "unfold refined_raft_net_invariant_request_vote, refined_raft_net_invariant_request_vote'.",
+            "VernacExtend",
+            "8ae2b071bb590a258a6fce8de0c84b16a944bac3"
+        ],
+        [
+            "intuition eauto.",
+            "VernacExtend",
+            "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma refined_raft_net_invariant_request_vote_reply'_weak : forall net, refined_raft_net_invariant_request_vote_reply net -> refined_raft_net_invariant_request_vote_reply' net.",
+            "VernacStartTheoremProof",
+            "0965ab8cb13243aaddade0c36598fc6d80decbb6"
+        ],
+        [
+            "unfold refined_raft_net_invariant_request_vote_reply, refined_raft_net_invariant_request_vote_reply'.",
+            "VernacExtend",
+            "4119cd3a27b612391c1d4ddb9e544c01ab5fe5b6"
+        ],
+        [
+            "intuition eauto.",
+            "VernacExtend",
+            "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma refined_raft_net_invariant_do_leader'_weak : forall net, refined_raft_net_invariant_do_leader net -> refined_raft_net_invariant_do_leader' net.",
+            "VernacStartTheoremProof",
+            "058c510460d8142361582938634e7b3903b8410d"
+        ],
+        [
+            "unfold refined_raft_net_invariant_do_leader, refined_raft_net_invariant_do_leader'.",
+            "VernacExtend",
+            "3039692bf3042d19e34e6cf3d78bc28b39b6ca63"
+        ],
+        [
+            "intuition eauto.",
+            "VernacExtend",
+            "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma refined_raft_net_invariant_do_generic_server'_weak : forall net, refined_raft_net_invariant_do_generic_server net -> refined_raft_net_invariant_do_generic_server' net.",
+            "VernacStartTheoremProof",
+            "458094e409be1fe098611793cdbac8a7e784ebcd"
+        ],
+        [
+            "unfold refined_raft_net_invariant_do_generic_server, refined_raft_net_invariant_do_generic_server'.",
+            "VernacExtend",
+            "4d6ea9f7a7a08b7c3cd62a67d1c2ff7a9bd4587d"
+        ],
+        [
+            "intuition eauto.",
+            "VernacExtend",
+            "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma refined_raft_net_invariant_reboot'_weak : forall net, refined_raft_net_invariant_reboot net -> refined_raft_net_invariant_reboot' net.",
+            "VernacStartTheoremProof",
+            "8a875ac8cbd81789f6c11d0b9d3b38d6509369a1"
+        ],
+        [
+            "unfold refined_raft_net_invariant_reboot, refined_raft_net_invariant_reboot'.",
+            "VernacExtend",
+            "9a56b3c627b8e15292a613d01c5a57d609fcf5e6"
+        ],
+        [
+            "intuition eauto.",
+            "VernacExtend",
+            "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Class raft_refinement_interface : Prop := { refined_raft_net_invariant : forall P net, refined_raft_net_invariant_init P -> refined_raft_net_invariant_client_request P -> refined_raft_net_invariant_timeout P -> refined_raft_net_invariant_append_entries P -> refined_raft_net_invariant_append_entries_reply P -> refined_raft_net_invariant_request_vote P -> refined_raft_net_invariant_request_vote_reply P -> refined_raft_net_invariant_do_leader P -> refined_raft_net_invariant_do_generic_server P -> refined_raft_net_invariant_state_same_packet_subset P -> refined_raft_net_invariant_reboot P -> refined_raft_intermediate_reachable net -> P net; refined_raft_net_invariant' : forall P net, refined_raft_net_invariant_init P -> refined_raft_net_invariant_client_request' P -> refined_raft_net_invariant_timeout' P -> refined_raft_net_invariant_append_entries' P -> refined_raft_net_invariant_append_entries_reply' P -> refined_raft_net_invariant_request_vote' P -> refined_raft_net_invariant_request_vote_reply' P -> refined_raft_net_invariant_do_leader' P -> refined_raft_net_invariant_do_generic_server' P -> refined_raft_net_invariant_state_same_packet_subset P -> refined_raft_net_invariant_reboot' P -> refined_raft_intermediate_reachable net -> P net; lift_prop : forall (P : _ -> Prop), (forall net, raft_intermediate_reachable net -> P net) -> (forall net, refined_raft_intermediate_reachable net -> P (deghost net)); lower_prop : forall P : _ -> Prop, (forall net, refined_raft_intermediate_reachable net -> P (deghost net)) -> (forall net, raft_intermediate_reachable net -> P net); deghost_spec : forall (net : @network _ raft_refined_multi_params) h, nwState (deghost net) h = snd (nwState net h); simulation_1 : forall net, refined_raft_intermediate_reachable net -> raft_intermediate_reachable (deghost net) }.",
+            "VernacInductive",
+            "ef43a53656f228d35e59055d0c9b8bcc52e658f2"
+        ],
+        [
+            "End RaftRefinementInterface.",
+            "VernacEndSegment",
+            "6e882bdf312c40014069ee29a694d722832d1450"
+        ],
+        [
+            "Hint Extern 4 (@BaseParams) => apply raft_refined_base_params : typeclass_instances.",
+            "VernacHints",
+            "65a8db98c9835b9c5b8441e4020d634368ab5acc"
+        ],
+        [
+            "Hint Extern 4 (@MultiParams _) => apply raft_refined_multi_params : typeclass_instances.",
+            "VernacHints",
+            "122e02ee5f8024489b59681e7a13b1ba1434e0a3"
+        ],
+        [
+            "Hint Extern 4 (@FailureParams _ _) => apply raft_refined_failure_params : typeclass_instances.",
+            "VernacHints",
+            "f702ee75e2782b064fecb6959de596b6e44028cb"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "refined_raft_net_invariant_client_request'_weak",
+            "line_nb": 42,
+            "steps": [
+                {
+                    "command": [
+                        "unfold refined_raft_net_invariant_client_request, refined_raft_net_invariant_client_request'.",
+                        "VernacExtend",
+                        "5a2d13a4ad4cc27cb59ffbe9a14ffc1c36a7f7fc"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition eauto.",
+                        "VernacExtend",
+                        "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "refined_raft_net_invariant_timeout'_weak",
+            "line_nb": 46,
+            "steps": [
+                {
+                    "command": [
+                        "unfold refined_raft_net_invariant_timeout, refined_raft_net_invariant_timeout'.",
+                        "VernacExtend",
+                        "45562cea19785a38785a6bc8d1dfdc6de0a08b35"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition eauto.",
+                        "VernacExtend",
+                        "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "refined_raft_net_invariant_append_entries'_weak",
+            "line_nb": 50,
+            "steps": [
+                {
+                    "command": [
+                        "unfold refined_raft_net_invariant_append_entries, refined_raft_net_invariant_append_entries'.",
+                        "VernacExtend",
+                        "b396fe0d5e84348a08f91efcd4d0ef3bfd474bb2"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition eauto.",
+                        "VernacExtend",
+                        "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "refined_raft_net_invariant_append_entries_reply'_weak",
+            "line_nb": 54,
+            "steps": [
+                {
+                    "command": [
+                        "unfold refined_raft_net_invariant_append_entries_reply, refined_raft_net_invariant_append_entries_reply'.",
+                        "VernacExtend",
+                        "06703e31edfd64e68844e8650b379808634cedb2"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition eauto.",
+                        "VernacExtend",
+                        "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "refined_raft_net_invariant_request_vote'_weak",
+            "line_nb": 58,
+            "steps": [
+                {
+                    "command": [
+                        "unfold refined_raft_net_invariant_request_vote, refined_raft_net_invariant_request_vote'.",
+                        "VernacExtend",
+                        "8ae2b071bb590a258a6fce8de0c84b16a944bac3"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition eauto.",
+                        "VernacExtend",
+                        "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "refined_raft_net_invariant_request_vote_reply'_weak",
+            "line_nb": 62,
+            "steps": [
+                {
+                    "command": [
+                        "unfold refined_raft_net_invariant_request_vote_reply, refined_raft_net_invariant_request_vote_reply'.",
+                        "VernacExtend",
+                        "4119cd3a27b612391c1d4ddb9e544c01ab5fe5b6"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition eauto.",
+                        "VernacExtend",
+                        "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "refined_raft_net_invariant_do_leader'_weak",
+            "line_nb": 66,
+            "steps": [
+                {
+                    "command": [
+                        "unfold refined_raft_net_invariant_do_leader, refined_raft_net_invariant_do_leader'.",
+                        "VernacExtend",
+                        "3039692bf3042d19e34e6cf3d78bc28b39b6ca63"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition eauto.",
+                        "VernacExtend",
+                        "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "refined_raft_net_invariant_do_generic_server'_weak",
+            "line_nb": 70,
+            "steps": [
+                {
+                    "command": [
+                        "unfold refined_raft_net_invariant_do_generic_server, refined_raft_net_invariant_do_generic_server'.",
+                        "VernacExtend",
+                        "4d6ea9f7a7a08b7c3cd62a67d1c2ff7a9bd4587d"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition eauto.",
+                        "VernacExtend",
+                        "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "refined_raft_net_invariant_reboot'_weak",
+            "line_nb": 74,
+            "steps": [
+                {
+                    "command": [
+                        "unfold refined_raft_net_invariant_reboot, refined_raft_net_invariant_reboot'.",
+                        "VernacExtend",
+                        "9a56b3c627b8e15292a613d01c5a57d609fcf5e6"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition eauto.",
+                        "VernacExtend",
+                        "dfea5151303e8e1455eb6e7dac607bb27ed86a6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

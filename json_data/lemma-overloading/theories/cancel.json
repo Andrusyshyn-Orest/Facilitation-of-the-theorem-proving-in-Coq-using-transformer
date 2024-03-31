@@ -1,0 +1,710 @@
+{
+    "filename": "theories/cancel.v",
+    "coq_project": "lemma-overloading",
+    "vernac_cmds": [
+        [
+            "From mathcomp Require Import ssreflect ssrfun ssrbool ssrnat seq eqtype.",
+            "VernacRequire",
+            "e630a118e4973bc9d094e6de0b05c7578b80c1c9"
+        ],
+        [
+            "From LemmaOverloading Require Import prelude prefix xfind heaps terms.",
+            "VernacRequire",
+            "d5fb720517f66fc6212911980427c1bad0e2a246"
+        ],
+        [
+            "Set Implicit Arguments.",
+            "VernacSetOption",
+            "9e84ff8896f028601d8aded48c1d4aebe60aa584"
+        ],
+        [
+            "Unset Strict Implicit.",
+            "VernacUnsetOption",
+            "2842adaf6959318f2042805935c46f513bdc0348"
+        ],
+        [
+            "Unset Printing Implicit Defensive.",
+            "VernacUnsetOption",
+            "444e5f0be4b25d9b1fd556943a447ec10046d151"
+        ],
+        [
+            "Section HeapReflection.",
+            "VernacBeginSection",
+            "5c04483b5a7533a17c7aee1b8e3e7e6b020538d6"
+        ],
+        [
+            "Structure tagged_heap := Tag {untag :> heap}.",
+            "VernacInductive",
+            "78ffb08fbf82f2f0cf05ad82201cd9898f22f4d3"
+        ],
+        [
+            "Definition var_tag := Tag.",
+            "VernacDefinition",
+            "41f7f99ec393feb1635fb2a404a2e6b18b3ce0d0"
+        ],
+        [
+            "Definition pts_tag := var_tag.",
+            "VernacDefinition",
+            "70406ae7354c4a1fcf17563e893b27e425fbb514"
+        ],
+        [
+            "Definition empty_tag := pts_tag.",
+            "VernacDefinition",
+            "6ea039541c972dac62a8e269fa6cd3b0dd51f960"
+        ],
+        [
+            "Canonical Structure union_tag hc := empty_tag hc.",
+            "VernacDefinition",
+            "c4359adf19a7acc1038c2ed47c1e536d6393d120"
+        ],
+        [
+            "Definition invariant i j t h := [/\\ interp j t = h, subctx i j & valid j t].",
+            "VernacDefinition",
+            "7d4d0fbf59f5071761f4007f6b1f61f43e2d08e2"
+        ],
+        [
+            "Structure ast (i j : ctx) (t : synheap) := Ast {heap_of :> tagged_heap; _ : invariant i j t heap_of}.",
+            "VernacInductive",
+            "57d515fedc7f85eb3cd11da25dd5ee02ed758af0"
+        ],
+        [
+            "Arguments Ast : clear implicits.",
+            "VernacArguments",
+            "fc1174de2591e1b661c61560a592364dc47228a2"
+        ],
+        [
+            "Lemma union_pf i j k t1 t2 (f1 : ast i j t1) (f2 : ast j k t2) : invariant i k (t1 ++ t2) (union_tag (f1 :+ f2)).",
+            "VernacStartTheoremProof",
+            "7f252cd27f8f9b784d892ab5dc653aed600f05fa"
+        ],
+        [
+            "case: f1 f2=>h1 /= [<- S1 D1] [h2 /= [<- S2 D2]].",
+            "VernacExtend",
+            "e00fff71ff314c991514fc71c41a3556702e444a"
+        ],
+        [
+            "split; first by rewrite interp_cat (interp_subctx D1 S2).",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by apply: (subctx_trans S1 S2).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "by rewrite valid_cat D2 andbT; apply: (valid_subctx S2).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Canonical Structure union_struct i j k t1 t2 (f1 : ast i j t1) (f2 : ast j k t2) := Ast i k _ (union_tag (f1 :+ f2)) (union_pf f1 f2).",
+            "VernacDefinition",
+            "eb64e2c14db995158b7653e3fbd1a37cfffe4af5"
+        ],
+        [
+            "Lemma empty_pf i : invariant i i [::] (empty_tag empty).",
+            "VernacStartTheoremProof",
+            "ce349a238f4f82e4753ec55eed5627622ebff1b6"
+        ],
+        [
+            "split; by [|apply: subctx_refl|].",
+            "VernacExtend",
+            "9c392753fd6384a52f43e9d349afde47af3b3aa5"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Canonical Structure empty_struct i := Ast i i [::] (empty_tag empty) (empty_pf i).",
+            "VernacDefinition",
+            "01738b823802c472858908d4f76dc11ea1c007ab"
+        ],
+        [
+            "Lemma pts_pf A hs xs1 xs2 x (d : A) (xs : xfind xs1 xs2 x): invariant (Context hs xs1) (Context hs xs2) [:: Pts x (dyn d)] (pts_tag (xuntag xs :-> d)).",
+            "VernacStartTheoremProof",
+            "a69a3b6f4c02a57715bdd34c9a981c0a051b290f"
+        ],
+        [
+            "case: xs=>[p /= [H P]]; split; first by rewrite /= H.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by split; [apply: prefix_refl|].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "by apply/andP; rewrite /= (onth_size H).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Canonical Structure pts_struct A hs xs1 xs2 x (d : A) (xs : xfind xs1 xs2 x) := Ast (Context hs xs1) (Context hs xs2) [:: Pts x (dyn d)] (pts_tag (xuntag xs :-> d)) (pts_pf hs _ xs).",
+            "VernacDefinition",
+            "4223c4e79d7419a949e9a79f339e0ef87397a5e3"
+        ],
+        [
+            "Lemma var_pf hs1 hs2 xs n (f : xfind hs1 hs2 n) : invariant (Context hs1 xs) (Context hs2 xs) [:: Var n] (var_tag (xuntag f)).",
+            "VernacStartTheoremProof",
+            "9d01d616e712b274f1b34f2bf647345e74822427"
+        ],
+        [
+            "case:f=>p [H1 H2]; split; first by rewrite /= /hlook H1.",
+            "VernacExtend",
+            "3763a4b8db689af316a7372b722bb29806ab4fb6"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "by split; [|apply: prefix_refl].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "by apply/andP; rewrite /= (onth_size H1).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Canonical Structure var_struct hs1 hs2 xs n (f : xfind hs1 hs2 n) := Ast (Context hs1 xs) (Context hs2 xs) _ (var_tag (xuntag f)) (var_pf xs f).",
+            "VernacDefinition",
+            "928b4bcf8ea1390a00b560d858832f634ed52b43"
+        ],
+        [
+            "End HeapReflection.",
+            "VernacEndSegment",
+            "b7031795ab19ccc5587225a34ae6ace4250bdf2c"
+        ],
+        [
+            "Theorem cancelR j k t1 t2 (f1 : ast empc j t1) (f2 : ast j k t2) : def (untag (heap_of f1)) -> untag (heap_of f1) = untag (heap_of f2) -> eval k (cancel k t1 t2).",
+            "VernacStartTheoremProof",
+            "c842840a35f36b1a3d233fbead09c137168ab5b2"
+        ],
+        [
+            "case: f1 f2=>hp1 /= [<- _ I] [hp2 /= [<- S _]] D H.",
+            "VernacExtend",
+            "e00fff71ff314c991514fc71c41a3556702e444a"
+        ],
+        [
+            "by apply: cancel_sound; rewrite -(interp_subctx I S).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Example ex0 x (v1 v2:nat): def (x :-> v1) -> x :-> v1 = x :-> v2 -> v1 = v2.",
+            "VernacDefinition",
+            "13d87c0fadd8f12c4d721140ff3378820c1d16be"
+        ],
+        [
+            "move=>D H.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "Time set H' := (cancelR D H).",
+            "VernacExtend",
+            "060ba52f218268c9b66ba91ad37b107496687920"
+        ],
+        [
+            "Time by rewrite (dyn_inj H').",
+            "VernacExtend",
+            "f789de184e1212be6d8e2dd9947f794d1027ca5c"
+        ],
+        [
+            "Time Qed.",
+            "VernacEndProof",
+            "59ba6aa4fe1286a283227671303a9756140bbe3a"
+        ],
+        [
+            "Set Printing Implicit.",
+            "VernacSetOption",
+            "0b3a78850e564e8af30f9f97fdeb60ece75c74f2"
+        ],
+        [
+            "Example ex1 x h (v1 v2:nat): def (x :-> v1 :+ h) -> x :-> v1 :+ h = x :-> v2 -> if v1 == v2 then true else false.",
+            "VernacDefinition",
+            "9136c7f2115c4d980cfe4406e36b4a195b98c9f1"
+        ],
+        [
+            "move=>D H.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "by rewrite (dyn_inj (proj2 (cancelR D H))) eq_refl.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Example ex2 h1 h2 h3 h4 x1 x2 (d1 d2 d3 d4 : nat) : def ((h3 :+ (x1 :-> d1)) :+ (h1 :+ empty) :+ (x2 :-> d2)) -> (h3 :+ (x1 :-> d1)) :+ (h1 :+ empty) :+ (x2 :-> d2) = (x2 :-> d3) :+ (h2 :+ empty :+ h3) :+ h4 :+ (x1 :-> d4) -> d1 = d4 /\\ d2 = d3 /\\ h1 = h2 :+ h4.",
+            "VernacDefinition",
+            "feff67ba8a6d3f87511f1438017ae8a69718ada5"
+        ],
+        [
+            "move=>D.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "move/(cancelR D)=>/= [->][].",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "by move/dyn_inj=>->; move/dyn_inj=>->.",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Example ex1' x h (v1 v2:nat): def (x :-> v1 :+ h) -> x :-> v1 :+ h = x :-> v2 -> v1 = v2.",
+            "VernacDefinition",
+            "ce7f0e06da2348be8793198d969bca7d652f52b8"
+        ],
+        [
+            "move=>D H.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "set H' := cancelR D H.",
+            "VernacExtend",
+            "69a61e99b234580f7b41fa5b9655c87ba9a76f70"
+        ],
+        [
+            "simpl in H'.",
+            "VernacExtend",
+            "d943243015ae7f9d4452dfc70846f2ccdf57c2f4"
+        ],
+        [
+            "by apply: (dyn_inj (proj2 (cancelR D H))).",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Example stress (h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 : heap) (x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 : ptr) : def (h1 :+ h2 :+ h3 :+ h4 :+ h5 :+ h6 :+ h7 :+ h8 :+ h9 :+ h10 :+ x1 :-> 1 :+ x2 :-> 2 :+ x3 :-> 3 :+ x4 :-> 4 :+ x5 :-> 5 :+ x6 :-> 6 :+ x7 :-> 7 :+ x8 :-> 8 :+ x9 :-> 9 :+ x10 :-> 10) -> h1 :+ h2 :+ h3 :+ h4 :+ h5 :+ h6 :+ h7 :+ h8 :+ h9 :+ h10 :+ x1 :-> 1 :+ x2 :-> 2 :+ x3 :-> 3 :+ x4 :-> 4 :+ x5 :-> 5 :+ x6 :-> 6 :+ x7 :-> 7 :+ x8 :-> 8 :+ x9 :-> 9 :+ x10 :-> 10 = x1 :-> 1 :+ x2 :-> 2 :+ x3 :-> 3 :+ x4 :-> 4 :+ x5 :-> 5 :+ h1 :+ h2 :+ h3 :+ h4 :+ h5 :+ h6 :+ h7 :+ h8 :+ h9 :+ h10 :+ x6 :-> 6 :+ x7 :-> 7 :+ x8 :-> 8 :+ x9 :-> 9 :+ x10 :-> 10 -> True.",
+            "VernacDefinition",
+            "18e91cada1670f69bc1cf0bd28bad953917be03a"
+        ],
+        [
+            "move=>D.",
+            "VernacExtend",
+            "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+        ],
+        [
+            "Time move/(cancelR D)=>/=.",
+            "VernacExtend",
+            "eaa36c980861700f7582459ffaeecc5e1a95ec1a"
+        ],
+        [
+            "by [].",
+            "VernacExtend",
+            "ee1746465e986ababa06bb4e96ee76be726c914a"
+        ],
+        [
+            "Time Qed.",
+            "VernacEndProof",
+            "59ba6aa4fe1286a283227671303a9756140bbe3a"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "union_pf",
+            "line_nb": 14,
+            "steps": [
+                {
+                    "command": [
+                        "case: f1 f2=>h1 /= [<- S1 D1] [h2 /= [<- S2 D2]].",
+                        "VernacExtend",
+                        "e00fff71ff314c991514fc71c41a3556702e444a"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; first by rewrite interp_cat (interp_subctx D1 S2).",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply: (subctx_trans S1 S2).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite valid_cat D2 andbT; apply: (valid_subctx S2).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "empty_pf",
+            "line_nb": 22,
+            "steps": [
+                {
+                    "command": [
+                        "split; by [|apply: subctx_refl|].",
+                        "VernacExtend",
+                        "9c392753fd6384a52f43e9d349afde47af3b3aa5"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pts_pf",
+            "line_nb": 26,
+            "steps": [
+                {
+                    "command": [
+                        "case: xs=>[p /= [H P]]; split; first by rewrite /= H.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "by split; [apply: prefix_refl|].",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply/andP; rewrite /= (onth_size H).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "var_pf",
+            "line_nb": 33,
+            "steps": [
+                {
+                    "command": [
+                        "case:f=>p [H1 H2]; split; first by rewrite /= /hlook H1.",
+                        "VernacExtend",
+                        "3763a4b8db689af316a7372b722bb29806ab4fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "by split; [|apply: prefix_refl].",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply/andP; rewrite /= (onth_size H1).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "cancelR",
+            "line_nb": 41,
+            "steps": [
+                {
+                    "command": [
+                        "case: f1 f2=>hp1 /= [<- _ I] [hp2 /= [<- S _]] D H.",
+                        "VernacExtend",
+                        "e00fff71ff314c991514fc71c41a3556702e444a"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply: cancel_sound; rewrite -(interp_subctx I S).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ex0",
+            "line_nb": 45,
+            "steps": [
+                {
+                    "command": [
+                        "move=>D H.",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "Time set H' := (cancelR D H).",
+                        "VernacExtend",
+                        "060ba52f218268c9b66ba91ad37b107496687920"
+                    ]
+                },
+                {
+                    "command": [
+                        "Time by rewrite (dyn_inj H').",
+                        "VernacExtend",
+                        "f789de184e1212be6d8e2dd9947f794d1027ca5c"
+                    ]
+                },
+                {
+                    "command": [
+                        "Time Qed.",
+                        "VernacEndProof",
+                        "59ba6aa4fe1286a283227671303a9756140bbe3a"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ex1",
+            "line_nb": 51,
+            "steps": [
+                {
+                    "command": [
+                        "move=>D H.",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "by rewrite (dyn_inj (proj2 (cancelR D H))) eq_refl.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ex2",
+            "line_nb": 55,
+            "steps": [
+                {
+                    "command": [
+                        "move=>D.",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "move/(cancelR D)=>/= [->][].",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "by move/dyn_inj=>->; move/dyn_inj=>->.",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ex1'",
+            "line_nb": 60,
+            "steps": [
+                {
+                    "command": [
+                        "move=>D H.",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "set H' := cancelR D H.",
+                        "VernacExtend",
+                        "69a61e99b234580f7b41fa5b9655c87ba9a76f70"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in H'.",
+                        "VernacExtend",
+                        "d943243015ae7f9d4452dfc70846f2ccdf57c2f4"
+                    ]
+                },
+                {
+                    "command": [
+                        "by apply: (dyn_inj (proj2 (cancelR D H))).",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "stress",
+            "line_nb": 66,
+            "steps": [
+                {
+                    "command": [
+                        "move=>D.",
+                        "VernacExtend",
+                        "b1b2cb7a3a617cba67460b4eca1f04de3c1cc716"
+                    ]
+                },
+                {
+                    "command": [
+                        "Time move/(cancelR D)=>/=.",
+                        "VernacExtend",
+                        "eaa36c980861700f7582459ffaeecc5e1a95ec1a"
+                    ]
+                },
+                {
+                    "command": [
+                        "by [].",
+                        "VernacExtend",
+                        "ee1746465e986ababa06bb4e96ee76be726c914a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Time Qed.",
+                        "VernacEndProof",
+                        "59ba6aa4fe1286a283227671303a9756140bbe3a"
+                    ]
+                }
+            ]
+        }
+    ]
+}

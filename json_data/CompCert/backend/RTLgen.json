@@ -1,0 +1,1283 @@
+{
+    "filename": "backend/RTLgen.v",
+    "coq_project": "CompCert",
+    "vernac_cmds": [
+        [
+            "Require Import Coqlib.",
+            "VernacRequire",
+            "bbbe15041aca3a03300067f7acd445b462d537cc"
+        ],
+        [
+            "Require Errors.",
+            "VernacRequire",
+            "9b3bde3dfe8399dc65a71f435647fb11c59dc638"
+        ],
+        [
+            "Require Import Maps.",
+            "VernacRequire",
+            "f9a27637102e60e06a3c1ceb5a01819e80b9f645"
+        ],
+        [
+            "Require Import AST.",
+            "VernacRequire",
+            "d103ecb096c06f34167fba01dd861491b0d5e84e"
+        ],
+        [
+            "Require Import Integers.",
+            "VernacRequire",
+            "688f068e3335df7950b569ef75a5e993414c9874"
+        ],
+        [
+            "Require Import Switch.",
+            "VernacRequire",
+            "1eaa1998544bbb29dbcfe82b0d7b10099dee3dc7"
+        ],
+        [
+            "Require Import Op.",
+            "VernacRequire",
+            "ade4899dcb267df47fd0e69e3c413086816e6a6f"
+        ],
+        [
+            "Require Import Registers.",
+            "VernacRequire",
+            "1607f789f69481494f718ae4501bc795077da4d4"
+        ],
+        [
+            "Require Import CminorSel.",
+            "VernacRequire",
+            "8f44a8c8bdedecc7b568eacaa17774751ea00d66"
+        ],
+        [
+            "Require Import RTL.",
+            "VernacRequire",
+            "4de1de47bcd350514abb6fbc1070eb15c88d7b2b"
+        ],
+        [
+            "Local Open Scope string_scope.",
+            "VernacOpenCloseScope",
+            "347f91aff322dccfab9c81382e495d8430d8e803"
+        ],
+        [
+            "Record mapping: Type := mkmapping { map_vars: PTree.t reg; map_letvars: list reg }.",
+            "VernacInductive",
+            "1a6d19c62648810632889f340754af0cbfc39ae5"
+        ],
+        [
+            "Record state: Type := mkstate { st_nextreg: positive; st_nextnode: positive; st_code: code; st_wf: forall (pc: positive), Plt pc st_nextnode \\/ st_code!pc = None }.",
+            "VernacInductive",
+            "d8eaad2e75af1b1db6e7a8f07b3bf8efce3d0d7e"
+        ],
+        [
+            "Inductive state_incr: state -> state -> Prop := state_incr_intro: forall (s1 s2: state), Ple s1.(st_nextnode) s2.(st_nextnode) -> Ple s1.(st_nextreg) s2.(st_nextreg) -> (forall pc, s1.(st_code)!pc = None \\/ s2.(st_code)!pc = s1.(st_code)!pc) -> state_incr s1 s2.",
+            "VernacInductive",
+            "845237f2038b1b3f0ffdb46588f3315b63e45da5"
+        ],
+        [
+            "Lemma state_incr_refl: forall s, state_incr s s.",
+            "VernacStartTheoremProof",
+            "d1083ecbe4ed54ec6275ca82425f8780bf082e4c"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply state_incr_intro.",
+            "VernacExtend",
+            "e1b6603566e05a93b663017a87bf06580d34d804"
+        ],
+        [
+            "apply Ple_refl.",
+            "VernacExtend",
+            "0db71fbfe63d06b179db3d07fbb0dd1fc300f9f0"
+        ],
+        [
+            "apply Ple_refl.",
+            "VernacExtend",
+            "0db71fbfe63d06b179db3d07fbb0dd1fc300f9f0"
+        ],
+        [
+            "intros; auto.",
+            "VernacExtend",
+            "d08fa6a6cf0cffe77a1b06ed19eb1fcfb0b64546"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma state_incr_trans: forall s1 s2 s3, state_incr s1 s2 -> state_incr s2 s3 -> state_incr s1 s3.",
+            "VernacStartTheoremProof",
+            "988d85693d3cc2e3f95734fcf988f5685c4e96f4"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "inv H; inv H0.",
+            "VernacExtend",
+            "082d940903d796c6497571a56c1c3caf675f5e8d"
+        ],
+        [
+            "apply state_incr_intro.",
+            "VernacExtend",
+            "e1b6603566e05a93b663017a87bf06580d34d804"
+        ],
+        [
+            "apply Ple_trans with (st_nextnode s2); assumption.",
+            "VernacExtend",
+            "f1174a9fff8a65dcbe2e8ae3e5cc2d02f147a552"
+        ],
+        [
+            "apply Ple_trans with (st_nextreg s2); assumption.",
+            "VernacExtend",
+            "6fd31c1f5072408281bd05b8039813829929874b"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "generalize (H3 pc) (H5 pc).",
+            "VernacExtend",
+            "c59a733d1f3587a4416940a0e2191a6274633371"
+        ],
+        [
+            "intuition congruence.",
+            "VernacExtend",
+            "2cba3542847e3f4ea52f3f62375adc6e8f8f04bc"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Inductive res (A: Type) (s: state): Type := | Error: Errors.errmsg -> res A s | OK: A -> forall (s': state), state_incr s s' -> res A s.",
+            "VernacInductive",
+            "11af6b52d8c28c9e94888a4ee201db5102dd0616"
+        ],
+        [
+            "Arguments OK [A s].",
+            "VernacArguments",
+            "3e13329997197e45f39c640d9ed0d098a86330e3"
+        ],
+        [
+            "Arguments Error [A s].",
+            "VernacArguments",
+            "41b107f0a8ff4cd8dc950348c9bbf098e6881a54"
+        ],
+        [
+            "Definition mon (A: Type) : Type := forall (s: state), res A s.",
+            "VernacDefinition",
+            "72c9287bcbef68fee5d377705ee4390c1fcb26bd"
+        ],
+        [
+            "Definition ret {A: Type} (x: A) : mon A := fun (s: state) => OK x s (state_incr_refl s).",
+            "VernacDefinition",
+            "576b6005a2e3f05347b7edb05651e18616eea30e"
+        ],
+        [
+            "Definition error {A: Type} (msg: Errors.errmsg) : mon A := fun (s: state) => Error msg.",
+            "VernacDefinition",
+            "21ccb5bfc21a73245f8d4aa960034eebfe00f87f"
+        ],
+        [
+            "Definition bind {A B: Type} (f: mon A) (g: A -> mon B) : mon B := fun (s: state) => match f s with | Error msg => Error msg | OK a s' i => match g a s' with | Error msg => Error msg | OK b s'' i' => OK b s'' (state_incr_trans s s' s'' i i') end end.",
+            "VernacDefinition",
+            "16acc8e2b06f5e9db2b4d8a1a56c57b105438ddd"
+        ],
+        [
+            "Definition bind2 {A B C: Type} (f: mon (A * B)) (g: A -> B -> mon C) : mon C := bind f (fun xy => g (fst xy) (snd xy)).",
+            "VernacDefinition",
+            "61cab2ac345a20d4f2d569516d5abe10ee048cb7"
+        ],
+        [
+            "Notation \"'do' X <- A ; B\" := (bind A (fun X => B)) (at level 200, X ident, A at level 100, B at level 200).",
+            "VernacNotation",
+            "b1c8cafb951a3f33b0b12bb1a3543f6ae4a8fa3c"
+        ],
+        [
+            "Notation \"'do' ( X , Y ) <- A ; B\" := (bind2 A (fun X Y => B)) (at level 200, X ident, Y ident, A at level 100, B at level 200).",
+            "VernacNotation",
+            "61ff62c468be4c09136af00822b73769ec3fd28b"
+        ],
+        [
+            "Definition handle_error {A: Type} (f g: mon A) : mon A := fun (s: state) => match f s with | OK a s' i => OK a s' i | Error _ => g s end.",
+            "VernacDefinition",
+            "c059aed9731f78db2992a41dc5d04650af8a1dea"
+        ],
+        [
+            "Remark init_state_wf: forall pc, Plt pc 1%positive \\/ (PTree.empty instruction)!pc = None.",
+            "VernacStartTheoremProof",
+            "d16f705979217291c8a729b27ff5cd458b05b05b"
+        ],
+        [
+            "intros; right; apply PTree.gempty.",
+            "VernacExtend",
+            "3430d0f5f47a8b831a0907e79925716c639b7df3"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition init_state : state := mkstate 1%positive 1%positive (PTree.empty instruction) init_state_wf.",
+            "VernacDefinition",
+            "db600348d61758c9a829754f450315fdcf81531a"
+        ],
+        [
+            "Remark add_instr_wf: forall s i pc, let n := s.(st_nextnode) in Plt pc (Pos.succ n) \\/ (PTree.set n i s.(st_code))!pc = None.",
+            "VernacStartTheoremProof",
+            "e5215235d24d926e05bdb25d400f055a98e9adae"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "case (peq pc n); intro.",
+            "VernacExtend",
+            "bcff098a9294f5567b9cb603a30a6a90bd227ea1"
+        ],
+        [
+            "subst pc; left; apply Plt_succ.",
+            "VernacExtend",
+            "6d51cd3fb353657f0da0ca5441c942fff85a27d9"
+        ],
+        [
+            "rewrite PTree.gso; auto.",
+            "VernacExtend",
+            "63a9bc52270c656dbc7d2efe43bb711a7ed93e4e"
+        ],
+        [
+            "elim (st_wf s pc); intro.",
+            "VernacExtend",
+            "717cbdcb6b049f395c20d111ff1664c9fbb5638e"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "apply Plt_trans_succ.",
+            "VernacExtend",
+            "7d8723f92ee4303723305bc143d93eecf471d64e"
+        ],
+        [
+            "exact H.",
+            "VernacExtend",
+            "ce8e3e03bec1b3366baf128fe7eab49b160bc6a4"
+        ],
+        [
+            "right; assumption.",
+            "VernacExtend",
+            "4b9041b9a9d920fdce6d3e18e05e4d1a743614d5"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Remark add_instr_incr: forall s i, let n := s.(st_nextnode) in state_incr s (mkstate s.(st_nextreg) (Pos.succ n) (PTree.set n i s.(st_code)) (add_instr_wf s i)).",
+            "VernacStartTheoremProof",
+            "6d33120989ebb1282928ba4024cc11f47df20668"
+        ],
+        [
+            "constructor; simpl.",
+            "VernacExtend",
+            "dedfc8791248d9f0998b0bf2378e59b81a2e0146"
+        ],
+        [
+            "apply Ple_succ.",
+            "VernacExtend",
+            "f4d07174e7aecbe31b4e00a5a5142bd8b2d7abf4"
+        ],
+        [
+            "apply Ple_refl.",
+            "VernacExtend",
+            "0db71fbfe63d06b179db3d07fbb0dd1fc300f9f0"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct (st_wf s pc).",
+            "VernacExtend",
+            "7f4515710a002585906be0965b2b2e29138aaea8"
+        ],
+        [
+            "right.",
+            "VernacExtend",
+            "27e417a3497755767e1a1d6ba87753ecddaee6b7"
+        ],
+        [
+            "apply PTree.gso.",
+            "VernacExtend",
+            "8453b3a6cf7c39a2cffffdf54273e404e39b8faf"
+        ],
+        [
+            "apply Plt_ne; auto.",
+            "VernacExtend",
+            "b62db6125455afaca51b3c51ef620e90c3208988"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition add_instr (i: instruction) : mon node := fun s => let n := s.(st_nextnode) in OK n (mkstate s.(st_nextreg) (Pos.succ n) (PTree.set n i s.(st_code)) (add_instr_wf s i)) (add_instr_incr s i).",
+            "VernacDefinition",
+            "ceee68fee759ff32da54383225585d5efa78434f"
+        ],
+        [
+            "Remark reserve_instr_wf: forall s pc, Plt pc (Pos.succ s.(st_nextnode)) \\/ s.(st_code)!pc = None.",
+            "VernacStartTheoremProof",
+            "d4d120ffa345e19c63f5c65f602b6da2a419c480"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "elim (st_wf s pc); intro.",
+            "VernacExtend",
+            "717cbdcb6b049f395c20d111ff1664c9fbb5638e"
+        ],
+        [
+            "left; apply Plt_trans_succ; auto.",
+            "VernacExtend",
+            "f8645a9574c34980ae82b838b19f7481e3fb9208"
+        ],
+        [
+            "right; auto.",
+            "VernacExtend",
+            "1f0a695ab06b3950e6a7adf329d300b1f859fe9d"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Remark reserve_instr_incr: forall s, let n := s.(st_nextnode) in state_incr s (mkstate s.(st_nextreg) (Pos.succ n) s.(st_code) (reserve_instr_wf s)).",
+            "VernacStartTheoremProof",
+            "a44ad2c1588c89e9bce0c67632e11551b1c4cbe8"
+        ],
+        [
+            "intros; constructor; simpl.",
+            "VernacExtend",
+            "55d93843513f16897159de21d6c35e1ff28e2841"
+        ],
+        [
+            "apply Ple_succ.",
+            "VernacExtend",
+            "f4d07174e7aecbe31b4e00a5a5142bd8b2d7abf4"
+        ],
+        [
+            "apply Ple_refl.",
+            "VernacExtend",
+            "0db71fbfe63d06b179db3d07fbb0dd1fc300f9f0"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition reserve_instr: mon node := fun (s: state) => let n := s.(st_nextnode) in OK n (mkstate s.(st_nextreg) (Pos.succ n) s.(st_code) (reserve_instr_wf s)) (reserve_instr_incr s).",
+            "VernacDefinition",
+            "3e3173eb75d284c5ae0552cf7ec579892e8a0bb9"
+        ],
+        [
+            "Remark update_instr_wf: forall s n i, Plt n s.(st_nextnode) -> forall pc, Plt pc s.(st_nextnode) \\/ (PTree.set n i s.(st_code))!pc = None.",
+            "VernacStartTheoremProof",
+            "950bcb52b5bfc69ea17164d388a8475ebe82a244"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "case (peq pc n); intro.",
+            "VernacExtend",
+            "bcff098a9294f5567b9cb603a30a6a90bd227ea1"
+        ],
+        [
+            "subst pc; left; assumption.",
+            "VernacExtend",
+            "d44eace564768cdbb10ddb8202c3d685c9bba721"
+        ],
+        [
+            "rewrite PTree.gso; auto.",
+            "VernacExtend",
+            "63a9bc52270c656dbc7d2efe43bb711a7ed93e4e"
+        ],
+        [
+            "exact (st_wf s pc).",
+            "VernacExtend",
+            "5ed311d27e18b513a6ba50dd29025240644d0c50"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Remark update_instr_incr: forall s n i (LT: Plt n s.(st_nextnode)), s.(st_code)!n = None -> state_incr s (mkstate s.(st_nextreg) s.(st_nextnode) (PTree.set n i s.(st_code)) (update_instr_wf s n i LT)).",
+            "VernacStartTheoremProof",
+            "c43c7156e78f50590eb19e908df623fd882e2492"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "constructor; simpl; intros.",
+            "VernacExtend",
+            "dcd76c351204acf8d4b7d76eea612fabf67729fc"
+        ],
+        [
+            "apply Ple_refl.",
+            "VernacExtend",
+            "0db71fbfe63d06b179db3d07fbb0dd1fc300f9f0"
+        ],
+        [
+            "apply Ple_refl.",
+            "VernacExtend",
+            "0db71fbfe63d06b179db3d07fbb0dd1fc300f9f0"
+        ],
+        [
+            "rewrite PTree.gsspec.",
+            "VernacExtend",
+            "88315e2b3b1f3e40fe18917f8425d57b50a31282"
+        ],
+        [
+            "destruct (peq pc n).",
+            "VernacExtend",
+            "33c624c1edb23a424190818151a91015e6adbf4f"
+        ],
+        [
+            "left; congruence.",
+            "VernacExtend",
+            "bc0b2cc81db2fe562b3b2f1af1e7273a6d9e66c7"
+        ],
+        [
+            "right; auto.",
+            "VernacExtend",
+            "1f0a695ab06b3950e6a7adf329d300b1f859fe9d"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition check_empty_node: forall (s: state) (n: node), { s.(st_code)!n = None } + { True }.",
+            "VernacDefinition",
+            "2a6409d9d19749032bccf94ccbed5bb0cd2d8840"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "case (s.(st_code)!n); intros.",
+            "VernacExtend",
+            "85fbddfd44e3841931162b70fc5162d6569eb31c"
+        ],
+        [
+            "right; auto.",
+            "VernacExtend",
+            "1f0a695ab06b3950e6a7adf329d300b1f859fe9d"
+        ],
+        [
+            "left; auto.",
+            "VernacExtend",
+            "b03090a3068bb41ee1034a9c886a5e47eddfb98a"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Definition update_instr (n: node) (i: instruction) : mon unit := fun s => match plt n s.(st_nextnode), check_empty_node s n with | left LT, left EMPTY => OK tt (mkstate s.(st_nextreg) s.(st_nextnode) (PTree.set n i s.(st_code)) (update_instr_wf s n i LT)) (update_instr_incr s n i LT EMPTY) | _, _ => Error (Errors.msg \"RTLgen.update_instr\") end.",
+            "VernacDefinition",
+            "b54bd3dbba61dbd95418920d2ab7c1c1778b73b8"
+        ],
+        [
+            "Remark new_reg_incr: forall s, state_incr s (mkstate (Pos.succ s.(st_nextreg)) s.(st_nextnode) s.(st_code) s.(st_wf)).",
+            "VernacStartTheoremProof",
+            "70a96a3c310feb8f8a95c440ad248b4ba41bb29a"
+        ],
+        [
+            "constructor; simpl.",
+            "VernacExtend",
+            "dedfc8791248d9f0998b0bf2378e59b81a2e0146"
+        ],
+        [
+            "apply Ple_refl.",
+            "VernacExtend",
+            "0db71fbfe63d06b179db3d07fbb0dd1fc300f9f0"
+        ],
+        [
+            "apply Ple_succ.",
+            "VernacExtend",
+            "f4d07174e7aecbe31b4e00a5a5142bd8b2d7abf4"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition new_reg : mon reg := fun s => OK s.(st_nextreg) (mkstate (Pos.succ s.(st_nextreg)) s.(st_nextnode) s.(st_code) s.(st_wf)) (new_reg_incr s).",
+            "VernacDefinition",
+            "f53594b79487a9017039ec2d7d520e8589498ff3"
+        ],
+        [
+            "Definition init_mapping : mapping := mkmapping (PTree.empty reg) nil.",
+            "VernacDefinition",
+            "1a679f495f88ac096024d1010fbd0bd3004db11f"
+        ],
+        [
+            "Definition add_var (map: mapping) (name: ident) : mon (reg * mapping) := do r <- new_reg; ret (r, mkmapping (PTree.set name r map.(map_vars)) map.(map_letvars)).",
+            "VernacDefinition",
+            "a3f8094f8fbb0fef6d1b821c8b2df33bd61193f9"
+        ],
+        [
+            "Fixpoint add_vars (map: mapping) (names: list ident) {struct names} : mon (list reg * mapping) := match names with | nil => ret (nil, map) | n1 :: nl => do (rl, map1) <- add_vars map nl; do (r1, map2) <- add_var map1 n1; ret (r1 :: rl, map2) end.",
+            "VernacFixpoint",
+            "3fa63e9424df785c14743bd3c86199ae480c62e2"
+        ],
+        [
+            "Definition find_var (map: mapping) (name: ident) : mon reg := match PTree.get name map.(map_vars) with | None => error (Errors.MSG \"RTLgen: unbound variable \" :: Errors.CTX name :: nil) | Some r => ret r end.",
+            "VernacDefinition",
+            "d9ad16292487cb7559e3a1556a3aebad7078d945"
+        ],
+        [
+            "Definition add_letvar (map: mapping) (r: reg) : mapping := mkmapping map.(map_vars) (r :: map.(map_letvars)).",
+            "VernacDefinition",
+            "4b9bfe6a53fd67483fcbdedaed0b9df8ea1350df"
+        ],
+        [
+            "Definition find_letvar (map: mapping) (idx: nat) : mon reg := match List.nth_error map.(map_letvars) idx with | None => error (Errors.msg \"RTLgen: unbound let variable\") | Some r => ret r end.",
+            "VernacDefinition",
+            "697401ff82985608c7c2fab06fed928601082b13"
+        ],
+        [
+            "Definition alloc_reg (map: mapping) (a: expr) : mon reg := match a with | Evar id => find_var map id | Eletvar n => find_letvar map n | _ => new_reg end.",
+            "VernacDefinition",
+            "0e3b730e329fb510f9535ee7bde528e859fd0c48"
+        ],
+        [
+            "Fixpoint alloc_regs (map: mapping) (al: exprlist) {struct al}: mon (list reg) := match al with | Enil => ret nil | Econs a bl => do r <- alloc_reg map a; do rl <- alloc_regs map bl; ret (r :: rl) end.",
+            "VernacFixpoint",
+            "3f0e755643f98c22c516f04685544bada144b609"
+        ],
+        [
+            "Definition alloc_optreg (map: mapping) (dest: option ident) : mon reg := match dest with | Some id => find_var map id | None => new_reg end.",
+            "VernacDefinition",
+            "f896ba9cee03eae30d4c1f3b8a6731be708d75e1"
+        ],
+        [
+            "Definition add_move (rs rd: reg) (nd: node) : mon node := if Reg.eq rs rd then ret nd else add_instr (Iop Omove (rs::nil) rd nd).",
+            "VernacDefinition",
+            "85beb3e1a04ed5f9399a1f346136039a0f237d3e"
+        ],
+        [
+            "Definition exprlist_of_expr_list (l: list expr) : exprlist := List.fold_right Econs Enil l.",
+            "VernacDefinition",
+            "775a807312a6e3b14cc4bc5a15cd79479848542b"
+        ],
+        [
+            "Fixpoint convert_builtin_arg {A: Type} (a: builtin_arg expr) (rl: list A) : builtin_arg A * list A := match a with | BA a => match rl with | r :: rs => (BA r, rs) | nil => (BA_int Int.zero, nil) end | BA_int n => (BA_int n, rl) | BA_long n => (BA_long n, rl) | BA_float n => (BA_float n, rl) | BA_single n => (BA_single n, rl) | BA_loadstack chunk ofs => (BA_loadstack chunk ofs, rl) | BA_addrstack ofs => (BA_addrstack ofs, rl) | BA_loadglobal chunk id ofs => (BA_loadglobal chunk id ofs, rl) | BA_addrglobal id ofs => (BA_addrglobal id ofs, rl) | BA_splitlong hi lo => let (hi', rl1) := convert_builtin_arg hi rl in let (lo', rl2) := convert_builtin_arg lo rl1 in (BA_splitlong hi' lo', rl2) | BA_addptr a1 a2 => let (a1', rl1) := convert_builtin_arg a1 rl in let (a2', rl2) := convert_builtin_arg a2 rl1 in (BA_addptr a1' a2', rl2) end.",
+            "VernacFixpoint",
+            "6e86ae66903a4e2373dba2a170c4bf55d3a4fc31"
+        ],
+        [
+            "Fixpoint convert_builtin_args {A: Type} (al: list (builtin_arg expr)) (rl: list A) : list (builtin_arg A) := match al with | nil => nil | a1 :: al => let (a1', rl1) := convert_builtin_arg a1 rl in a1' :: convert_builtin_args al rl1 end.",
+            "VernacFixpoint",
+            "9f46c65ffe57ea739b1234e4cac2ce807b1490da"
+        ],
+        [
+            "Definition convert_builtin_res (map: mapping) (oty: option typ) (r: builtin_res ident) : mon (builtin_res reg) := match r, oty with | BR id, _ => do r <- find_var map id; ret (BR r) | BR_none, None => ret BR_none | BR_none, Some _ => do r <- new_reg; ret (BR r) | _, _ => error (Errors.msg \"RTLgen: bad builtin_res\") end.",
+            "VernacDefinition",
+            "369645379116bfa8e8cf54a839676cb2da064a81"
+        ],
+        [
+            "Fixpoint transl_expr (map: mapping) (a: expr) (rd: reg) (nd: node) {struct a}: mon node := match a with | Evar v => do r <- find_var map v; add_move r rd nd | Eop op al => do rl <- alloc_regs map al; do no <- add_instr (Iop op rl rd nd); transl_exprlist map al rl no | Eload chunk addr al => do rl <- alloc_regs map al; do no <- add_instr (Iload chunk addr rl rd nd); transl_exprlist map al rl no | Econdition a b c => do nfalse <- transl_expr map c rd nd; do ntrue <- transl_expr map b rd nd; transl_condexpr map a ntrue nfalse | Elet b c => do r <- new_reg; do nc <- transl_expr (add_letvar map r) c rd nd; transl_expr map b r nc | Eletvar n => do r <- find_letvar map n; add_move r rd nd | Ebuiltin ef al => do rl <- alloc_regs map al; do no <- add_instr (Ibuiltin ef (List.map (@BA reg) rl) (BR rd) nd); transl_exprlist map al rl no | Eexternal id sg al => do rl <- alloc_regs map al; do no <- add_instr (Icall sg (inr id) rl rd nd); transl_exprlist map al rl no end with transl_exprlist (map: mapping) (al: exprlist) (rl: list reg) (nd: node) {struct al} : mon node := match al, rl with | Enil, nil => ret nd | Econs b bs, r :: rs => do no <- transl_exprlist map bs rs nd; transl_expr map b r no | _, _ => error (Errors.msg \"RTLgen.transl_exprlist\") end with transl_condexpr (map: mapping) (a: condexpr) (ntrue nfalse: node) {struct a} : mon node := match a with | CEcond c al => do rl <- alloc_regs map al; do nt <- add_instr (Icond c rl ntrue nfalse); transl_exprlist map al rl nt | CEcondition a b c => do nc <- transl_condexpr map c ntrue nfalse; do nb <- transl_condexpr map b ntrue nfalse; transl_condexpr map a nb nc | CElet b c => do r <- new_reg; do nc <- transl_condexpr (add_letvar map r) c ntrue nfalse; transl_expr map b r nc end.",
+            "VernacFixpoint",
+            "d7c7d4f0eb831f4f07974db1ce4fab19e9c46483"
+        ],
+        [
+            "Definition transl_exit (nexits: list node) (n: nat) : mon node := match nth_error nexits n with | None => error (Errors.msg \"RTLgen: wrong exit\") | Some ne => ret ne end.",
+            "VernacDefinition",
+            "fe18e4210129901fa984e70903f823c7f7f1af35"
+        ],
+        [
+            "Fixpoint transl_jumptable (nexits: list node) (tbl: list nat) : mon (list node) := match tbl with | nil => ret nil | t1 :: tl => do n1 <- transl_exit nexits t1; do nl <- transl_jumptable nexits tl; ret (n1 :: nl) end.",
+            "VernacFixpoint",
+            "5cca5e0ef1dc54ae1f85d1c5b5ba532414ef41f1"
+        ],
+        [
+            "Fixpoint transl_exitexpr (map: mapping) (a: exitexpr) (nexits: list node) {struct a} : mon node := match a with | XEexit n => transl_exit nexits n | XEjumptable a tbl => do r <- alloc_reg map a; do tbl' <- transl_jumptable nexits tbl; do n1 <- add_instr (Ijumptable r tbl'); transl_expr map a r n1 | XEcondition a b c => do nc <- transl_exitexpr map c nexits; do nb <- transl_exitexpr map b nexits; transl_condexpr map a nb nc | XElet a b => do r <- new_reg; do n1 <- transl_exitexpr (add_letvar map r) b nexits; transl_expr map a r n1 end.",
+            "VernacFixpoint",
+            "8e4b6165a41dab9a3217aa934323494b7c43d4e3"
+        ],
+        [
+            "Parameter more_likely: condexpr -> stmt -> stmt -> bool.",
+            "VernacAssumption",
+            "f7785983c6c4918c4d13acee5bfb40db3e502c45"
+        ],
+        [
+            "Definition labelmap : Type := PTree.t node.",
+            "VernacDefinition",
+            "5d6b32a6c670630979e10a08987c8ddc8bfccfe6"
+        ],
+        [
+            "Fixpoint transl_stmt (map: mapping) (s: stmt) (nd: node) (nexits: list node) (ngoto: labelmap) (nret: node) (rret: option reg) {struct s} : mon node := match s with | Sskip => ret nd | Sassign v b => do r <- find_var map v; transl_expr map b r nd | Sstore chunk addr al b => do rl <- alloc_regs map al; do r <- alloc_reg map b; do no <- add_instr (Istore chunk addr rl r nd); do ns <- transl_expr map b r no; transl_exprlist map al rl ns | Scall optid sig (inl b) cl => do rf <- alloc_reg map b; do rargs <- alloc_regs map cl; do r <- alloc_optreg map optid; do n1 <- add_instr (Icall sig (inl _ rf) rargs r nd); do n2 <- transl_exprlist map cl rargs n1; transl_expr map b rf n2 | Scall optid sig (inr id) cl => do rargs <- alloc_regs map cl; do r <- alloc_optreg map optid; do n1 <- add_instr (Icall sig (inr _ id) rargs r nd); transl_exprlist map cl rargs n1 | Stailcall sig (inl b) cl => do rf <- alloc_reg map b; do rargs <- alloc_regs map cl; do n1 <- add_instr (Itailcall sig (inl _ rf) rargs); do n2 <- transl_exprlist map cl rargs n1; transl_expr map b rf n2 | Stailcall sig (inr id) cl => do rargs <- alloc_regs map cl; do n1 <- add_instr (Itailcall sig (inr _ id) rargs); transl_exprlist map cl rargs n1 | Sbuiltin res ef args => let al := exprlist_of_expr_list (params_of_builtin_args args) in do rargs <- alloc_regs map al; let args' := convert_builtin_args args rargs in do res' <- convert_builtin_res map (sig_res (ef_sig ef)) res; do n1 <- add_instr (Ibuiltin ef args' res' nd); transl_exprlist map al rargs n1 | Sseq s1 s2 => do ns <- transl_stmt map s2 nd nexits ngoto nret rret; transl_stmt map s1 ns nexits ngoto nret rret | Sifthenelse c strue sfalse => if more_likely c strue sfalse then do nfalse <- transl_stmt map sfalse nd nexits ngoto nret rret; do ntrue <- transl_stmt map strue nd nexits ngoto nret rret; transl_condexpr map c ntrue nfalse else do ntrue <- transl_stmt map strue nd nexits ngoto nret rret; do nfalse <- transl_stmt map sfalse nd nexits ngoto nret rret; transl_condexpr map c ntrue nfalse | Sloop sbody => do n1 <- reserve_instr; do n2 <- transl_stmt map sbody n1 nexits ngoto nret rret; do xx <- update_instr n1 (Inop n2); add_instr (Inop n2) | Sblock sbody => transl_stmt map sbody nd (nd :: nexits) ngoto nret rret | Sexit n => transl_exit nexits n | Sswitch a => transl_exitexpr map a nexits | Sreturn opt_a => match opt_a, rret with | None, _ => ret nret | Some a, Some r => transl_expr map a r nret | _, _ => error (Errors.msg \"RTLgen: type mismatch on return\") end | Slabel lbl s' => do ns <- transl_stmt map s' nd nexits ngoto nret rret; match ngoto!lbl with | None => error (Errors.msg \"RTLgen: unbound label\") | Some n => do xx <- (handle_error (update_instr n (Inop ns)) (error (Errors.MSG \"Multiply-defined label \" :: Errors.CTX lbl :: nil))); ret ns end | Sgoto lbl => match ngoto!lbl with | None => error (Errors.MSG \"Undefined defined label \" :: Errors.CTX lbl :: nil) | Some n => ret n end end.",
+            "VernacFixpoint",
+            "88159763de341b8d0ab614bed3790c5688beb8f2"
+        ],
+        [
+            "Definition alloc_label (lbl: Cminor.label) (maps: labelmap * state) : labelmap * state := let (map, s) := maps in let n := s.(st_nextnode) in (PTree.set lbl n map, mkstate s.(st_nextreg) (Pos.succ s.(st_nextnode)) s.(st_code) (reserve_instr_wf s)).",
+            "VernacDefinition",
+            "a69e5d81abe98d887bbe286464d84ce674a062c0"
+        ],
+        [
+            "Fixpoint reserve_labels (s: stmt) (ms: labelmap * state) {struct s} : labelmap * state := match s with | Sseq s1 s2 => reserve_labels s1 (reserve_labels s2 ms) | Sifthenelse c s1 s2 => reserve_labels s1 (reserve_labels s2 ms) | Sloop s1 => reserve_labels s1 ms | Sblock s1 => reserve_labels s1 ms | Slabel lbl s1 => alloc_label lbl (reserve_labels s1 ms) | _ => ms end.",
+            "VernacFixpoint",
+            "96d85f64fca684c8a3af98ffda1e4dab7b16b273"
+        ],
+        [
+            "Definition ret_reg (sig: signature) (rd: reg) : option reg := match sig.(sig_res) with | None => None | Some ty => Some rd end.",
+            "VernacDefinition",
+            "db9ce7bda0298482ce046da9344e5c4cf51049df"
+        ],
+        [
+            "Definition transl_fun (f: CminorSel.function) (ngoto: labelmap): mon (node * list reg) := do (rparams, map1) <- add_vars init_mapping f.(CminorSel.fn_params); do (rvars, map2) <- add_vars map1 f.(CminorSel.fn_vars); do rret <- new_reg; let orret := ret_reg f.(CminorSel.fn_sig) rret in do nret <- add_instr (Ireturn orret); do nentry <- transl_stmt map2 f.(CminorSel.fn_body) nret nil ngoto nret orret; ret (nentry, rparams).",
+            "VernacDefinition",
+            "9281ef39f4bf7635432e1d9eb934a21f1e0b7ede"
+        ],
+        [
+            "Definition transl_function (f: CminorSel.function) : Errors.res RTL.function := let (ngoto, s0) := reserve_labels f.(fn_body) (PTree.empty node, init_state) in match transl_fun f ngoto s0 with | Error msg => Errors.Error msg | OK (nentry, rparams) s i => Errors.OK (RTL.mkfunction f.(CminorSel.fn_sig) rparams f.(CminorSel.fn_stackspace) s.(st_code) nentry) end.",
+            "VernacDefinition",
+            "e82660457a162b51ad9c2bff301ef1daf6068478"
+        ],
+        [
+            "Definition transl_fundef := transf_partial_fundef transl_function.",
+            "VernacDefinition",
+            "2b63bad8d81cbab473102a16f1872810102b9d50"
+        ],
+        [
+            "Definition transl_program (p: CminorSel.program) : Errors.res RTL.program := transform_partial_program transl_fundef p.",
+            "VernacDefinition",
+            "ac26f3b2b58c8036c6de62657411f414461c8037"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "state_incr_refl",
+            "line_nb": 14,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply state_incr_intro.",
+                        "VernacExtend",
+                        "e1b6603566e05a93b663017a87bf06580d34d804"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Ple_refl.",
+                        "VernacExtend",
+                        "0db71fbfe63d06b179db3d07fbb0dd1fc300f9f0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Ple_refl.",
+                        "VernacExtend",
+                        "0db71fbfe63d06b179db3d07fbb0dd1fc300f9f0"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros; auto.",
+                        "VernacExtend",
+                        "d08fa6a6cf0cffe77a1b06ed19eb1fcfb0b64546"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "state_incr_trans",
+            "line_nb": 21,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H; inv H0.",
+                        "VernacExtend",
+                        "082d940903d796c6497571a56c1c3caf675f5e8d"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply state_incr_intro.",
+                        "VernacExtend",
+                        "e1b6603566e05a93b663017a87bf06580d34d804"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Ple_trans with (st_nextnode s2); assumption.",
+                        "VernacExtend",
+                        "f1174a9fff8a65dcbe2e8ae3e5cc2d02f147a552"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Ple_trans with (st_nextreg s2); assumption.",
+                        "VernacExtend",
+                        "6fd31c1f5072408281bd05b8039813829929874b"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize (H3 pc) (H5 pc).",
+                        "VernacExtend",
+                        "c59a733d1f3587a4416940a0e2191a6274633371"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition congruence.",
+                        "VernacExtend",
+                        "2cba3542847e3f4ea52f3f62375adc6e8f8f04bc"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "init_state_wf",
+            "line_nb": 42,
+            "steps": [
+                {
+                    "command": [
+                        "intros; right; apply PTree.gempty.",
+                        "VernacExtend",
+                        "3430d0f5f47a8b831a0907e79925716c639b7df3"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "add_instr_wf",
+            "line_nb": 46,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "case (peq pc n); intro.",
+                        "VernacExtend",
+                        "bcff098a9294f5567b9cb603a30a6a90bd227ea1"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst pc; left; apply Plt_succ.",
+                        "VernacExtend",
+                        "6d51cd3fb353657f0da0ca5441c942fff85a27d9"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.gso; auto.",
+                        "VernacExtend",
+                        "63a9bc52270c656dbc7d2efe43bb711a7ed93e4e"
+                    ]
+                },
+                {
+                    "command": [
+                        "elim (st_wf s pc); intro.",
+                        "VernacExtend",
+                        "717cbdcb6b049f395c20d111ff1664c9fbb5638e"
+                    ]
+                },
+                {
+                    "command": [
+                        "left.",
+                        "VernacExtend",
+                        "06dad9fc5698018f3f1213205145fec906c612b1"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Plt_trans_succ.",
+                        "VernacExtend",
+                        "7d8723f92ee4303723305bc143d93eecf471d64e"
+                    ]
+                },
+                {
+                    "command": [
+                        "exact H.",
+                        "VernacExtend",
+                        "ce8e3e03bec1b3366baf128fe7eab49b160bc6a4"
+                    ]
+                },
+                {
+                    "command": [
+                        "right; assumption.",
+                        "VernacExtend",
+                        "4b9041b9a9d920fdce6d3e18e05e4d1a743614d5"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "add_instr_incr",
+            "line_nb": 57,
+            "steps": [
+                {
+                    "command": [
+                        "constructor; simpl.",
+                        "VernacExtend",
+                        "dedfc8791248d9f0998b0bf2378e59b81a2e0146"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Ple_succ.",
+                        "VernacExtend",
+                        "f4d07174e7aecbe31b4e00a5a5142bd8b2d7abf4"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Ple_refl.",
+                        "VernacExtend",
+                        "0db71fbfe63d06b179db3d07fbb0dd1fc300f9f0"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (st_wf s pc).",
+                        "VernacExtend",
+                        "7f4515710a002585906be0965b2b2e29138aaea8"
+                    ]
+                },
+                {
+                    "command": [
+                        "right.",
+                        "VernacExtend",
+                        "27e417a3497755767e1a1d6ba87753ecddaee6b7"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply PTree.gso.",
+                        "VernacExtend",
+                        "8453b3a6cf7c39a2cffffdf54273e404e39b8faf"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Plt_ne; auto.",
+                        "VernacExtend",
+                        "b62db6125455afaca51b3c51ef620e90c3208988"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "reserve_instr_wf",
+            "line_nb": 69,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "elim (st_wf s pc); intro.",
+                        "VernacExtend",
+                        "717cbdcb6b049f395c20d111ff1664c9fbb5638e"
+                    ]
+                },
+                {
+                    "command": [
+                        "left; apply Plt_trans_succ; auto.",
+                        "VernacExtend",
+                        "f8645a9574c34980ae82b838b19f7481e3fb9208"
+                    ]
+                },
+                {
+                    "command": [
+                        "right; auto.",
+                        "VernacExtend",
+                        "1f0a695ab06b3950e6a7adf329d300b1f859fe9d"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "reserve_instr_incr",
+            "line_nb": 75,
+            "steps": [
+                {
+                    "command": [
+                        "intros; constructor; simpl.",
+                        "VernacExtend",
+                        "55d93843513f16897159de21d6c35e1ff28e2841"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Ple_succ.",
+                        "VernacExtend",
+                        "f4d07174e7aecbe31b4e00a5a5142bd8b2d7abf4"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Ple_refl.",
+                        "VernacExtend",
+                        "0db71fbfe63d06b179db3d07fbb0dd1fc300f9f0"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "update_instr_wf",
+            "line_nb": 82,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "case (peq pc n); intro.",
+                        "VernacExtend",
+                        "bcff098a9294f5567b9cb603a30a6a90bd227ea1"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst pc; left; assumption.",
+                        "VernacExtend",
+                        "d44eace564768cdbb10ddb8202c3d685c9bba721"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.gso; auto.",
+                        "VernacExtend",
+                        "63a9bc52270c656dbc7d2efe43bb711a7ed93e4e"
+                    ]
+                },
+                {
+                    "command": [
+                        "exact (st_wf s pc).",
+                        "VernacExtend",
+                        "5ed311d27e18b513a6ba50dd29025240644d0c50"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "update_instr_incr",
+            "line_nb": 89,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; simpl; intros.",
+                        "VernacExtend",
+                        "dcd76c351204acf8d4b7d76eea612fabf67729fc"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Ple_refl.",
+                        "VernacExtend",
+                        "0db71fbfe63d06b179db3d07fbb0dd1fc300f9f0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Ple_refl.",
+                        "VernacExtend",
+                        "0db71fbfe63d06b179db3d07fbb0dd1fc300f9f0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.gsspec.",
+                        "VernacExtend",
+                        "88315e2b3b1f3e40fe18917f8425d57b50a31282"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (peq pc n).",
+                        "VernacExtend",
+                        "33c624c1edb23a424190818151a91015e6adbf4f"
+                    ]
+                },
+                {
+                    "command": [
+                        "left; congruence.",
+                        "VernacExtend",
+                        "bc0b2cc81db2fe562b3b2f1af1e7273a6d9e66c7"
+                    ]
+                },
+                {
+                    "command": [
+                        "right; auto.",
+                        "VernacExtend",
+                        "1f0a695ab06b3950e6a7adf329d300b1f859fe9d"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "check_empty_node",
+            "line_nb": 99,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "case (s.(st_code)!n); intros.",
+                        "VernacExtend",
+                        "85fbddfd44e3841931162b70fc5162d6569eb31c"
+                    ]
+                },
+                {
+                    "command": [
+                        "right; auto.",
+                        "VernacExtend",
+                        "1f0a695ab06b3950e6a7adf329d300b1f859fe9d"
+                    ]
+                },
+                {
+                    "command": [
+                        "left; auto.",
+                        "VernacExtend",
+                        "b03090a3068bb41ee1034a9c886a5e47eddfb98a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "new_reg_incr",
+            "line_nb": 106,
+            "steps": [
+                {
+                    "command": [
+                        "constructor; simpl.",
+                        "VernacExtend",
+                        "dedfc8791248d9f0998b0bf2378e59b81a2e0146"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Ple_refl.",
+                        "VernacExtend",
+                        "0db71fbfe63d06b179db3d07fbb0dd1fc300f9f0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Ple_succ.",
+                        "VernacExtend",
+                        "f4d07174e7aecbe31b4e00a5a5142bd8b2d7abf4"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

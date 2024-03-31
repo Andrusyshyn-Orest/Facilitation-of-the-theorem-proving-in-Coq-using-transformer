@@ -1,0 +1,359 @@
+{
+    "filename": "backend/CSEdomain.v",
+    "coq_project": "CompCert",
+    "vernac_cmds": [
+        [
+            "Require Import Coqlib.",
+            "VernacRequire",
+            "bbbe15041aca3a03300067f7acd445b462d537cc"
+        ],
+        [
+            "Require Import Maps.",
+            "VernacRequire",
+            "f9a27637102e60e06a3c1ceb5a01819e80b9f645"
+        ],
+        [
+            "Require Import AST.",
+            "VernacRequire",
+            "d103ecb096c06f34167fba01dd861491b0d5e84e"
+        ],
+        [
+            "Require Import Values.",
+            "VernacRequire",
+            "f69762569c40def2ecf819f8117763d2ee924d2a"
+        ],
+        [
+            "Require Import Memory.",
+            "VernacRequire",
+            "2705b33fd6d3e12818791c70e219eee6a06d5191"
+        ],
+        [
+            "Require Import Op.",
+            "VernacRequire",
+            "ade4899dcb267df47fd0e69e3c413086816e6a6f"
+        ],
+        [
+            "Require Import Registers.",
+            "VernacRequire",
+            "1607f789f69481494f718ae4501bc795077da4d4"
+        ],
+        [
+            "Require Import RTL.",
+            "VernacRequire",
+            "4de1de47bcd350514abb6fbc1070eb15c88d7b2b"
+        ],
+        [
+            "Definition valnum := positive.",
+            "VernacDefinition",
+            "96570ee9b8bff14d237d0b1507d3e10977afd257"
+        ],
+        [
+            "Inductive rhs : Type := | Op: operation -> list valnum -> rhs | Load: memory_chunk -> addressing -> list valnum -> rhs.",
+            "VernacInductive",
+            "a05f198f9736f80f559b5a5e46c4277fcc5c2b96"
+        ],
+        [
+            "Inductive equation : Type := | Eq (v: valnum) (strict: bool) (r: rhs).",
+            "VernacInductive",
+            "558ed37aefd086d2cfbf6a37a16dbf71836f248d"
+        ],
+        [
+            "Definition eq_valnum: forall (x y: valnum), {x=y}+{x<>y} := peq.",
+            "VernacDefinition",
+            "8eecffa90700c4a4beccee03c0f280e44b0d6e08"
+        ],
+        [
+            "Definition eq_list_valnum: forall (x y: list valnum), {x=y}+{x<>y} := list_eq_dec peq.",
+            "VernacDefinition",
+            "fdf5d32da1c5d9ef59efc77fed2961579df5e687"
+        ],
+        [
+            "Definition eq_rhs (x y: rhs) : {x=y}+{x<>y}.",
+            "VernacDefinition",
+            "51eb67f0587e2fe592e18080f2ed61d9bd5ff191"
+        ],
+        [
+            "generalize chunk_eq eq_operation eq_addressing eq_valnum eq_list_valnum.",
+            "VernacExtend",
+            "d6c7ae515fb6013921f77bdec932763649618ed4"
+        ],
+        [
+            "decide equality.",
+            "VernacExtend",
+            "10aba07d521545accbb51a4c2e0695a9ddce3199"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Record numbering : Type := mknumbering { num_next: valnum; num_eqs: list equation; num_reg: PTree.t valnum; num_val: PMap.t (list reg) }.",
+            "VernacInductive",
+            "22ae4d670caea94a7bde4135d40be5eb288e913f"
+        ],
+        [
+            "Definition empty_numbering := {| num_next := 1%positive; num_eqs := nil; num_reg := PTree.empty _; num_val := PMap.init nil |}.",
+            "VernacDefinition",
+            "976f67ee42e7a99337754421137c832498452643"
+        ],
+        [
+            "Definition valnums_rhs (r: rhs): list valnum := match r with | Op op vl => vl | Load chunk addr vl => vl end.",
+            "VernacDefinition",
+            "2bd0457afd1038574e4f338e1168547550adbc1f"
+        ],
+        [
+            "Definition wf_rhs (next: valnum) (r: rhs) : Prop := forall v, In v (valnums_rhs r) -> Plt v next.",
+            "VernacDefinition",
+            "adf53d6279b0cef9f2c9cab41f442a32057f5c1a"
+        ],
+        [
+            "Definition wf_equation (next: valnum) (e: equation) : Prop := match e with Eq l str r => Plt l next /\\ wf_rhs next r end.",
+            "VernacDefinition",
+            "b04d34164c8ba90345bfe9c51ecad4266bf7771a"
+        ],
+        [
+            "Record wf_numbering (n: numbering) : Prop := { wf_num_eqs: forall e, In e n.(num_eqs) -> wf_equation n.(num_next) e; wf_num_reg: forall r v, PTree.get r n.(num_reg) = Some v -> Plt v n.(num_next); wf_num_val: forall r v, In r (PMap.get v n.(num_val)) -> PTree.get r n.(num_reg) = Some v }.",
+            "VernacInductive",
+            "c6be1c9572e9c7b6eabb7e90e2513e9c0b9a2f33"
+        ],
+        [
+            "Hint Resolve wf_num_eqs wf_num_reg wf_num_val: cse.",
+            "VernacHints",
+            "dfe5e4d82d2291f2cf1eba0a7cbb3fab59a7fde0"
+        ],
+        [
+            "Definition valuation := valnum -> val.",
+            "VernacDefinition",
+            "f0f2296247f222a1d68015f5753e72dd106a2de8"
+        ],
+        [
+            "Inductive rhs_eval_to (valu: valuation) (ge: genv) (sp: val) (m: mem): rhs -> val -> Prop := | op_eval_to: forall op vl v, eval_operation ge sp op (map valu vl) m = Some v -> rhs_eval_to valu ge sp m (Op op vl) v | load_eval_to: forall chunk addr vl a v, eval_addressing ge sp addr (map valu vl) = Some a -> Mem.loadv chunk m a = Some v -> rhs_eval_to valu ge sp m (Load chunk addr vl) v.",
+            "VernacInductive",
+            "4a9cc32daa9fd3e1aed6fa8e0963128dcf844f8e"
+        ],
+        [
+            "Inductive equation_holds (valu: valuation) (ge: genv) (sp: val) (m: mem): equation -> Prop := | eq_holds_strict: forall l r, rhs_eval_to valu ge sp m r (valu l) -> equation_holds valu ge sp m (Eq l true r) | eq_holds_lessdef: forall l r v, rhs_eval_to valu ge sp m r v -> Val.lessdef v (valu l) -> equation_holds valu ge sp m (Eq l false r).",
+            "VernacInductive",
+            "b21cd38b1639b0d9116638704bb1c8917fd7fcee"
+        ],
+        [
+            "Record numbering_holds (valu: valuation) (ge: genv) (sp: val) (rs: regset) (m: mem) (n: numbering) : Prop := { num_holds_wf: wf_numbering n; num_holds_eq: forall eq, In eq n.(num_eqs) -> equation_holds valu ge sp m eq; num_holds_reg: forall r v, n.(num_reg)!r = Some v -> rs#r = valu v }.",
+            "VernacInductive",
+            "0cb90f80d964b8796e2894f83f23de93832f4928"
+        ],
+        [
+            "Hint Resolve num_holds_wf num_holds_eq num_holds_reg: cse.",
+            "VernacHints",
+            "c78097789ec4b61d9c07240f5ed6140d2548959c"
+        ],
+        [
+            "Lemma empty_numbering_holds: forall valu ge sp rs m, numbering_holds valu ge sp rs m empty_numbering.",
+            "VernacStartTheoremProof",
+            "12c796b78d7b84c3e029f6593faa8b6de6393e16"
+        ],
+        [
+            "intros; split; simpl; intros.",
+            "VernacExtend",
+            "5db0016215cbe19baf76544246ec10f09205cf0d"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "split; simpl; intros.",
+            "VernacExtend",
+            "5cad19818f83524f7335adfda0a051ad1cf2a115"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "contradiction.",
+            "VernacExtend",
+            "9b6a5c45e1144cbbccd544effb2a97082518704a"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite PTree.gempty in H; discriminate.",
+            "VernacExtend",
+            "231c0ad5e3a67507ceb867a53b57cbf519bc9517"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite PMap.gi in H; contradiction.",
+            "VernacExtend",
+            "e2abd05ee625847262b8544685804092f559e8c5"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "contradiction.",
+            "VernacExtend",
+            "9b6a5c45e1144cbbccd544effb2a97082518704a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite PTree.gempty in H; discriminate.",
+            "VernacExtend",
+            "231c0ad5e3a67507ceb867a53b57cbf519bc9517"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "eq_rhs",
+            "line_nb": 13,
+            "steps": [
+                {
+                    "command": [
+                        "generalize chunk_eq eq_operation eq_addressing eq_valnum eq_list_valnum.",
+                        "VernacExtend",
+                        "d6c7ae515fb6013921f77bdec932763649618ed4"
+                    ]
+                },
+                {
+                    "command": [
+                        "decide equality.",
+                        "VernacExtend",
+                        "10aba07d521545accbb51a4c2e0695a9ddce3199"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "empty_numbering_holds",
+            "line_nb": 29,
+            "steps": [
+                {
+                    "command": [
+                        "intros; split; simpl; intros.",
+                        "VernacExtend",
+                        "5db0016215cbe19baf76544246ec10f09205cf0d"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; simpl; intros.",
+                        "VernacExtend",
+                        "5cad19818f83524f7335adfda0a051ad1cf2a115"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "contradiction.",
+                        "VernacExtend",
+                        "9b6a5c45e1144cbbccd544effb2a97082518704a"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.gempty in H; discriminate.",
+                        "VernacExtend",
+                        "231c0ad5e3a67507ceb867a53b57cbf519bc9517"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PMap.gi in H; contradiction.",
+                        "VernacExtend",
+                        "e2abd05ee625847262b8544685804092f559e8c5"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "contradiction.",
+                        "VernacExtend",
+                        "9b6a5c45e1144cbbccd544effb2a97082518704a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PTree.gempty in H; discriminate.",
+                        "VernacExtend",
+                        "231c0ad5e3a67507ceb867a53b57cbf519bc9517"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

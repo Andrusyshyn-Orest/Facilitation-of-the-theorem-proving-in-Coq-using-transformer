@@ -1,0 +1,183 @@
+{
+    "filename": "Tarski_dev/Tactics/ColR.v",
+    "coq_project": "GeoCoq",
+    "vernac_cmds": [
+        [
+            "Require Import NArith.",
+            "VernacRequire",
+            "94ad0f31c6e8f77c89e55924450f512e031ec933"
+        ],
+        [
+            "Require Import GeoCoq.Utils.sets.",
+            "VernacRequire",
+            "683b6258c49d18c9e40d121098acf4ce0c5cd444"
+        ],
+        [
+            "Require Import GeoCoq.Meta_theory.Models.tarski_to_col_theory.",
+            "VernacRequire",
+            "93a3276593c676d2cfd7c84ae2c7071af5ad5239"
+        ],
+        [
+            "Require Import GeoCoq.Tactics.Coinc.ColR.",
+            "VernacRequire",
+            "7d47c69e2e54e0febec0b9570f0a1bf46351f22c"
+        ],
+        [
+            "Ltac add_to_distinct_list x xs := match xs with | nil => constr:(x::xs) | x::_ => fail 1 | ?y::?ys => let zs := add_to_distinct_list x ys in constr:(y::zs) end.",
+            "VernacExtend",
+            "675093eab7960f3ebb4a379a05813540125613dd"
+        ],
+        [
+            "Ltac collect_points_list Tpoint xs := match goal with | N : Tpoint |- _ => let ys := add_to_distinct_list N xs in collect_points_list Tpoint ys | _ => xs end.",
+            "VernacExtend",
+            "8ccc2fa22a404f3cd822b6fdb7b423d2f77c2e7a"
+        ],
+        [
+            "Ltac collect_points Tpoint := collect_points_list Tpoint (@nil Tpoint).",
+            "VernacExtend",
+            "573cb3e55f7995317c7352c138a4cf9f73d1803c"
+        ],
+        [
+            "Ltac number_aux Tpoint lvar cpt := match constr:(lvar) with | nil => constr:(@nil (prodT Tpoint positive)) | cons ?H ?T => let scpt := eval vm_compute in (Pos.succ cpt) in let lvar2 := number_aux Tpoint T scpt in constr:(cons (@pairT Tpoint positive H cpt) lvar2) end.",
+            "VernacExtend",
+            "03030a969220d603f80b2bdae719a089710bbe01"
+        ],
+        [
+            "Ltac number Tpoint lvar := number_aux Tpoint lvar (1%positive).",
+            "VernacExtend",
+            "b97c1a7126ddec262c924e4edb51be8918e4390a"
+        ],
+        [
+            "Ltac build_numbered_points_list Tpoint := let lvar := collect_points Tpoint in number Tpoint lvar.",
+            "VernacExtend",
+            "f0b1c33fe5f724108d604681fa65ad9851fde40d"
+        ],
+        [
+            "Ltac List_assoc Tpoint elt lst := match constr:(lst) with | nil => fail | (cons (@pairT Tpoint positive ?X1 ?X2) ?X3) => match constr:(elt = X1) with | (?X1 = ?X1) => constr:(X2) | _ => List_assoc Tpoint elt X3 end end.",
+            "VernacExtend",
+            "6553ddcee7368786b7036a6e0986f913b6567080"
+        ],
+        [
+            "Definition Tagged P : Prop := P.",
+            "VernacDefinition",
+            "a045c0913541f6dc5ac15a5251b8a617d9177dfe"
+        ],
+        [
+            "Lemma PropToTagged : forall P : Prop, P -> Tagged P.",
+            "VernacStartTheoremProof",
+            "a50197c9d74a8a7d4bc60c43e6ad50297d0aa7e1"
+        ],
+        [
+            "trivial.",
+            "VernacExtend",
+            "6704630005ea37c1f66f817f0d3cb83967ca08c5"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Ltac assert_ss_ok Tpoint Col lvar := repeat match goal with | HCol : Col ?A ?B ?C, HOK : ss_ok ?SS ?Interp |- _ => let pa := List_assoc Tpoint A lvar in let pb := List_assoc Tpoint B lvar in let pc := List_assoc Tpoint C lvar in apply PropToTagged in HCol; apply (collect_cols A B C HCol pa pb pc SS Interp) in HOK; try reflexivity end.",
+            "VernacExtend",
+            "971094ea5510e284d04264e357b87e93007a8bb8"
+        ],
+        [
+            "Ltac assert_sp_ok Tpoint Col lvar := repeat match goal with | HDiff : ?A <> ?B, HOK : sp_ok ?SP ?Interp |- _ => let pa := List_assoc Tpoint A lvar in let pb := List_assoc Tpoint B lvar in apply PropToTagged in HDiff; apply (collect_diffs A B HDiff pa pb SP Interp) in HOK; try reflexivity end.",
+            "VernacExtend",
+            "42e4eb2d840ae1c2a5e6d1b1d3054ec59397aa15"
+        ],
+        [
+            "Ltac subst_in_cols Tpoint Col := repeat match goal with | HOKSS : ss_ok ?SS ?Interp, HOKSP : sp_ok ?SP ?Interp, HL : eq_tagged ?Lvar, HEQ : ?A = ?B |- _ => let pa := List_assoc Tpoint A Lvar in let pb := List_assoc Tpoint B Lvar in apply (subst_ss_ok A B HEQ pa pb SS Interp) in HOKSS; try reflexivity; apply (subst_sp_ok A B HEQ pa pb SP Interp) in HOKSP; try reflexivity; subst B end.",
+            "VernacExtend",
+            "d7fee787fafe220254c9a995c61bba8a15d75985"
+        ],
+        [
+            "Ltac clear_cols_aux Tpoint Col := repeat match goal with | HOKSS : ss_ok ?SS ?Interp, HOKSP : sp_ok ?SP ?Interp, HL : eq_tagged ?Lvar |- _ => clear HOKSS; clear HOKSP; clear HL end.",
+            "VernacExtend",
+            "e067ea434672101c6e3ae596298bec11fdcf2933"
+        ],
+        [
+            "Ltac tag_hyps_gen Tpoint Col := repeat match goal with | HDiff : ?A <> ?B |- _ => apply PropToTagged in HDiff | HCol : Col ?A ?B ?C |- _ => apply PropToTagged in HCol end.",
+            "VernacExtend",
+            "97dcccd2f341c97f958a03e618823665751844cc"
+        ],
+        [
+            "Ltac untag_hyps_gen Tpoint Col := unfold Tagged in *.",
+            "VernacExtend",
+            "26ad5cd403df6b3a524a89bb83e5a01fb9f1307e"
+        ],
+        [
+            "Ltac show_all' := repeat match goal with | Hhidden : Something |- _ => show Hhidden end.",
+            "VernacExtend",
+            "2b9ea277565bfe55f13f46633468d2ed967d179b"
+        ],
+        [
+            "Ltac clear_cols_gen Tpoint Col := show_all'; clear_cols_aux Tpoint Col.",
+            "VernacExtend",
+            "2b4c9a229aa427350391fbfb4f5bea5715805be8"
+        ],
+        [
+            "Ltac Col_refl Tpoint Col := match goal with | Default : Tpoint |- Col ?A ?B ?C => let lvar := build_numbered_points_list Tpoint in let pa := List_assoc Tpoint A lvar in let pb := List_assoc Tpoint B lvar in let pc := List_assoc Tpoint C lvar in let c := ((vm_compute;reflexivity) || fail 2 \"Can not be deduced\") in let HSS := fresh in assert (HSS := @ss_ok_empty Tpoint Col (interp lvar Default)); assert_ss_ok Tpoint Col lvar; let HSP := fresh in assert (HSP := @sp_ok_empty Tpoint (interp lvar Default)); assert_sp_ok Tpoint Col lvar; match goal with | HOKSS : ss_ok ?SS ?Interp, HOKSP : sp_ok ?SP ?Interp |- _ => apply (test_col_ok SS SP Interp pa pb pc HOKSS HOKSP); c end end.",
+            "VernacExtend",
+            "2ec59261121995e6a540dd73aff0303f2cb6706c"
+        ],
+        [
+            "Ltac deduce_cols_hide_aux Tpoint Col := match goal with | Default : Tpoint |- _ => let lvar := build_numbered_points_list Tpoint in let HSS := fresh in assert (HSS := @ss_ok_empty Tpoint Col (interp lvar Default)); assert_ss_ok Tpoint Col lvar; let HSP := fresh in assert (HSP := @sp_ok_empty Tpoint (interp lvar Default)); assert_sp_ok Tpoint Col lvar; let HL := fresh in assert (HL : lvar = lvar) by reflexivity; apply (@eq_eq_tagged Tpoint) in HL; hide HSS; hide HSP; hide HL end.",
+            "VernacExtend",
+            "9219acd984a4c4920e99cfafc3f79be1ff2b8c9a"
+        ],
+        [
+            "Ltac deduce_cols_hide_gen Tpoint Col := deduce_cols_hide_aux Tpoint Col.",
+            "VernacExtend",
+            "eca4f96083944744eafefcbbbb07cbed2af2a692"
+        ],
+        [
+            "Ltac update_cols_aux Tpoint Col := match goal with | HOKSS : ss_ok ?SS ?Interp, HOKSP : sp_ok ?SP ?Interp, HEQ : eq_tagged ?Lvar |- _ => assert_ss_ok Tpoint Col Lvar; assert_sp_ok Tpoint Col Lvar; subst_in_cols Tpoint Col; hide HOKSS; hide HOKSP; hide HEQ end.",
+            "VernacExtend",
+            "3700212eaa227dac7a930002ebb46637b743c6e5"
+        ],
+        [
+            "Ltac update_cols_gen Tpoint Col := show_all'; update_cols_aux Tpoint Col.",
+            "VernacExtend",
+            "46b959529384f4029e4dd478ef1116d5560395f2"
+        ],
+        [
+            "Ltac cols_aux Tpoint Col := match goal with | HOKSS : ss_ok ?SS ?Interp, HOKSP : sp_ok ?SP ?Interp, HL : eq_tagged ?Lvar |- Col ?A ?B ?C => let pa := List_assoc Tpoint A Lvar in let pb := List_assoc Tpoint B Lvar in let pc := List_assoc Tpoint C Lvar in let c := ((vm_compute;reflexivity) || fail 1 \"Can not be deduced\") in apply (test_col_ok SS SP Interp pa pb pc ); [assumption|assumption|c]; hide HOKSS; hide HOKSP; hide HL end.",
+            "VernacExtend",
+            "2147582ecb406c0dffd138520d57a2328781cc19"
+        ],
+        [
+            "Ltac cols_gen Tpoint Col := show_all'; cols_aux Tpoint Col.",
+            "VernacExtend",
+            "97278ad29212f8ed7046e62d34f811294e429836"
+        ],
+        [
+            "Ltac Col_refl_test Tpoint Col := deduce_cols_hide_gen Tpoint Col; cols_gen Tpoint Col.",
+            "VernacExtend",
+            "4e10da5c6f295bf8c1080ab2a9bd5a587593cae2"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "PropToTagged",
+            "line_nb": 12,
+            "steps": [
+                {
+                    "command": [
+                        "trivial.",
+                        "VernacExtend",
+                        "6704630005ea37c1f66f817f0d3cb83967ca08c5"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

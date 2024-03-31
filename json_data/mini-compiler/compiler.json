@@ -1,0 +1,881 @@
+{
+    "filename": "compiler.v",
+    "coq_project": "mini-compiler",
+    "vernac_cmds": [
+        [
+            "Require Import Arith.",
+            "VernacRequire",
+            "7f40051ec5b363eee0bbfd802b43ad2f8b97479f"
+        ],
+        [
+            "Require Import Omega.",
+            "VernacRequire",
+            "72dd903de5f3320ef9d302d79812066579ed9cdb"
+        ],
+        [
+            "Unset Standard Proposition Elimination Names.",
+            "VernacUnsetOption",
+            "911574cdf91989455d0d3d11c7a9b0ca10fd1ae6"
+        ],
+        [
+            "Parameter string : Set.",
+            "VernacAssumption",
+            "aa1e1d31d51e7df07768d39410a97c03c035cff8"
+        ],
+        [
+            "Inductive expr : Set := | Lit : nat -> expr | Var : string -> expr | Plus : expr -> expr -> expr.",
+            "VernacInductive",
+            "1dff68e415e973bf22f9e065da357c3436334fac"
+        ],
+        [
+            "Definition state := string -> nat.",
+            "VernacDefinition",
+            "09773e4fa0c01ad7319761421fd558c223737419"
+        ],
+        [
+            "Fixpoint E (s : state) (e : expr) {struct e} : nat := match e with | Lit n => n | Var v => s v | Plus e1 e2 => E s e1 + E s e2 end.",
+            "VernacFixpoint",
+            "af4f450ca6d9194a068c774ed687a90fa48acf90"
+        ],
+        [
+            "Inductive instr : Set := | LI : nat -> instr | LOAD : nat -> instr | STO : nat -> instr | ADD : nat -> instr.",
+            "VernacInductive",
+            "d71a1a52e14306942eed745a4a6ef60d66cb6da1"
+        ],
+        [
+            "Inductive cell : Set := | Acc : cell | Reg : nat -> cell.",
+            "VernacInductive",
+            "98752d437a199a9c41fea4ecc99e26fa674b4fa6"
+        ],
+        [
+            "Definition store := cell -> nat.",
+            "VernacDefinition",
+            "4b7ba2e3ec81db2dafb0d7b7a9c22a79dd1dd3b4"
+        ],
+        [
+            "Lemma cell_eq_dec : forall c1 c2 : cell, {c1 = c2} + {c1 <> c2}.",
+            "VernacStartTheoremProof",
+            "3246494d9be49f1afb53c3c2e298ba81164a74b0"
+        ],
+        [
+            "simple destruct c1; simple destruct c2; intros; try (right; discriminate).",
+            "VernacExtend",
+            "9cddfe89f1fd130f8ad5c92a9a42f743ed089cf0"
+        ],
+        [
+            "left; trivial.",
+            "VernacExtend",
+            "2f1efd67ff23560c270a9589d0d1b100a9c80732"
+        ],
+        [
+            "elim (eq_nat_dec n n0); intuition.",
+            "VernacExtend",
+            "ce656dcaa9eb4d3cc34d90b4a2b43e6fd1a060cd"
+        ],
+        [
+            "right; intro; injection H; trivial.",
+            "VernacExtend",
+            "8b65e8e67083cbc6cda55ec643348b1065cc1d91"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Definition update (s : store) (c : cell) (v : nat) : store := fun c' : cell => match cell_eq_dec c' c with | left _ => v | right _ => s c' end.",
+            "VernacDefinition",
+            "3ab40f03ba2dd0256d7764dde8887da6c546b347"
+        ],
+        [
+            "Definition Si (s : store) (i : instr) : store := match i with | LI n => update s Acc n | LOAD r => update s Acc (s (Reg r)) | STO r => update s (Reg r) (s Acc) | ADD r => update s Acc (s (Reg r) + s Acc) end.",
+            "VernacDefinition",
+            "eeb6d9d9c42f8bd9f8d561f7971d8288923ddb84"
+        ],
+        [
+            "Require Import List.",
+            "VernacRequire",
+            "d9bcce4a390afeb160107bf87c6f7abe3d82c6d6"
+        ],
+        [
+            "Definition list1 (i : instr) := i :: nil.",
+            "VernacDefinition",
+            "3b17e758b6d394e8bd215ad47071ac03954eaee7"
+        ],
+        [
+            "Fixpoint Sl (s : store) (l : list instr) {struct l} : store := match l with | nil => s | i :: l' => Sl (Si s i) l' end.",
+            "VernacFixpoint",
+            "d2cc95e09743fef11f4d27e15103bf748455014e"
+        ],
+        [
+            "Definition symt := string -> nat.",
+            "VernacDefinition",
+            "8934a470006d46fbf293b2e6f2294301ca0b434a"
+        ],
+        [
+            "Fixpoint C (m : symt) (r : nat) (e : expr) {struct e} : list instr := match e with | Lit n => list1 (LI n) | Var s => list1 (LOAD (m s)) | Plus e1 e2 => (C m r e1 ++ list1 (STO r)) ++ C m (S r) e2 ++ list1 (ADD r) end.",
+            "VernacFixpoint",
+            "495c71f8cb768913c8aefd15b10dc05c52d6d482"
+        ],
+        [
+            "Lemma Sl_append : forall (l1 l2 : list instr) (s : store), Sl s (l1 ++ l2) = Sl (Sl s l1) l2.",
+            "VernacStartTheoremProof",
+            "9cd2ca53bab187118a2213d61083204c0ca03055"
+        ],
+        [
+            "simple induction l1; simpl in |- *; intuition.",
+            "VernacExtend",
+            "1c4153f0522ee73b4edc3504c0be2a601003cca1"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma Sl_invariant : forall (m : symt) (e : expr) (r r' : nat), r' < r -> forall s : store, Sl s (C m r e) (Reg r') = s (Reg r').",
+            "VernacStartTheoremProof",
+            "f124f6d1c9042a3229889ba6c2056c93a3588266"
+        ],
+        [
+            "simple induction e; simpl in |- *; intuition.",
+            "VernacExtend",
+            "e8bd6eb4734ba35a13bf470a963579383f7aa1b9"
+        ],
+        [
+            "repeat rewrite Sl_append.",
+            "VernacExtend",
+            "e403021fe50d4d6bde5a80056146066c72f3bddd"
+        ],
+        [
+            "generalize (H r r' H1); intuition.",
+            "VernacExtend",
+            "f6fba950490eae3b621de1eab08df4adda2d7004"
+        ],
+        [
+            "set (s' := Sl (Sl s (C m (S r) e0)) (list1 (STO (S r)))) in *.",
+            "VernacExtend",
+            "48f9e1c69f7c0d362e40630a8051e04fb67bfadb"
+        ],
+        [
+            "assert (r' < S r).",
+            "VernacExtend",
+            "74490bf33a973657c46e037786f4142b4359bfb1"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "generalize (H0 (S r) r' H3); intuition.",
+            "VernacExtend",
+            "336d2d30813bdf1cc86f8afcbcdd67fa0597665e"
+        ],
+        [
+            "simpl in |- *; unfold update in |- *; simpl in |- *.",
+            "VernacExtend",
+            "d61fc64958f034669a04b5e51f7af3e69a346adf"
+        ],
+        [
+            "rewrite H4.",
+            "VernacExtend",
+            "fc5d011df68f7160e4669d129d2975825ac089bb"
+        ],
+        [
+            "case (cell_eq_dec (Reg r') (Reg r)); intro.",
+            "VernacExtend",
+            "ec7763a77a81968d0a0482a78bd4259656ffdbd1"
+        ],
+        [
+            "injection e2; omega.",
+            "VernacExtend",
+            "0d2826c55c191bf51d510f7e0f61b595f3f45f38"
+        ],
+        [
+            "rewrite H2; trivial.",
+            "VernacExtend",
+            "f4439e25b4e46b870f332cc9d16d49fe012ed96a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem correctness : forall (e : expr) (m : symt) (s : state) (s' : store) (r : nat), (forall v : string, m v < r) -> (forall v : string, s v = s' (Reg (m v))) -> Sl s' (C m r e) Acc = E s e /\\ (forall x : nat, x < r -> Sl s' (C m r e) (Reg x) = s' (Reg x)).",
+            "VernacStartTheoremProof",
+            "b1c73dcc8502c81e27a1c6677ed9ee242e659937"
+        ],
+        [
+            "simple induction e; simpl in |- *; intros.",
+            "VernacExtend",
+            "13cf402fd2aedde8049a2e673a5aaedbc4ce2f82"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "unfold update in |- *; simpl in |- *; intuition.",
+            "VernacExtend",
+            "5b0118f367f8b8fae80a6e4481fc7b15c05955de"
+        ],
+        [
+            "repeat rewrite Sl_append.",
+            "VernacExtend",
+            "e403021fe50d4d6bde5a80056146066c72f3bddd"
+        ],
+        [
+            "generalize (H m s s' r H1 H2).",
+            "VernacExtend",
+            "34345088a014a5b8a93160822dceef3a7d76f009"
+        ],
+        [
+            "intros (H3, H4).",
+            "VernacExtend",
+            "c73f0dc8b80c55aee9aba3eadd16346b925b5418"
+        ],
+        [
+            "set (s'' := Sl (Sl s' (C m r e0)) (list1 (STO r))) in *.",
+            "VernacExtend",
+            "8d8c4c4195d47c3912d798a16abe50dc25e4e05a"
+        ],
+        [
+            "assert (H01 : forall v : string, m v < S r).",
+            "VernacExtend",
+            "abf89f61310fe3eddb727ac74e6dc4cb20deed35"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "assert (H02 : forall v : string, s v = s'' (Reg (m v))).",
+            "VernacExtend",
+            "cd6e034d8cf6094898f8ca2c2f796f692c1d64ec"
+        ],
+        [
+            "intro; unfold s'' in |- *; simpl in |- *; unfold update in |- *.",
+            "VernacExtend",
+            "5f08983f9c250d7e37ebc042f49f6352348da645"
+        ],
+        [
+            "case (cell_eq_dec (Reg (m v)) (Reg r)); intro.",
+            "VernacExtend",
+            "81f320aae99a3f5f4d3962f94d48cf51eda4a2b4"
+        ],
+        [
+            "injection e2; generalize (H1 v); omega.",
+            "VernacExtend",
+            "435734c1578cd3be4c219217d8db31298babf049"
+        ],
+        [
+            "rewrite H2.",
+            "VernacExtend",
+            "c34b98a4ea7c987830199fe378bb7a145a0d652e"
+        ],
+        [
+            "rewrite H4.",
+            "VernacExtend",
+            "fc5d011df68f7160e4669d129d2975825ac089bb"
+        ],
+        [
+            "trivial.",
+            "VernacExtend",
+            "6704630005ea37c1f66f817f0d3cb83967ca08c5"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "generalize (H0 m s s'' (S r) H01 H02); intuition.",
+            "VernacExtend",
+            "741d80f728beaee6cb4a5f518101f2e9abbfbd5d"
+        ],
+        [
+            "simpl in |- *.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite H6.",
+            "VernacExtend",
+            "ff6a429844c59cba51300abb872460dbdbab812d"
+        ],
+        [
+            "unfold s'' in |- *; simpl in |- *.",
+            "VernacExtend",
+            "c0e14f9a74089a831286a9aceae3e20246fbab72"
+        ],
+        [
+            "rewrite H3.",
+            "VernacExtend",
+            "c5485dd62873b0ea9ab7d37c26265fb7eea7e9ba"
+        ],
+        [
+            "unfold update in |- *; simpl in |- *.",
+            "VernacExtend",
+            "2891f169e98984435699bf110021b57ace4d5a6a"
+        ],
+        [
+            "apply (f_equal2 plus); trivial.",
+            "VernacExtend",
+            "f73cd801e96ce0559c0e72bc0818522ba12faeb0"
+        ],
+        [
+            "rewrite Sl_invariant.",
+            "VernacExtend",
+            "66d0d7bc3e780b834656328bb81bdf7a8be28163"
+        ],
+        [
+            "case (cell_eq_dec (Reg r) (Reg r)); intro.",
+            "VernacExtend",
+            "587e7909cb2ed5e39a3fc8b9abb7c44a8d5ac620"
+        ],
+        [
+            "trivial.",
+            "VernacExtend",
+            "6704630005ea37c1f66f817f0d3cb83967ca08c5"
+        ],
+        [
+            "elim n; trivial.",
+            "VernacExtend",
+            "580078091222e65d9bf6d7dc4e49b97285e9f28f"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "simpl in |- *.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite H7.",
+            "VernacExtend",
+            "2b0de906e9dfacfe89c031c2266760d29b5450f6"
+        ],
+        [
+            "unfold s'' in |- *; simpl in |- *.",
+            "VernacExtend",
+            "c0e14f9a74089a831286a9aceae3e20246fbab72"
+        ],
+        [
+            "rewrite H3.",
+            "VernacExtend",
+            "c5485dd62873b0ea9ab7d37c26265fb7eea7e9ba"
+        ],
+        [
+            "unfold update in |- *; simpl in |- *.",
+            "VernacExtend",
+            "2891f169e98984435699bf110021b57ace4d5a6a"
+        ],
+        [
+            "rewrite Sl_invariant.",
+            "VernacExtend",
+            "66d0d7bc3e780b834656328bb81bdf7a8be28163"
+        ],
+        [
+            "case (cell_eq_dec (Reg x) (Reg r)); intro.",
+            "VernacExtend",
+            "1df7ee95ccc6c34967940b79e87a7a45b54563b3"
+        ],
+        [
+            "injection e2; omega.",
+            "VernacExtend",
+            "0d2826c55c191bf51d510f7e0f61b595f3f45f38"
+        ],
+        [
+            "rewrite H4; trivial.",
+            "VernacExtend",
+            "ef1cbb12283b0d3cd08bc19ba76b5024e1619819"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "cell_eq_dec",
+            "line_nb": 10,
+            "steps": [
+                {
+                    "command": [
+                        "simple destruct c1; simple destruct c2; intros; try (right; discriminate).",
+                        "VernacExtend",
+                        "9cddfe89f1fd130f8ad5c92a9a42f743ed089cf0"
+                    ]
+                },
+                {
+                    "command": [
+                        "left; trivial.",
+                        "VernacExtend",
+                        "2f1efd67ff23560c270a9589d0d1b100a9c80732"
+                    ]
+                },
+                {
+                    "command": [
+                        "elim (eq_nat_dec n n0); intuition.",
+                        "VernacExtend",
+                        "ce656dcaa9eb4d3cc34d90b4a2b43e6fd1a060cd"
+                    ]
+                },
+                {
+                    "command": [
+                        "right; intro; injection H; trivial.",
+                        "VernacExtend",
+                        "8b65e8e67083cbc6cda55ec643348b1065cc1d91"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Sl_append",
+            "line_nb": 23,
+            "steps": [
+                {
+                    "command": [
+                        "simple induction l1; simpl in |- *; intuition.",
+                        "VernacExtend",
+                        "1c4153f0522ee73b4edc3504c0be2a601003cca1"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Sl_invariant",
+            "line_nb": 26,
+            "steps": [
+                {
+                    "command": [
+                        "simple induction e; simpl in |- *; intuition.",
+                        "VernacExtend",
+                        "e8bd6eb4734ba35a13bf470a963579383f7aa1b9"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat rewrite Sl_append.",
+                        "VernacExtend",
+                        "e403021fe50d4d6bde5a80056146066c72f3bddd"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize (H r r' H1); intuition.",
+                        "VernacExtend",
+                        "f6fba950490eae3b621de1eab08df4adda2d7004"
+                    ]
+                },
+                {
+                    "command": [
+                        "set (s' := Sl (Sl s (C m (S r) e0)) (list1 (STO (S r)))) in *.",
+                        "VernacExtend",
+                        "48f9e1c69f7c0d362e40630a8051e04fb67bfadb"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (r' < S r).",
+                        "VernacExtend",
+                        "74490bf33a973657c46e037786f4142b4359bfb1"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize (H0 (S r) r' H3); intuition.",
+                        "VernacExtend",
+                        "336d2d30813bdf1cc86f8afcbcdd67fa0597665e"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in |- *; unfold update in |- *; simpl in |- *.",
+                        "VernacExtend",
+                        "d61fc64958f034669a04b5e51f7af3e69a346adf"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H4.",
+                        "VernacExtend",
+                        "fc5d011df68f7160e4669d129d2975825ac089bb"
+                    ]
+                },
+                {
+                    "command": [
+                        "case (cell_eq_dec (Reg r') (Reg r)); intro.",
+                        "VernacExtend",
+                        "ec7763a77a81968d0a0482a78bd4259656ffdbd1"
+                    ]
+                },
+                {
+                    "command": [
+                        "injection e2; omega.",
+                        "VernacExtend",
+                        "0d2826c55c191bf51d510f7e0f61b595f3f45f38"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H2; trivial.",
+                        "VernacExtend",
+                        "f4439e25b4e46b870f332cc9d16d49fe012ed96a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "correctness",
+            "line_nb": 40,
+            "steps": [
+                {
+                    "command": [
+                        "simple induction e; simpl in |- *; intros.",
+                        "VernacExtend",
+                        "13cf402fd2aedde8049a2e673a5aaedbc4ce2f82"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition.",
+                        "VernacExtend",
+                        "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition.",
+                        "VernacExtend",
+                        "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold update in |- *; simpl in |- *; intuition.",
+                        "VernacExtend",
+                        "5b0118f367f8b8fae80a6e4481fc7b15c05955de"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat rewrite Sl_append.",
+                        "VernacExtend",
+                        "e403021fe50d4d6bde5a80056146066c72f3bddd"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize (H m s s' r H1 H2).",
+                        "VernacExtend",
+                        "34345088a014a5b8a93160822dceef3a7d76f009"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros (H3, H4).",
+                        "VernacExtend",
+                        "c73f0dc8b80c55aee9aba3eadd16346b925b5418"
+                    ]
+                },
+                {
+                    "command": [
+                        "set (s'' := Sl (Sl s' (C m r e0)) (list1 (STO r))) in *.",
+                        "VernacExtend",
+                        "8d8c4c4195d47c3912d798a16abe50dc25e4e05a"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (H01 : forall v : string, m v < S r).",
+                        "VernacExtend",
+                        "abf89f61310fe3eddb727ac74e6dc4cb20deed35"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition.",
+                        "VernacExtend",
+                        "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (H02 : forall v : string, s v = s'' (Reg (m v))).",
+                        "VernacExtend",
+                        "cd6e034d8cf6094898f8ca2c2f796f692c1d64ec"
+                    ]
+                },
+                {
+                    "command": [
+                        "intro; unfold s'' in |- *; simpl in |- *; unfold update in |- *.",
+                        "VernacExtend",
+                        "5f08983f9c250d7e37ebc042f49f6352348da645"
+                    ]
+                },
+                {
+                    "command": [
+                        "case (cell_eq_dec (Reg (m v)) (Reg r)); intro.",
+                        "VernacExtend",
+                        "81f320aae99a3f5f4d3962f94d48cf51eda4a2b4"
+                    ]
+                },
+                {
+                    "command": [
+                        "injection e2; generalize (H1 v); omega.",
+                        "VernacExtend",
+                        "435734c1578cd3be4c219217d8db31298babf049"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H2.",
+                        "VernacExtend",
+                        "c34b98a4ea7c987830199fe378bb7a145a0d652e"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H4.",
+                        "VernacExtend",
+                        "fc5d011df68f7160e4669d129d2975825ac089bb"
+                    ]
+                },
+                {
+                    "command": [
+                        "trivial.",
+                        "VernacExtend",
+                        "6704630005ea37c1f66f817f0d3cb83967ca08c5"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition.",
+                        "VernacExtend",
+                        "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize (H0 m s s'' (S r) H01 H02); intuition.",
+                        "VernacExtend",
+                        "741d80f728beaee6cb4a5f518101f2e9abbfbd5d"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in |- *.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H6.",
+                        "VernacExtend",
+                        "ff6a429844c59cba51300abb872460dbdbab812d"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold s'' in |- *; simpl in |- *.",
+                        "VernacExtend",
+                        "c0e14f9a74089a831286a9aceae3e20246fbab72"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H3.",
+                        "VernacExtend",
+                        "c5485dd62873b0ea9ab7d37c26265fb7eea7e9ba"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold update in |- *; simpl in |- *.",
+                        "VernacExtend",
+                        "2891f169e98984435699bf110021b57ace4d5a6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (f_equal2 plus); trivial.",
+                        "VernacExtend",
+                        "f73cd801e96ce0559c0e72bc0818522ba12faeb0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Sl_invariant.",
+                        "VernacExtend",
+                        "66d0d7bc3e780b834656328bb81bdf7a8be28163"
+                    ]
+                },
+                {
+                    "command": [
+                        "case (cell_eq_dec (Reg r) (Reg r)); intro.",
+                        "VernacExtend",
+                        "587e7909cb2ed5e39a3fc8b9abb7c44a8d5ac620"
+                    ]
+                },
+                {
+                    "command": [
+                        "trivial.",
+                        "VernacExtend",
+                        "6704630005ea37c1f66f817f0d3cb83967ca08c5"
+                    ]
+                },
+                {
+                    "command": [
+                        "elim n; trivial.",
+                        "VernacExtend",
+                        "580078091222e65d9bf6d7dc4e49b97285e9f28f"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in |- *.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H7.",
+                        "VernacExtend",
+                        "2b0de906e9dfacfe89c031c2266760d29b5450f6"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold s'' in |- *; simpl in |- *.",
+                        "VernacExtend",
+                        "c0e14f9a74089a831286a9aceae3e20246fbab72"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H3.",
+                        "VernacExtend",
+                        "c5485dd62873b0ea9ab7d37c26265fb7eea7e9ba"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold update in |- *; simpl in |- *.",
+                        "VernacExtend",
+                        "2891f169e98984435699bf110021b57ace4d5a6a"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Sl_invariant.",
+                        "VernacExtend",
+                        "66d0d7bc3e780b834656328bb81bdf7a8be28163"
+                    ]
+                },
+                {
+                    "command": [
+                        "case (cell_eq_dec (Reg x) (Reg r)); intro.",
+                        "VernacExtend",
+                        "1df7ee95ccc6c34967940b79e87a7a45b54563b3"
+                    ]
+                },
+                {
+                    "command": [
+                        "injection e2; omega.",
+                        "VernacExtend",
+                        "0d2826c55c191bf51d510f7e0f61b595f3f45f38"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H4; trivial.",
+                        "VernacExtend",
+                        "ef1cbb12283b0d3cd08bc19ba76b5024e1619819"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

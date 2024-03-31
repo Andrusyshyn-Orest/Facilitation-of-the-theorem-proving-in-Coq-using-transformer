@@ -1,0 +1,1171 @@
+{
+    "filename": "raft/DecompositionWithPostState.v",
+    "coq_project": "verdi-raft",
+    "vernac_cmds": [
+        [
+            "Require Import FunctionalExtensionality.",
+            "VernacRequire",
+            "bb1bf6a28f9de1b2ad0dab7920189198216ed486"
+        ],
+        [
+            "Require Import VerdiRaft.Raft.",
+            "VernacRequire",
+            "36b0b9afd1c52050ce42daf3c5fa4abb91993f25"
+        ],
+        [
+            "Section DecompositionWithPostState.",
+            "VernacBeginSection",
+            "f5e5db332469b8decc513c87c088703659e50b39"
+        ],
+        [
+            "Context {orig_base_params : BaseParams}.",
+            "VernacContext",
+            "69028e681894580fbc36a6124a9136decfafb159"
+        ],
+        [
+            "Context {one_node_params : OneNodeParams orig_base_params}.",
+            "VernacContext",
+            "013ed31ca1bcacb0528fc416f1059cfa49b9df65"
+        ],
+        [
+            "Context {raft_params : RaftParams orig_base_params}.",
+            "VernacContext",
+            "f5c24333154da8ee6ae37600b526f95496c92448"
+        ],
+        [
+            "Definition raft_net_invariant_client_request' (P : network -> Prop) := forall h net st' ps' out d l client id c, handleClientRequest h (nwState net h) client id c = (out, d, l) -> P net -> raft_intermediate_reachable net -> raft_intermediate_reachable (mkNetwork ps' st') -> (forall h', st' h' = update name_eq_dec (nwState net) h d h') -> (forall p', In p' ps' -> In p' (nwPackets net) \\/ In p' (send_packets h l)) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "78e7f1528f92e2e7d82a9383aa8138c20642b112"
+        ],
+        [
+            "Definition raft_net_invariant_timeout' (P : network -> Prop) := forall net h st' ps' out d l, handleTimeout h (nwState net h) = (out, d, l) -> P net -> raft_intermediate_reachable net -> raft_intermediate_reachable (mkNetwork ps' st') -> (forall h', st' h' = update name_eq_dec (nwState net) h d h') -> (forall p', In p' ps' -> In p' (nwPackets net) \\/ In p' (send_packets h l)) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "76734e6f4aa476061455a35c12e480fb8d7c54e3"
+        ],
+        [
+            "Definition raft_net_invariant_append_entries' (P : network -> Prop) := forall xs p ys net st' ps' d m t n pli plt es ci, handleAppendEntries (pDst p) (nwState net (pDst p)) t n pli plt es ci = (d, m) -> pBody p = AppendEntries t n pli plt es ci -> P net -> raft_intermediate_reachable net -> raft_intermediate_reachable (mkNetwork ps' st') -> nwPackets net = xs ++ p :: ys -> (forall h, st' h = update name_eq_dec (nwState net) (pDst p) d h) -> (forall p', In p' ps' -> In p' (xs ++ ys) \\/ p' = mkPacket (pDst p) (pSrc p) m) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "6167cd94a478f49e54c0842696a6cbb4a471a64c"
+        ],
+        [
+            "Definition raft_net_invariant_append_entries_reply' (P : network -> Prop) := forall xs p ys net st' ps' d m t es res, handleAppendEntriesReply (pDst p) (nwState net (pDst p)) (pSrc p) t es res = (d, m) -> pBody p = AppendEntriesReply t es res -> P net -> raft_intermediate_reachable net -> raft_intermediate_reachable (mkNetwork ps' st') -> nwPackets net = xs ++ p :: ys -> (forall h, st' h = update name_eq_dec (nwState net) (pDst p) d h) -> (forall p', In p' ps' -> In p' (xs ++ ys) \\/ In p' (send_packets (pDst p) m)) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "2a8420c8f4872fae37c3b14a0af3565ca6157337"
+        ],
+        [
+            "Definition raft_net_invariant_request_vote' (P : network -> Prop) := forall xs p ys net st' ps' d m t cid lli llt, handleRequestVote (pDst p) (nwState net (pDst p)) t (pSrc p) lli llt = (d, m) -> pBody p = RequestVote t cid lli llt -> P net -> raft_intermediate_reachable net -> raft_intermediate_reachable (mkNetwork ps' st') -> nwPackets net = xs ++ p :: ys -> (forall h, st' h = update name_eq_dec (nwState net) (pDst p) d h) -> (forall p', In p' ps' -> In p' (xs ++ ys) \\/ p' = mkPacket (pDst p) (pSrc p) m) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "159b90a2c67a3873b7355082cbf1329fb725845d"
+        ],
+        [
+            "Definition raft_net_invariant_request_vote_reply' (P : network -> Prop) := forall xs p ys net st' ps' d t v, handleRequestVoteReply (pDst p) (nwState net (pDst p)) (pSrc p) t v = d -> pBody p = RequestVoteReply t v -> P net -> raft_intermediate_reachable net -> raft_intermediate_reachable (mkNetwork ps' st') -> nwPackets net = xs ++ p :: ys -> (forall h, st' h = update name_eq_dec (nwState net) (pDst p) d h) -> (forall p', In p' ps' -> In p' (xs ++ ys)) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "4c6c8fca6b4e94ab566ee1c65fa8abbaf2e595ea"
+        ],
+        [
+            "Definition raft_net_invariant_do_leader' (P : network -> Prop) := forall net st' ps' d h os d' ms, doLeader d h = (os, d', ms) -> P net -> raft_intermediate_reachable net -> raft_intermediate_reachable (mkNetwork ps' st') -> nwState net h = d -> (forall h', st' h' = update name_eq_dec (nwState net) h d' h') -> (forall p, In p ps' -> In p (nwPackets net) \\/ In p (send_packets h ms)) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "7d3f9163ddc6b9fe23ff28794941259641810646"
+        ],
+        [
+            "Definition raft_net_invariant_do_generic_server' (P : network -> Prop) := forall net st' ps' d os d' ms h, doGenericServer h d = (os, d', ms) -> P net -> raft_intermediate_reachable net -> raft_intermediate_reachable (mkNetwork ps' st') -> nwState net h = d -> (forall h', st' h' = update name_eq_dec (nwState net) h d' h') -> (forall p, In p ps' -> In p (nwPackets net) \\/ In p (send_packets h ms)) -> P (mkNetwork ps' st').",
+            "VernacDefinition",
+            "f7393e060200f9ff5405ac85c8dfe8282fe803a3"
+        ],
+        [
+            "Lemma raft_invariant_handle_message' P : forall xs p ys net st' ps' d l, raft_net_invariant_append_entries' P -> raft_net_invariant_append_entries_reply' P -> raft_net_invariant_request_vote' P -> raft_net_invariant_request_vote_reply' P -> handleMessage (pSrc p) (pDst p) (pBody p) (nwState net (pDst p)) = (d, l) -> P net -> raft_intermediate_reachable net -> raft_intermediate_reachable (mkNetwork ps' st') -> nwPackets net = xs ++ p :: ys -> (forall h, st' h = update name_eq_dec (nwState net) (pDst p) d h) -> (forall p', In p' ps' -> In p' (xs ++ ys) \\/ In p' (send_packets (pDst p) l)) -> P (mkNetwork ps' st').",
+            "VernacStartTheoremProof",
+            "066d82525ca33750bf7a942da2cd6cf8798ec1e4"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold handleMessage in *.",
+            "VernacExtend",
+            "fb35e586f9d4bb194f7f2f2f2ad69423d9583fdd"
+        ],
+        [
+            "break_match; repeat break_let; repeat find_inversion; [eapply_prop raft_net_invariant_request_vote'| eapply_prop raft_net_invariant_request_vote_reply'| eapply_prop raft_net_invariant_append_entries'| eapply_prop raft_net_invariant_append_entries_reply']; eauto; unfold send_packets in *; simpl in *; intros; find_apply_hyp_hyp; intuition.",
+            "VernacExtend",
+            "703e4a55d1345b843918a5382498ea47e2c651ff"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma raft_invariant_handle_input' P : forall h inp net st' ps' out d l, raft_net_invariant_timeout' P -> raft_net_invariant_client_request' P -> handleInput h inp (nwState net h) = (out, d, l) -> P net -> raft_intermediate_reachable net -> raft_intermediate_reachable (mkNetwork ps' st') -> (forall h', st' h' = update name_eq_dec (nwState net) h d h') -> (forall p', In p' ps' -> In p' (nwPackets net) \\/ In p' (send_packets h l)) -> P (mkNetwork ps' st').",
+            "VernacStartTheoremProof",
+            "7d6366c5eea0f0df8dd207b23814e16d0801bac3"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold handleInput in *.",
+            "VernacExtend",
+            "b402dc42cf76bc27faefad22ea207e97d80551af"
+        ],
+        [
+            "break_match; repeat break_let; repeat find_inversion; [eapply_prop raft_net_invariant_timeout'| eapply_prop raft_net_invariant_client_request']; eauto; unfold send_packets in *; simpl in *; intros; find_apply_hyp_hyp; intuition.",
+            "VernacExtend",
+            "4189d3cf8cd7b86eec01a2a06c1f3099c3a4651f"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition raft_net_invariant_reboot' (P : network -> Prop) := forall net net' d h d', reboot d = d' -> P net -> raft_intermediate_reachable net -> raft_intermediate_reachable net' -> nwState net h = d -> (forall h', nwState net' h' = update name_eq_dec (nwState net) h d' h') -> nwPackets net = nwPackets net' -> P net'.",
+            "VernacDefinition",
+            "5704d1a2b2cfaa1849ff58640bac8676148373ee"
+        ],
+        [
+            "Theorem raft_net_invariant' : forall P net, raft_net_invariant_init P -> raft_net_invariant_client_request' P -> raft_net_invariant_timeout' P -> raft_net_invariant_append_entries' P -> raft_net_invariant_append_entries_reply' P -> raft_net_invariant_request_vote' P -> raft_net_invariant_request_vote_reply' P -> raft_net_invariant_do_leader' P -> raft_net_invariant_do_generic_server' P -> raft_net_invariant_state_same_packet_subset P -> raft_net_invariant_reboot' P -> raft_intermediate_reachable net -> P net.",
+            "VernacStartTheoremProof",
+            "7671233b4e7c171711b2805adadbe4ea28bb4dfd"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "induction H10.",
+            "VernacExtend",
+            "cc2d430db6cd11e1f70a7ce1abe9a55a831be582"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "match goal with [H : step_failure _ _ _ |- _ ] => invcs H end.",
+            "VernacExtend",
+            "c10e0f5d3a8a5a13bf9a0a44db9f07cb3c4c7437"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "unfold RaftNetHandler in *.",
+            "VernacExtend",
+            "4f5162448b3323ee4bd42f9b644c76d552e65ab9"
+        ],
+        [
+            "repeat break_let.",
+            "VernacExtend",
+            "af4c4045b2a41d256b959f44ffccc9ee0df74742"
+        ],
+        [
+            "repeat find_inversion.",
+            "VernacExtend",
+            "610a52b1e463e62cd0972175e3f79f0f0fe13ec5"
+        ],
+        [
+            "assert (HREACH1 : raft_intermediate_reachable {| nwPackets := (send_packets (pDst p) l0) ++ xs ++ ys; nwState := update name_eq_dec (nwState net) (pDst p) r |}) by (eapply RIR_handleMessage; eauto; in_crush).",
+            "VernacExtend",
+            "0e575b403913da85c2294341ca55ac59d591a2e9"
+        ],
+        [
+            "assert (HREACH2 : raft_intermediate_reachable {| nwPackets := (send_packets (pDst p) (l0 ++ l1)) ++ xs ++ ys; nwState := (update name_eq_dec (update name_eq_dec (nwState net) (pDst p) r) (pDst p) r0) |}) by (eapply RIR_doLeader; eauto; [simpl in *; break_if; try congruence; eauto| in_crush]).",
+            "VernacExtend",
+            "6563cef82b9df05e53872025c2b128a98da7a94b"
+        ],
+        [
+            "assert (HREACH3 : raft_intermediate_reachable {| nwPackets := (send_packets (pDst p) (l0 ++ l1 ++ l3)) ++ xs ++ ys; nwState := (update name_eq_dec (update name_eq_dec (update name_eq_dec (nwState net) (pDst p) r) (pDst p) r0) (pDst p) d) |}).",
+            "VernacExtend",
+            "74181a0d8e38e3d1b5a6a6fccc8c6dc7c137ff4f"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "eapply RIR_doGenericServer; eauto.",
+            "VernacExtend",
+            "3380813463c70d5432dd3444aed796b912bd5f06"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "break_if; try congruence; eauto.",
+            "VernacExtend",
+            "8e3d913be6403d60152caed587a51897247533e8"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "repeat do_in_app.",
+            "VernacExtend",
+            "b1a3fa0b8982de87975c2a5336a99bc7b147c813"
+        ],
+        [
+            "intuition; try solve [in_crush].",
+            "VernacExtend",
+            "c0bed6a3bddb8313f6cb7499792ee9db501f99e9"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "do_in_map.",
+            "VernacExtend",
+            "fa0be9321c6684e706bb9aefb585d66dc4eaa336"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "do_in_app.",
+            "VernacExtend",
+            "2c9b69d223e1c158780a58bcb9177572208a6dad"
+        ],
+        [
+            "intuition; try do_in_app; intuition.",
+            "VernacExtend",
+            "70ca8450095fee6bc7cffdb4e807d4d9eeb178a1"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "in_crush.",
+            "VernacExtend",
+            "1cec37b1df9aed7611c9dc2928e77e203488f72a"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "in_crush.",
+            "VernacExtend",
+            "1cec37b1df9aed7611c9dc2928e77e203488f72a"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "in_crush.",
+            "VernacExtend",
+            "1cec37b1df9aed7611c9dc2928e77e203488f72a"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "in_crush.",
+            "VernacExtend",
+            "1cec37b1df9aed7611c9dc2928e77e203488f72a"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "in_crush.",
+            "VernacExtend",
+            "1cec37b1df9aed7611c9dc2928e77e203488f72a"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "eapply_prop raft_net_invariant_do_generic_server'.",
+            "VernacExtend",
+            "4f8513ac9b99cd00db6ddcf698c357feef1999e2"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "eapply_prop raft_net_invariant_do_leader'.",
+            "VernacExtend",
+            "a03126cea8bcee66a435f03d8b9cb6fa6a1ee1f5"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "eapply raft_invariant_handle_message' with (P := P); try match goal with | |- context [ update ] => eauto end; eauto; try solve [in_crush].",
+            "VernacExtend",
+            "834024602d0675ff837be848e3f3f05884c319a2"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "apply HREACH2.",
+            "VernacExtend",
+            "e707b37dfc56e8c61336212e10f0982ce002f20a"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "break_if; intuition eauto.",
+            "VernacExtend",
+            "22af42d6021aa8d9eb5994b33d5a4d5b1b60a69e"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "repeat break_if; subst; eauto.",
+            "VernacExtend",
+            "05087b2c17786d725caa23170b78e34c4df06175"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "in_crush.",
+            "VernacExtend",
+            "1cec37b1df9aed7611c9dc2928e77e203488f72a"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "simpl in HREACH3.",
+            "VernacExtend",
+            "049c737222e859406eb85d91749df600f4ada20a"
+        ],
+        [
+            "match goal with | _ : raft_intermediate_reachable (mkNetwork ?p ?s) |- raft_intermediate_reachable (mkNetwork ?p' ?s') => enough (s' = s) by (repeat find_rewrite; auto) end.",
+            "VernacExtend",
+            "868d5e633026221be13256599e6a0e94b57bc53f"
+        ],
+        [
+            "apply functional_extensionality.",
+            "VernacExtend",
+            "9c7e1fe6d23159d5580801709782c72a6cb0684f"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "repeat break_if; subst; eauto.",
+            "VernacExtend",
+            "05087b2c17786d725caa23170b78e34c4df06175"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "break_if; congruence.",
+            "VernacExtend",
+            "ad9af4bb4d720c48dabc32e72ef7a467719a53fb"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "break_if; subst; repeat rewrite update_same by auto; repeat rewrite update_neq by auto; auto.",
+            "VernacExtend",
+            "24fc050ca694b8f3bd3e28331a6672e89eed392c"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "repeat do_in_app.",
+            "VernacExtend",
+            "b1a3fa0b8982de87975c2a5336a99bc7b147c813"
+        ],
+        [
+            "intuition; try solve [in_crush].",
+            "VernacExtend",
+            "c0bed6a3bddb8313f6cb7499792ee9db501f99e9"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "do_in_map.",
+            "VernacExtend",
+            "fa0be9321c6684e706bb9aefb585d66dc4eaa336"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "do_in_app.",
+            "VernacExtend",
+            "2c9b69d223e1c158780a58bcb9177572208a6dad"
+        ],
+        [
+            "intuition; try do_in_app; intuition.",
+            "VernacExtend",
+            "70ca8450095fee6bc7cffdb4e807d4d9eeb178a1"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "in_crush.",
+            "VernacExtend",
+            "1cec37b1df9aed7611c9dc2928e77e203488f72a"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "in_crush.",
+            "VernacExtend",
+            "1cec37b1df9aed7611c9dc2928e77e203488f72a"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "in_crush.",
+            "VernacExtend",
+            "1cec37b1df9aed7611c9dc2928e77e203488f72a"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "in_crush.",
+            "VernacExtend",
+            "1cec37b1df9aed7611c9dc2928e77e203488f72a"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "in_crush.",
+            "VernacExtend",
+            "1cec37b1df9aed7611c9dc2928e77e203488f72a"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "unfold RaftInputHandler in *.",
+            "VernacExtend",
+            "f91ffc5aa8483204c06858b0f6c6531588425cb3"
+        ],
+        [
+            "repeat break_let.",
+            "VernacExtend",
+            "af4c4045b2a41d256b959f44ffccc9ee0df74742"
+        ],
+        [
+            "repeat find_inversion.",
+            "VernacExtend",
+            "610a52b1e463e62cd0972175e3f79f0f0fe13ec5"
+        ],
+        [
+            "assert (HREACH1 : raft_intermediate_reachable {| nwPackets := (send_packets h l0) ++ (nwPackets net); nwState := update name_eq_dec (nwState net) h r |}) by (eapply RIR_handleInput; eauto; in_crush).",
+            "VernacExtend",
+            "23c6bc39fd0a172ec1890a388a3086b8dd931262"
+        ],
+        [
+            "assert (HREACH2 : raft_intermediate_reachable {| nwPackets := (send_packets h (l0 ++ l2)) ++ (nwPackets net); nwState := (update name_eq_dec (update name_eq_dec (nwState net) h r) h r0) |}) by (eapply RIR_doLeader; eauto; [simpl in *; break_if; try congruence; eauto| in_crush]).",
+            "VernacExtend",
+            "acbc6bac5e30ff339e6f93a6904e305cecd78553"
+        ],
+        [
+            "assert (HREACH3 : raft_intermediate_reachable {| nwPackets := (send_packets h (l0 ++ l2 ++ l4)) ++ (nwPackets net); nwState := (update name_eq_dec (update name_eq_dec (update name_eq_dec (nwState net) h r) h r0) h d) |}).",
+            "VernacExtend",
+            "b7bffabbd7ac756b8021f05c60281611db22adcb"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "eapply RIR_doGenericServer; eauto.",
+            "VernacExtend",
+            "3380813463c70d5432dd3444aed796b912bd5f06"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "break_if; try congruence; eauto.",
+            "VernacExtend",
+            "8e3d913be6403d60152caed587a51897247533e8"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "repeat do_in_app.",
+            "VernacExtend",
+            "b1a3fa0b8982de87975c2a5336a99bc7b147c813"
+        ],
+        [
+            "intuition; try solve [in_crush].",
+            "VernacExtend",
+            "c0bed6a3bddb8313f6cb7499792ee9db501f99e9"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "do_in_map.",
+            "VernacExtend",
+            "fa0be9321c6684e706bb9aefb585d66dc4eaa336"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "do_in_app.",
+            "VernacExtend",
+            "2c9b69d223e1c158780a58bcb9177572208a6dad"
+        ],
+        [
+            "intuition; try do_in_app; intuition.",
+            "VernacExtend",
+            "70ca8450095fee6bc7cffdb4e807d4d9eeb178a1"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "in_crush.",
+            "VernacExtend",
+            "1cec37b1df9aed7611c9dc2928e77e203488f72a"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "in_crush.",
+            "VernacExtend",
+            "1cec37b1df9aed7611c9dc2928e77e203488f72a"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "in_crush.",
+            "VernacExtend",
+            "1cec37b1df9aed7611c9dc2928e77e203488f72a"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "in_crush.",
+            "VernacExtend",
+            "1cec37b1df9aed7611c9dc2928e77e203488f72a"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "in_crush.",
+            "VernacExtend",
+            "1cec37b1df9aed7611c9dc2928e77e203488f72a"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "eapply_prop raft_net_invariant_do_generic_server'.",
+            "VernacExtend",
+            "4f8513ac9b99cd00db6ddcf698c357feef1999e2"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "eapply_prop raft_net_invariant_do_leader'.",
+            "VernacExtend",
+            "a03126cea8bcee66a435f03d8b9cb6fa6a1ee1f5"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "eapply raft_invariant_handle_input' with (P := P); try match goal with | |- context [ update ] => eauto end; eauto; try solve [in_crush].",
+            "VernacExtend",
+            "cee8fd461e8ec828534cc86fa8f507f386077379"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "apply HREACH2.",
+            "VernacExtend",
+            "e707b37dfc56e8c61336212e10f0982ce002f20a"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "break_if; intuition eauto.",
+            "VernacExtend",
+            "22af42d6021aa8d9eb5994b33d5a4d5b1b60a69e"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "in_crush.",
+            "VernacExtend",
+            "1cec37b1df9aed7611c9dc2928e77e203488f72a"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "simpl in HREACH3.",
+            "VernacExtend",
+            "049c737222e859406eb85d91749df600f4ada20a"
+        ],
+        [
+            "match goal with | _ : raft_intermediate_reachable (mkNetwork ?p ?s) |- raft_intermediate_reachable (mkNetwork ?p ?s') => enough (s' = s) by (repeat find_rewrite; auto) end.",
+            "VernacExtend",
+            "87430ac2a8cac8e9ff4d0a86744e7a93d29c853c"
+        ],
+        [
+            "apply functional_extensionality.",
+            "VernacExtend",
+            "9c7e1fe6d23159d5580801709782c72a6cb0684f"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "repeat break_if; subst; eauto.",
+            "VernacExtend",
+            "05087b2c17786d725caa23170b78e34c4df06175"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "break_if; congruence.",
+            "VernacExtend",
+            "ad9af4bb4d720c48dabc32e72ef7a467719a53fb"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "repeat break_if; subst; eauto.",
+            "VernacExtend",
+            "05087b2c17786d725caa23170b78e34c4df06175"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "repeat do_in_app.",
+            "VernacExtend",
+            "b1a3fa0b8982de87975c2a5336a99bc7b147c813"
+        ],
+        [
+            "intuition; try solve [in_crush].",
+            "VernacExtend",
+            "c0bed6a3bddb8313f6cb7499792ee9db501f99e9"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "do_in_map.",
+            "VernacExtend",
+            "fa0be9321c6684e706bb9aefb585d66dc4eaa336"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "do_in_app.",
+            "VernacExtend",
+            "2c9b69d223e1c158780a58bcb9177572208a6dad"
+        ],
+        [
+            "intuition; try do_in_app; intuition.",
+            "VernacExtend",
+            "70ca8450095fee6bc7cffdb4e807d4d9eeb178a1"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "in_crush.",
+            "VernacExtend",
+            "1cec37b1df9aed7611c9dc2928e77e203488f72a"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "in_crush.",
+            "VernacExtend",
+            "1cec37b1df9aed7611c9dc2928e77e203488f72a"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "in_crush.",
+            "VernacExtend",
+            "1cec37b1df9aed7611c9dc2928e77e203488f72a"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "in_crush.",
+            "VernacExtend",
+            "1cec37b1df9aed7611c9dc2928e77e203488f72a"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "in_crush.",
+            "VernacExtend",
+            "1cec37b1df9aed7611c9dc2928e77e203488f72a"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "match goal with | [ H : nwPackets ?net = _ |- _ {| nwPackets := ?ps ; nwState := ?st |} ] => assert (forall p, In p (nwPackets {| nwPackets := ps ; nwState := st |}) -> In p (nwPackets net)) by (intros; simpl in *; find_rewrite; in_crush) end.",
+            "VernacExtend",
+            "b203337e62bf9558f309edf0764f029b73e5e0e4"
+        ],
+        [
+            "eapply_prop raft_net_invariant_state_same_packet_subset; [|eauto|idtac|]; eauto.",
+            "VernacExtend",
+            "be9ef6e7b7390cb8f083297ea91d06bb13800e4b"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "match goal with | [ H : nwPackets ?net = _ |- _ {| nwPackets := ?ps ; nwState := ?st |} ] => assert (forall p, In p (nwPackets {| nwPackets := ps ; nwState := st |}) -> In p (nwPackets net)) by (intros; simpl in *; find_rewrite; in_crush) end.",
+            "VernacExtend",
+            "b203337e62bf9558f309edf0764f029b73e5e0e4"
+        ],
+        [
+            "eapply_prop raft_net_invariant_state_same_packet_subset; [|eauto|idtac|]; eauto.",
+            "VernacExtend",
+            "be9ef6e7b7390cb8f083297ea91d06bb13800e4b"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "eapply_prop raft_net_invariant_reboot'; eauto; intros; simpl in *; repeat break_if; intuition; subst; intuition eauto.",
+            "VernacExtend",
+            "1ccf4e4fe03deed61849fec17108cbccc7a40f0e"
+        ],
+        [
+            "eapply RIR_step_failure; eauto.",
+            "VernacExtend",
+            "90e94cc52b0ca9b170d0bca4572691039dd46e27"
+        ],
+        [
+            "now econstructor; eauto.",
+            "VernacExtend",
+            "5bc8481639278d042c38f12eeeb06697a3be40e5"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "eapply raft_invariant_handle_input'; eauto using RIR_handleInput.",
+            "VernacExtend",
+            "48b82848b8589179a7eb427fc4988fa9665bc038"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "eapply raft_invariant_handle_message'; eauto using RIR_handleMessage.",
+            "VernacExtend",
+            "cb5255b1fe02e2eb54a715ce37e93d1836b010dd"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "eapply_prop raft_net_invariant_do_leader'; eauto using RIR_doLeader.",
+            "VernacExtend",
+            "fa3dbcbe97dbad095d43630ca0fd595b95608820"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "eapply_prop raft_net_invariant_do_generic_server'; eauto using RIR_doGenericServer.",
+            "VernacExtend",
+            "1830fbc46912eb57d2e775487693d1f39f269f5e"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End DecompositionWithPostState.",
+            "VernacEndSegment",
+            "8ca6cebdc525aa58517a0dfaf9ed00a7e92fa276"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "raft_invariant_handle_message'",
+            "line_nb": 14,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold handleMessage in *.",
+                        "VernacExtend",
+                        "fb35e586f9d4bb194f7f2f2f2ad69423d9583fdd"
+                    ]
+                },
+                {
+                    "command": [
+                        "break_match; repeat break_let; repeat find_inversion; [eapply_prop raft_net_invariant_request_vote'| eapply_prop raft_net_invariant_request_vote_reply'| eapply_prop raft_net_invariant_append_entries'| eapply_prop raft_net_invariant_append_entries_reply']; eauto; unfold send_packets in *; simpl in *; intros; find_apply_hyp_hyp; intuition.",
+                        "VernacExtend",
+                        "703e4a55d1345b843918a5382498ea47e2c651ff"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "raft_invariant_handle_input'",
+            "line_nb": 19,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold handleInput in *.",
+                        "VernacExtend",
+                        "b402dc42cf76bc27faefad22ea207e97d80551af"
+                    ]
+                },
+                {
+                    "command": [
+                        "break_match; repeat break_let; repeat find_inversion; [eapply_prop raft_net_invariant_timeout'| eapply_prop raft_net_invariant_client_request']; eauto; unfold send_packets in *; simpl in *; intros; find_apply_hyp_hyp; intuition.",
+                        "VernacExtend",
+                        "4189d3cf8cd7b86eec01a2a06c1f3099c3a4651f"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

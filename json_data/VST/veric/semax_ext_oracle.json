@@ -1,0 +1,1875 @@
+{
+    "filename": "veric/semax_ext_oracle.v",
+    "coq_project": "VST",
+    "vernac_cmds": [
+        [
+            "Require Import VST.veric.juicy_base.",
+            "VernacRequire",
+            "7a63c83b17327e7ee5b9ab38e2ae76d2d22b7583"
+        ],
+        [
+            "Require Import VST.veric.juicy_mem.",
+            "VernacRequire",
+            "f1eecf3ecf80d465588513629a8e6b5706759bd8"
+        ],
+        [
+            "Require Import VST.veric.juicy_mem_lemmas.",
+            "VernacRequire",
+            "c432441f3fd84d350a81bbf00da1689db02063ce"
+        ],
+        [
+            "Require Import VST.veric.juicy_mem_ops.",
+            "VernacRequire",
+            "ea0aa87abe2cdf70fca07aee44276c9f8795eb8e"
+        ],
+        [
+            "Require Import VST.sepcomp.extspec.",
+            "VernacRequire",
+            "24d2770c0d56f347a534d202b9e8a12e01b32823"
+        ],
+        [
+            "Require Import VST.veric.juicy_extspec.",
+            "VernacRequire",
+            "aa1a3d20d1c24cf96c29cb4ebe5c176da44989a3"
+        ],
+        [
+            "Require Import compcert.cfrontend.Clight.",
+            "VernacRequire",
+            "9fd97b13ae5a944389752fd27befa39d27338bed"
+        ],
+        [
+            "Require Import VST.veric.tycontext.",
+            "VernacRequire",
+            "f8951535af03e9380f7d0a99afae06d1059d4422"
+        ],
+        [
+            "Require Import VST.veric.expr2.",
+            "VernacRequire",
+            "bf07dfc9a4517a977ef232bb1ba25ac9aaf5c2d9"
+        ],
+        [
+            "Require Import VST.veric.semax.",
+            "VernacRequire",
+            "245fa1c61f6a18836ca30db7617401fbff9c2a37"
+        ],
+        [
+            "Require Import VST.veric.semax_call.",
+            "VernacRequire",
+            "9d650865d9419ff89f4b8d7fce69eb6fa6428557"
+        ],
+        [
+            "Require Import VST.veric.semax_ext.",
+            "VernacRequire",
+            "f3d68c51317fcc74f7729b64ba14fad15d3ae265"
+        ],
+        [
+            "Require Import VST.veric.res_predicates.",
+            "VernacRequire",
+            "768b4200cf583d1957d2bf97075bbe3044eb3f8d"
+        ],
+        [
+            "Section funspecsOracle2jspec.",
+            "VernacBeginSection",
+            "0671b18fa08df668f59f09d90e502e28190ecbea"
+        ],
+        [
+            "Variable Z : Type.",
+            "VernacAssumption",
+            "1b5899c8f93dd705bf286f18a75763ff1c4a73d1"
+        ],
+        [
+            "Variable Espec : juicy_ext_spec Z.",
+            "VernacAssumption",
+            "ede301b457cd80f8abc395c23444f95b89bdc209"
+        ],
+        [
+            "Definition funspecOracle2pre (ext_link: Strings.String.string -> ident) (A : Type) (P : A -> Z -> environ -> mpred) (ids: list ident) (id: ident) sig (ef: external_function) x ge_s (tys : list typ) args z m : Prop := match oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) as s return ((if s then (rmap * A)%type else ext_spec_type Espec ef) -> Prop) with | left _ => fun x => exists phi0 phi1, join phi0 phi1 (m_phi m) /\\ P (snd x) z (make_ext_args (filter_genv (symb2genv ge_s)) ids args) phi0 /\\ necR (fst x) phi1 | right n => fun x' => ext_spec_pre Espec ef x' ge_s tys args z m end x.",
+            "VernacDefinition",
+            "fd1cfbcf2a33d48203189c217b385a8c92af44a4"
+        ],
+        [
+            "Definition funspecOracle2post (ext_link: Strings.String.string -> ident) (A : Type) (Q : A -> Z -> environ -> mpred) id sig ef x ge_s (tret : option typ) ret z m : Prop := match oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) as s return ((if s then (rmap * A)%type else ext_spec_type Espec ef) -> Prop) with | left _ => fun x => exists phi0 phi1, join phi0 phi1 (m_phi m) /\\ Q (snd x) z (make_ext_rval (filter_genv (symb2genv ge_s)) ret) phi0 /\\ necR (fst x) phi1 | right n => fun x' => ext_spec_post Espec ef x' ge_s tret ret z m end x.",
+            "VernacDefinition",
+            "1078af484217f0f435d44eff183b8ae45047d9cf"
+        ],
+        [
+            "Inductive funspecOracle : Type := mk_funspecOracle : funsig -> calling_convention -> forall A : Type, (A -> Z -> environ -> mpred) -> (A -> Z -> environ -> mpred) -> funspecOracle.",
+            "VernacInductive",
+            "e921e54726692a6ca3c45d9b019872b561e4d081"
+        ],
+        [
+            "Definition funspecOracle2extspec (ext_link: Strings.String.string -> ident) (f : ident * funspecOracle) : external_specification juicy_mem external_function Z := match f with | (id, mk_funspecOracle ((params, sigret) as fsig) cc A P Q) => let sig := funsig2signature fsig cc in Build_external_specification juicy_mem external_function Z (fun ef => if oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) then (rmap * A)%type else ext_spec_type Espec ef) (funspecOracle2pre ext_link A P (fst (split params)) id sig) (funspecOracle2post ext_link A Q id sig) (fun rv z m => False) end.",
+            "VernacDefinition",
+            "ff49c1a2021d56eb6209f7974891c89c57f1b4c6"
+        ],
+        [
+            "Local Open Scope pred.",
+            "VernacOpenCloseScope",
+            "61fa11c1c3de9a21b4672e107d4df33b39563e17"
+        ],
+        [
+            "Definition wf_funspecOracle (f : funspecOracle) := match f with | mk_funspecOracle sig cc A P Q => forall a (ge ge': genv) n args z, Genv.genv_symb ge = Genv.genv_symb ge' -> P a z (make_ext_args (filter_genv ge) n args) |-- P a z (make_ext_args (filter_genv ge') n args) end.",
+            "VernacDefinition",
+            "bc422085d9826ff0f55526cdd9649c8caa43bc4f"
+        ],
+        [
+            "Lemma make_ext_args_symb (ge ge' : genv) (H: Genv.genv_symb ge = Genv.genv_symb ge') n args : make_ext_args (filter_genv ge) n args = make_ext_args (filter_genv ge') n args.",
+            "VernacStartTheoremProof",
+            "fbff7890b62f499d5ad5c59c89c6de59d3698457"
+        ],
+        [
+            "revert ge ge' n H; induction args.",
+            "VernacExtend",
+            "c45ce86f11b3c777da2f03d09439598c31f7e0b3"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "simpl; unfold filter_genv, Genv.find_symbol.",
+            "VernacExtend",
+            "3516da874e1bc5c1bcc79dfdbf4747f4104f3a00"
+        ],
+        [
+            "intros ? ? ? ->; auto.",
+            "VernacExtend",
+            "4b9af55cd47dc2f480da8c8390a7166ab85b7eba"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "intros ge ge' n H.",
+            "VernacExtend",
+            "327a273310965bb4f14a2d9a70d69083c163082b"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "destruct n; auto.",
+            "VernacExtend",
+            "ac1a46c3d4b557b3710fa36973beb6e353d40fb6"
+        ],
+        [
+            "erewrite IHargs; eauto.",
+            "VernacExtend",
+            "9c4093200e5f52759142e59c0cf2a488f6b7e1bd"
+        ],
+        [
+            "erewrite IHargs; eauto.",
+            "VernacExtend",
+            "9c4093200e5f52759142e59c0cf2a488f6b7e1bd"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma all_funspecsOracle_wf f : wf_funspecOracle f.",
+            "VernacStartTheoremProof",
+            "75eb53487b904c209bd26b234634e1045c2178e9"
+        ],
+        [
+            "destruct f; simpl; intros a ge ge' n args z H.",
+            "VernacExtend",
+            "01da6f4603f19d7376c81a68b54672398dac1d78"
+        ],
+        [
+            "erewrite make_ext_args_symb; eauto.",
+            "VernacExtend",
+            "6ef8ce4f63d1f3f662603d36e0bb41474788a52e"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Program Definition funspecOracle2jspec (ext_link: Strings.String.string -> ident) f : juicy_ext_spec Z := Build_juicy_ext_spec _ (funspecOracle2extspec ext_link f) _ _ _.",
+            "VernacDefinition",
+            "7641292fb3a8d0bbf978cc51cb774d24669f16ec"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "destruct f; simpl; unfold funspecOracle2pre, pureat; simpl; destruct f; simpl; destruct f; simpl; intros e t0 ge_s typs args z.",
+            "VernacExtend",
+            "60ce64bdce037e10b6eccc150efca2edb5e39d54"
+        ],
+        [
+            "if_tac [e0|e0].",
+            "VernacExtend",
+            "6f278bbac8d7057fce14ba0822374287ef5563ab"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "destruct e; try discriminate; injection e0 as E; subst i sg; intros a a' Hage.",
+            "VernacExtend",
+            "6ea2daa6f0f45362cd0451e02a9587e37dcce40d"
+        ],
+        [
+            "intros [phi0 [phi1 [Hjoin [Hx Hy]]]].",
+            "VernacExtend",
+            "7d5d74034a49e15cb699b58e0f9f357213328759"
+        ],
+        [
+            "apply age1_juicy_mem_unpack in Hage.",
+            "VernacExtend",
+            "d079cbdefcf431ec9e25805b150528c4a63ac90c"
+        ],
+        [
+            "destruct Hage as [Hage Hdry].",
+            "VernacExtend",
+            "ac39dec753e8c69db1bcbedafac03b6fa73efae9"
+        ],
+        [
+            "destruct (age1_join2 phi0 Hjoin Hage) as [x' [y' [Hjoin' [Hage' H]]]].",
+            "VernacExtend",
+            "bfbe2fdc11f7c329b1587e936987210218ad4abb"
+        ],
+        [
+            "exists x', y'; split; auto.",
+            "VernacExtend",
+            "ed79c68bd92bcc6f790655d45ecdd8d3bd1e8cb1"
+        ],
+        [
+            "destruct m.",
+            "VernacExtend",
+            "8d29a39ed817a734f6646f7b42c80e41363356d4"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "eapply h; eauto.",
+            "VernacExtend",
+            "bab6f52230768434f5d650f60051341e1e3de3c1"
+        ],
+        [
+            "apply (necR_trans (fst t0) phi1 y'); auto.",
+            "VernacExtend",
+            "9a570039fcaad5343932890784c1f3b0f9c4cae3"
+        ],
+        [
+            "unfold necR.",
+            "VernacExtend",
+            "86af25632cf37d9aef01e3c64e4d65b0cf876e76"
+        ],
+        [
+            "constructor; auto.",
+            "VernacExtend",
+            "686f227fe0f57af60032eb35216aef1e62d0c0e5"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "intros ? ?; auto.",
+            "VernacExtend",
+            "048b6811c3c587f9030595346efd336715086631"
+        ],
+        [
+            "destruct Espec; simpl; apply JE_pre_hered.",
+            "VernacExtend",
+            "9e489431900eacd2477e0f8c956473b68d06039b"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "destruct f; simpl; unfold funspecOracle2post, pureat; simpl; destruct f; simpl; destruct f; simpl.",
+            "VernacExtend",
+            "7eb4f17d899a6cda316b671473e570310c7e3340"
+        ],
+        [
+            "intros e t0 ge_s tret rv z.",
+            "VernacExtend",
+            "d663f51e02eb724af5609900b5801fc324ff0205"
+        ],
+        [
+            "if_tac [e0|e0].",
+            "VernacExtend",
+            "6f278bbac8d7057fce14ba0822374287ef5563ab"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "destruct e; try discriminate; injection e0 as E; subst i sg; intros a a' Hage; destruct m0; simpl.",
+            "VernacExtend",
+            "90f86545847578886456e062f56643ffa5847385"
+        ],
+        [
+            "intros [phi0 [phi1 [Hjoin [Hx Hy]]]].",
+            "VernacExtend",
+            "7d5d74034a49e15cb699b58e0f9f357213328759"
+        ],
+        [
+            "apply age1_juicy_mem_unpack in Hage.",
+            "VernacExtend",
+            "d079cbdefcf431ec9e25805b150528c4a63ac90c"
+        ],
+        [
+            "destruct Hage as [Hage Hdry].",
+            "VernacExtend",
+            "ac39dec753e8c69db1bcbedafac03b6fa73efae9"
+        ],
+        [
+            "destruct (age1_join2 phi0 Hjoin Hage) as [x' [y' [Hjoin' [Hage' H]]]].",
+            "VernacExtend",
+            "bfbe2fdc11f7c329b1587e936987210218ad4abb"
+        ],
+        [
+            "exists x', y'; split; auto.",
+            "VernacExtend",
+            "ed79c68bd92bcc6f790655d45ecdd8d3bd1e8cb1"
+        ],
+        [
+            "split; [solve[eapply h; eauto]|].",
+            "VernacExtend",
+            "f47a2f456a10d5d583b2b50632fb36381d24dcb5"
+        ],
+        [
+            "apply (necR_trans (fst t0) phi1 y'); auto.",
+            "VernacExtend",
+            "9a570039fcaad5343932890784c1f3b0f9c4cae3"
+        ],
+        [
+            "unfold necR.",
+            "VernacExtend",
+            "86af25632cf37d9aef01e3c64e4d65b0cf876e76"
+        ],
+        [
+            "constructor; auto.",
+            "VernacExtend",
+            "686f227fe0f57af60032eb35216aef1e62d0c0e5"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "intros ? ?; auto.",
+            "VernacExtend",
+            "048b6811c3c587f9030595346efd336715086631"
+        ],
+        [
+            "destruct Espec; simpl; apply JE_post_hered.",
+            "VernacExtend",
+            "e21ec0d39ea6fe7089923823bd7a2dbb38b23ae4"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "intros ? ? ? ?; destruct f; destruct f; destruct f; simpl.",
+            "VernacExtend",
+            "1ff04294dc7f77621e7d137593d7b0bb5febcf33"
+        ],
+        [
+            "intros a' Hage; auto.",
+            "VernacExtend",
+            "fd9faf564a1dfe5c2aba2b184421231f5ec3d06a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End funspecsOracle2jspec.",
+            "VernacEndSegment",
+            "201316f6b0ffce17607740ad67694900b2cb1abe"
+        ],
+        [
+            "Import String.",
+            "VernacImport",
+            "ab06a84ba92a619ceea6d71b5e5638414d80c1ee"
+        ],
+        [
+            "Fixpoint add_funspecsOracle_rec (ext_link: string -> ident) Z (Espec : juicy_ext_spec Z) (fs : list (ident * funspecOracle Z)) := match fs with | nil => Espec | cons (i,f) fs' => funspecOracle2jspec Z (add_funspecsOracle_rec ext_link Z Espec fs') ext_link (i,f) end.",
+            "VernacFixpoint",
+            "e4c9d0c14b9766c2f10c6118611b482bb0eb87be"
+        ],
+        [
+            "Require Import Coq.Logic.JMeq.",
+            "VernacRequire",
+            "bafac75067b0d5e548e47641fb9e66218c9b4b2b"
+        ],
+        [
+            "Lemma add_funspecs_pre (ext_link: Strings.String.string -> ident) {Z fs id sig cc A P Q x args m} Espec tys ge_s phi0 phi1 z : let ef := EF_external id (funsig2signature sig cc) in list_norepet (map fst fs) -> In (ext_link id, (mk_funspecOracle Z sig cc A P Q)) fs -> join phi0 phi1 (m_phi m) -> P x z (make_ext_args (filter_genv (symb2genv ge_s)) (fst (split (fst sig))) args) phi0 -> exists x' : ext_spec_type (JE_spec _ (add_funspecsOracle_rec ext_link Z Espec fs)) ef, JMeq (phi1, x) x' /\\ ext_spec_pre (add_funspecsOracle_rec ext_link Z Espec fs) ef x' ge_s tys args z m.",
+            "VernacStartTheoremProof",
+            "f94ee78e955dc9cc3bed1d8fb2a09ccf3e3d81a6"
+        ],
+        [
+            "induction fs; [intros; elimtype False; auto|]; intros ef H H1 H2 Hpre.",
+            "VernacExtend",
+            "96858fd288b8d1d0faf668ac9c7709b4f9d432fd"
+        ],
+        [
+            "destruct H1 as [H1|H1].",
+            "VernacExtend",
+            "3d64b5d5257c32cb97db1118ac8095f035e8c53f"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "subst a; simpl in *.",
+            "VernacExtend",
+            "34d146c1e2f816df66bde05d2563ee385cba238b"
+        ],
+        [
+            "clear IHfs H; revert x H2 Hpre; unfold funspecOracle2pre; simpl.",
+            "VernacExtend",
+            "f4de17e7067a16fa5be249103f1c31be6a9a5fb2"
+        ],
+        [
+            "destruct sig; simpl.",
+            "VernacExtend",
+            "124bf0ec5092e36b0a6080622b1179da5e3535e9"
+        ],
+        [
+            "if_tac [e0|e0].",
+            "VernacExtend",
+            "6f278bbac8d7057fce14ba0822374287ef5563ab"
+        ],
+        [
+            "rewrite fst_split.",
+            "VernacExtend",
+            "acf25441e6e6902e1ff1de4934cd237184b9edc9"
+        ],
+        [
+            "intros x Hjoin Hp.",
+            "VernacExtend",
+            "c0a15c4199b1241421f122cb74c7e6e4a88c3e69"
+        ],
+        [
+            "exists (phi1,x).",
+            "VernacExtend",
+            "8070fe6206617e787e14444dcaff91a629e4da1e"
+        ],
+        [
+            "split; eauto.",
+            "VernacExtend",
+            "f3520b20a884376c5c10e2f9e716eedc86a566b6"
+        ],
+        [
+            "elimtype False; auto.",
+            "VernacExtend",
+            "d0be777ab21ef0f9e9de63e325227c8c5f8cbed0"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "assert (Hin: In (ext_link id) (map fst fs)).",
+            "VernacExtend",
+            "82300adcdf5ec09d43f7109a4830befc697e5812"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "eapply (in_map fst) in H1; apply H1.",
+            "VernacExtend",
+            "d91499d5a577bca4a4e0c34cc0b4c6bb2189e5ee"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "inversion H as [|? ? Ha Hb]; subst.",
+            "VernacExtend",
+            "665dc5e944ba3f17c4379c5f6588f586f33a4ab6"
+        ],
+        [
+            "destruct (IHfs Hb H1 H2 Hpre) as [x' H3].",
+            "VernacExtend",
+            "03e02d6565eaf9e50993c2ce5bfdca9a06294cf3"
+        ],
+        [
+            "clear -Ha Hin H1 H3; revert x' Ha Hin H1 H3.",
+            "VernacExtend",
+            "ade34e6c59e30c909dd8a0abe5478fd25f24f959"
+        ],
+        [
+            "destruct a; simpl; destruct f; simpl; destruct f; simpl; unfold funspecOracle2pre; simpl.",
+            "VernacExtend",
+            "8768a3f1a71c29be4e4159958a32fe801af7ffee"
+        ],
+        [
+            "if_tac [e|e].",
+            "VernacExtend",
+            "7d97448a1f959b9fdefec5bb498eb4ee8afb6e60"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "injection e as E; subst i; destruct fs; [solve[simpl; intros; elimtype False; auto]|].",
+            "VernacExtend",
+            "7521a86b4cf3b55d9f0a72d4f888625c2935eb9f"
+        ],
+        [
+            "intros x' Ha Hb; simpl in Ha, Hb.",
+            "VernacExtend",
+            "5414414c8f6c26f6305c57cc1584aea5e4e6dedb"
+        ],
+        [
+            "elimtype False; auto.",
+            "VernacExtend",
+            "d0be777ab21ef0f9e9de63e325227c8c5f8cbed0"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "intros; eexists; eauto.",
+            "VernacExtend",
+            "403552df26d66c2cd56dd16f8eed8f06745aaada"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma add_funspecs_post (ext_link: Strings.String.string -> ident) {Z Espec tret fs id sig cc A} {P Q : A -> Z -> environ -> mpred} {x ret z m ge_s} : let ef := EF_external id (funsig2signature sig cc) in list_norepet (map fst fs) -> In (ext_link id, (mk_funspecOracle Z sig cc A P Q)) fs -> In (ext_link id) (map fst fs) -> ext_spec_post (add_funspecsOracle_rec ext_link Z Espec fs) ef x ge_s tret ret z m -> exists (phi0 phi1 phi1' : rmap) (x' : A), join phi0 phi1 (m_phi m) /\\ necR phi1' phi1 /\\ JMeq x (phi1', x') /\\ Q x' z (make_ext_rval (filter_genv (symb2genv ge_s)) ret) phi0.",
+            "VernacStartTheoremProof",
+            "d34b5bcede31dcf1e40f32ae4c35dcaa4c9b90c8"
+        ],
+        [
+            "induction fs; [intros; elimtype False; auto|]; intros ef H H1 Hid Hpost.",
+            "VernacExtend",
+            "9cc0fb55646b57cf0b2373fca2ea211b9be90141"
+        ],
+        [
+            "destruct H1 as [H1|H1].",
+            "VernacExtend",
+            "3d64b5d5257c32cb97db1118ac8095f035e8c53f"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "subst a; simpl in *.",
+            "VernacExtend",
+            "34d146c1e2f816df66bde05d2563ee385cba238b"
+        ],
+        [
+            "clear IHfs H; revert x Hpost; unfold funspecOracle2post; simpl.",
+            "VernacExtend",
+            "354b1b7e70457029415c7cb5ba2ee35b0e7d7ebb"
+        ],
+        [
+            "destruct sig; simpl.",
+            "VernacExtend",
+            "124bf0ec5092e36b0a6080622b1179da5e3535e9"
+        ],
+        [
+            "if_tac [e0|e0].",
+            "VernacExtend",
+            "6f278bbac8d7057fce14ba0822374287ef5563ab"
+        ],
+        [
+            "intros x [phi0 [phi1 [Hjoin [Hq Hnec]]]].",
+            "VernacExtend",
+            "3c16648a46d3d4708cd5a506b8e018cd53d1abbe"
+        ],
+        [
+            "exists phi0, phi1, (fst x), (snd x).",
+            "VernacExtend",
+            "66808e4a85766d5c66db1a225d3f16290820f9f0"
+        ],
+        [
+            "split; auto.",
+            "VernacExtend",
+            "fcd44a714bd12fa54b1c7746996e44dbac16df06"
+        ],
+        [
+            "split; auto.",
+            "VernacExtend",
+            "fcd44a714bd12fa54b1c7746996e44dbac16df06"
+        ],
+        [
+            "destruct x; simpl in *.",
+            "VernacExtend",
+            "460ee78cc7d7b3caa9e4e4ffd1231572054719c1"
+        ],
+        [
+            "split; auto.",
+            "VernacExtend",
+            "fcd44a714bd12fa54b1c7746996e44dbac16df06"
+        ],
+        [
+            "elimtype False; auto.",
+            "VernacExtend",
+            "d0be777ab21ef0f9e9de63e325227c8c5f8cbed0"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "assert (Hin: In (ext_link id) (map fst fs)).",
+            "VernacExtend",
+            "82300adcdf5ec09d43f7109a4830befc697e5812"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "apply (in_map fst) in H1; auto.",
+            "VernacExtend",
+            "eba9e5e81f8c4358e6a05fc537bffeaa16fe18b3"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "inversion H as [|? ? Ha Hb]; subst.",
+            "VernacExtend",
+            "665dc5e944ba3f17c4379c5f6588f586f33a4ab6"
+        ],
+        [
+            "clear -Ha Hin H1 Hb Hpost IHfs; revert x Ha Hin H1 Hb Hpost IHfs.",
+            "VernacExtend",
+            "66fdfb58b1dac2cfc58ade9d5048a5c6dffcddab"
+        ],
+        [
+            "destruct a; simpl; destruct f; simpl; unfold funspecOracle2post; simpl.",
+            "VernacExtend",
+            "e11549eb0941e4a2fb9c3ef9246aa67345f66dfe"
+        ],
+        [
+            "destruct f; simpl.",
+            "VernacExtend",
+            "5ab77c865e5ffb10c040a3c8d321e06dea47ffb1"
+        ],
+        [
+            "if_tac [e|e].",
+            "VernacExtend",
+            "7d97448a1f959b9fdefec5bb498eb4ee8afb6e60"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "injection e as E; subst i; destruct fs; [solve[simpl; intros; elimtype False; auto]|].",
+            "VernacExtend",
+            "7521a86b4cf3b55d9f0a72d4f888625c2935eb9f"
+        ],
+        [
+            "intros x' Ha Hb; simpl in Ha, Hb.",
+            "VernacExtend",
+            "5414414c8f6c26f6305c57cc1584aea5e4e6dedb"
+        ],
+        [
+            "elimtype False; auto.",
+            "VernacExtend",
+            "d0be777ab21ef0f9e9de63e325227c8c5f8cbed0"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply IHfs; auto.",
+            "VernacExtend",
+            "78ea9532a8efca7110b9560ae49772111c7ec151"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition semax_external_oracle (Espec: OracleKind) (ids: list ident) ef (A: Type) (P Q: A -> Espec.(@OK_ty) -> environ -> pred rmap): pred nat := ALL gx: genv, ALL x: A, |> ALL F: pred rmap, ALL ts: list typ, ALL args: list val, ALL z : Espec.(@OK_ty), juicy_mem_op (P x z (make_ext_args (filter_genv gx) ids args) * F) >=> EX x': ext_spec_type OK_spec ef, ext_spec_pre' Espec ef x' (genv_symb_injective gx) ts args z && ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty, ext_spec_post' Espec ef x' (genv_symb_injective gx) tret ret z' >=> juicy_mem_op (Q x z' (make_ext_rval (filter_genv gx) ret) * F).",
+            "VernacDefinition",
+            "b33411d0d19f4ab3a4c227dce013619901073cbd"
+        ],
+        [
+            "Section semax_ext_oracle.",
+            "VernacBeginSection",
+            "9900a8a19186f93ee0e43f286295a692b6aa0bd2"
+        ],
+        [
+            "Variable Espec : OracleKind.",
+            "VernacAssumption",
+            "61204e513ae25676bd7e05117859fc3781b6e077"
+        ],
+        [
+            "Local Notation ty := Espec.(@OK_ty).",
+            "VernacSyntacticDefinition",
+            "2f03059054bdafca9f367c5213fa2ec054b7f730"
+        ],
+        [
+            "Local Notation spec := Espec.(@OK_spec).",
+            "VernacSyntacticDefinition",
+            "1bafe453b791b7100c988cc26f1ebc1fbd5c42aa"
+        ],
+        [
+            "Lemma semax_ext'_oracle (ext_link: Strings.String.string -> ident) id sig cc A P Q (fs : list (ident * funspecOracle ty)) : let f := mk_funspecOracle ty sig cc A P Q in In (ext_link id, f) fs -> list_norepet (map fst fs) -> (forall n, semax_external_oracle (Build_OracleKind _ (add_funspecsOracle_rec ext_link ty spec fs)) (fst (split (fst sig))) (EF_external id (funsig2signature sig cc)) _ P Q n).",
+            "VernacStartTheoremProof",
+            "6e78537737c1b6ff14fab65069a456c1f894cf73"
+        ],
+        [
+            "intros f Hin Hnorepeat.",
+            "VernacExtend",
+            "84bc582a66dd3af5fd5ef62e6a8c171949af52f3"
+        ],
+        [
+            "unfold semax_external.",
+            "VernacExtend",
+            "d1a507fad63d80c03d8a0060dbc3652528de25d9"
+        ],
+        [
+            "intros n ge x n0 Hlater F ts args z jm H jm' H2 H3.",
+            "VernacExtend",
+            "9c098c2f40f7c0e13fdafdf9c835be5ea0daf2c6"
+        ],
+        [
+            "destruct H3 as [s [t [Hjoin [Hp Hf]]]].",
+            "VernacExtend",
+            "45edd41ed261923548d85a9d23eb113eb28cc79c"
+        ],
+        [
+            "assert (Hp'': P x z (make_ext_args (filter_genv (symb2genv (genv_symb_injective ge))) (fst (split (fst sig))) args) s).",
+            "VernacExtend",
+            "83af67369a8abdc62aff9fcf428aef43444299cf"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "generalize (all_funspecsOracle_wf ty f) as Hwf2; intro.",
+            "VernacExtend",
+            "4e100a8da73659331b0972dd86eb85071825a7cd"
+        ],
+        [
+            "unfold wf_funspecOracle in Hwf2.",
+            "VernacExtend",
+            "bb1e4679b294079447183c1d8f08c0de770808da"
+        ],
+        [
+            "specialize (Hwf2 x ge (symb2genv (genv_symb_injective ge)) (fst (split (fst sig))) args z).",
+            "VernacExtend",
+            "13039026dc9a7dae650543073b1d4e1cd63842b7"
+        ],
+        [
+            "spec Hwf2.",
+            "VernacExtend",
+            "6e14f929376dc512bd1d060bc10d087c0f1e1872"
+        ],
+        [
+            "rewrite symb2genv_ax; auto.",
+            "VernacExtend",
+            "de7f597241473eb44fa89eea2b7538606b77f4fc"
+        ],
+        [
+            "apply Hwf2; auto.",
+            "VernacExtend",
+            "5c6d6a1a0241b5c869c1c7c768870ec985246011"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "destruct (@add_funspecs_pre ext_link ty _ _ _ cc _ _ _ _ _ _ OK_spec ts (genv_symb_injective ge) s t z Hnorepeat Hin Hjoin Hp'') as [x' [Heq Hpre]].",
+            "VernacExtend",
+            "f247c27bfdc717ff4bd631cf9342be30c2f883d8"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "exists x'.",
+            "VernacExtend",
+            "62741617e2f199cfb9538ac58a668218579faa2e"
+        ],
+        [
+            "split; [solve[apply Hpre]|].",
+            "VernacExtend",
+            "12368a1f96c5214e1edb600c56a5f0b8413d0ec5"
+        ],
+        [
+            "intros tret ret z' jm2 Hlev jm3 Hnec Hpost.",
+            "VernacExtend",
+            "af9a756025ef5793644dec62538329a15c7ffc52"
+        ],
+        [
+            "eapply add_funspecs_post in Hpost; eauto.",
+            "VernacExtend",
+            "23d3cc4d54159bcc456daddf4876236732ef7f88"
+        ],
+        [
+            "2:eapply (in_map fst _ _ Hin).",
+            "VernacExtend",
+            "b86933dbff1e89fbb1709d83ae74b2f1f62fd81c"
+        ],
+        [
+            "destruct Hpost as [phi0 [phi1 [phi1' [x'' [Hjoin' [Hnec' [Hjmeq' Hq']]]]]]].",
+            "VernacExtend",
+            "2d6cd31e9e25dd001c9298a04db9d7e6615cfe80"
+        ],
+        [
+            "exists phi0, phi1; split; auto.",
+            "VernacExtend",
+            "f196459330463ebebeeee557fa11233a2696c2f8"
+        ],
+        [
+            "assert (E : (t, x) = (phi1', x'')) by (eapply JMeq_eq, JMeq_trans; eauto).",
+            "VernacExtend",
+            "ce65324684f90f77ab2c1edabc642d1cefe87c08"
+        ],
+        [
+            "inv E.",
+            "VernacExtend",
+            "29c9f8e096b0a4ef2534c52869bcaf2e9d869715"
+        ],
+        [
+            "split; auto.",
+            "VernacExtend",
+            "fcd44a714bd12fa54b1c7746996e44dbac16df06"
+        ],
+        [
+            "unfold filter_genv, Genv.find_symbol in Hq'|-*.",
+            "VernacExtend",
+            "cf5909b649b3841cee7be1862b59964f37e238e1"
+        ],
+        [
+            "rewrite symb2genv_ax in Hq'; auto.",
+            "VernacExtend",
+            "344963c5f7dcc1533bd8cc063b0cb46bd3bac448"
+        ],
+        [
+            "eapply pred_nec_hereditary; eauto.",
+            "VernacExtend",
+            "f74c2872a3bb54d5358a94d0a1223a4bd8e9c5d1"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma semax_ext_oracle (ext_link: Strings.String.string -> ident) id ids sig sig' cc A P Q (fs : list (ident * funspecOracle ty)) : let f := mk_funspecOracle ty sig cc A P Q in In (ext_link id,f) fs -> list_norepet (map fst fs) -> ids = fst (split (fst sig)) -> sig' = funsig2signature sig cc -> (forall n, semax_external_oracle (Build_OracleKind _ (add_funspecsOracle_rec ext_link ty spec fs)) ids (EF_external id sig') _ P Q n).",
+            "VernacStartTheoremProof",
+            "0af40e5df02ef44c21d05753eb7e39f0b4ea1ee5"
+        ],
+        [
+            "intros; subst.",
+            "VernacExtend",
+            "49b62e7b0b09b594bdd02547566afd646d616645"
+        ],
+        [
+            "apply semax_ext'_oracle; auto.",
+            "VernacExtend",
+            "30451f5d8616d523d7c3e423b3c2ccaa75fde656"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End semax_ext_oracle.",
+            "VernacEndSegment",
+            "8966912b47e8c7f1c19146c11acdc95d3589bf21"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "make_ext_args_symb",
+            "line_nb": 22,
+            "steps": [
+                {
+                    "command": [
+                        "revert ge ge' n H; induction args.",
+                        "VernacExtend",
+                        "c45ce86f11b3c777da2f03d09439598c31f7e0b3"
+                    ]
+                },
+                {
+                    "command": [
+                        "*",
+                        "VernacBullet",
+                        "8a329d054468e0c41ce333043e0978e30eed7b98"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl; unfold filter_genv, Genv.find_symbol.",
+                        "VernacExtend",
+                        "3516da874e1bc5c1bcc79dfdbf4747f4104f3a00"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros ? ? ? ->; auto.",
+                        "VernacExtend",
+                        "4b9af55cd47dc2f480da8c8390a7166ab85b7eba"
+                    ]
+                },
+                {
+                    "command": [
+                        "*",
+                        "VernacBullet",
+                        "8a329d054468e0c41ce333043e0978e30eed7b98"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros ge ge' n H.",
+                        "VernacExtend",
+                        "327a273310965bb4f14a2d9a70d69083c163082b"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct n; auto.",
+                        "VernacExtend",
+                        "ac1a46c3d4b557b3710fa36973beb6e353d40fb6"
+                    ]
+                },
+                {
+                    "command": [
+                        "erewrite IHargs; eauto.",
+                        "VernacExtend",
+                        "9c4093200e5f52759142e59c0cf2a488f6b7e1bd"
+                    ]
+                },
+                {
+                    "command": [
+                        "erewrite IHargs; eauto.",
+                        "VernacExtend",
+                        "9c4093200e5f52759142e59c0cf2a488f6b7e1bd"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "all_funspecsOracle_wf",
+            "line_nb": 34,
+            "steps": [
+                {
+                    "command": [
+                        "destruct f; simpl; intros a ge ge' n args z H.",
+                        "VernacExtend",
+                        "01da6f4603f19d7376c81a68b54672398dac1d78"
+                    ]
+                },
+                {
+                    "command": [
+                        "erewrite make_ext_args_symb; eauto.",
+                        "VernacExtend",
+                        "6ef8ce4f63d1f3f662603d36e0bb41474788a52e"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "funspecOracle2jspec_obligation_1",
+            "line_nb": 39,
+            "steps": [
+                {
+                    "command": [
+                        "destruct f; simpl; unfold funspecOracle2pre, pureat; simpl; destruct f; simpl; destruct f; simpl; intros e t0 ge_s typs args z.",
+                        "VernacExtend",
+                        "60ce64bdce037e10b6eccc150efca2edb5e39d54"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac [e0|e0].",
+                        "VernacExtend",
+                        "6f278bbac8d7057fce14ba0822374287ef5563ab"
+                    ]
+                },
+                {
+                    "command": [
+                        "*",
+                        "VernacBullet",
+                        "8a329d054468e0c41ce333043e0978e30eed7b98"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct e; try discriminate; injection e0 as E; subst i sg; intros a a' Hage.",
+                        "VernacExtend",
+                        "6ea2daa6f0f45362cd0451e02a9587e37dcce40d"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [phi0 [phi1 [Hjoin [Hx Hy]]]].",
+                        "VernacExtend",
+                        "7d5d74034a49e15cb699b58e0f9f357213328759"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply age1_juicy_mem_unpack in Hage.",
+                        "VernacExtend",
+                        "d079cbdefcf431ec9e25805b150528c4a63ac90c"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct Hage as [Hage Hdry].",
+                        "VernacExtend",
+                        "ac39dec753e8c69db1bcbedafac03b6fa73efae9"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (age1_join2 phi0 Hjoin Hage) as [x' [y' [Hjoin' [Hage' H]]]].",
+                        "VernacExtend",
+                        "bfbe2fdc11f7c329b1587e936987210218ad4abb"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists x', y'; split; auto.",
+                        "VernacExtend",
+                        "ed79c68bd92bcc6f790655d45ecdd8d3bd1e8cb1"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct m.",
+                        "VernacExtend",
+                        "8d29a39ed817a734f6646f7b42c80e41363356d4"
+                    ]
+                },
+                {
+                    "command": [
+                        "split.",
+                        "VernacExtend",
+                        "55abc140132bd88981001ac656020469a8d503eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply h; eauto.",
+                        "VernacExtend",
+                        "bab6f52230768434f5d650f60051341e1e3de3c1"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (necR_trans (fst t0) phi1 y'); auto.",
+                        "VernacExtend",
+                        "9a570039fcaad5343932890784c1f3b0f9c4cae3"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold necR.",
+                        "VernacExtend",
+                        "86af25632cf37d9aef01e3c64e4d65b0cf876e76"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; auto.",
+                        "VernacExtend",
+                        "686f227fe0f57af60032eb35216aef1e62d0c0e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "*",
+                        "VernacBullet",
+                        "8a329d054468e0c41ce333043e0978e30eed7b98"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros ? ?; auto.",
+                        "VernacExtend",
+                        "048b6811c3c587f9030595346efd336715086631"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct Espec; simpl; apply JE_pre_hered.",
+                        "VernacExtend",
+                        "9e489431900eacd2477e0f8c956473b68d06039b"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "funspecOracle2jspec_obligation_2",
+            "line_nb": 59,
+            "steps": [
+                {
+                    "command": [
+                        "destruct f; simpl; unfold funspecOracle2post, pureat; simpl; destruct f; simpl; destruct f; simpl.",
+                        "VernacExtend",
+                        "7eb4f17d899a6cda316b671473e570310c7e3340"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros e t0 ge_s tret rv z.",
+                        "VernacExtend",
+                        "d663f51e02eb724af5609900b5801fc324ff0205"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac [e0|e0].",
+                        "VernacExtend",
+                        "6f278bbac8d7057fce14ba0822374287ef5563ab"
+                    ]
+                },
+                {
+                    "command": [
+                        "*",
+                        "VernacBullet",
+                        "8a329d054468e0c41ce333043e0978e30eed7b98"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct e; try discriminate; injection e0 as E; subst i sg; intros a a' Hage; destruct m0; simpl.",
+                        "VernacExtend",
+                        "90f86545847578886456e062f56643ffa5847385"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [phi0 [phi1 [Hjoin [Hx Hy]]]].",
+                        "VernacExtend",
+                        "7d5d74034a49e15cb699b58e0f9f357213328759"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply age1_juicy_mem_unpack in Hage.",
+                        "VernacExtend",
+                        "d079cbdefcf431ec9e25805b150528c4a63ac90c"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct Hage as [Hage Hdry].",
+                        "VernacExtend",
+                        "ac39dec753e8c69db1bcbedafac03b6fa73efae9"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (age1_join2 phi0 Hjoin Hage) as [x' [y' [Hjoin' [Hage' H]]]].",
+                        "VernacExtend",
+                        "bfbe2fdc11f7c329b1587e936987210218ad4abb"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists x', y'; split; auto.",
+                        "VernacExtend",
+                        "ed79c68bd92bcc6f790655d45ecdd8d3bd1e8cb1"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; [solve[eapply h; eauto]|].",
+                        "VernacExtend",
+                        "f47a2f456a10d5d583b2b50632fb36381d24dcb5"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (necR_trans (fst t0) phi1 y'); auto.",
+                        "VernacExtend",
+                        "9a570039fcaad5343932890784c1f3b0f9c4cae3"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold necR.",
+                        "VernacExtend",
+                        "86af25632cf37d9aef01e3c64e4d65b0cf876e76"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; auto.",
+                        "VernacExtend",
+                        "686f227fe0f57af60032eb35216aef1e62d0c0e5"
+                    ]
+                },
+                {
+                    "command": [
+                        "*",
+                        "VernacBullet",
+                        "8a329d054468e0c41ce333043e0978e30eed7b98"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros ? ?; auto.",
+                        "VernacExtend",
+                        "048b6811c3c587f9030595346efd336715086631"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct Espec; simpl; apply JE_post_hered.",
+                        "VernacExtend",
+                        "e21ec0d39ea6fe7089923823bd7a2dbb38b23ae4"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "funspecOracle2jspec_obligation_3",
+            "line_nb": 78,
+            "steps": [
+                {
+                    "command": [
+                        "intros ? ? ? ?; destruct f; destruct f; destruct f; simpl.",
+                        "VernacExtend",
+                        "1ff04294dc7f77621e7d137593d7b0bb5febcf33"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros a' Hage; auto.",
+                        "VernacExtend",
+                        "fd9faf564a1dfe5c2aba2b184421231f5ec3d06a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "add_funspecs_pre",
+            "line_nb": 86,
+            "steps": [
+                {
+                    "command": [
+                        "induction fs; [intros; elimtype False; auto|]; intros ef H H1 H2 Hpre.",
+                        "VernacExtend",
+                        "96858fd288b8d1d0faf668ac9c7709b4f9d432fd"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H1 as [H1|H1].",
+                        "VernacExtend",
+                        "3d64b5d5257c32cb97db1118ac8095f035e8c53f"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst a; simpl in *.",
+                        "VernacExtend",
+                        "34d146c1e2f816df66bde05d2563ee385cba238b"
+                    ]
+                },
+                {
+                    "command": [
+                        "clear IHfs H; revert x H2 Hpre; unfold funspecOracle2pre; simpl.",
+                        "VernacExtend",
+                        "f4de17e7067a16fa5be249103f1c31be6a9a5fb2"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct sig; simpl.",
+                        "VernacExtend",
+                        "124bf0ec5092e36b0a6080622b1179da5e3535e9"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac [e0|e0].",
+                        "VernacExtend",
+                        "6f278bbac8d7057fce14ba0822374287ef5563ab"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite fst_split.",
+                        "VernacExtend",
+                        "acf25441e6e6902e1ff1de4934cd237184b9edc9"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros x Hjoin Hp.",
+                        "VernacExtend",
+                        "c0a15c4199b1241421f122cb74c7e6e4a88c3e69"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists (phi1,x).",
+                        "VernacExtend",
+                        "8070fe6206617e787e14444dcaff91a629e4da1e"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; eauto.",
+                        "VernacExtend",
+                        "f3520b20a884376c5c10e2f9e716eedc86a566b6"
+                    ]
+                },
+                {
+                    "command": [
+                        "elimtype False; auto.",
+                        "VernacExtend",
+                        "d0be777ab21ef0f9e9de63e325227c8c5f8cbed0"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (Hin: In (ext_link id) (map fst fs)).",
+                        "VernacExtend",
+                        "82300adcdf5ec09d43f7109a4830befc697e5812"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply (in_map fst) in H1; apply H1.",
+                        "VernacExtend",
+                        "d91499d5a577bca4a4e0c34cc0b4c6bb2189e5ee"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion H as [|? ? Ha Hb]; subst.",
+                        "VernacExtend",
+                        "665dc5e944ba3f17c4379c5f6588f586f33a4ab6"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (IHfs Hb H1 H2 Hpre) as [x' H3].",
+                        "VernacExtend",
+                        "03e02d6565eaf9e50993c2ce5bfdca9a06294cf3"
+                    ]
+                },
+                {
+                    "command": [
+                        "clear -Ha Hin H1 H3; revert x' Ha Hin H1 H3.",
+                        "VernacExtend",
+                        "ade34e6c59e30c909dd8a0abe5478fd25f24f959"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a; simpl; destruct f; simpl; destruct f; simpl; unfold funspecOracle2pre; simpl.",
+                        "VernacExtend",
+                        "8768a3f1a71c29be4e4159958a32fe801af7ffee"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac [e|e].",
+                        "VernacExtend",
+                        "7d97448a1f959b9fdefec5bb498eb4ee8afb6e60"
+                    ]
+                },
+                {
+                    "command": [
+                        "*",
+                        "VernacBullet",
+                        "8a329d054468e0c41ce333043e0978e30eed7b98"
+                    ]
+                },
+                {
+                    "command": [
+                        "injection e as E; subst i; destruct fs; [solve[simpl; intros; elimtype False; auto]|].",
+                        "VernacExtend",
+                        "7521a86b4cf3b55d9f0a72d4f888625c2935eb9f"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros x' Ha Hb; simpl in Ha, Hb.",
+                        "VernacExtend",
+                        "5414414c8f6c26f6305c57cc1584aea5e4e6dedb"
+                    ]
+                },
+                {
+                    "command": [
+                        "elimtype False; auto.",
+                        "VernacExtend",
+                        "d0be777ab21ef0f9e9de63e325227c8c5f8cbed0"
+                    ]
+                },
+                {
+                    "command": [
+                        "*",
+                        "VernacBullet",
+                        "8a329d054468e0c41ce333043e0978e30eed7b98"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros; eexists; eauto.",
+                        "VernacExtend",
+                        "403552df26d66c2cd56dd16f8eed8f06745aaada"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "add_funspecs_post",
+            "line_nb": 118,
+            "steps": [
+                {
+                    "command": [
+                        "induction fs; [intros; elimtype False; auto|]; intros ef H H1 Hid Hpost.",
+                        "VernacExtend",
+                        "9cc0fb55646b57cf0b2373fca2ea211b9be90141"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H1 as [H1|H1].",
+                        "VernacExtend",
+                        "3d64b5d5257c32cb97db1118ac8095f035e8c53f"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst a; simpl in *.",
+                        "VernacExtend",
+                        "34d146c1e2f816df66bde05d2563ee385cba238b"
+                    ]
+                },
+                {
+                    "command": [
+                        "clear IHfs H; revert x Hpost; unfold funspecOracle2post; simpl.",
+                        "VernacExtend",
+                        "354b1b7e70457029415c7cb5ba2ee35b0e7d7ebb"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct sig; simpl.",
+                        "VernacExtend",
+                        "124bf0ec5092e36b0a6080622b1179da5e3535e9"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac [e0|e0].",
+                        "VernacExtend",
+                        "6f278bbac8d7057fce14ba0822374287ef5563ab"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros x [phi0 [phi1 [Hjoin [Hq Hnec]]]].",
+                        "VernacExtend",
+                        "3c16648a46d3d4708cd5a506b8e018cd53d1abbe"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists phi0, phi1, (fst x), (snd x).",
+                        "VernacExtend",
+                        "66808e4a85766d5c66db1a225d3f16290820f9f0"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; auto.",
+                        "VernacExtend",
+                        "fcd44a714bd12fa54b1c7746996e44dbac16df06"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; auto.",
+                        "VernacExtend",
+                        "fcd44a714bd12fa54b1c7746996e44dbac16df06"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct x; simpl in *.",
+                        "VernacExtend",
+                        "460ee78cc7d7b3caa9e4e4ffd1231572054719c1"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; auto.",
+                        "VernacExtend",
+                        "fcd44a714bd12fa54b1c7746996e44dbac16df06"
+                    ]
+                },
+                {
+                    "command": [
+                        "elimtype False; auto.",
+                        "VernacExtend",
+                        "d0be777ab21ef0f9e9de63e325227c8c5f8cbed0"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (Hin: In (ext_link id) (map fst fs)).",
+                        "VernacExtend",
+                        "82300adcdf5ec09d43f7109a4830befc697e5812"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (in_map fst) in H1; auto.",
+                        "VernacExtend",
+                        "eba9e5e81f8c4358e6a05fc537bffeaa16fe18b3"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion H as [|? ? Ha Hb]; subst.",
+                        "VernacExtend",
+                        "665dc5e944ba3f17c4379c5f6588f586f33a4ab6"
+                    ]
+                },
+                {
+                    "command": [
+                        "clear -Ha Hin H1 Hb Hpost IHfs; revert x Ha Hin H1 Hb Hpost IHfs.",
+                        "VernacExtend",
+                        "66fdfb58b1dac2cfc58ade9d5048a5c6dffcddab"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a; simpl; destruct f; simpl; unfold funspecOracle2post; simpl.",
+                        "VernacExtend",
+                        "e11549eb0941e4a2fb9c3ef9246aa67345f66dfe"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct f; simpl.",
+                        "VernacExtend",
+                        "5ab77c865e5ffb10c040a3c8d321e06dea47ffb1"
+                    ]
+                },
+                {
+                    "command": [
+                        "if_tac [e|e].",
+                        "VernacExtend",
+                        "7d97448a1f959b9fdefec5bb498eb4ee8afb6e60"
+                    ]
+                },
+                {
+                    "command": [
+                        "*",
+                        "VernacBullet",
+                        "8a329d054468e0c41ce333043e0978e30eed7b98"
+                    ]
+                },
+                {
+                    "command": [
+                        "injection e as E; subst i; destruct fs; [solve[simpl; intros; elimtype False; auto]|].",
+                        "VernacExtend",
+                        "7521a86b4cf3b55d9f0a72d4f888625c2935eb9f"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros x' Ha Hb; simpl in Ha, Hb.",
+                        "VernacExtend",
+                        "5414414c8f6c26f6305c57cc1584aea5e4e6dedb"
+                    ]
+                },
+                {
+                    "command": [
+                        "elimtype False; auto.",
+                        "VernacExtend",
+                        "d0be777ab21ef0f9e9de63e325227c8c5f8cbed0"
+                    ]
+                },
+                {
+                    "command": [
+                        "*",
+                        "VernacBullet",
+                        "8a329d054468e0c41ce333043e0978e30eed7b98"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply IHfs; auto.",
+                        "VernacExtend",
+                        "78ea9532a8efca7110b9560ae49772111c7ec151"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "semax_ext_oracle",
+            "line_nb": 188,
+            "steps": [
+                {
+                    "command": [
+                        "intros; subst.",
+                        "VernacExtend",
+                        "49b62e7b0b09b594bdd02547566afd646d616645"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply semax_ext'_oracle; auto.",
+                        "VernacExtend",
+                        "30451f5d8616d523d7c3e423b3c2ccaa75fde656"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

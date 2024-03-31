@@ -1,0 +1,688 @@
+{
+    "filename": "theories/ZArith/Zsqrt_compat.v",
+    "coq_project": "coq",
+    "vernac_cmds": [
+        [
+            "Require Import ZArithRing.",
+            "VernacRequire",
+            "1792ea5bd3f37db98704504fc8fd627a7843b280"
+        ],
+        [
+            "Require Import Omega.",
+            "VernacRequire",
+            "72dd903de5f3320ef9d302d79812066579ed9cdb"
+        ],
+        [
+            "Require Export ZArith_base.",
+            "VernacRequire",
+            "1fcdef17c2cfa423a6224026ee4d7b18b756fe95"
+        ],
+        [
+            "Local Open Scope Z_scope.",
+            "VernacOpenCloseScope",
+            "5313930c0cd5fa63810c1c79463485ebf0638bad"
+        ],
+        [
+            "Ltac compute_POS := match goal with | |- context [(Zpos (xI ?X1))] => match constr:(X1) with | context [1%positive] => fail 1 | _ => rewrite (Pos2Z.inj_xI X1) end | |- context [(Zpos (xO ?X1))] => match constr:(X1) with | context [1%positive] => fail 1 | _ => rewrite (Pos2Z.inj_xO X1) end end.",
+            "VernacExtend",
+            "b8a195b3e241d0dca8bf5fff6e5ec2b4176e88c0"
+        ],
+        [
+            "Inductive sqrt_data (n:Z) : Set := c_sqrt : forall s r:Z, n = s * s + r -> 0 <= r <= 2 * s -> sqrt_data n.",
+            "VernacInductive",
+            "78167f6b16d01195d807465ad2322bae537bc9d1"
+        ],
+        [
+            "Definition sqrtrempos : forall p:positive, sqrt_data (Zpos p).",
+            "VernacDefinition",
+            "07dbe8ccdb1122f4fcb436af8e3d90b738b49f5a"
+        ],
+        [
+            "refine (fix sqrtrempos (p:positive) : sqrt_data (Zpos p) := match p return sqrt_data (Zpos p) with | xH => c_sqrt 1 1 0 _ _ | xO xH => c_sqrt 2 1 1 _ _ | xI xH => c_sqrt 3 1 2 _ _ | xO (xO p') => match sqrtrempos p' with | c_sqrt _ s' r' Heq Hint => match Z_le_gt_dec (4 * s' + 1) (4 * r') with | left Hle => c_sqrt (Zpos (xO (xO p'))) (2 * s' + 1) (4 * r' - (4 * s' + 1)) _ _ | right Hgt => c_sqrt (Zpos (xO (xO p'))) (2 * s') (4 * r') _ _ end end | xO (xI p') => match sqrtrempos p' with | c_sqrt _ s' r' Heq Hint => match Z_le_gt_dec (4 * s' + 1) (4 * r' + 2) with | left Hle => c_sqrt (Zpos (xO (xI p'))) (2 * s' + 1) (4 * r' + 2 - (4 * s' + 1)) _ _ | right Hgt => c_sqrt (Zpos (xO (xI p'))) (2 * s') (4 * r' + 2) _ _ end end | xI (xO p') => match sqrtrempos p' with | c_sqrt _ s' r' Heq Hint => match Z_le_gt_dec (4 * s' + 1) (4 * r' + 1) with | left Hle => c_sqrt (Zpos (xI (xO p'))) (2 * s' + 1) (4 * r' + 1 - (4 * s' + 1)) _ _ | right Hgt => c_sqrt (Zpos (xI (xO p'))) (2 * s') (4 * r' + 1) _ _ end end | xI (xI p') => match sqrtrempos p' with | c_sqrt _ s' r' Heq Hint => match Z_le_gt_dec (4 * s' + 1) (4 * r' + 3) with | left Hle => c_sqrt (Zpos (xI (xI p'))) (2 * s' + 1) (4 * r' + 3 - (4 * s' + 1)) _ _ | right Hgt => c_sqrt (Zpos (xI (xI p'))) (2 * s') (4 * r' + 3) _ _ end end end); clear sqrtrempos; repeat compute_POS; try (try rewrite Heq; ring); try omega.",
+            "VernacExtend",
+            "00a0ceef36677c1aa4f29f97f78af3aaeb96a5d3"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Definition Zsqrt : forall x:Z, 0 <= x -> {s : Z & {r : Z | x = s * s + r /\\ s * s <= x < (s + 1) * (s + 1)}}.",
+            "VernacDefinition",
+            "62395f5ac92c9bff79e50d680cf50cb4de225458"
+        ],
+        [
+            "refine (fun x => match x return 0 <= x -> {s : Z & {r : Z | x = s * s + r /\\ s * s <= x < (s + 1) * (s + 1)}} with | Zpos p => fun h => match sqrtrempos p with | c_sqrt _ s r Heq Hint => existT (fun s:Z => {r : Z | Zpos p = s * s + r /\\ s * s <= Zpos p < (s + 1) * (s + 1)}) s (exist (fun r:Z => Zpos p = s * s + r /\\ s * s <= Zpos p < (s + 1) * (s + 1)) r _) end | Zneg p => fun h => False_rec {s : Z & {r : Z | Zneg p = s * s + r /\\ s * s <= Zneg p < (s + 1) * (s + 1)}} (h (eq_refl Datatypes.Gt)) | Z0 => fun h => existT (fun s:Z => {r : Z | 0 = s * s + r /\\ s * s <= 0 < (s + 1) * (s + 1)}) 0 (exist (fun r:Z => 0 = 0 * 0 + r /\\ 0 * 0 <= 0 < (0 + 1) * (0 + 1)) 0 _) end); try omega.",
+            "VernacExtend",
+            "7fc9997bb0612cd1726017a8171ff28cbe55a358"
+        ],
+        [
+            "split; [ omega | rewrite Heq; ring_simplify (s*s) ((s + 1) * (s + 1)); omega ].",
+            "VernacExtend",
+            "69aaba47b0a584f9063dec2da189e2a10cd9e76e"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Definition Zsqrt_plain (x:Z) : Z := match x with | Zpos p => match Zsqrt (Zpos p) (Pos2Z.is_nonneg p) with | existT _ s _ => s end | Zneg p => 0 | Z0 => 0 end.",
+            "VernacDefinition",
+            "d92c53478aaac8f089e08855c87eac0f4ef1e61d"
+        ],
+        [
+            "Theorem Zsqrt_interval : forall n:Z, 0 <= n -> Zsqrt_plain n * Zsqrt_plain n <= n < (Zsqrt_plain n + 1) * (Zsqrt_plain n + 1).",
+            "VernacStartTheoremProof",
+            "e244b5326f9dd60f145e863793651f90c51d725e"
+        ],
+        [
+            "intros [|p|p] Hp.",
+            "VernacExtend",
+            "8e459d127096c399fde742c296ec586b3f198c21"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "now compute.",
+            "VernacExtend",
+            "2274e007ec2637dcc5d03d91680c47571085050e"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "unfold Zsqrt_plain.",
+            "VernacExtend",
+            "aecb116fdb3338ad123cb979c7c0b12cdafc088f"
+        ],
+        [
+            "now destruct Zsqrt as (s & r & Heq & Hint).",
+            "VernacExtend",
+            "821c8324ceefb2904f68054380f5097100fc5b2a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "now elim Hp.",
+            "VernacExtend",
+            "ece4c5379d3817742384567b7acc61fbcb508b2f"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem Zsqrt_plain_is_pos: forall n, 0 <= n -> 0 <= Zsqrt_plain n.",
+            "VernacStartTheoremProof",
+            "d820970c8a8af5900ffaeb167a6d9db276479173"
+        ],
+        [
+            "intros n m; case (Zsqrt_interval n); auto with zarith.",
+            "VernacExtend",
+            "4249c366937c03789e8465f34c59c2405e0491d1"
+        ],
+        [
+            "intros H1 H2; case (Z.le_gt_cases 0 (Zsqrt_plain n)); auto.",
+            "VernacExtend",
+            "de352e057beed144871209f6596ed708dc2034d2"
+        ],
+        [
+            "intros H3; contradict H2; auto; apply Z.le_ngt.",
+            "VernacExtend",
+            "f811243e7936b42ed80f3ec2377174a9dbc5382e"
+        ],
+        [
+            "apply Z.le_trans with ( 2 := H1 ).",
+            "VernacExtend",
+            "cfae208077ccd53f13cbe9b90ef82a38fd51dbb1"
+        ],
+        [
+            "replace ((Zsqrt_plain n + 1) * (Zsqrt_plain n + 1)) with (Zsqrt_plain n * Zsqrt_plain n + (2 * Zsqrt_plain n + 1)); auto with zarith.",
+            "VernacExtend",
+            "b89769e762b2e29f2d8889b3a98ea81f5e5ba6ac"
+        ],
+        [
+            "ring.",
+            "VernacExtend",
+            "baadd9fc4c175005af409bb466fcea9fab25b4e6"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem Zsqrt_square_id: forall a, 0 <= a -> Zsqrt_plain (a * a) = a.",
+            "VernacStartTheoremProof",
+            "2ca802f6cca53e273c501c70102cf3a2908864e4"
+        ],
+        [
+            "intros a H.",
+            "VernacExtend",
+            "05f717e61df7036f33bd440c2184c00a6aaab4f4"
+        ],
+        [
+            "generalize (Zsqrt_plain_is_pos (a * a)); auto with zarith; intros Haa.",
+            "VernacExtend",
+            "729858f09587460107f38520e5748553d95e04ac"
+        ],
+        [
+            "case (Zsqrt_interval (a * a)); auto with zarith.",
+            "VernacExtend",
+            "27f6b7437b4b2b6a99d0983e1ca3f597a166aaae"
+        ],
+        [
+            "intros H1 H2.",
+            "VernacExtend",
+            "1a279bc44908e178ace5c31cb5040905c4829477"
+        ],
+        [
+            "case (Z.le_gt_cases a (Zsqrt_plain (a * a))); intros H3.",
+            "VernacExtend",
+            "5859e8675fbe3b4ec6b72353fc05459e011fca27"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "Z.le_elim H3; auto.",
+            "VernacExtend",
+            "cbcbf734af2ca08d6942199a5b866ab232a69c08"
+        ],
+        [
+            "contradict H1; auto; apply Z.lt_nge; auto with zarith.",
+            "VernacExtend",
+            "be7583a519ef66c84a6cf2ac47fd59a426a7c099"
+        ],
+        [
+            "apply Z.le_lt_trans with (a * Zsqrt_plain (a * a)); auto with zarith.",
+            "VernacExtend",
+            "3e98a58421e562592444f737b18ed539d9bdc319"
+        ],
+        [
+            "apply Z.mul_lt_mono_pos_r; auto with zarith.",
+            "VernacExtend",
+            "f9bbe3c04313925da944a4b4825940cf6a5ec7ee"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "contradict H2; auto; apply Z.le_ngt; auto with zarith.",
+            "VernacExtend",
+            "16f14c726c0fffa42a442279b1ec7c0c3cdfbe13"
+        ],
+        [
+            "apply Z.mul_le_mono_nonneg; auto with zarith.",
+            "VernacExtend",
+            "677df5d2eec24c31228334df6ea4f9b6c7303cdf"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem Zsqrt_le: forall p q, 0 <= p <= q -> Zsqrt_plain p <= Zsqrt_plain q.",
+            "VernacStartTheoremProof",
+            "2b9e94636f4c5ad0f6d946627cad85ecf27f282e"
+        ],
+        [
+            "intros p q [H1 H2].",
+            "VernacExtend",
+            "4565fed04d7c8cba8922199e194b0514dae5d898"
+        ],
+        [
+            "Z.le_elim H2; [ | subst q; auto with zarith].",
+            "VernacExtend",
+            "c05825516c3261621a894539af3dbd3611f364d7"
+        ],
+        [
+            "case (Z.le_gt_cases (Zsqrt_plain p) (Zsqrt_plain q)); auto; intros H3.",
+            "VernacExtend",
+            "69289b20c2866a184f9c1205273b64c2f0a653da"
+        ],
+        [
+            "assert (Hp: (0 <= Zsqrt_plain q)).",
+            "VernacExtend",
+            "0367a521e9803047a1f7cb228c02c8bea133d252"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "apply Zsqrt_plain_is_pos; auto with zarith.",
+            "VernacExtend",
+            "dac5265226f7c789b2bb469b64ce2157a33f0d00"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "absurd (q <= p); auto with zarith.",
+            "VernacExtend",
+            "840181bc8a4ecefd6630a02ecc26134fe872ff49"
+        ],
+        [
+            "apply Z.le_trans with ((Zsqrt_plain q + 1) * (Zsqrt_plain q + 1)).",
+            "VernacExtend",
+            "d9a05daf08111e1b03b82116da632b8bd1e2094b"
+        ],
+        [
+            "case (Zsqrt_interval q); auto with zarith.",
+            "VernacExtend",
+            "cb1f303e71bda28cc881d04912ef58ab6413b46b"
+        ],
+        [
+            "apply Z.le_trans with (Zsqrt_plain p * Zsqrt_plain p); auto with zarith.",
+            "VernacExtend",
+            "20c4dbe1d89bd58d470d28d3cf92809ce1485c04"
+        ],
+        [
+            "apply Z.mul_le_mono_nonneg; auto with zarith.",
+            "VernacExtend",
+            "677df5d2eec24c31228334df6ea4f9b6c7303cdf"
+        ],
+        [
+            "case (Zsqrt_interval p); auto with zarith.",
+            "VernacExtend",
+            "8a68e1f4bd6709f0f9b0bc6923d92025c87b634d"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma Zsqrt_equiv : forall n, Zsqrt_plain n = Z.sqrt n.",
+            "VernacStartTheoremProof",
+            "7f0aeea9973cb98e2457f85c973e4ef1c7fb3449"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct (Z_le_gt_dec 0 n).",
+            "VernacExtend",
+            "15de56751a0cab7cc3e4f07646874d9b540dbcfa"
+        ],
+        [
+            "symmetry.",
+            "VernacExtend",
+            "a08fc0dc04bba893008bded8181f393e2d8db167"
+        ],
+        [
+            "apply Z.sqrt_unique; trivial.",
+            "VernacExtend",
+            "fc0b3623cc91d88791ee1d5ffd397a6b81e00f48"
+        ],
+        [
+            "now apply Zsqrt_interval.",
+            "VernacExtend",
+            "6ca5e3023278a2b30ca13d8d4e4dc963bfb5066b"
+        ],
+        [
+            "now destruct n.",
+            "VernacExtend",
+            "6e836d168cd359f41ad4e992ef54068680a38db2"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "sqrtrempos",
+            "line_nb": 6,
+            "steps": [
+                {
+                    "command": [
+                        "refine (fix sqrtrempos (p:positive) : sqrt_data (Zpos p) := match p return sqrt_data (Zpos p) with | xH => c_sqrt 1 1 0 _ _ | xO xH => c_sqrt 2 1 1 _ _ | xI xH => c_sqrt 3 1 2 _ _ | xO (xO p') => match sqrtrempos p' with | c_sqrt _ s' r' Heq Hint => match Z_le_gt_dec (4 * s' + 1) (4 * r') with | left Hle => c_sqrt (Zpos (xO (xO p'))) (2 * s' + 1) (4 * r' - (4 * s' + 1)) _ _ | right Hgt => c_sqrt (Zpos (xO (xO p'))) (2 * s') (4 * r') _ _ end end | xO (xI p') => match sqrtrempos p' with | c_sqrt _ s' r' Heq Hint => match Z_le_gt_dec (4 * s' + 1) (4 * r' + 2) with | left Hle => c_sqrt (Zpos (xO (xI p'))) (2 * s' + 1) (4 * r' + 2 - (4 * s' + 1)) _ _ | right Hgt => c_sqrt (Zpos (xO (xI p'))) (2 * s') (4 * r' + 2) _ _ end end | xI (xO p') => match sqrtrempos p' with | c_sqrt _ s' r' Heq Hint => match Z_le_gt_dec (4 * s' + 1) (4 * r' + 1) with | left Hle => c_sqrt (Zpos (xI (xO p'))) (2 * s' + 1) (4 * r' + 1 - (4 * s' + 1)) _ _ | right Hgt => c_sqrt (Zpos (xI (xO p'))) (2 * s') (4 * r' + 1) _ _ end end | xI (xI p') => match sqrtrempos p' with | c_sqrt _ s' r' Heq Hint => match Z_le_gt_dec (4 * s' + 1) (4 * r' + 3) with | left Hle => c_sqrt (Zpos (xI (xI p'))) (2 * s' + 1) (4 * r' + 3 - (4 * s' + 1)) _ _ | right Hgt => c_sqrt (Zpos (xI (xI p'))) (2 * s') (4 * r' + 3) _ _ end end end); clear sqrtrempos; repeat compute_POS; try (try rewrite Heq; ring); try omega.",
+                        "VernacExtend",
+                        "00a0ceef36677c1aa4f29f97f78af3aaeb96a5d3"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Zsqrt",
+            "line_nb": 9,
+            "steps": [
+                {
+                    "command": [
+                        "refine (fun x => match x return 0 <= x -> {s : Z & {r : Z | x = s * s + r /\\ s * s <= x < (s + 1) * (s + 1)}} with | Zpos p => fun h => match sqrtrempos p with | c_sqrt _ s r Heq Hint => existT (fun s:Z => {r : Z | Zpos p = s * s + r /\\ s * s <= Zpos p < (s + 1) * (s + 1)}) s (exist (fun r:Z => Zpos p = s * s + r /\\ s * s <= Zpos p < (s + 1) * (s + 1)) r _) end | Zneg p => fun h => False_rec {s : Z & {r : Z | Zneg p = s * s + r /\\ s * s <= Zneg p < (s + 1) * (s + 1)}} (h (eq_refl Datatypes.Gt)) | Z0 => fun h => existT (fun s:Z => {r : Z | 0 = s * s + r /\\ s * s <= 0 < (s + 1) * (s + 1)}) 0 (exist (fun r:Z => 0 = 0 * 0 + r /\\ 0 * 0 <= 0 < (0 + 1) * (0 + 1)) 0 _) end); try omega.",
+                        "VernacExtend",
+                        "7fc9997bb0612cd1726017a8171ff28cbe55a358"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; [ omega | rewrite Heq; ring_simplify (s*s) ((s + 1) * (s + 1)); omega ].",
+                        "VernacExtend",
+                        "69aaba47b0a584f9063dec2da189e2a10cd9e76e"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Zsqrt_interval",
+            "line_nb": 14,
+            "steps": [
+                {
+                    "command": [
+                        "intros [|p|p] Hp.",
+                        "VernacExtend",
+                        "8e459d127096c399fde742c296ec586b3f198c21"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "now compute.",
+                        "VernacExtend",
+                        "2274e007ec2637dcc5d03d91680c47571085050e"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold Zsqrt_plain.",
+                        "VernacExtend",
+                        "aecb116fdb3338ad123cb979c7c0b12cdafc088f"
+                    ]
+                },
+                {
+                    "command": [
+                        "now destruct Zsqrt as (s & r & Heq & Hint).",
+                        "VernacExtend",
+                        "821c8324ceefb2904f68054380f5097100fc5b2a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "now elim Hp.",
+                        "VernacExtend",
+                        "ece4c5379d3817742384567b7acc61fbcb508b2f"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Zsqrt_plain_is_pos",
+            "line_nb": 24,
+            "steps": [
+                {
+                    "command": [
+                        "intros n m; case (Zsqrt_interval n); auto with zarith.",
+                        "VernacExtend",
+                        "4249c366937c03789e8465f34c59c2405e0491d1"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros H1 H2; case (Z.le_gt_cases 0 (Zsqrt_plain n)); auto.",
+                        "VernacExtend",
+                        "de352e057beed144871209f6596ed708dc2034d2"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros H3; contradict H2; auto; apply Z.le_ngt.",
+                        "VernacExtend",
+                        "f811243e7936b42ed80f3ec2377174a9dbc5382e"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Z.le_trans with ( 2 := H1 ).",
+                        "VernacExtend",
+                        "cfae208077ccd53f13cbe9b90ef82a38fd51dbb1"
+                    ]
+                },
+                {
+                    "command": [
+                        "replace ((Zsqrt_plain n + 1) * (Zsqrt_plain n + 1)) with (Zsqrt_plain n * Zsqrt_plain n + (2 * Zsqrt_plain n + 1)); auto with zarith.",
+                        "VernacExtend",
+                        "b89769e762b2e29f2d8889b3a98ea81f5e5ba6ac"
+                    ]
+                },
+                {
+                    "command": [
+                        "ring.",
+                        "VernacExtend",
+                        "baadd9fc4c175005af409bb466fcea9fab25b4e6"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Zsqrt_le",
+            "line_nb": 47,
+            "steps": [
+                {
+                    "command": [
+                        "intros p q [H1 H2].",
+                        "VernacExtend",
+                        "4565fed04d7c8cba8922199e194b0514dae5d898"
+                    ]
+                },
+                {
+                    "command": [
+                        "Z.le_elim H2; [ | subst q; auto with zarith].",
+                        "VernacExtend",
+                        "c05825516c3261621a894539af3dbd3611f364d7"
+                    ]
+                },
+                {
+                    "command": [
+                        "case (Z.le_gt_cases (Zsqrt_plain p) (Zsqrt_plain q)); auto; intros H3.",
+                        "VernacExtend",
+                        "69289b20c2866a184f9c1205273b64c2f0a653da"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (Hp: (0 <= Zsqrt_plain q)).",
+                        "VernacExtend",
+                        "0367a521e9803047a1f7cb228c02c8bea133d252"
+                    ]
+                },
+                {
+                    "command": [
+                        "{",
+                        "VernacSubproof",
+                        "184cabd02aa0a33f23f10474ea95789b1f149361"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Zsqrt_plain_is_pos; auto with zarith.",
+                        "VernacExtend",
+                        "dac5265226f7c789b2bb469b64ce2157a33f0d00"
+                    ]
+                },
+                {
+                    "command": [
+                        "}",
+                        "VernacEndSubproof",
+                        "85f27874ef16421341373f4b062b6d1605043af9"
+                    ]
+                },
+                {
+                    "command": [
+                        "absurd (q <= p); auto with zarith.",
+                        "VernacExtend",
+                        "840181bc8a4ecefd6630a02ecc26134fe872ff49"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Z.le_trans with ((Zsqrt_plain q + 1) * (Zsqrt_plain q + 1)).",
+                        "VernacExtend",
+                        "d9a05daf08111e1b03b82116da632b8bd1e2094b"
+                    ]
+                },
+                {
+                    "command": [
+                        "case (Zsqrt_interval q); auto with zarith.",
+                        "VernacExtend",
+                        "cb1f303e71bda28cc881d04912ef58ab6413b46b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Z.le_trans with (Zsqrt_plain p * Zsqrt_plain p); auto with zarith.",
+                        "VernacExtend",
+                        "20c4dbe1d89bd58d470d28d3cf92809ce1485c04"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Z.mul_le_mono_nonneg; auto with zarith.",
+                        "VernacExtend",
+                        "677df5d2eec24c31228334df6ea4f9b6c7303cdf"
+                    ]
+                },
+                {
+                    "command": [
+                        "case (Zsqrt_interval p); auto with zarith.",
+                        "VernacExtend",
+                        "8a68e1f4bd6709f0f9b0bc6923d92025c87b634d"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Zsqrt_equiv",
+            "line_nb": 62,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (Z_le_gt_dec 0 n).",
+                        "VernacExtend",
+                        "15de56751a0cab7cc3e4f07646874d9b540dbcfa"
+                    ]
+                },
+                {
+                    "command": [
+                        "symmetry.",
+                        "VernacExtend",
+                        "a08fc0dc04bba893008bded8181f393e2d8db167"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Z.sqrt_unique; trivial.",
+                        "VernacExtend",
+                        "fc0b3623cc91d88791ee1d5ffd397a6b81e00f48"
+                    ]
+                },
+                {
+                    "command": [
+                        "now apply Zsqrt_interval.",
+                        "VernacExtend",
+                        "6ca5e3023278a2b30ca13d8d4e4dc963bfb5066b"
+                    ]
+                },
+                {
+                    "command": [
+                        "now destruct n.",
+                        "VernacExtend",
+                        "6e836d168cd359f41ad4e992ef54068680a38db2"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

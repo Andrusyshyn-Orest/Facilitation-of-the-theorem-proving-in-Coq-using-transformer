@@ -1,0 +1,685 @@
+{
+    "filename": "systems/VarDRaftSerializers.v",
+    "coq_project": "verdi-raft",
+    "vernac_cmds": [
+        [
+            "Require Import Verdi.Verdi.",
+            "VernacRequire",
+            "0e1dbcd85e6257dada3df6be709464bd18aff5ac"
+        ],
+        [
+            "Require Import Verdi.VarD.",
+            "VernacRequire",
+            "3c510c9af1deca4129f9b9f7e20dabeedd11a0c4"
+        ],
+        [
+            "Require Import Cheerios.Cheerios.",
+            "VernacRequire",
+            "16849e20c6eed40074c99fb332f1a361f701150e"
+        ],
+        [
+            "Require Import Cheerios.Tree.",
+            "VernacRequire",
+            "4615f11aaf1c04e5967202591b7a22cc219b10a6"
+        ],
+        [
+            "Require Import VerdiRaft.Raft.",
+            "VernacRequire",
+            "36b0b9afd1c52050ce42daf3c5fa4abb91993f25"
+        ],
+        [
+            "Require Import VerdiRaft.VarDRaft.",
+            "VernacRequire",
+            "7fd107906da4f09a12bd5a2c30d26a6b38a52903"
+        ],
+        [
+            "Import DeserializerNotations.",
+            "VernacImport",
+            "db3cf56ed051293d59d6bc7c090ab36d014c94e1"
+        ],
+        [
+            "Definition serialize_input (i : VarD.input) := match i with | Put k v => serialize x00 +$+ serialize k +$+ serialize v | Get k => serialize x01 +$+ serialize k | Del k => serialize x02 +$+ serialize k | CAS k opt v => serialize x03 +$+ serialize k +$+ serialize opt +$+ serialize v | CAD k v => serialize x04 +$+ serialize k +$+ serialize v end.",
+            "VernacDefinition",
+            "62de585050ef08451fdc00104a066a0180ee2d04"
+        ],
+        [
+            "Definition deserialize_input : ByteListReader.t VarD.input := tag <- deserialize;; match tag with | x00 => k <- deserialize;; v <- deserialize;; ByteListReader.ret (Put k v) | x01 => Get <$> deserialize | x02 => Del <$> deserialize | x03 => k <- deserialize;; opt <- deserialize;; v <- deserialize;; ByteListReader.ret (CAS k opt v) | x04 => k <- deserialize;; v <- deserialize;; ByteListReader.ret (CAD k v) | _ => ByteListReader.error end.",
+            "VernacDefinition",
+            "171a90d76352bb3fc01d16b52c860f085d82db90"
+        ],
+        [
+            "Lemma input_serialize_deserialize_id : serialize_deserialize_id_spec serialize_input deserialize_input.",
+            "VernacStartTheoremProof",
+            "7d0f9777bbddf5d9f96bcc4384a26a9a0a9483fa"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold serialize_input, deserialize_input.",
+            "VernacExtend",
+            "6938bed7df2ee830a57265250aa7e7292a654bd0"
+        ],
+        [
+            "destruct a; repeat (cheerios_crush; simpl).",
+            "VernacExtend",
+            "9f5c06d0bffa469a786778708ad938c9e9f5032f"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Instance input_Serializer : Serializer VarD.input := {| serialize := serialize_input; deserialize := deserialize_input; serialize_deserialize_id := input_serialize_deserialize_id |}.",
+            "VernacInstance",
+            "a9a2129e85d09adf8d981535836aaa47590be69e"
+        ],
+        [
+            "Section Serializers.",
+            "VernacBeginSection",
+            "c880899b6481a4c085a6e083aa3289946bf0bf50"
+        ],
+        [
+            "Variable n : nat.",
+            "VernacAssumption",
+            "07bef83858f70772f30ae2a622ca53ce45548b68"
+        ],
+        [
+            "Instance raft_params : RaftParams VarD.vard_base_params := raft_params n.",
+            "VernacInstance",
+            "2d97d228444238ccf803b71526e641582b280c97"
+        ],
+        [
+            "Definition entry_serialize (e : entry) := serialize (Raft.eAt e) +$+ serialize (Raft.eClient e) +$+ serialize (Raft.eId e) +$+ serialize (Raft.eIndex e) +$+ serialize (Raft.eTerm e) +$+ serialize (Raft.eInput e).",
+            "VernacDefinition",
+            "14723eee06c10474f84f344f0f058fc65becef4b"
+        ],
+        [
+            "Definition entry_deserialize : ByteListReader.t entry := At <- deserialize;; Client <- deserialize;; Id <- deserialize;; Index <- deserialize;; Term <- deserialize;; Input <- deserialize;; ByteListReader.ret (Raft.mkEntry At Client Id Index Term Input).",
+            "VernacDefinition",
+            "e6b7d2037d7d148c844ab2052e7ce5bd1855327b"
+        ],
+        [
+            "Lemma entry_serialize_deserialize_id : serialize_deserialize_id_spec entry_serialize entry_deserialize.",
+            "VernacStartTheoremProof",
+            "d6bb3238ffab0f78ff7847309aa0d32fa23793bf"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold entry_serialize, entry_deserialize.",
+            "VernacExtend",
+            "8c14010d70d925b78e9a6a1616c67a7dfe212642"
+        ],
+        [
+            "cheerios_crush.",
+            "VernacExtend",
+            "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+        ],
+        [
+            "destruct a; reflexivity.",
+            "VernacExtend",
+            "7fbe57a1b7de98163889837c4a347c7457bf77a2"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Instance entry_Serializer : Serializer entry := {| serialize := entry_serialize; deserialize := entry_deserialize; serialize_deserialize_id := entry_serialize_deserialize_id |}.",
+            "VernacInstance",
+            "e9c2749daca59c14d155c1063e97d662cb511a74"
+        ],
+        [
+            "Definition msg_serialize (m : msg) : IOStreamWriter.t := match m with | RequestVote t1 n i t2 => serialize x00 +$+ serialize t1 +$+ serialize n +$+ serialize i +$+ serialize t2 | RequestVoteReply t b => serialize x01 +$+ serialize t +$+ serialize b | AppendEntries t1 n i1 t2 l2 i2 => serialize x02 +$+ serialize t1 +$+ serialize n +$+ serialize i1 +$+ serialize t2 +$+ serialize l2 +$+ serialize i2 | AppendEntriesReply t l b => serialize x03 +$+ serialize t +$+ serialize l +$+ serialize b end.",
+            "VernacDefinition",
+            "fc157d915117316c6d5abe280872ebbc07f78a30"
+        ],
+        [
+            "Definition RequestVote_deserialize : ByteListReader.t msg := t1 <- deserialize;; n <- deserialize;; i <- deserialize;; t2 <- deserialize;; ByteListReader.ret (RequestVote t1 n i t2).",
+            "VernacDefinition",
+            "5c7f06328a8ba6315a294e93ce4d093cd684be53"
+        ],
+        [
+            "Definition RequestVoteReply_deserialize : ByteListReader.t msg := t <- deserialize;; b <- deserialize;; ByteListReader.ret (RequestVoteReply t b).",
+            "VernacDefinition",
+            "60b50e93191faa62ca34e857ba5c0ab855cc58a3"
+        ],
+        [
+            "Definition AppendEntries_deserialize : ByteListReader.t msg := t1 <- deserialize;; n <- deserialize;; i1 <- deserialize;; t2 <- deserialize;; l <- deserialize;; i2 <- deserialize;; ByteListReader.ret (AppendEntries t1 n i1 t2 l i2).",
+            "VernacDefinition",
+            "814ddd58dec4513856c4a78aeb4342a5dc827fb5"
+        ],
+        [
+            "Definition AppendEntriesReply_deserialize : ByteListReader.t msg := t <- deserialize;; l <- deserialize;; b <- deserialize;; ByteListReader.ret (AppendEntriesReply t l b).",
+            "VernacDefinition",
+            "32b5a45c9defb3224859d9407db12b12d0b5d03f"
+        ],
+        [
+            "Definition msg_deserialize := tag <- deserialize;; match tag with | x00 => RequestVote_deserialize | x01 => RequestVoteReply_deserialize | x02 => AppendEntries_deserialize | x03 => AppendEntriesReply_deserialize | _ => ByteListReader.error end.",
+            "VernacDefinition",
+            "ff2079112b24eb7d94888aba8c42be31ef0fb6da"
+        ],
+        [
+            "Lemma msg_serialize_deserialize_id : serialize_deserialize_id_spec msg_serialize msg_deserialize.",
+            "VernacStartTheoremProof",
+            "3c198695bfb7556b6f13291a9a36435fe87c4f92"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold msg_serialize, msg_deserialize.",
+            "VernacExtend",
+            "df764207fc74cf2fdb1c0200aa49e565270fa22b"
+        ],
+        [
+            "destruct a; cheerios_crush; simpl; (unfold RequestVote_deserialize || unfold RequestVoteReply_deserialize || unfold AppendEntries_deserialize || unfold AppendEntriesReply_deserialize); cheerios_crush.",
+            "VernacExtend",
+            "dbe95ffe6ddc6f2aa110cd95d7cb4d2d3af876f4"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Global Instance msg_Serializer : Serializer msg := {| serialize := msg_serialize; deserialize := msg_deserialize; serialize_deserialize_id := msg_serialize_deserialize_id |}.",
+            "VernacInstance",
+            "fbd77705ba069e30c5748ce16206d5171043e45c"
+        ],
+        [
+            "Definition serialize_serverType (t : serverType) := match t with | Follower => serialize x00 | Candidate => serialize x01 | Leader => serialize x02 end.",
+            "VernacDefinition",
+            "cbbb4fb094348cca336756a3914443816b321878"
+        ],
+        [
+            "Definition deserialize_serverType : ByteListReader.t serverType := tag <- deserialize;; match tag with | x00 => ByteListReader.ret Follower | x01 => ByteListReader.ret Candidate | x02 => ByteListReader.ret Leader | _ => ByteListReader.error end.",
+            "VernacDefinition",
+            "5f92103673b805d7426b0424431a4659486075d1"
+        ],
+        [
+            "Lemma serverType_serialize_deserialize_id : serialize_deserialize_id_spec serialize_serverType deserialize_serverType.",
+            "VernacStartTheoremProof",
+            "ffdb0f2c702f1728e7a77c39cb9231d2ef4ccba0"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold serialize_serverType, deserialize_serverType.",
+            "VernacExtend",
+            "1a5a07c8a38700b8ae808bbd0247c2cd0c3b25b4"
+        ],
+        [
+            "destruct a; repeat (cheerios_crush; simpl).",
+            "VernacExtend",
+            "9f5c06d0bffa469a786778708ad938c9e9f5032f"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Instance serverType_Serializer : Serializer serverType := {| serialize := serialize_serverType; deserialize := deserialize_serverType; serialize_deserialize_id := serverType_serialize_deserialize_id |}.",
+            "VernacInstance",
+            "277600b7b46b305d4187b09ba1eb3077c19108c7"
+        ],
+        [
+            "Definition serialize_output (o : output) := match o with | Response key vo1 vo2 => serialize key +$+ serialize vo1 +$+ serialize vo2 end.",
+            "VernacDefinition",
+            "a38581b947f015c12b8aad83414dea7d798525f7"
+        ],
+        [
+            "Definition deserialize_output : ByteListReader.t output := key <- deserialize;; vo1 <- deserialize;; vo2 <- deserialize;; ByteListReader.ret (Response key vo1 vo2).",
+            "VernacDefinition",
+            "f1b24ec039b06052ed0ff7a38b024fa1ac8e88bd"
+        ],
+        [
+            "Lemma output_serialize_deserialize_id : serialize_deserialize_id_spec serialize_output deserialize_output.",
+            "VernacStartTheoremProof",
+            "4c47b4e07329aae0795449913da0d20854b5dba3"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold serialize_output, deserialize_output.",
+            "VernacExtend",
+            "d9d504dd39ca8b7bba5169b166f2fbb8cc3e4936"
+        ],
+        [
+            "destruct a; repeat (cheerios_crush; simpl).",
+            "VernacExtend",
+            "9f5c06d0bffa469a786778708ad938c9e9f5032f"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Global Instance output_Serializer : Serializer output := {| serialize := serialize_output; deserialize := deserialize_output; serialize_deserialize_id := output_serialize_deserialize_id |}.",
+            "VernacInstance",
+            "dc61be83b14b355aa6d64be32b41bb8504753894"
+        ],
+        [
+            "Definition serialize_raft_data (d : raft_data) := serialize (currentTerm d) +$+ serialize (votedFor d) +$+ serialize (leaderId d) +$+ serialize (log d) +$+ serialize (commitIndex d) +$+ serialize (lastApplied d) +$+ serialize (stateMachine d) +$+ serialize (nextIndex d) +$+ serialize (matchIndex d) +$+ serialize (shouldSend d) +$+ serialize (votesReceived d) +$+ serialize (type d) +$+ serialize (clientCache d) +$+ serialize (electoralVictories d).",
+            "VernacDefinition",
+            "8a680fada902cfec6caa12bd29dbc57cfe23495d"
+        ],
+        [
+            "Definition deserialize_raft_data : ByteListReader.t raft_data := cT <- deserialize;; lI <- deserialize;; l <- deserialize;; vF <- deserialize;; cI <- deserialize;; lA <- deserialize;; sM <- deserialize;; nI <- deserialize;; mI <- deserialize;; sS <- deserialize;; vR <- deserialize;; t <- deserialize;; cC <- deserialize;; eV <- deserialize;; ByteListReader.ret (mkRaft_data cT lI l vF cI lA sM nI mI sS vR t cC eV).",
+            "VernacDefinition",
+            "dde955f5efec3b75beaeb7c488a4b74eb1a90bc5"
+        ],
+        [
+            "Lemma raft_data_serialize_deserialize_id : serialize_deserialize_id_spec serialize_raft_data deserialize_raft_data.",
+            "VernacStartTheoremProof",
+            "0df92d0dfda018d21e42e20fdd236726b435497e"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold serialize_raft_data, deserialize_raft_data.",
+            "VernacExtend",
+            "b43b2a27e78a88ed783bbb4213e2be5216f0ee1e"
+        ],
+        [
+            "cheerios_crush.",
+            "VernacExtend",
+            "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+        ],
+        [
+            "destruct a.",
+            "VernacExtend",
+            "3f53f61a7882a1bcc65ff705b5afc6c02a0dddf5"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Global Instance raft_data_Serializer : Serializer raft_data := {| serialize := serialize_raft_data; deserialize := deserialize_raft_data; serialize_deserialize_id := raft_data_serialize_deserialize_id |}.",
+            "VernacInstance",
+            "c659b1726b2f4a5927f49c49eb8af198a3141dd2"
+        ],
+        [
+            "Definition serialize_raft_input (ri : raft_input) := match ri with | Timeout => serialize x00 | ClientRequest n1 n2 i => serialize x01 +$+ serialize n1 +$+ serialize n2 +$+ serialize i end.",
+            "VernacDefinition",
+            "ea402416b1992126341091bd821a7f2218bfea44"
+        ],
+        [
+            "Definition deserialize_raft_input : ByteListReader.t raft_input := tag <- deserialize;; match tag with | x00 => ByteListReader.ret Timeout | x01 => n1 <- deserialize;; n2 <- deserialize;; i <- deserialize;; ByteListReader.ret (ClientRequest n1 n2 i) | _ => ByteListReader.error end.",
+            "VernacDefinition",
+            "f076a89584ae9c73b65af4e7e20c4d776ddcce99"
+        ],
+        [
+            "Lemma raft_input_serialize_deserialize_id : serialize_deserialize_id_spec serialize_raft_input deserialize_raft_input.",
+            "VernacStartTheoremProof",
+            "016fe569e922fedd8e22b6f1c4999df1369435eb"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold serialize_raft_input, deserialize_raft_input.",
+            "VernacExtend",
+            "1ba7d526ffad6c6027a4ec750a8a9c882d9119a8"
+        ],
+        [
+            "destruct a; repeat (cheerios_crush; simpl).",
+            "VernacExtend",
+            "9f5c06d0bffa469a786778708ad938c9e9f5032f"
+        ],
+        [
+            "rewrite nat_serialize_deserialize_id.",
+            "VernacExtend",
+            "32b5c550cc68fa034fb3435de30fef9e75439ac1"
+        ],
+        [
+            "repeat (cheerios_crush; simpl).",
+            "VernacExtend",
+            "006f48c7f8e00c242e2a9ead936ace8257ec1119"
+        ],
+        [
+            "unfold serialize_input, deserialize_input.",
+            "VernacExtend",
+            "6938bed7df2ee830a57265250aa7e7292a654bd0"
+        ],
+        [
+            "destruct i; repeat (cheerios_crush; simpl).",
+            "VernacExtend",
+            "2e181f753b9dbed099410041d286464f2cdf2423"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Global Instance raft_input_Serializer : Serializer raft_input := {| serialize := serialize_raft_input; deserialize := deserialize_raft_input; serialize_deserialize_id := raft_input_serialize_deserialize_id |}.",
+            "VernacInstance",
+            "f016f2282bb530b01d78f902929919f7f9650b00"
+        ],
+        [
+            "End Serializers.",
+            "VernacEndSegment",
+            "fc09791244c41fe92cf309f28e63591cf9fdca57"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "input_serialize_deserialize_id",
+            "line_nb": 9,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold serialize_input, deserialize_input.",
+                        "VernacExtend",
+                        "6938bed7df2ee830a57265250aa7e7292a654bd0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a; repeat (cheerios_crush; simpl).",
+                        "VernacExtend",
+                        "9f5c06d0bffa469a786778708ad938c9e9f5032f"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "entry_serialize_deserialize_id",
+            "line_nb": 20,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold entry_serialize, entry_deserialize.",
+                        "VernacExtend",
+                        "8c14010d70d925b78e9a6a1616c67a7dfe212642"
+                    ]
+                },
+                {
+                    "command": [
+                        "cheerios_crush.",
+                        "VernacExtend",
+                        "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a; reflexivity.",
+                        "VernacExtend",
+                        "7fbe57a1b7de98163889837c4a347c7457bf77a2"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "msg_serialize_deserialize_id",
+            "line_nb": 33,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold msg_serialize, msg_deserialize.",
+                        "VernacExtend",
+                        "df764207fc74cf2fdb1c0200aa49e565270fa22b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a; cheerios_crush; simpl; (unfold RequestVote_deserialize || unfold RequestVoteReply_deserialize || unfold AppendEntries_deserialize || unfold AppendEntriesReply_deserialize); cheerios_crush.",
+                        "VernacExtend",
+                        "dbe95ffe6ddc6f2aa110cd95d7cb4d2d3af876f4"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "serverType_serialize_deserialize_id",
+            "line_nb": 41,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold serialize_serverType, deserialize_serverType.",
+                        "VernacExtend",
+                        "1a5a07c8a38700b8ae808bbd0247c2cd0c3b25b4"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a; repeat (cheerios_crush; simpl).",
+                        "VernacExtend",
+                        "9f5c06d0bffa469a786778708ad938c9e9f5032f"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "output_serialize_deserialize_id",
+            "line_nb": 49,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold serialize_output, deserialize_output.",
+                        "VernacExtend",
+                        "d9d504dd39ca8b7bba5169b166f2fbb8cc3e4936"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a; repeat (cheerios_crush; simpl).",
+                        "VernacExtend",
+                        "9f5c06d0bffa469a786778708ad938c9e9f5032f"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "raft_data_serialize_deserialize_id",
+            "line_nb": 57,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold serialize_raft_data, deserialize_raft_data.",
+                        "VernacExtend",
+                        "b43b2a27e78a88ed783bbb4213e2be5216f0ee1e"
+                    ]
+                },
+                {
+                    "command": [
+                        "cheerios_crush.",
+                        "VernacExtend",
+                        "cd9abf2aaa45ac64ce554017f49d53791fbc9c23"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a.",
+                        "VernacExtend",
+                        "3f53f61a7882a1bcc65ff705b5afc6c02a0dddf5"
+                    ]
+                },
+                {
+                    "command": [
+                        "reflexivity.",
+                        "VernacExtend",
+                        "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "raft_input_serialize_deserialize_id",
+            "line_nb": 67,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold serialize_raft_input, deserialize_raft_input.",
+                        "VernacExtend",
+                        "1ba7d526ffad6c6027a4ec750a8a9c882d9119a8"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a; repeat (cheerios_crush; simpl).",
+                        "VernacExtend",
+                        "9f5c06d0bffa469a786778708ad938c9e9f5032f"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite nat_serialize_deserialize_id.",
+                        "VernacExtend",
+                        "32b5c550cc68fa034fb3435de30fef9e75439ac1"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat (cheerios_crush; simpl).",
+                        "VernacExtend",
+                        "006f48c7f8e00c242e2a9ead936ace8257ec1119"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold serialize_input, deserialize_input.",
+                        "VernacExtend",
+                        "6938bed7df2ee830a57265250aa7e7292a654bd0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct i; repeat (cheerios_crush; simpl).",
+                        "VernacExtend",
+                        "2e181f753b9dbed099410041d286464f2cdf2423"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

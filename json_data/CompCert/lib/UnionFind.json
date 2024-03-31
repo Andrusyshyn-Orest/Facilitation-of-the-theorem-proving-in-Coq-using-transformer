@@ -1,0 +1,6060 @@
+{
+    "filename": "lib/UnionFind.v",
+    "coq_project": "CompCert",
+    "vernac_cmds": [
+        [
+            "Require Coq.Program.Wf.",
+            "VernacRequire",
+            "2817dd29c54e1c78a433a2c61b378a0ae4fe76ae"
+        ],
+        [
+            "Require Import Coqlib.",
+            "VernacRequire",
+            "bbbe15041aca3a03300067f7acd445b462d537cc"
+        ],
+        [
+            "Open Scope nat_scope.",
+            "VernacOpenCloseScope",
+            "22a30e2fa4fb58b685066c0106e0f666475aba7e"
+        ],
+        [
+            "Set Implicit Arguments.",
+            "VernacSetOption",
+            "9e84ff8896f028601d8aded48c1d4aebe60aa584"
+        ],
+        [
+            "Local Unset Elimination Schemes.",
+            "VernacUnsetOption",
+            "2fc2e4d2065c5e8b5b407b11414df6bebc03d0a8"
+        ],
+        [
+            "Local Unset Case Analysis Schemes.",
+            "VernacUnsetOption",
+            "caf88bd166e725fa13309b094f896ccd6484855c"
+        ],
+        [
+            "Module Type MAP.",
+            "VernacDeclareModuleType",
+            "db75eb9a7deb79a77b782bb6d2ff0b7e8fd13560"
+        ],
+        [
+            "Parameter elt: Type.",
+            "VernacAssumption",
+            "7e2683fd30a95e71ad26edfcb10f9d77ede63e91"
+        ],
+        [
+            "Parameter elt_eq: forall (x y: elt), {x=y} + {x<>y}.",
+            "VernacAssumption",
+            "8fd9646259d553632f653c5bb00ecfa144b95eb0"
+        ],
+        [
+            "Parameter t: Type -> Type.",
+            "VernacAssumption",
+            "1d846409099b63634901392e9a4a7085143e1525"
+        ],
+        [
+            "Parameter empty: forall (A: Type), t A.",
+            "VernacAssumption",
+            "088a03ae0c7f2b88b70f5ce7a9d817f93fd0ba3e"
+        ],
+        [
+            "Parameter get: forall (A: Type), elt -> t A -> option A.",
+            "VernacAssumption",
+            "711a709bababc87b884f054d53272a4ff33f8244"
+        ],
+        [
+            "Parameter set: forall (A: Type), elt -> A -> t A -> t A.",
+            "VernacAssumption",
+            "46024eeb5d599941ad2dd7a5d316446b2381045a"
+        ],
+        [
+            "Axiom gempty: forall (A: Type) (x: elt), get x (empty A) = None.",
+            "VernacAssumption",
+            "8f1d826a61a00886d37ae2accf2646be6df0f6ec"
+        ],
+        [
+            "Axiom gsspec: forall (A: Type) (x y: elt) (v: A) (m: t A), get x (set y v m) = if elt_eq x y then Some v else get x m.",
+            "VernacAssumption",
+            "7229fed5baf81411312c6d1b58f87aaf686472ce"
+        ],
+        [
+            "End MAP.",
+            "VernacEndSegment",
+            "257a28e674af65ac0c7ba0024fd87153aa30b189"
+        ],
+        [
+            "Unset Implicit Arguments.",
+            "VernacUnsetOption",
+            "cacc0f023301fae157e1bbb31e84419045fc8198"
+        ],
+        [
+            "Module Type UNIONFIND.",
+            "VernacDeclareModuleType",
+            "bc5193bf2422f73ffa5f8526fac822e46e70db0a"
+        ],
+        [
+            "Parameter elt: Type.",
+            "VernacAssumption",
+            "7e2683fd30a95e71ad26edfcb10f9d77ede63e91"
+        ],
+        [
+            "Parameter elt_eq: forall (x y: elt), {x=y} + {x<>y}.",
+            "VernacAssumption",
+            "8fd9646259d553632f653c5bb00ecfa144b95eb0"
+        ],
+        [
+            "Parameter t: Type.",
+            "VernacAssumption",
+            "504795567cd4c81b969bd65cb901c9b8a73ae96f"
+        ],
+        [
+            "Parameter repr: t -> elt -> elt.",
+            "VernacAssumption",
+            "3cebe2f62baff1a60e9d70ce3eed46495b8cf876"
+        ],
+        [
+            "Axiom repr_canonical: forall uf a, repr uf (repr uf a) = repr uf a.",
+            "VernacAssumption",
+            "ef6fc89fe339b8114e1ac0247ce18e26971511f8"
+        ],
+        [
+            "Definition sameclass (uf: t) (a b: elt) : Prop := repr uf a = repr uf b.",
+            "VernacDefinition",
+            "6309987b211cd05647726c8576b3e525b9712570"
+        ],
+        [
+            "Axiom sameclass_refl: forall uf a, sameclass uf a a.",
+            "VernacAssumption",
+            "c34705d79a7a239485eac8d05943672f186725cf"
+        ],
+        [
+            "Axiom sameclass_sym: forall uf a b, sameclass uf a b -> sameclass uf b a.",
+            "VernacAssumption",
+            "c91932d3db20e05ecba0bf8b0b339b4da40b5338"
+        ],
+        [
+            "Axiom sameclass_trans: forall uf a b c, sameclass uf a b -> sameclass uf b c -> sameclass uf a c.",
+            "VernacAssumption",
+            "1fa35b4c62102eaebdf179ec73225565ce4ca406"
+        ],
+        [
+            "Axiom sameclass_repr: forall uf a, sameclass uf a (repr uf a).",
+            "VernacAssumption",
+            "c626fb03b7469a22ea96d52d4ae42fd68d07d205"
+        ],
+        [
+            "Parameter empty: t.",
+            "VernacAssumption",
+            "f30bb867d749b7a536f13a63f5ff85a7fe3b4e6f"
+        ],
+        [
+            "Axiom repr_empty: forall a, repr empty a = a.",
+            "VernacAssumption",
+            "679aafddc0b202236798d67e85466db78dda7e1d"
+        ],
+        [
+            "Axiom sameclass_empty: forall a b, sameclass empty a b -> a = b.",
+            "VernacAssumption",
+            "94e6a84308e8c73a2ac605acb367e34b99e5f8ee"
+        ],
+        [
+            "Parameter find: t -> elt -> elt * t.",
+            "VernacAssumption",
+            "fa392b7e62c18d930fdaefe850d7829d40192956"
+        ],
+        [
+            "Axiom find_repr: forall uf a, fst (find uf a) = repr uf a.",
+            "VernacAssumption",
+            "4ac2c4e42ecf67089b9c88eb470cdef685a60292"
+        ],
+        [
+            "Axiom find_unchanged: forall uf a x, repr (snd (find uf a)) x = repr uf x.",
+            "VernacAssumption",
+            "661dd7664c479d0e56161958b6dc171a42af9e8c"
+        ],
+        [
+            "Axiom sameclass_find_1: forall uf a x y, sameclass (snd (find uf a)) x y <-> sameclass uf x y.",
+            "VernacAssumption",
+            "75cb02d9db72862d9fd0228edd125b9ac2613762"
+        ],
+        [
+            "Axiom sameclass_find_2: forall uf a, sameclass uf a (fst (find uf a)).",
+            "VernacAssumption",
+            "2a8f826531b8f0367fa4904fd19a2efc0a73aac2"
+        ],
+        [
+            "Axiom sameclass_find_3: forall uf a, sameclass (snd (find uf a)) a (fst (find uf a)).",
+            "VernacAssumption",
+            "f1e03bce000bd0f2618299680ca2650b3f21eaec"
+        ],
+        [
+            "Parameter union: t -> elt -> elt -> t.",
+            "VernacAssumption",
+            "4ed87d6732a51a5c032ecca5426fb71f17563d6d"
+        ],
+        [
+            "Axiom repr_union_1: forall uf a b x, repr uf x <> repr uf a -> repr (union uf a b) x = repr uf x.",
+            "VernacAssumption",
+            "cb02792419693138f1131bc4eba55dd32455ff09"
+        ],
+        [
+            "Axiom repr_union_2: forall uf a b x, repr uf x = repr uf a -> repr (union uf a b) x = repr uf b.",
+            "VernacAssumption",
+            "b6256bfc9a31b3acf6b0f75fea8e22ce5cba647a"
+        ],
+        [
+            "Axiom repr_union_3: forall uf a b, repr (union uf a b) b = repr uf b.",
+            "VernacAssumption",
+            "3225dde1fe46063bb8069ff8feff3bd52f1ed3ff"
+        ],
+        [
+            "Axiom sameclass_union_1: forall uf a b, sameclass (union uf a b) a b.",
+            "VernacAssumption",
+            "17cacc324522d53fbd1b71a57351f683bc23c50f"
+        ],
+        [
+            "Axiom sameclass_union_2: forall uf a b x y, sameclass uf x y -> sameclass (union uf a b) x y.",
+            "VernacAssumption",
+            "75ac4a37c53671d2e60ac95c0e83045aefb99a07"
+        ],
+        [
+            "Axiom sameclass_union_3: forall uf a b x y, sameclass (union uf a b) x y -> sameclass uf x y \\/ sameclass uf x a /\\ sameclass uf y b \\/ sameclass uf x b /\\ sameclass uf y a.",
+            "VernacAssumption",
+            "d290ab34b8464f3c4d5fd836fc31198d645c8b11"
+        ],
+        [
+            "Parameter merge: t -> elt -> elt -> t.",
+            "VernacAssumption",
+            "beaf5b604322cf3e776deec19d0dea5300e7f4b2"
+        ],
+        [
+            "Axiom repr_merge: forall uf a b x, repr (merge uf a b) x = repr (union uf a b) x.",
+            "VernacAssumption",
+            "771d34a2a72e97393b7b1836679d2f850e1310c3"
+        ],
+        [
+            "Axiom sameclass_merge: forall uf a b x y, sameclass (merge uf a b) x y <-> sameclass (union uf a b) x y.",
+            "VernacAssumption",
+            "e0fe3e29a19cb2e521517af3d11a09f9c06f3378"
+        ],
+        [
+            "Parameter path_ord: t -> elt -> elt -> Prop.",
+            "VernacAssumption",
+            "68baaf252713e3f348bce059d4842d2479e9402b"
+        ],
+        [
+            "Axiom path_ord_wellfounded: forall uf, well_founded (path_ord uf).",
+            "VernacAssumption",
+            "8ffea29cb6d92de4928c056f0d2a85442149bc36"
+        ],
+        [
+            "Axiom path_ord_canonical: forall uf x y, repr uf x = x -> ~path_ord uf y x.",
+            "VernacAssumption",
+            "c8b81728ce47d2846db9e1f9b2f9656f25a5c9d7"
+        ],
+        [
+            "Axiom path_ord_merge_1: forall uf a b x y, path_ord uf x y -> path_ord (merge uf a b) x y.",
+            "VernacAssumption",
+            "8675bf96da8cc7475e9575ab34e891d3d22d71d6"
+        ],
+        [
+            "Axiom path_ord_merge_2: forall uf a b, repr uf a <> repr uf b -> path_ord (merge uf a b) b (repr uf a).",
+            "VernacAssumption",
+            "11b8ec34e56b5b1c6cd389d9b02b3965cc662f10"
+        ],
+        [
+            "Parameter pathlen: t -> elt -> nat.",
+            "VernacAssumption",
+            "faca7a7fc456c453b9cc094b3df3715c2a864cae"
+        ],
+        [
+            "Axiom pathlen_zero: forall uf a, repr uf a = a <-> pathlen uf a = O.",
+            "VernacAssumption",
+            "b21a1d33c6dcb8285687aa58c52998aa33a4e14c"
+        ],
+        [
+            "Axiom pathlen_merge: forall uf a b x, pathlen (merge uf a b) x = if elt_eq (repr uf a) (repr uf b) then pathlen uf x else if elt_eq (repr uf x) (repr uf a) then pathlen uf x + pathlen uf b + 1 else pathlen uf x.",
+            "VernacAssumption",
+            "e8653e01323625e53c4521584662bb0b9508e1e9"
+        ],
+        [
+            "Axiom pathlen_gt_merge: forall uf a b x y, repr uf x = repr uf y -> pathlen uf x > pathlen uf y -> pathlen (merge uf a b) x > pathlen (merge uf a b) y.",
+            "VernacAssumption",
+            "cfe9dca16ada577e9e2165f68392e17d18882c80"
+        ],
+        [
+            "End UNIONFIND.",
+            "VernacEndSegment",
+            "9f73b0cc1970a2198e0dbe99cfcdc6c31b307cde"
+        ],
+        [
+            "Module UF (M: MAP) : UNIONFIND with Definition elt := M.elt.",
+            "VernacDefineModule",
+            "977f4e75ffd69dbdec44d3096bb3924bf4c1ff40"
+        ],
+        [
+            "Definition elt := M.elt.",
+            "VernacDefinition",
+            "9fcc9921efce40402de8cb11250c583c8295f615"
+        ],
+        [
+            "Definition elt_eq := M.elt_eq.",
+            "VernacDefinition",
+            "6bfbf9dbc1556345a40d81a5be1970ab5771f621"
+        ],
+        [
+            "Definition order (m: M.t elt) (a a': elt) : Prop := M.get a' m = Some a.",
+            "VernacDefinition",
+            "2f99f832451ebff49d53b7cc1af87705f687dd2c"
+        ],
+        [
+            "Record unionfind : Type := mk { m: M.t elt; mwf: well_founded (order m) }.",
+            "VernacInductive",
+            "b3d7f3687432307a28282af1f05b9664306e0c72"
+        ],
+        [
+            "Definition t := unionfind.",
+            "VernacDefinition",
+            "47bbcf2f6dbc7bd80985d85a667b2ef6969bce2d"
+        ],
+        [
+            "Definition getlink (m: M.t elt) (a: elt) : {a' | M.get a m = Some a'} + {M.get a m = None}.",
+            "VernacDefinition",
+            "567b80b97fef1d9272d3c724fa372bf1adbc829e"
+        ],
+        [
+            "destruct (M.get a m).",
+            "VernacExtend",
+            "027b835ac67bbd937c6a685adbca2b59ec1587b0"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "exists e; auto.",
+            "VernacExtend",
+            "5789629a110c642815687c3512a8c438259c58a1"
+        ],
+        [
+            "right; auto.",
+            "VernacExtend",
+            "1f0a695ab06b3950e6a7adf329d300b1f859fe9d"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Section REPR.",
+            "VernacBeginSection",
+            "761cc4826ef739af003416fed7b46c18ed45d472"
+        ],
+        [
+            "Variable uf: t.",
+            "VernacAssumption",
+            "ef250b9e4badf17cca308aeeb2c7b56783b87b8a"
+        ],
+        [
+            "Definition F_repr (a: elt) (rec: forall b, order uf.(m) b a -> elt) : elt := match getlink uf.(m) a with | inleft (exist a' P) => rec a' P | inright _ => a end.",
+            "VernacDefinition",
+            "9d9b07b3d5263b59a83ded93b4b9f509f08e2382"
+        ],
+        [
+            "Definition repr (a: elt) : elt := Fix uf.(mwf) (fun _ => elt) F_repr a.",
+            "VernacDefinition",
+            "1602bbd60c01172fd25eb7690820d85555618184"
+        ],
+        [
+            "Lemma repr_unroll: forall a, repr a = match M.get a uf.(m) with Some a' => repr a' | None => a end.",
+            "VernacStartTheoremProof",
+            "b3824e03fd8092d6b8a2fd1beefbca081906ac4d"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold repr at 1.",
+            "VernacExtend",
+            "fa703aa682968bc0aef98bbc54eb84e226792265"
+        ],
+        [
+            "rewrite Fix_eq.",
+            "VernacExtend",
+            "22073a388ed7c3a448504abe97c5de5a55f9d8c9"
+        ],
+        [
+            "unfold F_repr.",
+            "VernacExtend",
+            "60258646749bc61d79af5aaed23e0e78f0dc27a8"
+        ],
+        [
+            "destruct (getlink uf.(m) a) as [[a' P] | Q].",
+            "VernacExtend",
+            "792145470704a2177cdacb83649a75884888cc42"
+        ],
+        [
+            "rewrite P; auto.",
+            "VernacExtend",
+            "939322e2d571ad11c83614d20d40483c3c9ae4f5"
+        ],
+        [
+            "rewrite Q; auto.",
+            "VernacExtend",
+            "4e72a38431e485ccf0626d554797544fceb80c6e"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold F_repr.",
+            "VernacExtend",
+            "60258646749bc61d79af5aaed23e0e78f0dc27a8"
+        ],
+        [
+            "destruct (getlink (m uf) x) as [[a' P] | Q]; auto.",
+            "VernacExtend",
+            "c532ddadc5fdeb4b65ac2922b85ce767e70ba210"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma repr_none: forall a, M.get a uf.(m) = None -> repr a = a.",
+            "VernacStartTheoremProof",
+            "e35ac79ae1ce169310164c709c8f487c21404f47"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite repr_unroll.",
+            "VernacExtend",
+            "2e15174e85292340b18687c09be97b05d20fd05d"
+        ],
+        [
+            "rewrite H; auto.",
+            "VernacExtend",
+            "3e25713af8eaa76cddf9287af10d66733da2ee16"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma repr_some: forall a a', M.get a uf.(m) = Some a' -> repr a = repr a'.",
+            "VernacStartTheoremProof",
+            "38da1cda07e7bc1410fa9330ae16d907b5cc582f"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite repr_unroll.",
+            "VernacExtend",
+            "2e15174e85292340b18687c09be97b05d20fd05d"
+        ],
+        [
+            "rewrite H; auto.",
+            "VernacExtend",
+            "3e25713af8eaa76cddf9287af10d66733da2ee16"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma repr_res_none: forall (a: elt), M.get (repr a) uf.(m) = None.",
+            "VernacStartTheoremProof",
+            "c1af41028ea523f4b1225949b276970ae844ac10"
+        ],
+        [
+            "apply (well_founded_ind (mwf uf)).",
+            "VernacExtend",
+            "5ae32fd9d315667ac5916f5ea74f7390fac42826"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite repr_unroll.",
+            "VernacExtend",
+            "2e15174e85292340b18687c09be97b05d20fd05d"
+        ],
+        [
+            "destruct (M.get x (m uf)) as [y|] eqn:X; auto.",
+            "VernacExtend",
+            "642067d9e268a01d4a8afa99d7838bce103e3473"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma repr_canonical: forall (a: elt), repr (repr a) = repr a.",
+            "VernacStartTheoremProof",
+            "dd9de20cd50a49d3d80f5071b8bc9ba1613b96eb"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply repr_none.",
+            "VernacExtend",
+            "164678275c2b06049f706d490fb310696ced818a"
+        ],
+        [
+            "apply repr_res_none.",
+            "VernacExtend",
+            "15cbc479aacaeeed9f4013da3e7e6f1ba390712c"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma repr_some_diff: forall a a', M.get a uf.(m) = Some a' -> a <> repr a'.",
+            "VernacStartTheoremProof",
+            "88e7492d96ed6af6d3e98f1954936ae244790fca"
+        ],
+        [
+            "intros; red; intros.",
+            "VernacExtend",
+            "51aeefe3bf0889d494d662b4f3305dd8bbc97324"
+        ],
+        [
+            "assert (repr a = a).",
+            "VernacExtend",
+            "483ec1d7f0e77846d7330bd333bbf836e6e716d6"
+        ],
+        [
+            "rewrite (repr_some a a'); auto.",
+            "VernacExtend",
+            "501eaef64f3dfaa05bda0994a08e807926b6c812"
+        ],
+        [
+            "assert (M.get a uf.(m) = None).",
+            "VernacExtend",
+            "7f85589e111595516aeaf0c3dec6f36abc46b8a5"
+        ],
+        [
+            "rewrite <- H1.",
+            "VernacExtend",
+            "b8b417d956609d1854d18921f25bc0ffae73a74e"
+        ],
+        [
+            "apply repr_res_none.",
+            "VernacExtend",
+            "15cbc479aacaeeed9f4013da3e7e6f1ba390712c"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End REPR.",
+            "VernacEndSegment",
+            "839ac4b282ae32ea715217bfc932243f42e85d81"
+        ],
+        [
+            "Definition sameclass (uf: t) (a b: elt) : Prop := repr uf a = repr uf b.",
+            "VernacDefinition",
+            "6309987b211cd05647726c8576b3e525b9712570"
+        ],
+        [
+            "Lemma sameclass_refl: forall uf a, sameclass uf a a.",
+            "VernacStartTheoremProof",
+            "f72beae0570ae0d7aaa448c3f4cad4d155414216"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "red.",
+            "VernacExtend",
+            "95a3fb9e13ce19fdc8e335912fb83e57a9512b14"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma sameclass_sym: forall uf a b, sameclass uf a b -> sameclass uf b a.",
+            "VernacStartTheoremProof",
+            "c6c7ad8d1736f991b309853baddf060eb5bf462e"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "red.",
+            "VernacExtend",
+            "95a3fb9e13ce19fdc8e335912fb83e57a9512b14"
+        ],
+        [
+            "symmetry.",
+            "VernacExtend",
+            "a08fc0dc04bba893008bded8181f393e2d8db167"
+        ],
+        [
+            "exact H.",
+            "VernacExtend",
+            "ce8e3e03bec1b3366baf128fe7eab49b160bc6a4"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma sameclass_trans: forall uf a b c, sameclass uf a b -> sameclass uf b c -> sameclass uf a c.",
+            "VernacStartTheoremProof",
+            "24afe9b30846824c48518f7c809fdc38a53ad73d"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "red.",
+            "VernacExtend",
+            "95a3fb9e13ce19fdc8e335912fb83e57a9512b14"
+        ],
+        [
+            "transitivity (repr uf b).",
+            "VernacExtend",
+            "43b2e18208ade371adec207af65cf355b1a31511"
+        ],
+        [
+            "exact H.",
+            "VernacExtend",
+            "ce8e3e03bec1b3366baf128fe7eab49b160bc6a4"
+        ],
+        [
+            "exact H0.",
+            "VernacExtend",
+            "3920fece303e3c4728f9cdc71daff99239237dbd"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma sameclass_repr: forall uf a, sameclass uf a (repr uf a).",
+            "VernacStartTheoremProof",
+            "f6b0a7ea943b9bf4c46f57d7b3991181e4a92948"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "red.",
+            "VernacExtend",
+            "95a3fb9e13ce19fdc8e335912fb83e57a9512b14"
+        ],
+        [
+            "symmetry.",
+            "VernacExtend",
+            "a08fc0dc04bba893008bded8181f393e2d8db167"
+        ],
+        [
+            "rewrite repr_canonical.",
+            "VernacExtend",
+            "ea7c05e89a8ef1d17ae6679a3329fe602293234e"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma wf_empty: well_founded (order (M.empty elt)).",
+            "VernacStartTheoremProof",
+            "0c7fc3104092f2fcb3c4b583061810ed5b6135b0"
+        ],
+        [
+            "red.",
+            "VernacExtend",
+            "95a3fb9e13ce19fdc8e335912fb83e57a9512b14"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply Acc_intro.",
+            "VernacExtend",
+            "2b155962537e5aa33952f28b98ee9d20165727a6"
+        ],
+        [
+            "intros b RO.",
+            "VernacExtend",
+            "a9b7c46cc8c319bccab713aebebde7959c03f120"
+        ],
+        [
+            "red in RO.",
+            "VernacExtend",
+            "fd4d8b1256a3c01e111aaa9b5244ac389680fe92"
+        ],
+        [
+            "rewrite M.gempty in RO.",
+            "VernacExtend",
+            "14886a721e34f6f8d43927ad77183247beadd303"
+        ],
+        [
+            "discriminate.",
+            "VernacExtend",
+            "66ca81b65e1a53372a2515fdfdd2a6b0677cb9c8"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition empty : t := mk (M.empty elt) wf_empty.",
+            "VernacDefinition",
+            "5b7eb417018ce8e43f132c3421221ac3ebd708c6"
+        ],
+        [
+            "Lemma repr_empty: forall a, repr empty a = a.",
+            "VernacStartTheoremProof",
+            "c148bde03ea261f5ff3cb0eaec31618817d03438"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply repr_none.",
+            "VernacExtend",
+            "164678275c2b06049f706d490fb310696ced818a"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "apply M.gempty.",
+            "VernacExtend",
+            "86a6c03a5da508d8d82b78f9e727aac7c4288162"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma sameclass_empty: forall a b, sameclass empty a b -> a = b.",
+            "VernacStartTheoremProof",
+            "9be2cbb431829d5962e65b146e090c2ed969f076"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "red in H.",
+            "VernacExtend",
+            "a4b4bf9e03eb87c8fa06c84cfda5cac7b43f2be8"
+        ],
+        [
+            "repeat rewrite repr_empty in H.",
+            "VernacExtend",
+            "0f8c4d82b61d63dec22a4f19618616e8984964ed"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Section IDENTIFY.",
+            "VernacBeginSection",
+            "078a9d3a2649493748711bbf837d479044df7fe7"
+        ],
+        [
+            "Variable uf: t.",
+            "VernacAssumption",
+            "ef250b9e4badf17cca308aeeb2c7b56783b87b8a"
+        ],
+        [
+            "Variables a b: elt.",
+            "VernacAssumption",
+            "d14f906e6dbd0b74c6ebb345145de511866c25f9"
+        ],
+        [
+            "Hypothesis a_canon: M.get a uf.(m) = None.",
+            "VernacAssumption",
+            "fbfcf2b3ae686e973f0b556c3ebe08d59e4f550c"
+        ],
+        [
+            "Hypothesis not_same_class: repr uf b <> a.",
+            "VernacAssumption",
+            "9c0dc6e624cff4d05184b02d2664cff245448e97"
+        ],
+        [
+            "Lemma identify_order: forall x y, order (M.set a b uf.(m)) y x <-> order uf.(m) y x \\/ (x = a /\\ y = b).",
+            "VernacStartTheoremProof",
+            "b42f6d7b652e19cd692267e960787bca1e51ac64"
+        ],
+        [
+            "intros until y.",
+            "VernacExtend",
+            "d1d10153f927031bceccac11dd74d452de2e238a"
+        ],
+        [
+            "unfold order.",
+            "VernacExtend",
+            "855292ab54314ab36f69a9a24ab1169ed27e3478"
+        ],
+        [
+            "rewrite M.gsspec.",
+            "VernacExtend",
+            "59ba4783a5c7be2fa4d5cd5059720ecb9c19886f"
+        ],
+        [
+            "destruct (M.elt_eq x a).",
+            "VernacExtend",
+            "c2c57655249a3d58a61f5478ff0de89099348bd7"
+        ],
+        [
+            "intuition congruence.",
+            "VernacExtend",
+            "2cba3542847e3f4ea52f3f62375adc6e8f8f04bc"
+        ],
+        [
+            "intuition congruence.",
+            "VernacExtend",
+            "2cba3542847e3f4ea52f3f62375adc6e8f8f04bc"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Remark identify_Acc_b: forall x, Acc (order uf.(m)) x -> repr uf x <> a -> Acc (order (M.set a b uf.(m))) x.",
+            "VernacStartTheoremProof",
+            "0f70f3f1a90ed1db2deb9d64292eba8b7d1ab49a"
+        ],
+        [
+            "induction 1; intros.",
+            "VernacExtend",
+            "176684f910d62ec20fbc75549575bf1cd34fa8ec"
+        ],
+        [
+            "constructor; intros.",
+            "VernacExtend",
+            "6563c593bcf639ae667d436a08cab59e1ac2dcce"
+        ],
+        [
+            "rewrite identify_order in H2.",
+            "VernacExtend",
+            "bd34e2201d7d44d6a80cd1627db7e66a24a6c3fc"
+        ],
+        [
+            "destruct H2 as [A | [A B]].",
+            "VernacExtend",
+            "8d4bc394192673fdfdd8dc97579f65467d8935ee"
+        ],
+        [
+            "apply H0; auto.",
+            "VernacExtend",
+            "e167f871dfeec1cef76aaf201c54c081f29f730b"
+        ],
+        [
+            "rewrite <- (repr_some uf _ _ A).",
+            "VernacExtend",
+            "7343e8229427794fdfbef6b2c0f4e602daa7f6f0"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "elim H1.",
+            "VernacExtend",
+            "2ee512db90fb1d268bb2752d9c0b7a5339eb8a0a"
+        ],
+        [
+            "apply repr_none.",
+            "VernacExtend",
+            "164678275c2b06049f706d490fb310696ced818a"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Remark identify_Acc: forall x, Acc (order uf.(m)) x -> Acc (order (M.set a b uf.(m))) x.",
+            "VernacStartTheoremProof",
+            "609456ae3786da8694ffd9f43d643f465318e74e"
+        ],
+        [
+            "induction 1.",
+            "VernacExtend",
+            "dfe896305621800fcbb03b32d51d497edbdf1dc5"
+        ],
+        [
+            "constructor; intros.",
+            "VernacExtend",
+            "6563c593bcf639ae667d436a08cab59e1ac2dcce"
+        ],
+        [
+            "rewrite identify_order in H1.",
+            "VernacExtend",
+            "6e7dd8c825e15b53b03adf60a62bfdaa81e2cdf8"
+        ],
+        [
+            "destruct H1 as [A | [A B]].",
+            "VernacExtend",
+            "f83b5fb1af8b03d8eebdd1af3fc909fa4ecaf138"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "apply identify_Acc_b; auto.",
+            "VernacExtend",
+            "c28125c80186ba5786de3b15cc3455637d52cac4"
+        ],
+        [
+            "apply uf.(mwf).",
+            "VernacExtend",
+            "c9ff2bc11ed71024b6b771fc72f5b1c140fac3dd"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma identify_wf: well_founded (order (M.set a b uf.(m))).",
+            "VernacStartTheoremProof",
+            "7c7c2190ad4b7ffab352adf4266d9a8880a9c5c3"
+        ],
+        [
+            "red; intros.",
+            "VernacExtend",
+            "cac589df0c867c7c46c31951b6da5495d0153212"
+        ],
+        [
+            "apply identify_Acc.",
+            "VernacExtend",
+            "8fe4869776a28e7b85084b8e73359e2ee6dee3ef"
+        ],
+        [
+            "apply uf.(mwf).",
+            "VernacExtend",
+            "c9ff2bc11ed71024b6b771fc72f5b1c140fac3dd"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition identify := mk (M.set a b uf.(m)) identify_wf.",
+            "VernacDefinition",
+            "adb468c8b36bbf67a5320536d0477785705cd0b6"
+        ],
+        [
+            "Lemma repr_identify_1: forall x, repr uf x <> a -> repr identify x = repr uf x.",
+            "VernacStartTheoremProof",
+            "8899dfc485440d7cbb5800eed6e65a7e3fe8b225"
+        ],
+        [
+            "intros x0; pattern x0.",
+            "VernacExtend",
+            "a9b377f5e2d3e2218514e96d060dd5b19315e394"
+        ],
+        [
+            "apply (well_founded_ind (mwf uf)); intros.",
+            "VernacExtend",
+            "3aa37de4db430ad99f93c4a37002ee7e35533458"
+        ],
+        [
+            "rewrite (repr_unroll uf) in *.",
+            "VernacExtend",
+            "7a47e59e88146f35c461efc955546776bca96b52"
+        ],
+        [
+            "destruct (M.get x (m uf)) as [a'|] eqn:X.",
+            "VernacExtend",
+            "8a7360ce2ca59170530a121abcf4ddb739808fec"
+        ],
+        [
+            "rewrite <- H; auto.",
+            "VernacExtend",
+            "339e32f989b98c4748aacd68dd3407c72de16870"
+        ],
+        [
+            "apply repr_some.",
+            "VernacExtend",
+            "d66808b57c8b40c911c1bbd636e953b84b7ea72f"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite M.gsspec.",
+            "VernacExtend",
+            "59ba4783a5c7be2fa4d5cd5059720ecb9c19886f"
+        ],
+        [
+            "rewrite dec_eq_false; auto.",
+            "VernacExtend",
+            "c22a540510a59aac353333df2e5d57cf02eb6138"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "apply repr_none.",
+            "VernacExtend",
+            "164678275c2b06049f706d490fb310696ced818a"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite M.gsspec.",
+            "VernacExtend",
+            "59ba4783a5c7be2fa4d5cd5059720ecb9c19886f"
+        ],
+        [
+            "rewrite dec_eq_false; auto.",
+            "VernacExtend",
+            "c22a540510a59aac353333df2e5d57cf02eb6138"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma repr_identify_2: forall x, repr uf x = a -> repr identify x = repr uf b.",
+            "VernacStartTheoremProof",
+            "ca6d8d839c8067d48eb6651e09907304e001098a"
+        ],
+        [
+            "intros x0; pattern x0.",
+            "VernacExtend",
+            "a9b377f5e2d3e2218514e96d060dd5b19315e394"
+        ],
+        [
+            "apply (well_founded_ind (mwf uf)); intros.",
+            "VernacExtend",
+            "3aa37de4db430ad99f93c4a37002ee7e35533458"
+        ],
+        [
+            "rewrite (repr_unroll uf) in H0.",
+            "VernacExtend",
+            "ffa1a38e6ebb27eb65b34a364ae64b0fba6c914c"
+        ],
+        [
+            "destruct (M.get x (m uf)) as [a'|] eqn:X.",
+            "VernacExtend",
+            "8a7360ce2ca59170530a121abcf4ddb739808fec"
+        ],
+        [
+            "rewrite <- (H a'); auto.",
+            "VernacExtend",
+            "101b5dc067cbceba675ff024af2a7af82faf8e7c"
+        ],
+        [
+            "apply repr_some.",
+            "VernacExtend",
+            "d66808b57c8b40c911c1bbd636e953b84b7ea72f"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite M.gsspec.",
+            "VernacExtend",
+            "59ba4783a5c7be2fa4d5cd5059720ecb9c19886f"
+        ],
+        [
+            "rewrite dec_eq_false; auto.",
+            "VernacExtend",
+            "c22a540510a59aac353333df2e5d57cf02eb6138"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "subst x.",
+            "VernacExtend",
+            "76c28b0a6a4a7c1568fa30e26ee411c5e5d54968"
+        ],
+        [
+            "rewrite (repr_unroll identify).",
+            "VernacExtend",
+            "2ed4dace99ec64ccfb1d21d50ab9a51fbbbb348f"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite M.gsspec.",
+            "VernacExtend",
+            "59ba4783a5c7be2fa4d5cd5059720ecb9c19886f"
+        ],
+        [
+            "rewrite dec_eq_true.",
+            "VernacExtend",
+            "28b046c22f8f69c0651cbac642dd4f2013af7847"
+        ],
+        [
+            "apply repr_identify_1.",
+            "VernacExtend",
+            "c4d7e295c2fe8992d6ef3f5abead5859564c416c"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End IDENTIFY.",
+            "VernacEndSegment",
+            "ab115ce71989e4a468b740f0d6e32c9d7dfeac26"
+        ],
+        [
+            "Remark union_not_same_class: forall uf a b, repr uf a <> repr uf b -> repr uf (repr uf b) <> repr uf a.",
+            "VernacStartTheoremProof",
+            "de09afb158e7e0658971b519e093ba8e07be3dff"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite repr_canonical.",
+            "VernacExtend",
+            "ea7c05e89a8ef1d17ae6679a3329fe602293234e"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition union (uf: t) (a b: elt) : t := let a' := repr uf a in let b' := repr uf b in match M.elt_eq a' b' with | left EQ => uf | right NEQ => identify uf a' b' (repr_res_none uf a) (union_not_same_class uf a b NEQ) end.",
+            "VernacDefinition",
+            "4c6db8a21fef974784a68c9326802e430452a92d"
+        ],
+        [
+            "Lemma repr_union_1: forall uf a b x, repr uf x <> repr uf a -> repr (union uf a b) x = repr uf x.",
+            "VernacStartTheoremProof",
+            "068109a2583f2ed7d579629813a31615a3e31990"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold union.",
+            "VernacExtend",
+            "18a57101e7fab0cdb5cf8d92c5cdddcadf3d4f39"
+        ],
+        [
+            "destruct (M.elt_eq (repr uf a) (repr uf b)).",
+            "VernacExtend",
+            "6c2ed8767532b06cc19e0b033ef4ab43c37633d2"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "apply repr_identify_1.",
+            "VernacExtend",
+            "c4d7e295c2fe8992d6ef3f5abead5859564c416c"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma repr_union_2: forall uf a b x, repr uf x = repr uf a -> repr (union uf a b) x = repr uf b.",
+            "VernacStartTheoremProof",
+            "c7bd5be718290441f1b4d787902ddee70acc6b9d"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold union.",
+            "VernacExtend",
+            "18a57101e7fab0cdb5cf8d92c5cdddcadf3d4f39"
+        ],
+        [
+            "destruct (M.elt_eq (repr uf a) (repr uf b)).",
+            "VernacExtend",
+            "6c2ed8767532b06cc19e0b033ef4ab43c37633d2"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "rewrite <- (repr_canonical uf b).",
+            "VernacExtend",
+            "4d9264df4de32cd9f5dac20d0588248bda882129"
+        ],
+        [
+            "apply repr_identify_2.",
+            "VernacExtend",
+            "0b3ff99400b730db6556dd548abdde247d1407f4"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma repr_union_3: forall uf a b, repr (union uf a b) b = repr uf b.",
+            "VernacStartTheoremProof",
+            "a165c7578952fc36856ee847c1ea4fb6cd9e4df2"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold union.",
+            "VernacExtend",
+            "18a57101e7fab0cdb5cf8d92c5cdddcadf3d4f39"
+        ],
+        [
+            "destruct (M.elt_eq (repr uf a) (repr uf b)).",
+            "VernacExtend",
+            "6c2ed8767532b06cc19e0b033ef4ab43c37633d2"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "apply repr_identify_1.",
+            "VernacExtend",
+            "c4d7e295c2fe8992d6ef3f5abead5859564c416c"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma sameclass_union_1: forall uf a b, sameclass (union uf a b) a b.",
+            "VernacStartTheoremProof",
+            "d7d4016c0eb42013e714defede2b9abf661c2316"
+        ],
+        [
+            "intros; red.",
+            "VernacExtend",
+            "3393be941ed81b8e4a79e80db41d01425f14b126"
+        ],
+        [
+            "rewrite repr_union_2; auto.",
+            "VernacExtend",
+            "ee8b09f214e26b470af3c7647a8956083bc7fb33"
+        ],
+        [
+            "rewrite repr_union_3.",
+            "VernacExtend",
+            "e4c8358783222e5876da4bd45426b64ce4febca7"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma sameclass_union_2: forall uf a b x y, sameclass uf x y -> sameclass (union uf a b) x y.",
+            "VernacStartTheoremProof",
+            "65a532362a9f664668b2f4f9d7a7a20c778d33eb"
+        ],
+        [
+            "unfold sameclass; intros.",
+            "VernacExtend",
+            "b49705ebf1ee1aac4d0be854a5aa30651d36244e"
+        ],
+        [
+            "destruct (M.elt_eq (repr uf x) (repr uf a)); destruct (M.elt_eq (repr uf y) (repr uf a)).",
+            "VernacExtend",
+            "649ceb1d114c8ebe8dd3ad5cced50c15fd873ed5"
+        ],
+        [
+            "repeat rewrite repr_union_2; auto.",
+            "VernacExtend",
+            "234c044a647e5130b59444b6699c783da236fd28"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "repeat rewrite repr_union_1; auto.",
+            "VernacExtend",
+            "74e2e93ea0d63a17cc9226535b7b5109a4d7eed4"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma sameclass_union_3: forall uf a b x y, sameclass (union uf a b) x y -> sameclass uf x y \\/ sameclass uf x a /\\ sameclass uf y b \\/ sameclass uf x b /\\ sameclass uf y a.",
+            "VernacStartTheoremProof",
+            "4a3262fe7d18969dd73b1f71d5d18464b97f16bf"
+        ],
+        [
+            "intros until y.",
+            "VernacExtend",
+            "d1d10153f927031bceccac11dd74d452de2e238a"
+        ],
+        [
+            "unfold sameclass.",
+            "VernacExtend",
+            "7f1069fce4350be53d5bae2d9c3c688c55154452"
+        ],
+        [
+            "destruct (M.elt_eq (repr uf x) (repr uf a)); destruct (M.elt_eq (repr uf y) (repr uf a)).",
+            "VernacExtend",
+            "649ceb1d114c8ebe8dd3ad5cced50c15fd873ed5"
+        ],
+        [
+            "intro.",
+            "VernacExtend",
+            "3999be354c758ba0d1866e0fcc78a7288779a224"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "rewrite repr_union_2; auto.",
+            "VernacExtend",
+            "ee8b09f214e26b470af3c7647a8956083bc7fb33"
+        ],
+        [
+            "rewrite repr_union_1; auto.",
+            "VernacExtend",
+            "a007112eece6cb2e3291d697036512aea03156b0"
+        ],
+        [
+            "rewrite repr_union_1; auto.",
+            "VernacExtend",
+            "a007112eece6cb2e3291d697036512aea03156b0"
+        ],
+        [
+            "rewrite repr_union_2; auto.",
+            "VernacExtend",
+            "ee8b09f214e26b470af3c7647a8956083bc7fb33"
+        ],
+        [
+            "repeat rewrite repr_union_1; auto.",
+            "VernacExtend",
+            "74e2e93ea0d63a17cc9226535b7b5109a4d7eed4"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition merge (uf: t) (a b: elt) : t := let a' := repr uf a in let b' := repr uf b in match M.elt_eq a' b' with | left EQ => uf | right NEQ => identify uf a' b (repr_res_none uf a) (not_eq_sym NEQ) end.",
+            "VernacDefinition",
+            "1c04356fed48b4469a57050abd05f215e5945176"
+        ],
+        [
+            "Lemma repr_merge: forall uf a b x, repr (merge uf a b) x = repr (union uf a b) x.",
+            "VernacStartTheoremProof",
+            "70d0fe892d71788d7d7340a447e9ee3242341e05"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold merge, union.",
+            "VernacExtend",
+            "2107830d47e8da9635ede14e1b9669eaf3cef22c"
+        ],
+        [
+            "destruct (M.elt_eq (repr uf a) (repr uf b)).",
+            "VernacExtend",
+            "6c2ed8767532b06cc19e0b033ef4ab43c37633d2"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "destruct (M.elt_eq (repr uf x) (repr uf a)).",
+            "VernacExtend",
+            "255b34a7e79267d4a23d1f4aa04d5bbe68ee030f"
+        ],
+        [
+            "repeat rewrite repr_identify_2; auto.",
+            "VernacExtend",
+            "1fef1578fb73534eaa19b13694a552ed972ab089"
+        ],
+        [
+            "rewrite repr_canonical; auto.",
+            "VernacExtend",
+            "fce104b50be6fc56045b7f53349a4e26a994dbac"
+        ],
+        [
+            "repeat rewrite repr_identify_1; auto.",
+            "VernacExtend",
+            "116f4081cd38a23a356f4c0656a3b14f0fca2f13"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma sameclass_merge: forall uf a b x y, sameclass (merge uf a b) x y <-> sameclass (union uf a b) x y.",
+            "VernacStartTheoremProof",
+            "bc3b9c6aea43b0319482fe62183edc6ac70e9e01"
+        ],
+        [
+            "unfold sameclass; intros.",
+            "VernacExtend",
+            "b49705ebf1ee1aac4d0be854a5aa30651d36244e"
+        ],
+        [
+            "repeat rewrite repr_merge.",
+            "VernacExtend",
+            "358b19299635e19f49a8c43d9def7d1cca2e688f"
+        ],
+        [
+            "tauto.",
+            "VernacExtend",
+            "9bfafe84fb6724789bdf6cfd21cd721dd63fdabd"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition path_ord (uf: t) : elt -> elt -> Prop := order uf.(m).",
+            "VernacDefinition",
+            "fb11fde9877d83c66634e457fc263479a8e4715b"
+        ],
+        [
+            "Lemma path_ord_wellfounded: forall uf, well_founded (path_ord uf).",
+            "VernacStartTheoremProof",
+            "5c2b4c3b7cf284f62c01c00d851cc2388796eeda"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply mwf.",
+            "VernacExtend",
+            "c6532dedd00dc7f2824e25b1c20e1984ab77164d"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma path_ord_canonical: forall uf x y, repr uf x = x -> ~path_ord uf y x.",
+            "VernacStartTheoremProof",
+            "7109efd6488d5d6f975c493629ff97b3c8d54fdd"
+        ],
+        [
+            "intros; red; intros.",
+            "VernacExtend",
+            "51aeefe3bf0889d494d662b4f3305dd8bbc97324"
+        ],
+        [
+            "hnf in H0.",
+            "VernacExtend",
+            "ef2ef5338fe3c3f98be9c585e08b6598bfd5a754"
+        ],
+        [
+            "assert (M.get x (m uf) = None).",
+            "VernacExtend",
+            "622bb0cec89505713a10d1c720b72fe4eb314705"
+        ],
+        [
+            "rewrite <- H.",
+            "VernacExtend",
+            "95b84807b4afb2ef79b7cc04a1c91a4e3a502e47"
+        ],
+        [
+            "apply repr_res_none.",
+            "VernacExtend",
+            "15cbc479aacaeeed9f4013da3e7e6f1ba390712c"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma path_ord_merge_1: forall uf a b x y, path_ord uf x y -> path_ord (merge uf a b) x y.",
+            "VernacStartTheoremProof",
+            "9fd0ef7e8367630c5ceb2ce8d75c0540f4df36e8"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold merge.",
+            "VernacExtend",
+            "a6425842417ff733d99da8dcb3f0875d726e4642"
+        ],
+        [
+            "destruct (M.elt_eq (repr uf a) (repr uf b)).",
+            "VernacExtend",
+            "6c2ed8767532b06cc19e0b033ef4ab43c37633d2"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "red.",
+            "VernacExtend",
+            "95a3fb9e13ce19fdc8e335912fb83e57a9512b14"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "red.",
+            "VernacExtend",
+            "95a3fb9e13ce19fdc8e335912fb83e57a9512b14"
+        ],
+        [
+            "rewrite M.gsspec.",
+            "VernacExtend",
+            "59ba4783a5c7be2fa4d5cd5059720ecb9c19886f"
+        ],
+        [
+            "rewrite dec_eq_false.",
+            "VernacExtend",
+            "2530a21719d3113518c720a98b73133863bee613"
+        ],
+        [
+            "apply H.",
+            "VernacExtend",
+            "4b47b71ad0f800d57cbdc591d68949e07decb540"
+        ],
+        [
+            "red; intros.",
+            "VernacExtend",
+            "cac589df0c867c7c46c31951b6da5495d0153212"
+        ],
+        [
+            "hnf in H.",
+            "VernacExtend",
+            "b998e5ae98dd847416f4f194f30407c3597ea052"
+        ],
+        [
+            "generalize (repr_res_none uf a).",
+            "VernacExtend",
+            "d2286c81cecafc9919802de2272e5b66694c6c30"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma path_ord_merge_2: forall uf a b, repr uf a <> repr uf b -> path_ord (merge uf a b) b (repr uf a).",
+            "VernacStartTheoremProof",
+            "e9726921c13a526cb49c4db70224347bfa6a4150"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold merge.",
+            "VernacExtend",
+            "a6425842417ff733d99da8dcb3f0875d726e4642"
+        ],
+        [
+            "destruct (M.elt_eq (repr uf a) (repr uf b)).",
+            "VernacExtend",
+            "6c2ed8767532b06cc19e0b033ef4ab43c37633d2"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "red.",
+            "VernacExtend",
+            "95a3fb9e13ce19fdc8e335912fb83e57a9512b14"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "red.",
+            "VernacExtend",
+            "95a3fb9e13ce19fdc8e335912fb83e57a9512b14"
+        ],
+        [
+            "rewrite M.gsspec.",
+            "VernacExtend",
+            "59ba4783a5c7be2fa4d5cd5059720ecb9c19886f"
+        ],
+        [
+            "rewrite dec_eq_true; auto.",
+            "VernacExtend",
+            "e00f39dc3f4acd139de70eba042be899c6347cd5"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Section PATHLEN.",
+            "VernacBeginSection",
+            "25673b6b8347ff09ec847c990472e52a889fa2fe"
+        ],
+        [
+            "Variable uf: t.",
+            "VernacAssumption",
+            "ef250b9e4badf17cca308aeeb2c7b56783b87b8a"
+        ],
+        [
+            "Definition F_pathlen (a: elt) (rec: forall b, order uf.(m) b a -> nat) : nat := match getlink uf.(m) a with | inleft (exist a' P) => S (rec a' P) | inright _ => O end.",
+            "VernacDefinition",
+            "2eff4f24fcb2979a019dd3e486a43812d7b839a2"
+        ],
+        [
+            "Definition pathlen (a: elt) : nat := Fix uf.(mwf) (fun _ => nat) F_pathlen a.",
+            "VernacDefinition",
+            "8810c9ea7e21b6c28235ec4ed8b5ac6aea9bce15"
+        ],
+        [
+            "Lemma pathlen_unroll: forall a, pathlen a = match M.get a uf.(m) with Some a' => S(pathlen a') | None => O end.",
+            "VernacStartTheoremProof",
+            "8e97ef18449a2cb44f0727e39da9b7eaf131c974"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold pathlen at 1.",
+            "VernacExtend",
+            "d2db9c4b17ea496af5005241c4ee2f823334f1db"
+        ],
+        [
+            "rewrite Fix_eq.",
+            "VernacExtend",
+            "22073a388ed7c3a448504abe97c5de5a55f9d8c9"
+        ],
+        [
+            "unfold F_pathlen.",
+            "VernacExtend",
+            "0cba4b65cd5ace1501a2ae73b98ca4afed50acc0"
+        ],
+        [
+            "destruct (getlink uf.(m) a) as [[a' P] | Q].",
+            "VernacExtend",
+            "792145470704a2177cdacb83649a75884888cc42"
+        ],
+        [
+            "rewrite P; auto.",
+            "VernacExtend",
+            "939322e2d571ad11c83614d20d40483c3c9ae4f5"
+        ],
+        [
+            "rewrite Q; auto.",
+            "VernacExtend",
+            "4e72a38431e485ccf0626d554797544fceb80c6e"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold F_pathlen.",
+            "VernacExtend",
+            "0cba4b65cd5ace1501a2ae73b98ca4afed50acc0"
+        ],
+        [
+            "destruct (getlink (m uf) x) as [[a' P] | Q]; auto.",
+            "VernacExtend",
+            "c532ddadc5fdeb4b65ac2922b85ce767e70ba210"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma pathlen_none: forall a, M.get a uf.(m) = None -> pathlen a = 0.",
+            "VernacStartTheoremProof",
+            "6b684f17a81021104efd1bcfaf1b72a858e76f5d"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite pathlen_unroll.",
+            "VernacExtend",
+            "016790a3c93c5cfe997a3e08cff77e218fc4533f"
+        ],
+        [
+            "rewrite H; auto.",
+            "VernacExtend",
+            "3e25713af8eaa76cddf9287af10d66733da2ee16"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma pathlen_some: forall a a', M.get a uf.(m) = Some a' -> pathlen a = S (pathlen a').",
+            "VernacStartTheoremProof",
+            "43e65a74bd8ad1021749bf7f5acce6292905cd25"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite pathlen_unroll.",
+            "VernacExtend",
+            "016790a3c93c5cfe997a3e08cff77e218fc4533f"
+        ],
+        [
+            "rewrite H; auto.",
+            "VernacExtend",
+            "3e25713af8eaa76cddf9287af10d66733da2ee16"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma pathlen_zero: forall a, repr uf a = a <-> pathlen a = O.",
+            "VernacStartTheoremProof",
+            "6a5a6e8511b024624431f689482f9c3a35a63d10"
+        ],
+        [
+            "intros; split; intros.",
+            "VernacExtend",
+            "c2ba330b9c2c5e22fd554cd9ccb5c9ade0d6123e"
+        ],
+        [
+            "apply pathlen_none.",
+            "VernacExtend",
+            "db203a74a30b7fcd677edc68b33aa78b3731a2bb"
+        ],
+        [
+            "rewrite <- H.",
+            "VernacExtend",
+            "95b84807b4afb2ef79b7cc04a1c91a4e3a502e47"
+        ],
+        [
+            "apply repr_res_none.",
+            "VernacExtend",
+            "15cbc479aacaeeed9f4013da3e7e6f1ba390712c"
+        ],
+        [
+            "apply repr_none.",
+            "VernacExtend",
+            "164678275c2b06049f706d490fb310696ced818a"
+        ],
+        [
+            "rewrite pathlen_unroll in H.",
+            "VernacExtend",
+            "4eacefdd70fde4f1c3f5e7be7211ae26570aa960"
+        ],
+        [
+            "destruct (M.get a (m uf)); congruence.",
+            "VernacExtend",
+            "25a031553800b1c36dfff64199a03ac5ccd1c66e"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End PATHLEN.",
+            "VernacEndSegment",
+            "7a018a18293e8cb10a39c7bbf64cb084e0f93029"
+        ],
+        [
+            "Lemma pathlen_merge: forall uf a b x, pathlen (merge uf a b) x = if M.elt_eq (repr uf a) (repr uf b) then pathlen uf x else if M.elt_eq (repr uf x) (repr uf a) then pathlen uf x + pathlen uf b + 1 else pathlen uf x.",
+            "VernacStartTheoremProof",
+            "374d7da341c962bd099e8aa315c6cad5297b6dfd"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold merge.",
+            "VernacExtend",
+            "a6425842417ff733d99da8dcb3f0875d726e4642"
+        ],
+        [
+            "destruct (M.elt_eq (repr uf a) (repr uf b)).",
+            "VernacExtend",
+            "6c2ed8767532b06cc19e0b033ef4ab43c37633d2"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "set (uf' := identify uf (repr uf a) b (repr_res_none uf a) (not_eq_sym n)).",
+            "VernacExtend",
+            "7af01edb765b95758d2e0c7858c69ac58d39822f"
+        ],
+        [
+            "pattern x.",
+            "VernacExtend",
+            "089307d255bc9fa12b20949bfc9de7ea2a84fb26"
+        ],
+        [
+            "apply (well_founded_ind (mwf uf')); intros.",
+            "VernacExtend",
+            "2c3aa8f301edeadd14d0f359ec90b1707b2db6bc"
+        ],
+        [
+            "rewrite (pathlen_unroll uf').",
+            "VernacExtend",
+            "f3a6d4100571f55f00638ee25323fc54e0b116c7"
+        ],
+        [
+            "destruct (M.get x0 (m uf')) as [x'|] eqn:G.",
+            "VernacExtend",
+            "0b0057f270f85b2eb4f80e880835679f679e2930"
+        ],
+        [
+            "rewrite H; auto.",
+            "VernacExtend",
+            "3e25713af8eaa76cddf9287af10d66733da2ee16"
+        ],
+        [
+            "simpl in G.",
+            "VernacExtend",
+            "9ec3a08cc4a4cb9caf499bd2b6114546b7f73c55"
+        ],
+        [
+            "rewrite M.gsspec in G.",
+            "VernacExtend",
+            "ea5797bb6089c9b37e950ade3c2d03cc13f70503"
+        ],
+        [
+            "destruct (M.elt_eq x0 (repr uf a)).",
+            "VernacExtend",
+            "e239d1de78566abc07479006713c423372658554"
+        ],
+        [
+            "rewrite e.",
+            "VernacExtend",
+            "1896cbdbda80ea761a6be423aaedd9d6b23173b0"
+        ],
+        [
+            "rewrite repr_canonical.",
+            "VernacExtend",
+            "ea7c05e89a8ef1d17ae6679a3329fe602293234e"
+        ],
+        [
+            "rewrite dec_eq_true.",
+            "VernacExtend",
+            "28b046c22f8f69c0651cbac642dd4f2013af7847"
+        ],
+        [
+            "inversion G.",
+            "VernacExtend",
+            "be39830c00437b1028f3ec43369d74326506ffb8"
+        ],
+        [
+            "subst x'.",
+            "VernacExtend",
+            "23d87e38863f5f14801b3504b95b86a8137d78de"
+        ],
+        [
+            "rewrite dec_eq_false; auto.",
+            "VernacExtend",
+            "c22a540510a59aac353333df2e5d57cf02eb6138"
+        ],
+        [
+            "replace (pathlen uf (repr uf a)) with 0.",
+            "VernacExtend",
+            "30945e64291a8a27a66fe9b2f520f5a640e2015c"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "symmetry.",
+            "VernacExtend",
+            "a08fc0dc04bba893008bded8181f393e2d8db167"
+        ],
+        [
+            "apply pathlen_none.",
+            "VernacExtend",
+            "db203a74a30b7fcd677edc68b33aa78b3731a2bb"
+        ],
+        [
+            "apply repr_res_none.",
+            "VernacExtend",
+            "15cbc479aacaeeed9f4013da3e7e6f1ba390712c"
+        ],
+        [
+            "rewrite (repr_unroll uf x0), (pathlen_unroll uf x0); rewrite G.",
+            "VernacExtend",
+            "7fb734f21846cb8a316449cb53b5177455809b15"
+        ],
+        [
+            "destruct (M.elt_eq (repr uf x') (repr uf a)); omega.",
+            "VernacExtend",
+            "4bff12eff9e6ddecb6fcbd36a2d731ca64da7e13"
+        ],
+        [
+            "simpl in G.",
+            "VernacExtend",
+            "9ec3a08cc4a4cb9caf499bd2b6114546b7f73c55"
+        ],
+        [
+            "rewrite M.gsspec in G.",
+            "VernacExtend",
+            "ea5797bb6089c9b37e950ade3c2d03cc13f70503"
+        ],
+        [
+            "destruct (M.elt_eq x0 (repr uf a)); try discriminate.",
+            "VernacExtend",
+            "582edfb7ef1e8a7223d04d28b962d89c28ed6b54"
+        ],
+        [
+            "rewrite (repr_none uf x0) by auto.",
+            "VernacExtend",
+            "2d28e130b23f3605b306d00f2017407dfdb9fdbf"
+        ],
+        [
+            "rewrite dec_eq_false; auto.",
+            "VernacExtend",
+            "c22a540510a59aac353333df2e5d57cf02eb6138"
+        ],
+        [
+            "symmetry.",
+            "VernacExtend",
+            "a08fc0dc04bba893008bded8181f393e2d8db167"
+        ],
+        [
+            "apply pathlen_zero; auto.",
+            "VernacExtend",
+            "e8bf5a6eca4ea4794dc8c0a3d0219be1f014b531"
+        ],
+        [
+            "apply repr_none; auto.",
+            "VernacExtend",
+            "ce0d2116bb686197c286e5a5c611197176160a76"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma pathlen_gt_merge: forall uf a b x y, repr uf x = repr uf y -> pathlen uf x > pathlen uf y -> pathlen (merge uf a b) x > pathlen (merge uf a b) y.",
+            "VernacStartTheoremProof",
+            "6813b0f64523b62c5ac599c21d8af167eb026e96"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "repeat rewrite pathlen_merge.",
+            "VernacExtend",
+            "1b66083407d857401f1faa75fb17b4f52ba5baac"
+        ],
+        [
+            "destruct (M.elt_eq (repr uf a) (repr uf b)).",
+            "VernacExtend",
+            "6c2ed8767532b06cc19e0b033ef4ab43c37633d2"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "rewrite H.",
+            "VernacExtend",
+            "6192df8b89486a3ba89a78e26e0d70cae2dc94c2"
+        ],
+        [
+            "destruct (M.elt_eq (repr uf y) (repr uf a)).",
+            "VernacExtend",
+            "76e81b7ac95a00968a399cdb0d968882643fa057"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Section COMPRESS.",
+            "VernacBeginSection",
+            "8a5f5431d210950cfdca3f27380edc4730705fa8"
+        ],
+        [
+            "Variable uf: t.",
+            "VernacAssumption",
+            "ef250b9e4badf17cca308aeeb2c7b56783b87b8a"
+        ],
+        [
+            "Variable a b: elt.",
+            "VernacAssumption",
+            "d14f906e6dbd0b74c6ebb345145de511866c25f9"
+        ],
+        [
+            "Hypothesis a_diff_b: a <> b.",
+            "VernacAssumption",
+            "8dd7525984abca16e73c5c9c9b74df8e7fffdc92"
+        ],
+        [
+            "Hypothesis a_repr_b: repr uf a = b.",
+            "VernacAssumption",
+            "48bd7bde36800e3a7caddf29df508d1c50616b1a"
+        ],
+        [
+            "Lemma compress_order: forall x y, order (M.set a b uf.(m)) y x -> order uf.(m) y x \\/ (x = a /\\ y = b).",
+            "VernacStartTheoremProof",
+            "e6e74ad3c3605d998845a47c2728ed60069da814"
+        ],
+        [
+            "intros until y.",
+            "VernacExtend",
+            "d1d10153f927031bceccac11dd74d452de2e238a"
+        ],
+        [
+            "unfold order.",
+            "VernacExtend",
+            "855292ab54314ab36f69a9a24ab1169ed27e3478"
+        ],
+        [
+            "rewrite M.gsspec.",
+            "VernacExtend",
+            "59ba4783a5c7be2fa4d5cd5059720ecb9c19886f"
+        ],
+        [
+            "destruct (M.elt_eq x a).",
+            "VernacExtend",
+            "c2c57655249a3d58a61f5478ff0de89099348bd7"
+        ],
+        [
+            "intuition congruence.",
+            "VernacExtend",
+            "2cba3542847e3f4ea52f3f62375adc6e8f8f04bc"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Remark compress_Acc: forall x, Acc (order uf.(m)) x -> Acc (order (M.set a b uf.(m))) x.",
+            "VernacStartTheoremProof",
+            "bda6303b3c09140b51bea4a2f1110619c68cfbd6"
+        ],
+        [
+            "induction 1.",
+            "VernacExtend",
+            "dfe896305621800fcbb03b32d51d497edbdf1dc5"
+        ],
+        [
+            "constructor; intros.",
+            "VernacExtend",
+            "6563c593bcf639ae667d436a08cab59e1ac2dcce"
+        ],
+        [
+            "destruct (compress_order _ _ H1) as [A | [A B]].",
+            "VernacExtend",
+            "57abb08dda733c8152d4d3f9e4fdd3d82f8d8afa"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "subst x y.",
+            "VernacExtend",
+            "e4fed02a972879c25e136feafdf0cd2b8f650d0a"
+        ],
+        [
+            "constructor; intros.",
+            "VernacExtend",
+            "6563c593bcf639ae667d436a08cab59e1ac2dcce"
+        ],
+        [
+            "destruct (compress_order _ _ H2) as [A | [A B]].",
+            "VernacExtend",
+            "c388f0e259b682d756545285fb106faa88ee4035"
+        ],
+        [
+            "red in A.",
+            "VernacExtend",
+            "c2baa1dabd37cb6adea27ea52f323699a404dbb1"
+        ],
+        [
+            "generalize (repr_res_none uf a).",
+            "VernacExtend",
+            "d2286c81cecafc9919802de2272e5b66694c6c30"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma compress_wf: well_founded (order (M.set a b uf.(m))).",
+            "VernacStartTheoremProof",
+            "53027a2bdcb77c523e2c11c9c47db476537896e4"
+        ],
+        [
+            "red; intros.",
+            "VernacExtend",
+            "cac589df0c867c7c46c31951b6da5495d0153212"
+        ],
+        [
+            "apply compress_Acc.",
+            "VernacExtend",
+            "b333bf5e93074974401cadeccefdf49c5db189d7"
+        ],
+        [
+            "apply uf.(mwf).",
+            "VernacExtend",
+            "c9ff2bc11ed71024b6b771fc72f5b1c140fac3dd"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition compress := mk (M.set a b uf.(m)) compress_wf.",
+            "VernacDefinition",
+            "1199e255bc43c9b05e254fb1a87bd7ac08b75b1c"
+        ],
+        [
+            "Lemma repr_compress: forall x, repr compress x = repr uf x.",
+            "VernacStartTheoremProof",
+            "b25d1efbc1910a2ead89daba0415741744a199ad"
+        ],
+        [
+            "apply (well_founded_ind (mwf compress)); intros.",
+            "VernacExtend",
+            "7a0bfc4524143c4808b501bcd10a68d6282c0181"
+        ],
+        [
+            "rewrite (repr_unroll compress).",
+            "VernacExtend",
+            "ad3eba928e526a655a89e0f373007c5cc4003eb5"
+        ],
+        [
+            "destruct (M.get x (m compress)) as [y|] eqn:G.",
+            "VernacExtend",
+            "d5788835ecd34ada4a5381fd74088ccd92f4b9f8"
+        ],
+        [
+            "rewrite H; auto.",
+            "VernacExtend",
+            "3e25713af8eaa76cddf9287af10d66733da2ee16"
+        ],
+        [
+            "simpl in G.",
+            "VernacExtend",
+            "9ec3a08cc4a4cb9caf499bd2b6114546b7f73c55"
+        ],
+        [
+            "rewrite M.gsspec in G.",
+            "VernacExtend",
+            "ea5797bb6089c9b37e950ade3c2d03cc13f70503"
+        ],
+        [
+            "destruct (M.elt_eq x a).",
+            "VernacExtend",
+            "c2c57655249a3d58a61f5478ff0de89099348bd7"
+        ],
+        [
+            "inversion G.",
+            "VernacExtend",
+            "be39830c00437b1028f3ec43369d74326506ffb8"
+        ],
+        [
+            "subst x y.",
+            "VernacExtend",
+            "e4fed02a972879c25e136feafdf0cd2b8f650d0a"
+        ],
+        [
+            "rewrite <- a_repr_b.",
+            "VernacExtend",
+            "d225aa8431ac1941990dc61a7b05afd6bf1b08c1"
+        ],
+        [
+            "apply repr_canonical.",
+            "VernacExtend",
+            "ca2f40a5d49fd090006edf9ae62a995590c659f9"
+        ],
+        [
+            "symmetry; apply repr_some; auto.",
+            "VernacExtend",
+            "74d65980100087eaf5c165aab8e29784f904769e"
+        ],
+        [
+            "simpl in G.",
+            "VernacExtend",
+            "9ec3a08cc4a4cb9caf499bd2b6114546b7f73c55"
+        ],
+        [
+            "rewrite M.gsspec in G.",
+            "VernacExtend",
+            "ea5797bb6089c9b37e950ade3c2d03cc13f70503"
+        ],
+        [
+            "destruct (M.elt_eq x a).",
+            "VernacExtend",
+            "c2c57655249a3d58a61f5478ff0de89099348bd7"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "symmetry; apply repr_none; auto.",
+            "VernacExtend",
+            "3e3619a3514ead910c07ac5f7fce98fb52e59de7"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End COMPRESS.",
+            "VernacEndSegment",
+            "00b47aa960179c5ea96b71469b96fdd0f298764c"
+        ],
+        [
+            "Section FIND.",
+            "VernacBeginSection",
+            "e6af328427a1f6372622cd9116a63ce3a6c3fe44"
+        ],
+        [
+            "Variable uf: t.",
+            "VernacAssumption",
+            "ef250b9e4badf17cca308aeeb2c7b56783b87b8a"
+        ],
+        [
+            "Program Fixpoint find_x (a: elt) {wf (order uf.(m)) a} : { r: elt * t | fst r = repr uf a /\\ forall x, repr (snd r) x = repr uf x } := match M.get a uf.(m) with | Some a' => match find_x a' with | pair b uf' => (b, compress uf' a b _ _) end | None => (a, uf) end.",
+            "VernacFixpoint",
+            "3842188cc3deee85259468ef8c605047119e28f2"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "red.",
+            "VernacExtend",
+            "95a3fb9e13ce19fdc8e335912fb83e57a9512b14"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "destruct (find_x a') as [[b' uf''] [A B]].",
+            "VernacExtend",
+            "ff96b9791bbbd9a174f7b7785974825de2ae8160"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "inv Heq_anonymous.",
+            "VernacExtend",
+            "afa1b3a5ef779908b4d24468f6ff715a889e7757"
+        ],
+        [
+            "apply repr_some_diff.",
+            "VernacExtend",
+            "64164d06b71b9d06460316043e80014573a53d5c"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "destruct (find_x a') as [[b' uf''] [A B]].",
+            "VernacExtend",
+            "ff96b9791bbbd9a174f7b7785974825de2ae8160"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "inv Heq_anonymous.",
+            "VernacExtend",
+            "afa1b3a5ef779908b4d24468f6ff715a889e7757"
+        ],
+        [
+            "rewrite B.",
+            "VernacExtend",
+            "6bc7e557f9b9a2c4deba8e6f4ced1bbbccc735f9"
+        ],
+        [
+            "apply repr_some.",
+            "VernacExtend",
+            "d66808b57c8b40c911c1bbd636e953b84b7ea72f"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "destruct (find_x a') as [[b' uf''] [A B]].",
+            "VernacExtend",
+            "ff96b9791bbbd9a174f7b7785974825de2ae8160"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "inv Heq_anonymous.",
+            "VernacExtend",
+            "afa1b3a5ef779908b4d24468f6ff715a889e7757"
+        ],
+        [
+            "symmetry.",
+            "VernacExtend",
+            "a08fc0dc04bba893008bded8181f393e2d8db167"
+        ],
+        [
+            "apply repr_some.",
+            "VernacExtend",
+            "d66808b57c8b40c911c1bbd636e953b84b7ea72f"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite repr_compress.",
+            "VernacExtend",
+            "36d0e6e79bf507d9f55c0e000c340be9ba439a25"
+        ],
+        [
+            "destruct (find_x a') as [[b' uf''] [A B]].",
+            "VernacExtend",
+            "ff96b9791bbbd9a174f7b7785974825de2ae8160"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "inv Heq_anonymous.",
+            "VernacExtend",
+            "afa1b3a5ef779908b4d24468f6ff715a889e7757"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "split; auto.",
+            "VernacExtend",
+            "fcd44a714bd12fa54b1c7746996e44dbac16df06"
+        ],
+        [
+            "symmetry.",
+            "VernacExtend",
+            "a08fc0dc04bba893008bded8181f393e2d8db167"
+        ],
+        [
+            "apply repr_none.",
+            "VernacExtend",
+            "164678275c2b06049f706d490fb310696ced818a"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "apply mwf.",
+            "VernacExtend",
+            "c6532dedd00dc7f2824e25b1c20e1984ab77164d"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Definition find (a: elt) : elt * t := proj1_sig (find_x a).",
+            "VernacDefinition",
+            "89be847f21cd0e65b84a7f70d0dfbab5987d5485"
+        ],
+        [
+            "Lemma find_repr: forall a, fst (find a) = repr uf a.",
+            "VernacStartTheoremProof",
+            "60a738c442b14f8d46c75ccc194fbd792a2baec3"
+        ],
+        [
+            "unfold find; intros.",
+            "VernacExtend",
+            "8dab0f7dc6033e9c886632613225a67874c7e80f"
+        ],
+        [
+            "destruct (find_x a) as [[b uf'] [A B]].",
+            "VernacExtend",
+            "f6a596e94edda746d3c208d280c62d51e1f8b2cd"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma find_unchanged: forall a x, repr (snd (find a)) x = repr uf x.",
+            "VernacStartTheoremProof",
+            "6108ba07b3da4683bb38230fccae8b0964955fd7"
+        ],
+        [
+            "unfold find; intros.",
+            "VernacExtend",
+            "8dab0f7dc6033e9c886632613225a67874c7e80f"
+        ],
+        [
+            "destruct (find_x a) as [[b uf'] [A B]].",
+            "VernacExtend",
+            "f6a596e94edda746d3c208d280c62d51e1f8b2cd"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma sameclass_find_1: forall a x y, sameclass (snd (find a)) x y <-> sameclass uf x y.",
+            "VernacStartTheoremProof",
+            "edd9b41062d174f265cb20a5accd72e0297a0c20"
+        ],
+        [
+            "unfold sameclass; intros.",
+            "VernacExtend",
+            "b49705ebf1ee1aac4d0be854a5aa30651d36244e"
+        ],
+        [
+            "repeat rewrite find_unchanged.",
+            "VernacExtend",
+            "5526d600dcff4707a1f990cfb1482ca28245151e"
+        ],
+        [
+            "tauto.",
+            "VernacExtend",
+            "9bfafe84fb6724789bdf6cfd21cd721dd63fdabd"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma sameclass_find_2: forall a, sameclass uf a (fst (find a)).",
+            "VernacStartTheoremProof",
+            "1456fb9716b9fbd6f0d003b914c3e6ebfbc3a330"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite find_repr.",
+            "VernacExtend",
+            "0af011231050b00a2eb53a5aee0a3607e29300c3"
+        ],
+        [
+            "apply sameclass_repr.",
+            "VernacExtend",
+            "4366a8e03da18d455e28108389d656329dc6d919"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma sameclass_find_3: forall a, sameclass (snd (find a)) a (fst (find a)).",
+            "VernacStartTheoremProof",
+            "1f98139052addc68a588289fdd072b7b2e315fa4"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "rewrite sameclass_find_1.",
+            "VernacExtend",
+            "060b9e0501c966840004814d58b9d2b2ec0e6d14"
+        ],
+        [
+            "apply sameclass_find_2.",
+            "VernacExtend",
+            "6afa41c7a7d9e1e5f1a1a804f9958899b2716bbd"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End FIND.",
+            "VernacEndSegment",
+            "84698f7f985a3bb5c3c6210c53e12931c5ab8d96"
+        ],
+        [
+            "End UF.",
+            "VernacEndSegment",
+            "60c5326ccb9e12e1ee6565ebb0acf826557b18bd"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "getlink",
+            "line_nb": 63,
+            "steps": [
+                {
+                    "command": [
+                        "destruct (M.get a m).",
+                        "VernacExtend",
+                        "027b835ac67bbd937c6a685adbca2b59ec1587b0"
+                    ]
+                },
+                {
+                    "command": [
+                        "left.",
+                        "VernacExtend",
+                        "06dad9fc5698018f3f1213205145fec906c612b1"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists e; auto.",
+                        "VernacExtend",
+                        "5789629a110c642815687c3512a8c438259c58a1"
+                    ]
+                },
+                {
+                    "command": [
+                        "right; auto.",
+                        "VernacExtend",
+                        "1f0a695ab06b3950e6a7adf329d300b1f859fe9d"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "repr_unroll",
+            "line_nb": 73,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold repr at 1.",
+                        "VernacExtend",
+                        "fa703aa682968bc0aef98bbc54eb84e226792265"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Fix_eq.",
+                        "VernacExtend",
+                        "22073a388ed7c3a448504abe97c5de5a55f9d8c9"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold F_repr.",
+                        "VernacExtend",
+                        "60258646749bc61d79af5aaed23e0e78f0dc27a8"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (getlink uf.(m) a) as [[a' P] | Q].",
+                        "VernacExtend",
+                        "792145470704a2177cdacb83649a75884888cc42"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite P; auto.",
+                        "VernacExtend",
+                        "939322e2d571ad11c83614d20d40483c3c9ae4f5"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Q; auto.",
+                        "VernacExtend",
+                        "4e72a38431e485ccf0626d554797544fceb80c6e"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold F_repr.",
+                        "VernacExtend",
+                        "60258646749bc61d79af5aaed23e0e78f0dc27a8"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (getlink (m uf) x) as [[a' P] | Q]; auto.",
+                        "VernacExtend",
+                        "c532ddadc5fdeb4b65ac2922b85ce767e70ba210"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "repr_none",
+            "line_nb": 85,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite repr_unroll.",
+                        "VernacExtend",
+                        "2e15174e85292340b18687c09be97b05d20fd05d"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H; auto.",
+                        "VernacExtend",
+                        "3e25713af8eaa76cddf9287af10d66733da2ee16"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "repr_some",
+            "line_nb": 90,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite repr_unroll.",
+                        "VernacExtend",
+                        "2e15174e85292340b18687c09be97b05d20fd05d"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H; auto.",
+                        "VernacExtend",
+                        "3e25713af8eaa76cddf9287af10d66733da2ee16"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "repr_res_none",
+            "line_nb": 95,
+            "steps": [
+                {
+                    "command": [
+                        "apply (well_founded_ind (mwf uf)).",
+                        "VernacExtend",
+                        "5ae32fd9d315667ac5916f5ea74f7390fac42826"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite repr_unroll.",
+                        "VernacExtend",
+                        "2e15174e85292340b18687c09be97b05d20fd05d"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (M.get x (m uf)) as [y|] eqn:X; auto.",
+                        "VernacExtend",
+                        "642067d9e268a01d4a8afa99d7838bce103e3473"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "repr_canonical",
+            "line_nb": 101,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply repr_none.",
+                        "VernacExtend",
+                        "164678275c2b06049f706d490fb310696ced818a"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply repr_res_none.",
+                        "VernacExtend",
+                        "15cbc479aacaeeed9f4013da3e7e6f1ba390712c"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "repr_some_diff",
+            "line_nb": 106,
+            "steps": [
+                {
+                    "command": [
+                        "intros; red; intros.",
+                        "VernacExtend",
+                        "51aeefe3bf0889d494d662b4f3305dd8bbc97324"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (repr a = a).",
+                        "VernacExtend",
+                        "483ec1d7f0e77846d7330bd333bbf836e6e716d6"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (repr_some a a'); auto.",
+                        "VernacExtend",
+                        "501eaef64f3dfaa05bda0994a08e807926b6c812"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (M.get a uf.(m) = None).",
+                        "VernacExtend",
+                        "7f85589e111595516aeaf0c3dec6f36abc46b8a5"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- H1.",
+                        "VernacExtend",
+                        "b8b417d956609d1854d18921f25bc0ffae73a74e"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply repr_res_none.",
+                        "VernacExtend",
+                        "15cbc479aacaeeed9f4013da3e7e6f1ba390712c"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "sameclass_refl",
+            "line_nb": 117,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "red.",
+                        "VernacExtend",
+                        "95a3fb9e13ce19fdc8e335912fb83e57a9512b14"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "sameclass_sym",
+            "line_nb": 122,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "red.",
+                        "VernacExtend",
+                        "95a3fb9e13ce19fdc8e335912fb83e57a9512b14"
+                    ]
+                },
+                {
+                    "command": [
+                        "symmetry.",
+                        "VernacExtend",
+                        "a08fc0dc04bba893008bded8181f393e2d8db167"
+                    ]
+                },
+                {
+                    "command": [
+                        "exact H.",
+                        "VernacExtend",
+                        "ce8e3e03bec1b3366baf128fe7eab49b160bc6a4"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "sameclass_trans",
+            "line_nb": 128,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "red.",
+                        "VernacExtend",
+                        "95a3fb9e13ce19fdc8e335912fb83e57a9512b14"
+                    ]
+                },
+                {
+                    "command": [
+                        "transitivity (repr uf b).",
+                        "VernacExtend",
+                        "43b2e18208ade371adec207af65cf355b1a31511"
+                    ]
+                },
+                {
+                    "command": [
+                        "exact H.",
+                        "VernacExtend",
+                        "ce8e3e03bec1b3366baf128fe7eab49b160bc6a4"
+                    ]
+                },
+                {
+                    "command": [
+                        "exact H0.",
+                        "VernacExtend",
+                        "3920fece303e3c4728f9cdc71daff99239237dbd"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "sameclass_repr",
+            "line_nb": 135,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "red.",
+                        "VernacExtend",
+                        "95a3fb9e13ce19fdc8e335912fb83e57a9512b14"
+                    ]
+                },
+                {
+                    "command": [
+                        "symmetry.",
+                        "VernacExtend",
+                        "a08fc0dc04bba893008bded8181f393e2d8db167"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite repr_canonical.",
+                        "VernacExtend",
+                        "ea7c05e89a8ef1d17ae6679a3329fe602293234e"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "wf_empty",
+            "line_nb": 142,
+            "steps": [
+                {
+                    "command": [
+                        "red.",
+                        "VernacExtend",
+                        "95a3fb9e13ce19fdc8e335912fb83e57a9512b14"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Acc_intro.",
+                        "VernacExtend",
+                        "2b155962537e5aa33952f28b98ee9d20165727a6"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros b RO.",
+                        "VernacExtend",
+                        "a9b7c46cc8c319bccab713aebebde7959c03f120"
+                    ]
+                },
+                {
+                    "command": [
+                        "red in RO.",
+                        "VernacExtend",
+                        "fd4d8b1256a3c01e111aaa9b5244ac389680fe92"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite M.gempty in RO.",
+                        "VernacExtend",
+                        "14886a721e34f6f8d43927ad77183247beadd303"
+                    ]
+                },
+                {
+                    "command": [
+                        "discriminate.",
+                        "VernacExtend",
+                        "66ca81b65e1a53372a2515fdfdd2a6b0677cb9c8"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "repr_empty",
+            "line_nb": 152,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply repr_none.",
+                        "VernacExtend",
+                        "164678275c2b06049f706d490fb310696ced818a"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply M.gempty.",
+                        "VernacExtend",
+                        "86a6c03a5da508d8d82b78f9e727aac7c4288162"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "sameclass_empty",
+            "line_nb": 158,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "red in H.",
+                        "VernacExtend",
+                        "a4b4bf9e03eb87c8fa06c84cfda5cac7b43f2be8"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat rewrite repr_empty in H.",
+                        "VernacExtend",
+                        "0f8c4d82b61d63dec22a4f19618616e8984964ed"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "identify_order",
+            "line_nb": 169,
+            "steps": [
+                {
+                    "command": [
+                        "intros until y.",
+                        "VernacExtend",
+                        "d1d10153f927031bceccac11dd74d452de2e238a"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold order.",
+                        "VernacExtend",
+                        "855292ab54314ab36f69a9a24ab1169ed27e3478"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite M.gsspec.",
+                        "VernacExtend",
+                        "59ba4783a5c7be2fa4d5cd5059720ecb9c19886f"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (M.elt_eq x a).",
+                        "VernacExtend",
+                        "c2c57655249a3d58a61f5478ff0de89099348bd7"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition congruence.",
+                        "VernacExtend",
+                        "2cba3542847e3f4ea52f3f62375adc6e8f8f04bc"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition congruence.",
+                        "VernacExtend",
+                        "2cba3542847e3f4ea52f3f62375adc6e8f8f04bc"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "identify_Acc_b",
+            "line_nb": 177,
+            "steps": [
+                {
+                    "command": [
+                        "induction 1; intros.",
+                        "VernacExtend",
+                        "176684f910d62ec20fbc75549575bf1cd34fa8ec"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; intros.",
+                        "VernacExtend",
+                        "6563c593bcf639ae667d436a08cab59e1ac2dcce"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite identify_order in H2.",
+                        "VernacExtend",
+                        "bd34e2201d7d44d6a80cd1627db7e66a24a6c3fc"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H2 as [A | [A B]].",
+                        "VernacExtend",
+                        "8d4bc394192673fdfdd8dc97579f65467d8935ee"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply H0; auto.",
+                        "VernacExtend",
+                        "e167f871dfeec1cef76aaf201c54c081f29f730b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- (repr_some uf _ _ A).",
+                        "VernacExtend",
+                        "7343e8229427794fdfbef6b2c0f4e602daa7f6f0"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst.",
+                        "VernacExtend",
+                        "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "elim H1.",
+                        "VernacExtend",
+                        "2ee512db90fb1d268bb2752d9c0b7a5339eb8a0a"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply repr_none.",
+                        "VernacExtend",
+                        "164678275c2b06049f706d490fb310696ced818a"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "identify_Acc",
+            "line_nb": 190,
+            "steps": [
+                {
+                    "command": [
+                        "induction 1.",
+                        "VernacExtend",
+                        "dfe896305621800fcbb03b32d51d497edbdf1dc5"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; intros.",
+                        "VernacExtend",
+                        "6563c593bcf639ae667d436a08cab59e1ac2dcce"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite identify_order in H1.",
+                        "VernacExtend",
+                        "6e7dd8c825e15b53b03adf60a62bfdaa81e2cdf8"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H1 as [A | [A B]].",
+                        "VernacExtend",
+                        "f83b5fb1af8b03d8eebdd1af3fc909fa4ecaf138"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst.",
+                        "VernacExtend",
+                        "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply identify_Acc_b; auto.",
+                        "VernacExtend",
+                        "c28125c80186ba5786de3b15cc3455637d52cac4"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply uf.(mwf).",
+                        "VernacExtend",
+                        "c9ff2bc11ed71024b6b771fc72f5b1c140fac3dd"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "identify_wf",
+            "line_nb": 200,
+            "steps": [
+                {
+                    "command": [
+                        "red; intros.",
+                        "VernacExtend",
+                        "cac589df0c867c7c46c31951b6da5495d0153212"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply identify_Acc.",
+                        "VernacExtend",
+                        "8fe4869776a28e7b85084b8e73359e2ee6dee3ef"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply uf.(mwf).",
+                        "VernacExtend",
+                        "c9ff2bc11ed71024b6b771fc72f5b1c140fac3dd"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "repr_identify_1",
+            "line_nb": 206,
+            "steps": [
+                {
+                    "command": [
+                        "intros x0; pattern x0.",
+                        "VernacExtend",
+                        "a9b377f5e2d3e2218514e96d060dd5b19315e394"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (well_founded_ind (mwf uf)); intros.",
+                        "VernacExtend",
+                        "3aa37de4db430ad99f93c4a37002ee7e35533458"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (repr_unroll uf) in *.",
+                        "VernacExtend",
+                        "7a47e59e88146f35c461efc955546776bca96b52"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (M.get x (m uf)) as [a'|] eqn:X.",
+                        "VernacExtend",
+                        "8a7360ce2ca59170530a121abcf4ddb739808fec"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- H; auto.",
+                        "VernacExtend",
+                        "339e32f989b98c4748aacd68dd3407c72de16870"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply repr_some.",
+                        "VernacExtend",
+                        "d66808b57c8b40c911c1bbd636e953b84b7ea72f"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite M.gsspec.",
+                        "VernacExtend",
+                        "59ba4783a5c7be2fa4d5cd5059720ecb9c19886f"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite dec_eq_false; auto.",
+                        "VernacExtend",
+                        "c22a540510a59aac353333df2e5d57cf02eb6138"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply repr_none.",
+                        "VernacExtend",
+                        "164678275c2b06049f706d490fb310696ced818a"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite M.gsspec.",
+                        "VernacExtend",
+                        "59ba4783a5c7be2fa4d5cd5059720ecb9c19886f"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite dec_eq_false; auto.",
+                        "VernacExtend",
+                        "c22a540510a59aac353333df2e5d57cf02eb6138"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "repr_identify_2",
+            "line_nb": 222,
+            "steps": [
+                {
+                    "command": [
+                        "intros x0; pattern x0.",
+                        "VernacExtend",
+                        "a9b377f5e2d3e2218514e96d060dd5b19315e394"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (well_founded_ind (mwf uf)); intros.",
+                        "VernacExtend",
+                        "3aa37de4db430ad99f93c4a37002ee7e35533458"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (repr_unroll uf) in H0.",
+                        "VernacExtend",
+                        "ffa1a38e6ebb27eb65b34a364ae64b0fba6c914c"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (M.get x (m uf)) as [a'|] eqn:X.",
+                        "VernacExtend",
+                        "8a7360ce2ca59170530a121abcf4ddb739808fec"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- (H a'); auto.",
+                        "VernacExtend",
+                        "101b5dc067cbceba675ff024af2a7af82faf8e7c"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply repr_some.",
+                        "VernacExtend",
+                        "d66808b57c8b40c911c1bbd636e953b84b7ea72f"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite M.gsspec.",
+                        "VernacExtend",
+                        "59ba4783a5c7be2fa4d5cd5059720ecb9c19886f"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite dec_eq_false; auto.",
+                        "VernacExtend",
+                        "c22a540510a59aac353333df2e5d57cf02eb6138"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst x.",
+                        "VernacExtend",
+                        "76c28b0a6a4a7c1568fa30e26ee411c5e5d54968"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (repr_unroll identify).",
+                        "VernacExtend",
+                        "2ed4dace99ec64ccfb1d21d50ab9a51fbbbb348f"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite M.gsspec.",
+                        "VernacExtend",
+                        "59ba4783a5c7be2fa4d5cd5059720ecb9c19886f"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite dec_eq_true.",
+                        "VernacExtend",
+                        "28b046c22f8f69c0651cbac642dd4f2013af7847"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply repr_identify_1.",
+                        "VernacExtend",
+                        "c4d7e295c2fe8992d6ef3f5abead5859564c416c"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "union_not_same_class",
+            "line_nb": 242,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite repr_canonical.",
+                        "VernacExtend",
+                        "ea7c05e89a8ef1d17ae6679a3329fe602293234e"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "repr_union_1",
+            "line_nb": 248,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold union.",
+                        "VernacExtend",
+                        "18a57101e7fab0cdb5cf8d92c5cdddcadf3d4f39"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (M.elt_eq (repr uf a) (repr uf b)).",
+                        "VernacExtend",
+                        "6c2ed8767532b06cc19e0b033ef4ab43c37633d2"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply repr_identify_1.",
+                        "VernacExtend",
+                        "c4d7e295c2fe8992d6ef3f5abead5859564c416c"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "repr_union_2",
+            "line_nb": 256,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold union.",
+                        "VernacExtend",
+                        "18a57101e7fab0cdb5cf8d92c5cdddcadf3d4f39"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (M.elt_eq (repr uf a) (repr uf b)).",
+                        "VernacExtend",
+                        "6c2ed8767532b06cc19e0b033ef4ab43c37633d2"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- (repr_canonical uf b).",
+                        "VernacExtend",
+                        "4d9264df4de32cd9f5dac20d0588248bda882129"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply repr_identify_2.",
+                        "VernacExtend",
+                        "0b3ff99400b730db6556dd548abdde247d1407f4"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "repr_union_3",
+            "line_nb": 265,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold union.",
+                        "VernacExtend",
+                        "18a57101e7fab0cdb5cf8d92c5cdddcadf3d4f39"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (M.elt_eq (repr uf a) (repr uf b)).",
+                        "VernacExtend",
+                        "6c2ed8767532b06cc19e0b033ef4ab43c37633d2"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply repr_identify_1.",
+                        "VernacExtend",
+                        "c4d7e295c2fe8992d6ef3f5abead5859564c416c"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "sameclass_union_1",
+            "line_nb": 273,
+            "steps": [
+                {
+                    "command": [
+                        "intros; red.",
+                        "VernacExtend",
+                        "3393be941ed81b8e4a79e80db41d01425f14b126"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite repr_union_2; auto.",
+                        "VernacExtend",
+                        "ee8b09f214e26b470af3c7647a8956083bc7fb33"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite repr_union_3.",
+                        "VernacExtend",
+                        "e4c8358783222e5876da4bd45426b64ce4febca7"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "sameclass_union_2",
+            "line_nb": 279,
+            "steps": [
+                {
+                    "command": [
+                        "unfold sameclass; intros.",
+                        "VernacExtend",
+                        "b49705ebf1ee1aac4d0be854a5aa30651d36244e"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (M.elt_eq (repr uf x) (repr uf a)); destruct (M.elt_eq (repr uf y) (repr uf a)).",
+                        "VernacExtend",
+                        "649ceb1d114c8ebe8dd3ad5cced50c15fd873ed5"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat rewrite repr_union_2; auto.",
+                        "VernacExtend",
+                        "234c044a647e5130b59444b6699c783da236fd28"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat rewrite repr_union_1; auto.",
+                        "VernacExtend",
+                        "74e2e93ea0d63a17cc9226535b7b5109a4d7eed4"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "sameclass_union_3",
+            "line_nb": 287,
+            "steps": [
+                {
+                    "command": [
+                        "intros until y.",
+                        "VernacExtend",
+                        "d1d10153f927031bceccac11dd74d452de2e238a"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold sameclass.",
+                        "VernacExtend",
+                        "7f1069fce4350be53d5bae2d9c3c688c55154452"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (M.elt_eq (repr uf x) (repr uf a)); destruct (M.elt_eq (repr uf y) (repr uf a)).",
+                        "VernacExtend",
+                        "649ceb1d114c8ebe8dd3ad5cced50c15fd873ed5"
+                    ]
+                },
+                {
+                    "command": [
+                        "intro.",
+                        "VernacExtend",
+                        "3999be354c758ba0d1866e0fcc78a7288779a224"
+                    ]
+                },
+                {
+                    "command": [
+                        "left.",
+                        "VernacExtend",
+                        "06dad9fc5698018f3f1213205145fec906c612b1"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite repr_union_2; auto.",
+                        "VernacExtend",
+                        "ee8b09f214e26b470af3c7647a8956083bc7fb33"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite repr_union_1; auto.",
+                        "VernacExtend",
+                        "a007112eece6cb2e3291d697036512aea03156b0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite repr_union_1; auto.",
+                        "VernacExtend",
+                        "a007112eece6cb2e3291d697036512aea03156b0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite repr_union_2; auto.",
+                        "VernacExtend",
+                        "ee8b09f214e26b470af3c7647a8956083bc7fb33"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat rewrite repr_union_1; auto.",
+                        "VernacExtend",
+                        "74e2e93ea0d63a17cc9226535b7b5109a4d7eed4"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "repr_merge",
+            "line_nb": 301,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold merge, union.",
+                        "VernacExtend",
+                        "2107830d47e8da9635ede14e1b9669eaf3cef22c"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (M.elt_eq (repr uf a) (repr uf b)).",
+                        "VernacExtend",
+                        "6c2ed8767532b06cc19e0b033ef4ab43c37633d2"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (M.elt_eq (repr uf x) (repr uf a)).",
+                        "VernacExtend",
+                        "255b34a7e79267d4a23d1f4aa04d5bbe68ee030f"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat rewrite repr_identify_2; auto.",
+                        "VernacExtend",
+                        "1fef1578fb73534eaa19b13694a552ed972ab089"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite repr_canonical; auto.",
+                        "VernacExtend",
+                        "fce104b50be6fc56045b7f53349a4e26a994dbac"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat rewrite repr_identify_1; auto.",
+                        "VernacExtend",
+                        "116f4081cd38a23a356f4c0656a3b14f0fca2f13"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "sameclass_merge",
+            "line_nb": 311,
+            "steps": [
+                {
+                    "command": [
+                        "unfold sameclass; intros.",
+                        "VernacExtend",
+                        "b49705ebf1ee1aac4d0be854a5aa30651d36244e"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat rewrite repr_merge.",
+                        "VernacExtend",
+                        "358b19299635e19f49a8c43d9def7d1cca2e688f"
+                    ]
+                },
+                {
+                    "command": [
+                        "tauto.",
+                        "VernacExtend",
+                        "9bfafe84fb6724789bdf6cfd21cd721dd63fdabd"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "path_ord_wellfounded",
+            "line_nb": 317,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply mwf.",
+                        "VernacExtend",
+                        "c6532dedd00dc7f2824e25b1c20e1984ab77164d"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "path_ord_canonical",
+            "line_nb": 321,
+            "steps": [
+                {
+                    "command": [
+                        "intros; red; intros.",
+                        "VernacExtend",
+                        "51aeefe3bf0889d494d662b4f3305dd8bbc97324"
+                    ]
+                },
+                {
+                    "command": [
+                        "hnf in H0.",
+                        "VernacExtend",
+                        "ef2ef5338fe3c3f98be9c585e08b6598bfd5a754"
+                    ]
+                },
+                {
+                    "command": [
+                        "assert (M.get x (m uf) = None).",
+                        "VernacExtend",
+                        "622bb0cec89505713a10d1c720b72fe4eb314705"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- H.",
+                        "VernacExtend",
+                        "95b84807b4afb2ef79b7cc04a1c91a4e3a502e47"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply repr_res_none.",
+                        "VernacExtend",
+                        "15cbc479aacaeeed9f4013da3e7e6f1ba390712c"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "path_ord_merge_1",
+            "line_nb": 329,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold merge.",
+                        "VernacExtend",
+                        "a6425842417ff733d99da8dcb3f0875d726e4642"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (M.elt_eq (repr uf a) (repr uf b)).",
+                        "VernacExtend",
+                        "6c2ed8767532b06cc19e0b033ef4ab43c37633d2"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "red.",
+                        "VernacExtend",
+                        "95a3fb9e13ce19fdc8e335912fb83e57a9512b14"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "red.",
+                        "VernacExtend",
+                        "95a3fb9e13ce19fdc8e335912fb83e57a9512b14"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite M.gsspec.",
+                        "VernacExtend",
+                        "59ba4783a5c7be2fa4d5cd5059720ecb9c19886f"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite dec_eq_false.",
+                        "VernacExtend",
+                        "2530a21719d3113518c720a98b73133863bee613"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply H.",
+                        "VernacExtend",
+                        "4b47b71ad0f800d57cbdc591d68949e07decb540"
+                    ]
+                },
+                {
+                    "command": [
+                        "red; intros.",
+                        "VernacExtend",
+                        "cac589df0c867c7c46c31951b6da5495d0153212"
+                    ]
+                },
+                {
+                    "command": [
+                        "hnf in H.",
+                        "VernacExtend",
+                        "b998e5ae98dd847416f4f194f30407c3597ea052"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize (repr_res_none uf a).",
+                        "VernacExtend",
+                        "d2286c81cecafc9919802de2272e5b66694c6c30"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "path_ord_merge_2",
+            "line_nb": 345,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold merge.",
+                        "VernacExtend",
+                        "a6425842417ff733d99da8dcb3f0875d726e4642"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (M.elt_eq (repr uf a) (repr uf b)).",
+                        "VernacExtend",
+                        "6c2ed8767532b06cc19e0b033ef4ab43c37633d2"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "red.",
+                        "VernacExtend",
+                        "95a3fb9e13ce19fdc8e335912fb83e57a9512b14"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "red.",
+                        "VernacExtend",
+                        "95a3fb9e13ce19fdc8e335912fb83e57a9512b14"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite M.gsspec.",
+                        "VernacExtend",
+                        "59ba4783a5c7be2fa4d5cd5059720ecb9c19886f"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite dec_eq_true; auto.",
+                        "VernacExtend",
+                        "e00f39dc3f4acd139de70eba042be899c6347cd5"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pathlen_unroll",
+            "line_nb": 360,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold pathlen at 1.",
+                        "VernacExtend",
+                        "d2db9c4b17ea496af5005241c4ee2f823334f1db"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Fix_eq.",
+                        "VernacExtend",
+                        "22073a388ed7c3a448504abe97c5de5a55f9d8c9"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold F_pathlen.",
+                        "VernacExtend",
+                        "0cba4b65cd5ace1501a2ae73b98ca4afed50acc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (getlink uf.(m) a) as [[a' P] | Q].",
+                        "VernacExtend",
+                        "792145470704a2177cdacb83649a75884888cc42"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite P; auto.",
+                        "VernacExtend",
+                        "939322e2d571ad11c83614d20d40483c3c9ae4f5"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Q; auto.",
+                        "VernacExtend",
+                        "4e72a38431e485ccf0626d554797544fceb80c6e"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold F_pathlen.",
+                        "VernacExtend",
+                        "0cba4b65cd5ace1501a2ae73b98ca4afed50acc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (getlink (m uf) x) as [[a' P] | Q]; auto.",
+                        "VernacExtend",
+                        "c532ddadc5fdeb4b65ac2922b85ce767e70ba210"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pathlen_none",
+            "line_nb": 372,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite pathlen_unroll.",
+                        "VernacExtend",
+                        "016790a3c93c5cfe997a3e08cff77e218fc4533f"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H; auto.",
+                        "VernacExtend",
+                        "3e25713af8eaa76cddf9287af10d66733da2ee16"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pathlen_some",
+            "line_nb": 377,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite pathlen_unroll.",
+                        "VernacExtend",
+                        "016790a3c93c5cfe997a3e08cff77e218fc4533f"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H; auto.",
+                        "VernacExtend",
+                        "3e25713af8eaa76cddf9287af10d66733da2ee16"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pathlen_zero",
+            "line_nb": 382,
+            "steps": [
+                {
+                    "command": [
+                        "intros; split; intros.",
+                        "VernacExtend",
+                        "c2ba330b9c2c5e22fd554cd9ccb5c9ade0d6123e"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply pathlen_none.",
+                        "VernacExtend",
+                        "db203a74a30b7fcd677edc68b33aa78b3731a2bb"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- H.",
+                        "VernacExtend",
+                        "95b84807b4afb2ef79b7cc04a1c91a4e3a502e47"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply repr_res_none.",
+                        "VernacExtend",
+                        "15cbc479aacaeeed9f4013da3e7e6f1ba390712c"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply repr_none.",
+                        "VernacExtend",
+                        "164678275c2b06049f706d490fb310696ced818a"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite pathlen_unroll in H.",
+                        "VernacExtend",
+                        "4eacefdd70fde4f1c3f5e7be7211ae26570aa960"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (M.get a (m uf)); congruence.",
+                        "VernacExtend",
+                        "25a031553800b1c36dfff64199a03ac5ccd1c66e"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pathlen_merge",
+            "line_nb": 392,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold merge.",
+                        "VernacExtend",
+                        "a6425842417ff733d99da8dcb3f0875d726e4642"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (M.elt_eq (repr uf a) (repr uf b)).",
+                        "VernacExtend",
+                        "6c2ed8767532b06cc19e0b033ef4ab43c37633d2"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "set (uf' := identify uf (repr uf a) b (repr_res_none uf a) (not_eq_sym n)).",
+                        "VernacExtend",
+                        "7af01edb765b95758d2e0c7858c69ac58d39822f"
+                    ]
+                },
+                {
+                    "command": [
+                        "pattern x.",
+                        "VernacExtend",
+                        "089307d255bc9fa12b20949bfc9de7ea2a84fb26"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (well_founded_ind (mwf uf')); intros.",
+                        "VernacExtend",
+                        "2c3aa8f301edeadd14d0f359ec90b1707b2db6bc"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (pathlen_unroll uf').",
+                        "VernacExtend",
+                        "f3a6d4100571f55f00638ee25323fc54e0b116c7"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (M.get x0 (m uf')) as [x'|] eqn:G.",
+                        "VernacExtend",
+                        "0b0057f270f85b2eb4f80e880835679f679e2930"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H; auto.",
+                        "VernacExtend",
+                        "3e25713af8eaa76cddf9287af10d66733da2ee16"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in G.",
+                        "VernacExtend",
+                        "9ec3a08cc4a4cb9caf499bd2b6114546b7f73c55"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite M.gsspec in G.",
+                        "VernacExtend",
+                        "ea5797bb6089c9b37e950ade3c2d03cc13f70503"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (M.elt_eq x0 (repr uf a)).",
+                        "VernacExtend",
+                        "e239d1de78566abc07479006713c423372658554"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite e.",
+                        "VernacExtend",
+                        "1896cbdbda80ea761a6be423aaedd9d6b23173b0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite repr_canonical.",
+                        "VernacExtend",
+                        "ea7c05e89a8ef1d17ae6679a3329fe602293234e"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite dec_eq_true.",
+                        "VernacExtend",
+                        "28b046c22f8f69c0651cbac642dd4f2013af7847"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion G.",
+                        "VernacExtend",
+                        "be39830c00437b1028f3ec43369d74326506ffb8"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst x'.",
+                        "VernacExtend",
+                        "23d87e38863f5f14801b3504b95b86a8137d78de"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite dec_eq_false; auto.",
+                        "VernacExtend",
+                        "c22a540510a59aac353333df2e5d57cf02eb6138"
+                    ]
+                },
+                {
+                    "command": [
+                        "replace (pathlen uf (repr uf a)) with 0.",
+                        "VernacExtend",
+                        "30945e64291a8a27a66fe9b2f520f5a640e2015c"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "symmetry.",
+                        "VernacExtend",
+                        "a08fc0dc04bba893008bded8181f393e2d8db167"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply pathlen_none.",
+                        "VernacExtend",
+                        "db203a74a30b7fcd677edc68b33aa78b3731a2bb"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply repr_res_none.",
+                        "VernacExtend",
+                        "15cbc479aacaeeed9f4013da3e7e6f1ba390712c"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (repr_unroll uf x0), (pathlen_unroll uf x0); rewrite G.",
+                        "VernacExtend",
+                        "7fb734f21846cb8a316449cb53b5177455809b15"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (M.elt_eq (repr uf x') (repr uf a)); omega.",
+                        "VernacExtend",
+                        "4bff12eff9e6ddecb6fcbd36a2d731ca64da7e13"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in G.",
+                        "VernacExtend",
+                        "9ec3a08cc4a4cb9caf499bd2b6114546b7f73c55"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite M.gsspec in G.",
+                        "VernacExtend",
+                        "ea5797bb6089c9b37e950ade3c2d03cc13f70503"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (M.elt_eq x0 (repr uf a)); try discriminate.",
+                        "VernacExtend",
+                        "582edfb7ef1e8a7223d04d28b962d89c28ed6b54"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (repr_none uf x0) by auto.",
+                        "VernacExtend",
+                        "2d28e130b23f3605b306d00f2017407dfdb9fdbf"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite dec_eq_false; auto.",
+                        "VernacExtend",
+                        "c22a540510a59aac353333df2e5d57cf02eb6138"
+                    ]
+                },
+                {
+                    "command": [
+                        "symmetry.",
+                        "VernacExtend",
+                        "a08fc0dc04bba893008bded8181f393e2d8db167"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply pathlen_zero; auto.",
+                        "VernacExtend",
+                        "e8bf5a6eca4ea4794dc8c0a3d0219be1f014b531"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply repr_none; auto.",
+                        "VernacExtend",
+                        "ce0d2116bb686197c286e5a5c611197176160a76"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pathlen_gt_merge",
+            "line_nb": 428,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat rewrite pathlen_merge.",
+                        "VernacExtend",
+                        "1b66083407d857401f1faa75fb17b4f52ba5baac"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (M.elt_eq (repr uf a) (repr uf b)).",
+                        "VernacExtend",
+                        "6c2ed8767532b06cc19e0b033ef4ab43c37633d2"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H.",
+                        "VernacExtend",
+                        "6192df8b89486a3ba89a78e26e0d70cae2dc94c2"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (M.elt_eq (repr uf y) (repr uf a)).",
+                        "VernacExtend",
+                        "76e81b7ac95a00968a399cdb0d968882643fa057"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "compress_order",
+            "line_nb": 443,
+            "steps": [
+                {
+                    "command": [
+                        "intros until y.",
+                        "VernacExtend",
+                        "d1d10153f927031bceccac11dd74d452de2e238a"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold order.",
+                        "VernacExtend",
+                        "855292ab54314ab36f69a9a24ab1169ed27e3478"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite M.gsspec.",
+                        "VernacExtend",
+                        "59ba4783a5c7be2fa4d5cd5059720ecb9c19886f"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (M.elt_eq x a).",
+                        "VernacExtend",
+                        "c2c57655249a3d58a61f5478ff0de89099348bd7"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition congruence.",
+                        "VernacExtend",
+                        "2cba3542847e3f4ea52f3f62375adc6e8f8f04bc"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "compress_Acc",
+            "line_nb": 451,
+            "steps": [
+                {
+                    "command": [
+                        "induction 1.",
+                        "VernacExtend",
+                        "dfe896305621800fcbb03b32d51d497edbdf1dc5"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; intros.",
+                        "VernacExtend",
+                        "6563c593bcf639ae667d436a08cab59e1ac2dcce"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (compress_order _ _ H1) as [A | [A B]].",
+                        "VernacExtend",
+                        "57abb08dda733c8152d4d3f9e4fdd3d82f8d8afa"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst x y.",
+                        "VernacExtend",
+                        "e4fed02a972879c25e136feafdf0cd2b8f650d0a"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; intros.",
+                        "VernacExtend",
+                        "6563c593bcf639ae667d436a08cab59e1ac2dcce"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (compress_order _ _ H2) as [A | [A B]].",
+                        "VernacExtend",
+                        "c388f0e259b682d756545285fb106faa88ee4035"
+                    ]
+                },
+                {
+                    "command": [
+                        "red in A.",
+                        "VernacExtend",
+                        "c2baa1dabd37cb6adea27ea52f323699a404dbb1"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize (repr_res_none uf a).",
+                        "VernacExtend",
+                        "d2286c81cecafc9919802de2272e5b66694c6c30"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "compress_wf",
+            "line_nb": 464,
+            "steps": [
+                {
+                    "command": [
+                        "red; intros.",
+                        "VernacExtend",
+                        "cac589df0c867c7c46c31951b6da5495d0153212"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply compress_Acc.",
+                        "VernacExtend",
+                        "b333bf5e93074974401cadeccefdf49c5db189d7"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply uf.(mwf).",
+                        "VernacExtend",
+                        "c9ff2bc11ed71024b6b771fc72f5b1c140fac3dd"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "repr_compress",
+            "line_nb": 470,
+            "steps": [
+                {
+                    "command": [
+                        "apply (well_founded_ind (mwf compress)); intros.",
+                        "VernacExtend",
+                        "7a0bfc4524143c4808b501bcd10a68d6282c0181"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite (repr_unroll compress).",
+                        "VernacExtend",
+                        "ad3eba928e526a655a89e0f373007c5cc4003eb5"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (M.get x (m compress)) as [y|] eqn:G.",
+                        "VernacExtend",
+                        "d5788835ecd34ada4a5381fd74088ccd92f4b9f8"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H; auto.",
+                        "VernacExtend",
+                        "3e25713af8eaa76cddf9287af10d66733da2ee16"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in G.",
+                        "VernacExtend",
+                        "9ec3a08cc4a4cb9caf499bd2b6114546b7f73c55"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite M.gsspec in G.",
+                        "VernacExtend",
+                        "ea5797bb6089c9b37e950ade3c2d03cc13f70503"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (M.elt_eq x a).",
+                        "VernacExtend",
+                        "c2c57655249a3d58a61f5478ff0de89099348bd7"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion G.",
+                        "VernacExtend",
+                        "be39830c00437b1028f3ec43369d74326506ffb8"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst x y.",
+                        "VernacExtend",
+                        "e4fed02a972879c25e136feafdf0cd2b8f650d0a"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- a_repr_b.",
+                        "VernacExtend",
+                        "d225aa8431ac1941990dc61a7b05afd6bf1b08c1"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply repr_canonical.",
+                        "VernacExtend",
+                        "ca2f40a5d49fd090006edf9ae62a995590c659f9"
+                    ]
+                },
+                {
+                    "command": [
+                        "symmetry; apply repr_some; auto.",
+                        "VernacExtend",
+                        "74d65980100087eaf5c165aab8e29784f904769e"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in G.",
+                        "VernacExtend",
+                        "9ec3a08cc4a4cb9caf499bd2b6114546b7f73c55"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite M.gsspec in G.",
+                        "VernacExtend",
+                        "ea5797bb6089c9b37e950ade3c2d03cc13f70503"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (M.elt_eq x a).",
+                        "VernacExtend",
+                        "c2c57655249a3d58a61f5478ff0de89099348bd7"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "symmetry; apply repr_none; auto.",
+                        "VernacExtend",
+                        "3e3619a3514ead910c07ac5f7fce98fb52e59de7"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "find_x_obligation_1",
+            "line_nb": 493,
+            "steps": [
+                {
+                    "command": [
+                        "red.",
+                        "VernacExtend",
+                        "95a3fb9e13ce19fdc8e335912fb83e57a9512b14"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "find_x_obligation_2",
+            "line_nb": 497,
+            "steps": [
+                {
+                    "command": [
+                        "destruct (find_x a') as [[b' uf''] [A B]].",
+                        "VernacExtend",
+                        "ff96b9791bbbd9a174f7b7785974825de2ae8160"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv Heq_anonymous.",
+                        "VernacExtend",
+                        "afa1b3a5ef779908b4d24468f6ff715a889e7757"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply repr_some_diff.",
+                        "VernacExtend",
+                        "64164d06b71b9d06460316043e80014573a53d5c"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "find_x_obligation_3",
+            "line_nb": 504,
+            "steps": [
+                {
+                    "command": [
+                        "destruct (find_x a') as [[b' uf''] [A B]].",
+                        "VernacExtend",
+                        "ff96b9791bbbd9a174f7b7785974825de2ae8160"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv Heq_anonymous.",
+                        "VernacExtend",
+                        "afa1b3a5ef779908b4d24468f6ff715a889e7757"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite B.",
+                        "VernacExtend",
+                        "6bc7e557f9b9a2c4deba8e6f4ced1bbbccc735f9"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply repr_some.",
+                        "VernacExtend",
+                        "d66808b57c8b40c911c1bbd636e953b84b7ea72f"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "find_x_obligation_4",
+            "line_nb": 512,
+            "steps": [
+                {
+                    "command": [
+                        "split.",
+                        "VernacExtend",
+                        "55abc140132bd88981001ac656020469a8d503eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (find_x a') as [[b' uf''] [A B]].",
+                        "VernacExtend",
+                        "ff96b9791bbbd9a174f7b7785974825de2ae8160"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv Heq_anonymous.",
+                        "VernacExtend",
+                        "afa1b3a5ef779908b4d24468f6ff715a889e7757"
+                    ]
+                },
+                {
+                    "command": [
+                        "symmetry.",
+                        "VernacExtend",
+                        "a08fc0dc04bba893008bded8181f393e2d8db167"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply repr_some.",
+                        "VernacExtend",
+                        "d66808b57c8b40c911c1bbd636e953b84b7ea72f"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite repr_compress.",
+                        "VernacExtend",
+                        "36d0e6e79bf507d9f55c0e000c340be9ba439a25"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (find_x a') as [[b' uf''] [A B]].",
+                        "VernacExtend",
+                        "ff96b9791bbbd9a174f7b7785974825de2ae8160"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv Heq_anonymous.",
+                        "VernacExtend",
+                        "afa1b3a5ef779908b4d24468f6ff715a889e7757"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "find_x_obligation_5",
+            "line_nb": 527,
+            "steps": [
+                {
+                    "command": [
+                        "split; auto.",
+                        "VernacExtend",
+                        "fcd44a714bd12fa54b1c7746996e44dbac16df06"
+                    ]
+                },
+                {
+                    "command": [
+                        "symmetry.",
+                        "VernacExtend",
+                        "a08fc0dc04bba893008bded8181f393e2d8db167"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply repr_none.",
+                        "VernacExtend",
+                        "164678275c2b06049f706d490fb310696ced818a"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "find_x_obligation_6",
+            "line_nb": 533,
+            "steps": [
+                {
+                    "command": [
+                        "apply mwf.",
+                        "VernacExtend",
+                        "c6532dedd00dc7f2824e25b1c20e1984ab77164d"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "find_repr",
+            "line_nb": 537,
+            "steps": [
+                {
+                    "command": [
+                        "unfold find; intros.",
+                        "VernacExtend",
+                        "8dab0f7dc6033e9c886632613225a67874c7e80f"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (find_x a) as [[b uf'] [A B]].",
+                        "VernacExtend",
+                        "f6a596e94edda746d3c208d280c62d51e1f8b2cd"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "find_unchanged",
+            "line_nb": 543,
+            "steps": [
+                {
+                    "command": [
+                        "unfold find; intros.",
+                        "VernacExtend",
+                        "8dab0f7dc6033e9c886632613225a67874c7e80f"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (find_x a) as [[b uf'] [A B]].",
+                        "VernacExtend",
+                        "f6a596e94edda746d3c208d280c62d51e1f8b2cd"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "sameclass_find_1",
+            "line_nb": 549,
+            "steps": [
+                {
+                    "command": [
+                        "unfold sameclass; intros.",
+                        "VernacExtend",
+                        "b49705ebf1ee1aac4d0be854a5aa30651d36244e"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat rewrite find_unchanged.",
+                        "VernacExtend",
+                        "5526d600dcff4707a1f990cfb1482ca28245151e"
+                    ]
+                },
+                {
+                    "command": [
+                        "tauto.",
+                        "VernacExtend",
+                        "9bfafe84fb6724789bdf6cfd21cd721dd63fdabd"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "sameclass_find_2",
+            "line_nb": 554,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite find_repr.",
+                        "VernacExtend",
+                        "0af011231050b00a2eb53a5aee0a3607e29300c3"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply sameclass_repr.",
+                        "VernacExtend",
+                        "4366a8e03da18d455e28108389d656329dc6d919"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "sameclass_find_3",
+            "line_nb": 559,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite sameclass_find_1.",
+                        "VernacExtend",
+                        "060b9e0501c966840004814d58b9d2b2ec0e6d14"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply sameclass_find_2.",
+                        "VernacExtend",
+                        "6afa41c7a7d9e1e5f1a1a804f9958899b2716bbd"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

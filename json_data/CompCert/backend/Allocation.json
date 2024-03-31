@@ -1,0 +1,2890 @@
+{
+    "filename": "backend/Allocation.v",
+    "coq_project": "CompCert",
+    "vernac_cmds": [
+        [
+            "Require Import FSets FSetAVLplus.",
+            "VernacRequire",
+            "d1170e9b3b78205ee8014564ba62eac87a9f9f3c"
+        ],
+        [
+            "Require Import Coqlib Ordered Maps Errors Integers Floats.",
+            "VernacRequire",
+            "8c35e744b4a9e48ce50641bd885e64f2294a6c90"
+        ],
+        [
+            "Require Import AST Lattice Kildall Memdata.",
+            "VernacRequire",
+            "1ad0b6d6592e7287eead4ddcaa9aeb54c7d86f29"
+        ],
+        [
+            "Require Archi.",
+            "VernacRequire",
+            "019739e08394793e2d196b9db729424cb460d119"
+        ],
+        [
+            "Require Import Op Registers RTL Locations Conventions RTLtyping LTL.",
+            "VernacRequire",
+            "ec3fcab7dc822932865a7343ac6e6a4f8fd49d4e"
+        ],
+        [
+            "Inductive move: Type := | MV (src dst: loc) | MVmakelong (src1 src2 dst: mreg) | MVlowlong (src dst: mreg) | MVhighlong (src dst: mreg).",
+            "VernacInductive",
+            "c3c11080105c18f612855dbe66dc41d2e0958890"
+        ],
+        [
+            "Definition moves := list move.",
+            "VernacDefinition",
+            "828277ebdd97b72003d2a79e020ffeae020d756a"
+        ],
+        [
+            "Inductive block_shape: Type := | BSnop (mv: moves) (s: node) | BSmove (src: reg) (dst: reg) (mv: moves) (s: node) | BSmakelong (src1 src2: reg) (dst: reg) (mv: moves) (s: node) | BSlowlong (src: reg) (dst: reg) (mv: moves) (s: node) | BShighlong (src: reg) (dst: reg) (mv: moves) (s: node) | BSop (op: operation) (args: list reg) (res: reg) (mv1: moves) (args': list mreg) (res': mreg) (mv2: moves) (s: node) | BSopdead (op: operation) (args: list reg) (res: reg) (mv: moves) (s: node) | BSload (chunk: memory_chunk) (addr: addressing) (args: list reg) (dst: reg) (mv1: moves) (args': list mreg) (dst': mreg) (mv2: moves) (s: node) | BSloaddead (chunk: memory_chunk) (addr: addressing) (args: list reg) (dst: reg) (mv: moves) (s: node) | BSload2 (addr1 addr2: addressing) (args: list reg) (dst: reg) (mv1: moves) (args1': list mreg) (dst1': mreg) (mv2: moves) (args2': list mreg) (dst2': mreg) (mv3: moves) (s: node) | BSload2_1 (addr: addressing) (args: list reg) (dst: reg) (mv1: moves) (args': list mreg) (dst': mreg) (mv2: moves) (s: node) | BSload2_2 (addr addr': addressing) (args: list reg) (dst: reg) (mv1: moves) (args': list mreg) (dst': mreg) (mv2: moves) (s: node) | BSstore (chunk: memory_chunk) (addr: addressing) (args: list reg) (src: reg) (mv1: moves) (args': list mreg) (src': mreg) (s: node) | BSstore2 (addr1 addr2: addressing) (args: list reg) (src: reg) (mv1: moves) (args1': list mreg) (src1': mreg) (mv2: moves) (args2': list mreg) (src2': mreg) (s: node) | BScall (sg: signature) (ros: reg + ident) (args: list reg) (res: reg) (mv1: moves) (ros': mreg + ident) (mv2: moves) (s: node) | BStailcall (sg: signature) (ros: reg + ident) (args: list reg) (mv1: moves) (ros': mreg + ident) | BSbuiltin (ef: external_function) (args: list (builtin_arg reg)) (res: builtin_res reg) (mv1: moves) (args': list (builtin_arg loc)) (res': builtin_res mreg) (mv2: moves) (s: node) | BScond (cond: condition) (args: list reg) (mv: moves) (args': list mreg) (s1 s2: node) | BSjumptable (arg: reg) (mv: moves) (arg': mreg) (tbl: list node) | BSreturn (arg: option reg) (mv: moves).",
+            "VernacInductive",
+            "8318a4bf736a99b718c86738b3b8e8ba04c49f1d"
+        ],
+        [
+            "Inductive operation_kind {A: Type}: operation -> list A -> Type := | operation_Omove: forall arg, operation_kind Omove (arg :: nil) | operation_Omakelong: forall arg1 arg2, operation_kind Omakelong (arg1 :: arg2 :: nil) | operation_Olowlong: forall arg, operation_kind Olowlong (arg :: nil) | operation_Ohighlong: forall arg, operation_kind Ohighlong (arg :: nil) | operation_other: forall op args, operation_kind op args.",
+            "VernacInductive",
+            "6c542e4cd1336c35cbf6d1bcf8c1ab37ec32b1f7"
+        ],
+        [
+            "Definition classify_operation {A: Type} (op: operation) (args: list A) : operation_kind op args := match op, args with | Omove, arg::nil => operation_Omove arg | Omakelong, arg1::arg2::nil => operation_Omakelong arg1 arg2 | Olowlong, arg::nil => operation_Olowlong arg | Ohighlong, arg::nil => operation_Ohighlong arg | op, args => operation_other op args end.",
+            "VernacDefinition",
+            "3bb6113cfd5ad69a52588f3a5f190ca9a7cbe969"
+        ],
+        [
+            "Fixpoint extract_moves (accu: moves) (b: bblock) {struct b} : moves * bblock := match b with | Lgetstack sl ofs ty dst :: b' => extract_moves (MV (S sl ofs ty) (R dst) :: accu) b' | Lsetstack src sl ofs ty :: b' => extract_moves (MV (R src) (S sl ofs ty) :: accu) b' | Lop op args res :: b' => match is_move_operation op args with | Some arg => extract_moves (MV (R arg) (R res) :: accu) b' | None => (List.rev accu, b) end | _ => (List.rev accu, b) end.",
+            "VernacFixpoint",
+            "994ca9775308dc1fae507f62fad5c787202119b5"
+        ],
+        [
+            "Fixpoint extract_moves_ext (accu: moves) (b: bblock) {struct b} : moves * bblock := match b with | Lgetstack sl ofs ty dst :: b' => extract_moves_ext (MV (S sl ofs ty) (R dst) :: accu) b' | Lsetstack src sl ofs ty :: b' => extract_moves_ext (MV (R src) (S sl ofs ty) :: accu) b' | Lop op args res :: b' => match classify_operation op args with | operation_Omove arg => extract_moves_ext (MV (R arg) (R res) :: accu) b' | operation_Omakelong arg1 arg2 => extract_moves_ext (MVmakelong arg1 arg2 res :: accu) b' | operation_Olowlong arg => extract_moves_ext (MVlowlong arg res :: accu) b' | operation_Ohighlong arg => extract_moves_ext (MVhighlong arg res :: accu) b' | operation_other _ _ => (List.rev accu, b) end | _ => (List.rev accu, b) end.",
+            "VernacFixpoint",
+            "e6e9e060c137a515294b119c58b8faeafb4ed92b"
+        ],
+        [
+            "Definition check_succ (s: node) (b: LTL.bblock) : bool := match b with | Lbranch s' :: _ => peq s s' | _ => false end.",
+            "VernacDefinition",
+            "4ec9a97c2ad387e3b78877f873531edefeb502f6"
+        ],
+        [
+            "Notation \"'do' X <- A ; B\" := (match A with Some X => B | None => None end) (at level 200, X ident, A at level 100, B at level 200) : option_monad_scope.",
+            "VernacNotation",
+            "9ced2ff46975f46c3c7843c682110e6612e4eea8"
+        ],
+        [
+            "Notation \"'assertion' A ; B\" := (if A then B else None) (at level 200, A at level 100, B at level 200) : option_monad_scope.",
+            "VernacNotation",
+            "84b4605104107bca04a15e205693121d6508f69b"
+        ],
+        [
+            "Local Open Scope option_monad_scope.",
+            "VernacOpenCloseScope",
+            "ecd70258a790d16ac5ecf2ae933d7b21f9ec9c66"
+        ],
+        [
+            "Definition pair_Iop_block (op: operation) (args: list reg) (res: reg) (s: node) (b: LTL.bblock) := let (mv1, b1) := extract_moves nil b in match b1 with | Lop op' args' res' :: b2 => let (mv2, b3) := extract_moves nil b2 in assertion (eq_operation op op'); assertion (check_succ s b3); Some(BSop op args res mv1 args' res' mv2 s) | _ => assertion (check_succ s b1); Some(BSopdead op args res mv1 s) end.",
+            "VernacDefinition",
+            "49363e8624eda79517e44c4547772c0c363d8b17"
+        ],
+        [
+            "Definition pair_instr_block (i: RTL.instruction) (b: LTL.bblock) : option block_shape := match i with | Inop s => let (mv, b1) := extract_moves nil b in assertion (check_succ s b1); Some(BSnop mv s) | Iop op args res s => match classify_operation op args with | operation_Omove arg => let (mv, b1) := extract_moves nil b in assertion (check_succ s b1); Some(BSmove arg res mv s) | operation_Omakelong arg1 arg2 => if Archi.splitlong then (let (mv, b1) := extract_moves nil b in assertion (check_succ s b1); Some(BSmakelong arg1 arg2 res mv s)) else pair_Iop_block op args res s b | operation_Olowlong arg => if Archi.splitlong then (let (mv, b1) := extract_moves nil b in assertion (check_succ s b1); Some(BSlowlong arg res mv s)) else pair_Iop_block op args res s b | operation_Ohighlong arg => if Archi.splitlong then (let (mv, b1) := extract_moves nil b in assertion (check_succ s b1); Some(BShighlong arg res mv s)) else pair_Iop_block op args res s b | operation_other _ _ => pair_Iop_block op args res s b end | Iload chunk addr args dst s => let (mv1, b1) := extract_moves nil b in match b1 with | Lload chunk' addr' args' dst' :: b2 => if chunk_eq chunk Mint64 && Archi.splitlong then assertion (chunk_eq chunk' Mint32); let (mv2, b3) := extract_moves nil b2 in match b3 with | Lload chunk'' addr'' args'' dst'' :: b4 => let (mv3, b5) := extract_moves nil b4 in assertion (chunk_eq chunk'' Mint32); assertion (eq_addressing addr addr'); assertion (option_eq eq_addressing (offset_addressing addr 4) (Some addr'')); assertion (check_succ s b5); Some(BSload2 addr addr'' args dst mv1 args' dst' mv2 args'' dst'' mv3 s) | _ => assertion (check_succ s b3); if (eq_addressing addr addr') then Some(BSload2_1 addr args dst mv1 args' dst' mv2 s) else (assertion (option_eq eq_addressing (offset_addressing addr 4) (Some addr')); Some(BSload2_2 addr addr' args dst mv1 args' dst' mv2 s)) end else ( let (mv2, b3) := extract_moves nil b2 in assertion (chunk_eq chunk chunk'); assertion (eq_addressing addr addr'); assertion (check_succ s b3); Some(BSload chunk addr args dst mv1 args' dst' mv2 s)) | _ => assertion (check_succ s b1); Some(BSloaddead chunk addr args dst mv1 s) end | Istore chunk addr args src s => let (mv1, b1) := extract_moves nil b in match b1 with | Lstore chunk' addr' args' src' :: b2 => if chunk_eq chunk Mint64 && Archi.splitlong then let (mv2, b3) := extract_moves nil b2 in match b3 with | Lstore chunk'' addr'' args'' src'' :: b4 => assertion (chunk_eq chunk' Mint32); assertion (chunk_eq chunk'' Mint32); assertion (eq_addressing addr addr'); assertion (option_eq eq_addressing (offset_addressing addr 4) (Some addr'')); assertion (check_succ s b4); Some(BSstore2 addr addr'' args src mv1 args' src' mv2 args'' src'' s) | _ => None end else ( assertion (chunk_eq chunk chunk'); assertion (eq_addressing addr addr'); assertion (check_succ s b2); Some(BSstore chunk addr args src mv1 args' src' s)) | _ => None end | Icall sg ros args res s => let (mv1, b1) := extract_moves_ext nil b in match b1 with | Lcall sg' ros' :: b2 => let (mv2, b3) := extract_moves_ext nil b2 in assertion (signature_eq sg sg'); assertion (check_succ s b3); Some(BScall sg ros args res mv1 ros' mv2 s) | _ => None end | Itailcall sg ros args => let (mv1, b1) := extract_moves_ext nil b in match b1 with | Ltailcall sg' ros' :: b2 => assertion (signature_eq sg sg'); Some(BStailcall sg ros args mv1 ros') | _ => None end | Ibuiltin ef args res s => let (mv1, b1) := extract_moves nil b in match b1 with | Lbuiltin ef' args' res' :: b2 => let (mv2, b3) := extract_moves nil b2 in assertion (external_function_eq ef ef'); assertion (check_succ s b3); Some(BSbuiltin ef args res mv1 args' res' mv2 s) | _ => None end | Icond cond args s1 s2 => let (mv1, b1) := extract_moves nil b in match b1 with | Lcond cond' args' s1' s2' :: b2 => assertion (eq_condition cond cond'); assertion (peq s1 s1'); assertion (peq s2 s2'); Some(BScond cond args mv1 args' s1 s2) | _ => None end | Ijumptable arg tbl => let (mv1, b1) := extract_moves nil b in match b1 with | Ljumptable arg' tbl' :: b2 => assertion (list_eq_dec peq tbl tbl'); Some(BSjumptable arg mv1 arg' tbl) | _ => None end | Ireturn arg => let (mv1, b1) := extract_moves_ext nil b in match b1 with | Lreturn :: b2 => Some(BSreturn arg mv1) | _ => None end end.",
+            "VernacDefinition",
+            "ac28e6ed737791b7819eb03231dbbb6ec6e00387"
+        ],
+        [
+            "Definition pair_codes (f1: RTL.function) (f2: LTL.function) : PTree.t block_shape := PTree.combine (fun opti optb => do i <- opti; do b <- optb; pair_instr_block i b) (RTL.fn_code f1) (LTL.fn_code f2).",
+            "VernacDefinition",
+            "5df3b7bb1dfcab026bfe25bb6ea88ef9e684ae21"
+        ],
+        [
+            "Definition pair_entrypoints (f1: RTL.function) (f2: LTL.function) : option moves := do b <- (LTL.fn_code f2)!(LTL.fn_entrypoint f2); let (mv, b1) := extract_moves_ext nil b in assertion (check_succ (RTL.fn_entrypoint f1) b1); Some mv.",
+            "VernacDefinition",
+            "4f1ef7f62dae02ede7cccd67e2f0c215be9becd7"
+        ],
+        [
+            "Inductive equation_kind : Type := Full | Low | High.",
+            "VernacInductive",
+            "c159046a7d8e4d2ab1a086866f77138085a5bc0c"
+        ],
+        [
+            "Record equation := Eq { ekind: equation_kind; ereg: reg; eloc: loc }.",
+            "VernacInductive",
+            "fbf12a42097eb2eee881a0d2df2664d127a45aad"
+        ],
+        [
+            "Module IndexedEqKind <: INDEXED_TYPE.",
+            "VernacDefineModule",
+            "e3fc88bced032b300ec6acc1e5d4a5316ab3ad02"
+        ],
+        [
+            "Definition t := equation_kind.",
+            "VernacDefinition",
+            "b89b5904f87fd092a026d5db4aa9f49baff3e55e"
+        ],
+        [
+            "Definition index (x: t) := match x with Full => 1%positive | Low => 2%positive | High => 3%positive end.",
+            "VernacDefinition",
+            "d1e46f1d57029e1c36100b3dcd5c965ab5fac9cc"
+        ],
+        [
+            "Lemma index_inj: forall x y, index x = index y -> x = y.",
+            "VernacStartTheoremProof",
+            "fcbc411606c9b473b35ad9030fad1ef53e8a7e06"
+        ],
+        [
+            "destruct x; destruct y; simpl; congruence.",
+            "VernacExtend",
+            "38cf74b37acf7aab62fc95788d1c710eb638eeaa"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition eq (x y: t) : {x=y} + {x<>y}.",
+            "VernacDefinition",
+            "ec50a0009f3eced15a8d481f175d019e6db1ae0d"
+        ],
+        [
+            "decide equality.",
+            "VernacExtend",
+            "10aba07d521545accbb51a4c2e0695a9ddce3199"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "End IndexedEqKind.",
+            "VernacEndSegment",
+            "f125b6b3a984d8177fe7f08e77b3fdd5f40f9906"
+        ],
+        [
+            "Module OrderedEqKind := OrderedIndexed(IndexedEqKind).",
+            "VernacDefineModule",
+            "9a94a27af2bd9253b9de66b9bb560159580ab2ef"
+        ],
+        [
+            "Module OrderedEquation <: OrderedType.",
+            "VernacDefineModule",
+            "20bdb61a702a3d524a960007061c64f31f961d56"
+        ],
+        [
+            "Definition t := equation.",
+            "VernacDefinition",
+            "a3f2442c952492a1b55a67f421fe12eea2f0cbfa"
+        ],
+        [
+            "Definition eq (x y: t) := x = y.",
+            "VernacDefinition",
+            "0d67d24205809165e15f0efa2624cc856ce7cb0d"
+        ],
+        [
+            "Definition lt (x y: t) := Plt (ereg x) (ereg y) \\/ (ereg x = ereg y /\\ (OrderedLoc.lt (eloc x) (eloc y) \\/ (eloc x = eloc y /\\ OrderedEqKind.lt (ekind x) (ekind y)))).",
+            "VernacDefinition",
+            "4057ac3d24f2d44beae1e3c0f48240b1c82d89bc"
+        ],
+        [
+            "Lemma eq_refl : forall x : t, eq x x.",
+            "VernacStartTheoremProof",
+            "79faeb04d09f47d47094823fbf1c75a97aa08f00"
+        ],
+        [
+            "Proof (@eq_refl t).",
+            "VernacExactProof",
+            "3f187ff6c382b38985fa116d7125b566446e3ef4"
+        ],
+        [
+            "Lemma eq_sym : forall x y : t, eq x y -> eq y x.",
+            "VernacStartTheoremProof",
+            "cac79a44cdad44cc1ff55b57120f037f2ad98b0c"
+        ],
+        [
+            "Proof (@eq_sym t).",
+            "VernacExactProof",
+            "f0400bc1b23618939e0dc14648fc50c72711a056"
+        ],
+        [
+            "Lemma eq_trans : forall x y z : t, eq x y -> eq y z -> eq x z.",
+            "VernacStartTheoremProof",
+            "c3e6f3069d3fe379dcfc38c13f1b96591e31abae"
+        ],
+        [
+            "Proof (@eq_trans t).",
+            "VernacExactProof",
+            "cd9e6d5572db2868d82240ab670b17dfba25767a"
+        ],
+        [
+            "Lemma lt_trans : forall x y z : t, lt x y -> lt y z -> lt x z.",
+            "VernacStartTheoremProof",
+            "ec7442b5a8f68b066599a1895d2e566afa998eeb"
+        ],
+        [
+            "unfold lt; intros.",
+            "VernacExtend",
+            "205da0deef097404a05d1cd9de262baf2ce15084"
+        ],
+        [
+            "destruct H.",
+            "VernacExtend",
+            "8b2bca015429da94c456243b461e17a2a0582c40"
+        ],
+        [
+            "destruct H0.",
+            "VernacExtend",
+            "5c8f6cb3dc303d56935d6ec271a1de04f6790225"
+        ],
+        [
+            "left; eapply Plt_trans; eauto.",
+            "VernacExtend",
+            "0b82e255436e7ced20d3cd89a15483b5dbbb5f15"
+        ],
+        [
+            "destruct H0.",
+            "VernacExtend",
+            "5c8f6cb3dc303d56935d6ec271a1de04f6790225"
+        ],
+        [
+            "rewrite <- H0.",
+            "VernacExtend",
+            "f6718c09e494e327328e3c2003dd236939e231f9"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "destruct H.",
+            "VernacExtend",
+            "8b2bca015429da94c456243b461e17a2a0582c40"
+        ],
+        [
+            "rewrite H.",
+            "VernacExtend",
+            "6192df8b89486a3ba89a78e26e0d70cae2dc94c2"
+        ],
+        [
+            "destruct H0.",
+            "VernacExtend",
+            "5c8f6cb3dc303d56935d6ec271a1de04f6790225"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "destruct H0.",
+            "VernacExtend",
+            "5c8f6cb3dc303d56935d6ec271a1de04f6790225"
+        ],
+        [
+            "right; split; auto.",
+            "VernacExtend",
+            "1cc5054ad1405940e563f1d7ddce468251301130"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "left; eapply OrderedLoc.lt_trans; eauto.",
+            "VernacExtend",
+            "72a70b4416379740c08a1cab37cefa65f72c8cbc"
+        ],
+        [
+            "left; congruence.",
+            "VernacExtend",
+            "bc0b2cc81db2fe562b3b2f1af1e7273a6d9e66c7"
+        ],
+        [
+            "left; congruence.",
+            "VernacExtend",
+            "bc0b2cc81db2fe562b3b2f1af1e7273a6d9e66c7"
+        ],
+        [
+            "right; split.",
+            "VernacExtend",
+            "7f40e6faa2e8d6f2ee2a39b745aa28054e5d87de"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "eapply OrderedEqKind.lt_trans; eauto.",
+            "VernacExtend",
+            "bc2a4da5281358b99a2be9fc77d1a8c86431ec98"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma lt_not_eq : forall x y : t, lt x y -> ~ eq x y.",
+            "VernacStartTheoremProof",
+            "d49b12afe0c3d0c459da6da94f4f7254e537208a"
+        ],
+        [
+            "unfold lt, eq; intros; red; intros.",
+            "VernacExtend",
+            "75ae9097818b249c51b6f12203846d2e15d85425"
+        ],
+        [
+            "subst y.",
+            "VernacExtend",
+            "f056a00b852bc549d1b8bb21d500c90d8ff37bf8"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "eelim Plt_strict; eauto.",
+            "VernacExtend",
+            "5c6404876065c3d5879d139ab23f6387a4346e8e"
+        ],
+        [
+            "eelim OrderedLoc.lt_not_eq; eauto.",
+            "VernacExtend",
+            "8cdc48ff5182f364a9869d3d2b76ebeaac3a87e4"
+        ],
+        [
+            "red; auto.",
+            "VernacExtend",
+            "cab1687c6da0e60977d47d2335ecbd5d45e7e0b2"
+        ],
+        [
+            "eelim OrderedEqKind.lt_not_eq; eauto.",
+            "VernacExtend",
+            "78454c8215889978885e918e6f810d82067955f9"
+        ],
+        [
+            "red; auto.",
+            "VernacExtend",
+            "cab1687c6da0e60977d47d2335ecbd5d45e7e0b2"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition compare : forall x y : t, Compare lt eq x y.",
+            "VernacDefinition",
+            "4bb7cff1dce842865c2e628debf21ac6bb004ebc"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct (OrderedPositive.compare (ereg x) (ereg y)).",
+            "VernacExtend",
+            "adb2e355f0e60d361ffcbb9fed78b83ed384036c"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply LT.",
+            "VernacExtend",
+            "24e3957f91d7cbcee1692dc32db9dc559817d3ff"
+        ],
+        [
+            "red; auto.",
+            "VernacExtend",
+            "cab1687c6da0e60977d47d2335ecbd5d45e7e0b2"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct (OrderedLoc.compare (eloc x) (eloc y)).",
+            "VernacExtend",
+            "71e10f42806b95e6118fb43ce801231b60e2f872"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply LT.",
+            "VernacExtend",
+            "24e3957f91d7cbcee1692dc32db9dc559817d3ff"
+        ],
+        [
+            "red; auto.",
+            "VernacExtend",
+            "cab1687c6da0e60977d47d2335ecbd5d45e7e0b2"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct (OrderedEqKind.compare (ekind x) (ekind y)).",
+            "VernacExtend",
+            "23c3d362beb800fcf89cce6e0fd27db63c425f32"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "apply LT.",
+            "VernacExtend",
+            "24e3957f91d7cbcee1692dc32db9dc559817d3ff"
+        ],
+        [
+            "red; auto.",
+            "VernacExtend",
+            "cab1687c6da0e60977d47d2335ecbd5d45e7e0b2"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "apply EQ.",
+            "VernacExtend",
+            "51b5c167bb92ae165883e8ba0a3c5a65f6646647"
+        ],
+        [
+            "red in e; red in e0; red in e1; red.",
+            "VernacExtend",
+            "da70d012e6563aba19b218175d5f143534344ffb"
+        ],
+        [
+            "destruct x; destruct y; simpl in *; congruence.",
+            "VernacExtend",
+            "57b54a02bdeac8f1be433431a8f42739247ed093"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "apply GT.",
+            "VernacExtend",
+            "04ef71b2bd64f684183c59e21351a8d677c3fc29"
+        ],
+        [
+            "red; auto.",
+            "VernacExtend",
+            "cab1687c6da0e60977d47d2335ecbd5d45e7e0b2"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply GT.",
+            "VernacExtend",
+            "04ef71b2bd64f684183c59e21351a8d677c3fc29"
+        ],
+        [
+            "red; auto.",
+            "VernacExtend",
+            "cab1687c6da0e60977d47d2335ecbd5d45e7e0b2"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply GT.",
+            "VernacExtend",
+            "04ef71b2bd64f684183c59e21351a8d677c3fc29"
+        ],
+        [
+            "red; auto.",
+            "VernacExtend",
+            "cab1687c6da0e60977d47d2335ecbd5d45e7e0b2"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Definition eq_dec (x y: t) : {x = y} + {x <> y}.",
+            "VernacDefinition",
+            "efdea843d6e118862ddf06a394ade603bf119f56"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "decide equality.",
+            "VernacExtend",
+            "10aba07d521545accbb51a4c2e0695a9ddce3199"
+        ],
+        [
+            "apply Loc.eq.",
+            "VernacExtend",
+            "f03e51559f817ed6e79f3e1b5e5573acbc176cf3"
+        ],
+        [
+            "apply peq.",
+            "VernacExtend",
+            "5e99d9ae8e5eadf6309ec1189544d29135be0996"
+        ],
+        [
+            "apply IndexedEqKind.eq.",
+            "VernacExtend",
+            "79caebe3b0e01c0e4c5588c39d594b52f96f24c4"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "End OrderedEquation.",
+            "VernacEndSegment",
+            "6e89bad22c9e4278e2d079d4be5b08ff583ca9de"
+        ],
+        [
+            "Module OrderedEquation' <: OrderedType.",
+            "VernacDefineModule",
+            "41fb9903c53a09f1385c66b973b2c3e56fd22efb"
+        ],
+        [
+            "Definition t := equation.",
+            "VernacDefinition",
+            "a3f2442c952492a1b55a67f421fe12eea2f0cbfa"
+        ],
+        [
+            "Definition eq (x y: t) := x = y.",
+            "VernacDefinition",
+            "0d67d24205809165e15f0efa2624cc856ce7cb0d"
+        ],
+        [
+            "Definition lt (x y: t) := OrderedLoc.lt (eloc x) (eloc y) \\/ (eloc x = eloc y /\\ (Plt (ereg x) (ereg y) \\/ (ereg x = ereg y /\\ OrderedEqKind.lt (ekind x) (ekind y)))).",
+            "VernacDefinition",
+            "1ab3af0b71e317fb05409878659730240c8c3e90"
+        ],
+        [
+            "Lemma eq_refl : forall x : t, eq x x.",
+            "VernacStartTheoremProof",
+            "79faeb04d09f47d47094823fbf1c75a97aa08f00"
+        ],
+        [
+            "Proof (@eq_refl t).",
+            "VernacExactProof",
+            "3f187ff6c382b38985fa116d7125b566446e3ef4"
+        ],
+        [
+            "Lemma eq_sym : forall x y : t, eq x y -> eq y x.",
+            "VernacStartTheoremProof",
+            "cac79a44cdad44cc1ff55b57120f037f2ad98b0c"
+        ],
+        [
+            "Proof (@eq_sym t).",
+            "VernacExactProof",
+            "f0400bc1b23618939e0dc14648fc50c72711a056"
+        ],
+        [
+            "Lemma eq_trans : forall x y z : t, eq x y -> eq y z -> eq x z.",
+            "VernacStartTheoremProof",
+            "c3e6f3069d3fe379dcfc38c13f1b96591e31abae"
+        ],
+        [
+            "Proof (@eq_trans t).",
+            "VernacExactProof",
+            "cd9e6d5572db2868d82240ab670b17dfba25767a"
+        ],
+        [
+            "Lemma lt_trans : forall x y z : t, lt x y -> lt y z -> lt x z.",
+            "VernacStartTheoremProof",
+            "ec7442b5a8f68b066599a1895d2e566afa998eeb"
+        ],
+        [
+            "unfold lt; intros.",
+            "VernacExtend",
+            "205da0deef097404a05d1cd9de262baf2ce15084"
+        ],
+        [
+            "destruct H.",
+            "VernacExtend",
+            "8b2bca015429da94c456243b461e17a2a0582c40"
+        ],
+        [
+            "destruct H0.",
+            "VernacExtend",
+            "5c8f6cb3dc303d56935d6ec271a1de04f6790225"
+        ],
+        [
+            "left; eapply OrderedLoc.lt_trans; eauto.",
+            "VernacExtend",
+            "72a70b4416379740c08a1cab37cefa65f72c8cbc"
+        ],
+        [
+            "destruct H0.",
+            "VernacExtend",
+            "5c8f6cb3dc303d56935d6ec271a1de04f6790225"
+        ],
+        [
+            "rewrite <- H0.",
+            "VernacExtend",
+            "f6718c09e494e327328e3c2003dd236939e231f9"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "destruct H.",
+            "VernacExtend",
+            "8b2bca015429da94c456243b461e17a2a0582c40"
+        ],
+        [
+            "rewrite H.",
+            "VernacExtend",
+            "6192df8b89486a3ba89a78e26e0d70cae2dc94c2"
+        ],
+        [
+            "destruct H0.",
+            "VernacExtend",
+            "5c8f6cb3dc303d56935d6ec271a1de04f6790225"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "destruct H0.",
+            "VernacExtend",
+            "5c8f6cb3dc303d56935d6ec271a1de04f6790225"
+        ],
+        [
+            "right; split; auto.",
+            "VernacExtend",
+            "1cc5054ad1405940e563f1d7ddce468251301130"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "left; eapply Plt_trans; eauto.",
+            "VernacExtend",
+            "0b82e255436e7ced20d3cd89a15483b5dbbb5f15"
+        ],
+        [
+            "left; congruence.",
+            "VernacExtend",
+            "bc0b2cc81db2fe562b3b2f1af1e7273a6d9e66c7"
+        ],
+        [
+            "left; congruence.",
+            "VernacExtend",
+            "bc0b2cc81db2fe562b3b2f1af1e7273a6d9e66c7"
+        ],
+        [
+            "right; split.",
+            "VernacExtend",
+            "7f40e6faa2e8d6f2ee2a39b745aa28054e5d87de"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "eapply OrderedEqKind.lt_trans; eauto.",
+            "VernacExtend",
+            "bc2a4da5281358b99a2be9fc77d1a8c86431ec98"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma lt_not_eq : forall x y : t, lt x y -> ~ eq x y.",
+            "VernacStartTheoremProof",
+            "d49b12afe0c3d0c459da6da94f4f7254e537208a"
+        ],
+        [
+            "unfold lt, eq; intros; red; intros.",
+            "VernacExtend",
+            "75ae9097818b249c51b6f12203846d2e15d85425"
+        ],
+        [
+            "subst y.",
+            "VernacExtend",
+            "f056a00b852bc549d1b8bb21d500c90d8ff37bf8"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "eelim OrderedLoc.lt_not_eq; eauto.",
+            "VernacExtend",
+            "8cdc48ff5182f364a9869d3d2b76ebeaac3a87e4"
+        ],
+        [
+            "red; auto.",
+            "VernacExtend",
+            "cab1687c6da0e60977d47d2335ecbd5d45e7e0b2"
+        ],
+        [
+            "eelim Plt_strict; eauto.",
+            "VernacExtend",
+            "5c6404876065c3d5879d139ab23f6387a4346e8e"
+        ],
+        [
+            "eelim OrderedEqKind.lt_not_eq; eauto.",
+            "VernacExtend",
+            "78454c8215889978885e918e6f810d82067955f9"
+        ],
+        [
+            "red; auto.",
+            "VernacExtend",
+            "cab1687c6da0e60977d47d2335ecbd5d45e7e0b2"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition compare : forall x y : t, Compare lt eq x y.",
+            "VernacDefinition",
+            "4bb7cff1dce842865c2e628debf21ac6bb004ebc"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct (OrderedLoc.compare (eloc x) (eloc y)).",
+            "VernacExtend",
+            "71e10f42806b95e6118fb43ce801231b60e2f872"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply LT.",
+            "VernacExtend",
+            "24e3957f91d7cbcee1692dc32db9dc559817d3ff"
+        ],
+        [
+            "red; auto.",
+            "VernacExtend",
+            "cab1687c6da0e60977d47d2335ecbd5d45e7e0b2"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct (OrderedPositive.compare (ereg x) (ereg y)).",
+            "VernacExtend",
+            "adb2e355f0e60d361ffcbb9fed78b83ed384036c"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply LT.",
+            "VernacExtend",
+            "24e3957f91d7cbcee1692dc32db9dc559817d3ff"
+        ],
+        [
+            "red; auto.",
+            "VernacExtend",
+            "cab1687c6da0e60977d47d2335ecbd5d45e7e0b2"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct (OrderedEqKind.compare (ekind x) (ekind y)).",
+            "VernacExtend",
+            "23c3d362beb800fcf89cce6e0fd27db63c425f32"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "apply LT.",
+            "VernacExtend",
+            "24e3957f91d7cbcee1692dc32db9dc559817d3ff"
+        ],
+        [
+            "red; auto.",
+            "VernacExtend",
+            "cab1687c6da0e60977d47d2335ecbd5d45e7e0b2"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "apply EQ.",
+            "VernacExtend",
+            "51b5c167bb92ae165883e8ba0a3c5a65f6646647"
+        ],
+        [
+            "red in e; red in e0; red in e1; red.",
+            "VernacExtend",
+            "da70d012e6563aba19b218175d5f143534344ffb"
+        ],
+        [
+            "destruct x; destruct y; simpl in *; congruence.",
+            "VernacExtend",
+            "57b54a02bdeac8f1be433431a8f42739247ed093"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "apply GT.",
+            "VernacExtend",
+            "04ef71b2bd64f684183c59e21351a8d677c3fc29"
+        ],
+        [
+            "red; auto.",
+            "VernacExtend",
+            "cab1687c6da0e60977d47d2335ecbd5d45e7e0b2"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply GT.",
+            "VernacExtend",
+            "04ef71b2bd64f684183c59e21351a8d677c3fc29"
+        ],
+        [
+            "red; auto.",
+            "VernacExtend",
+            "cab1687c6da0e60977d47d2335ecbd5d45e7e0b2"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "apply GT.",
+            "VernacExtend",
+            "04ef71b2bd64f684183c59e21351a8d677c3fc29"
+        ],
+        [
+            "red; auto.",
+            "VernacExtend",
+            "cab1687c6da0e60977d47d2335ecbd5d45e7e0b2"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Definition eq_dec: forall (x y: t), {x = y} + {x <> y} := OrderedEquation.eq_dec.",
+            "VernacDefinition",
+            "8007568ab7b8be704e65efb10d812e6c026e024a"
+        ],
+        [
+            "End OrderedEquation'.",
+            "VernacEndSegment",
+            "c89576858c1c66cdf1e8e3701be6a214997c6252"
+        ],
+        [
+            "Module EqSet := FSetAVLplus.Make(OrderedEquation).",
+            "VernacDefineModule",
+            "0a27cb4aaa439e1b0e26358ed9c20449d03bf13e"
+        ],
+        [
+            "Module EqSet2 := FSetAVLplus.Make(OrderedEquation').",
+            "VernacDefineModule",
+            "2484e7fc2f7806d319025c03eb1c7d06f9e8c57b"
+        ],
+        [
+            "Record eqs := mkeqs { eqs1 :> EqSet.t; eqs2 : EqSet2.t; eqs_same: forall q, EqSet2.In q eqs2 <-> EqSet.In q eqs1 }.",
+            "VernacInductive",
+            "ea77fdd937a69dbd4664165c71def15a2c91f30d"
+        ],
+        [
+            "Program Definition empty_eqs := mkeqs EqSet.empty EqSet2.empty _.",
+            "VernacDefinition",
+            "8525d787967fff4ecc17a28ce3f52fd5def94c89"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "split; intros.",
+            "VernacExtend",
+            "3c0a2af2969d0c39838e9010244dfd28201b7f3e"
+        ],
+        [
+            "eelim EqSet2.empty_1; eauto.",
+            "VernacExtend",
+            "aabd236754da80a3b8dbf76926ef9158d6b006dd"
+        ],
+        [
+            "eelim EqSet.empty_1; eauto.",
+            "VernacExtend",
+            "02384585837e5467b5dcd4b3444d44ef6219b51b"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Program Definition add_equation (q: equation) (e: eqs) := mkeqs (EqSet.add q (eqs1 e)) (EqSet2.add q (eqs2 e)) _.",
+            "VernacDefinition",
+            "7a8bde656461d0697667b7acf6ef05b86bb6cb81"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "split; intros.",
+            "VernacExtend",
+            "3c0a2af2969d0c39838e9010244dfd28201b7f3e"
+        ],
+        [
+            "destruct (OrderedEquation'.eq_dec q q0).",
+            "VernacExtend",
+            "c090513e5bdb2b34bcd1d7b851f1f52d3e35a957"
+        ],
+        [
+            "apply EqSet.add_1; auto.",
+            "VernacExtend",
+            "a5003be1ce6f358deb00c193ac958bb7816c764c"
+        ],
+        [
+            "apply EqSet.add_2.",
+            "VernacExtend",
+            "bc893b8384de06de45ccb30512588d728b5e7591"
+        ],
+        [
+            "apply (eqs_same e).",
+            "VernacExtend",
+            "f93546293d564afa06df0d7896bd582397d86dbf"
+        ],
+        [
+            "apply EqSet2.add_3 with q; auto.",
+            "VernacExtend",
+            "151aedfae40d883455a692142423484f82ea0e8d"
+        ],
+        [
+            "destruct (OrderedEquation.eq_dec q q0).",
+            "VernacExtend",
+            "91fed05b2f78725bddcb9ad93f771f623b5f892a"
+        ],
+        [
+            "apply EqSet2.add_1; auto.",
+            "VernacExtend",
+            "8761d45afe08305d9533485aebb7b0c3e2b0b0d1"
+        ],
+        [
+            "apply EqSet2.add_2.",
+            "VernacExtend",
+            "f7333b94c9aac7f8f818bff42708119bfca37c3c"
+        ],
+        [
+            "apply (eqs_same e).",
+            "VernacExtend",
+            "f93546293d564afa06df0d7896bd582397d86dbf"
+        ],
+        [
+            "apply EqSet.add_3 with q; auto.",
+            "VernacExtend",
+            "b889efacc479af7cbbdecb2a9b99f068f3c2bcbd"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Program Definition remove_equation (q: equation) (e: eqs) := mkeqs (EqSet.remove q (eqs1 e)) (EqSet2.remove q (eqs2 e)) _.",
+            "VernacDefinition",
+            "b4ed732ba25ddbfb01006b8a4a7992c34e8cc364"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "split; intros.",
+            "VernacExtend",
+            "3c0a2af2969d0c39838e9010244dfd28201b7f3e"
+        ],
+        [
+            "destruct (OrderedEquation'.eq_dec q q0).",
+            "VernacExtend",
+            "c090513e5bdb2b34bcd1d7b851f1f52d3e35a957"
+        ],
+        [
+            "eelim EqSet2.remove_1; eauto.",
+            "VernacExtend",
+            "d1e51bce3cc6dd389cf4603038af74b7e892d57a"
+        ],
+        [
+            "apply EqSet.remove_2; auto.",
+            "VernacExtend",
+            "8118d237a11ebb675338b6ead14258a79dc31012"
+        ],
+        [
+            "apply (eqs_same e).",
+            "VernacExtend",
+            "f93546293d564afa06df0d7896bd582397d86dbf"
+        ],
+        [
+            "apply EqSet2.remove_3 with q; auto.",
+            "VernacExtend",
+            "1f66b611fda9abf24921f504131777b3dc112ddd"
+        ],
+        [
+            "destruct (OrderedEquation.eq_dec q q0).",
+            "VernacExtend",
+            "91fed05b2f78725bddcb9ad93f771f623b5f892a"
+        ],
+        [
+            "eelim EqSet.remove_1; eauto.",
+            "VernacExtend",
+            "c1d3ff36d9fd9b582c79026bcd12b412099b468f"
+        ],
+        [
+            "apply EqSet2.remove_2; auto.",
+            "VernacExtend",
+            "c8fa68290b9d1f39936d595812342abd58067fff"
+        ],
+        [
+            "apply (eqs_same e).",
+            "VernacExtend",
+            "f93546293d564afa06df0d7896bd582397d86dbf"
+        ],
+        [
+            "apply EqSet.remove_3 with q; auto.",
+            "VernacExtend",
+            "61f7ef32864259e2b56f2a0a627992c4c0b1292a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition select_reg_l (r: reg) (q: equation) := Pos.leb r (ereg q).",
+            "VernacDefinition",
+            "a766a91e626a64edcf01eb59e07c4428176ea3ce"
+        ],
+        [
+            "Definition select_reg_h (r: reg) (q: equation) := Pos.leb (ereg q) r.",
+            "VernacDefinition",
+            "60cd38070560efecd859a3c1946700ff05a1dec7"
+        ],
+        [
+            "Definition reg_unconstrained (r: reg) (e: eqs) : bool := negb (EqSet.mem_between (select_reg_l r) (select_reg_h r) (eqs1 e)).",
+            "VernacDefinition",
+            "258c6f11fe7cb752717afda0abebddaae4b1e95b"
+        ],
+        [
+            "Definition select_loc_l (l: loc) := let lb := OrderedLoc.diff_low_bound l in fun (q: equation) => match OrderedLoc.compare (eloc q) lb with LT _ => false | _ => true end.",
+            "VernacDefinition",
+            "f4fe00f8115057bf0b9c66c3a2faf558f5a78577"
+        ],
+        [
+            "Definition select_loc_h (l: loc) := let lh := OrderedLoc.diff_high_bound l in fun (q: equation) => match OrderedLoc.compare (eloc q) lh with GT _ => false | _ => true end.",
+            "VernacDefinition",
+            "9686dc53b9a63aff6a65046cbf1f49307e6ecb15"
+        ],
+        [
+            "Definition loc_unconstrained (l: loc) (e: eqs) : bool := negb (EqSet2.mem_between (select_loc_l l) (select_loc_h l) (eqs2 e)).",
+            "VernacDefinition",
+            "d11c3785e042019383c11c0f40146c7ad47cfb2c"
+        ],
+        [
+            "Definition reg_loc_unconstrained (r: reg) (l: loc) (e: eqs) : bool := reg_unconstrained r e && loc_unconstrained l e.",
+            "VernacDefinition",
+            "3c6d317641a5dfdf230b920d880f29074e2a705b"
+        ],
+        [
+            "Definition subst_reg (r1 r2: reg) (e: eqs) : eqs := EqSet.fold (fun q e => add_equation (Eq (ekind q) r2 (eloc q)) (remove_equation q e)) (EqSet.elements_between (select_reg_l r1) (select_reg_h r1) (eqs1 e)) e.",
+            "VernacDefinition",
+            "19ae3989b09f0a46c386e6e6d008cf255a0c497e"
+        ],
+        [
+            "Definition subst_reg_kind (r1: reg) (k1: equation_kind) (r2: reg) (k2: equation_kind) (e: eqs) : eqs := EqSet.fold (fun q e => if IndexedEqKind.eq (ekind q) k1 then add_equation (Eq k2 r2 (eloc q)) (remove_equation q e) else e) (EqSet.elements_between (select_reg_l r1) (select_reg_h r1) (eqs1 e)) e.",
+            "VernacDefinition",
+            "aefc5b51d50f8dbfa6c018da23fdbabe3c814c9b"
+        ],
+        [
+            "Definition subst_loc (l1 l2: loc) (e: eqs) : option eqs := EqSet2.fold (fun q opte => match opte with | None => None | Some e => if Loc.eq l1 (eloc q) then Some (add_equation (Eq (ekind q) (ereg q) l2) (remove_equation q e)) else None end) (EqSet2.elements_between (select_loc_l l1) (select_loc_h l1) (eqs2 e)) (Some e).",
+            "VernacDefinition",
+            "0c7e1c00d0e0096692de1ef37b0a5acd7fbfda2c"
+        ],
+        [
+            "Definition subst_loc_part (l1: loc) (l2: loc) (k: equation_kind) (e: eqs) : option eqs := EqSet2.fold (fun q opte => match opte with | None => None | Some e => if Loc.eq l1 (eloc q) then if IndexedEqKind.eq (ekind q) k then Some (add_equation (Eq Full (ereg q) l2) (remove_equation q e)) else None else None end) (EqSet2.elements_between (select_loc_l l1) (select_loc_h l1) (eqs2 e)) (Some e).",
+            "VernacDefinition",
+            "a352321976cce9236f882ccfa9ae43be23c25248"
+        ],
+        [
+            "Definition subst_loc_pair (l1 l2 l2': loc) (e: eqs) : option eqs := EqSet2.fold (fun q opte => match opte with | None => None | Some e => if Loc.eq l1 (eloc q) then if IndexedEqKind.eq (ekind q) Full then Some (add_equation (Eq High (ereg q) l2) (add_equation (Eq Low (ereg q) l2') (remove_equation q e))) else None else None end) (EqSet2.elements_between (select_loc_l l1) (select_loc_h l1) (eqs2 e)) (Some e).",
+            "VernacDefinition",
+            "2e0906d4a1e2f991ca5f14f923084e864de1ea71"
+        ],
+        [
+            "Definition sel_type (k: equation_kind) (ty: typ) : typ := match k with | Full => ty | Low | High => Tint end.",
+            "VernacDefinition",
+            "33a3b4f9e1ddd890d293319c9dab69001a748403"
+        ],
+        [
+            "Definition loc_type_compat (env: regenv) (l: loc) (e: eqs) : bool := EqSet2.for_all_between (fun q => subtype (sel_type (ekind q) (env (ereg q))) (Loc.type l)) (select_loc_l l) (select_loc_h l) (eqs2 e).",
+            "VernacDefinition",
+            "f119164098b58d7a0d7082a34217b7d62c13fa80"
+        ],
+        [
+            "Definition long_type_compat (env: regenv) (l: loc) (e: eqs) : bool := EqSet2.for_all_between (fun q => subtype (env (ereg q)) Tlong) (select_loc_l l) (select_loc_h l) (eqs2 e).",
+            "VernacDefinition",
+            "341746723e78a7e7b69bfacae6ee3117c9888d23"
+        ],
+        [
+            "Fixpoint add_equations (rl: list reg) (ml: list mreg) (e: eqs) : option eqs := match rl, ml with | nil, nil => Some e | r1 :: rl, m1 :: ml => add_equations rl ml (add_equation (Eq Full r1 (R m1)) e) | _, _ => None end.",
+            "VernacFixpoint",
+            "ecb5fb989dfe5b0ff60efe57cdb3677e035e8837"
+        ],
+        [
+            "Function add_equations_args (rl: list reg) (tyl: list typ) (ll: list (rpair loc)) (e: eqs) : option eqs := match rl, tyl, ll with | nil, nil, nil => Some e | r1 :: rl, ty :: tyl, One l1 :: ll => add_equations_args rl tyl ll (add_equation (Eq Full r1 l1) e) | r1 :: rl, Tlong :: tyl, Twolong l1 l2 :: ll => if Archi.ptr64 then None else add_equations_args rl tyl ll (add_equation (Eq Low r1 l2) (add_equation (Eq High r1 l1) e)) | _, _, _ => None end.",
+            "VernacExtend",
+            "6f02a156b3d9e38be6128d3f3ecd0869783da63c"
+        ],
+        [
+            "Function add_equations_res (r: reg) (oty: option typ) (p: rpair mreg) (e: eqs) : option eqs := match p, oty with | One mr, _ => Some (add_equation (Eq Full r (R mr)) e) | Twolong mr1 mr2, Some Tlong => if Archi.ptr64 then None else Some (add_equation (Eq Low r (R mr2)) (add_equation (Eq High r (R mr1)) e)) | _, _ => None end.",
+            "VernacExtend",
+            "5980cfbed5adaf2013fd70b1bc02656ff08305bc"
+        ],
+        [
+            "Function remove_equations_res (r: reg) (p: rpair mreg) (e: eqs) : option eqs := match p with | One mr => Some (remove_equation (Eq Full r (R mr)) e) | Twolong mr1 mr2 => if mreg_eq mr2 mr1 then None else Some (remove_equation (Eq Low r (R mr2)) (remove_equation (Eq High r (R mr1)) e)) end.",
+            "VernacExtend",
+            "40ff2b397ca9c4b75975c532a84f6fe96f4ff87d"
+        ],
+        [
+            "Definition add_equation_ros (ros: reg + ident) (ros': mreg + ident) (e: eqs) : option eqs := match ros, ros' with | inl r, inl mr => Some(add_equation (Eq Full r (R mr)) e) | inr id, inr id' => assertion (ident_eq id id'); Some e | _, _ => None end.",
+            "VernacDefinition",
+            "88bb7eeeb00ac6a9388388e3d4f723133350a13a"
+        ],
+        [
+            "Fixpoint add_equations_builtin_arg (env: regenv) (arg: builtin_arg reg) (arg': builtin_arg loc) (e: eqs) : option eqs := match arg, arg' with | BA r, BA l => Some (add_equation (Eq Full r l) e) | BA r, BA_splitlong (BA lhi) (BA llo) => assertion (typ_eq (env r) Tlong); assertion (Archi.splitlong); Some (add_equation (Eq Low r llo) (add_equation (Eq High r lhi) e)) | BA_int n, BA_int n' => assertion (Int.eq_dec n n'); Some e | BA_long n, BA_long n' => assertion (Int64.eq_dec n n'); Some e | BA_float f, BA_float f' => assertion (Float.eq_dec f f'); Some e | BA_single f, BA_single f' => assertion (Float32.eq_dec f f'); Some e | BA_loadstack chunk ofs, BA_loadstack chunk' ofs' => assertion (chunk_eq chunk chunk'); assertion (Ptrofs.eq_dec ofs ofs'); Some e | BA_addrstack ofs, BA_addrstack ofs' => assertion (Ptrofs.eq_dec ofs ofs'); Some e | BA_loadglobal chunk id ofs, BA_loadglobal chunk' id' ofs' => assertion (chunk_eq chunk chunk'); assertion (ident_eq id id'); assertion (Ptrofs.eq_dec ofs ofs'); Some e | BA_addrglobal id ofs, BA_addrglobal id' ofs' => assertion (ident_eq id id'); assertion (Ptrofs.eq_dec ofs ofs'); Some e | BA_splitlong hi lo, BA_splitlong hi' lo' => do e1 <- add_equations_builtin_arg env hi hi' e; add_equations_builtin_arg env lo lo' e1 | BA_addptr a1 a2, BA_addptr a1' a2' => do e1 <- add_equations_builtin_arg env a1 a1' e; add_equations_builtin_arg env a2 a2' e1 | _, _ => None end.",
+            "VernacFixpoint",
+            "1d9b6ab93635c66a5d59e8cf6fce46a1d92b616a"
+        ],
+        [
+            "Fixpoint add_equations_builtin_args (env: regenv) (args: list (builtin_arg reg)) (args': list (builtin_arg loc)) (e: eqs) : option eqs := match args, args' with | nil, nil => Some e | a1 :: al, a1' :: al' => do e1 <- add_equations_builtin_arg env a1 a1' e; add_equations_builtin_args env al al' e1 | _, _ => None end.",
+            "VernacFixpoint",
+            "867897be54fdae91086f3d4de951ef0c80a49789"
+        ],
+        [
+            "Fixpoint add_equations_debug_args (env: regenv) (args: list (builtin_arg reg)) (args': list (builtin_arg loc)) (e: eqs) : option eqs := match args, args' with | _, nil => Some e | a1 :: al, a1' :: al' => match add_equations_builtin_arg env a1 a1' e with | None => add_equations_debug_args env al args' e | Some e1 => add_equations_debug_args env al al' e1 end | _, _ => None end.",
+            "VernacFixpoint",
+            "a302c511c263bf17be88517456deb8c497677399"
+        ],
+        [
+            "Definition remove_equations_builtin_res (env: regenv) (res: builtin_res reg) (res': builtin_res mreg) (e: eqs) : option eqs := match res, res' with | BR r, BR r' => Some (remove_equation (Eq Full r (R r')) e) | BR r, BR_splitlong (BR rhi) (BR rlo) => assertion (typ_eq (env r) Tlong); if mreg_eq rhi rlo then None else Some (remove_equation (Eq Low r (R rlo)) (remove_equation (Eq High r (R rhi)) e)) | BR_none, BR_none => Some e | _, _ => None end.",
+            "VernacDefinition",
+            "9e9a9e7e5b62d33772678a64a49c1079523a111c"
+        ],
+        [
+            "Fixpoint can_undef (ml: list mreg) (e: eqs) : bool := match ml with | nil => true | m1 :: ml => loc_unconstrained (R m1) e && can_undef ml e end.",
+            "VernacFixpoint",
+            "11e724a365ce31366afb792d483d9ea89a04e1d3"
+        ],
+        [
+            "Fixpoint can_undef_except (l: loc) (ml: list mreg) (e: eqs) : bool := match ml with | nil => true | m1 :: ml => (Loc.eq l (R m1) || loc_unconstrained (R m1) e) && can_undef_except l ml e end.",
+            "VernacFixpoint",
+            "cd5e438df973b52b223b85fb525a118716ce99f7"
+        ],
+        [
+            "Definition no_caller_saves (e: eqs) : bool := EqSet.for_all (fun eq => match eloc eq with | R r => is_callee_save r | S Outgoing _ _ => false | S _ _ _ => true end) e.",
+            "VernacDefinition",
+            "87864df027a000690c1f6facf51ca90fd0de78c5"
+        ],
+        [
+            "Definition compat_left (r: reg) (l: loc) (e: eqs) : bool := EqSet.for_all_between (fun q => match ekind q with | Full => Loc.eq l (eloc q) | _ => false end) (select_reg_l r) (select_reg_h r) (eqs1 e).",
+            "VernacDefinition",
+            "442f80ee3de88d97157b9f23ad0e37bad63d8146"
+        ],
+        [
+            "Definition compat_left2 (r: reg) (l1 l2: loc) (e: eqs) : bool := EqSet.for_all_between (fun q => match ekind q with | High => Loc.eq l1 (eloc q) | Low => Loc.eq l2 (eloc q) | _ => false end) (select_reg_l r) (select_reg_h r) (eqs1 e).",
+            "VernacDefinition",
+            "4355ce2b1c67f50c2d45ed0fc1e56ff8bc1c80ac"
+        ],
+        [
+            "Definition ros_compatible_tailcall (ros: mreg + ident) : bool := match ros with | inl r => negb (is_callee_save r) | inr id => true end.",
+            "VernacDefinition",
+            "dd7caf6c8d977ca4354a1eb467505312e0aabf42"
+        ],
+        [
+            "Definition destroyed_by_move (src dst: loc) := match src, dst with | S sl ofs ty, _ => destroyed_by_getstack sl | _, S sl ofs ty => destroyed_by_setstack ty | _, _ => destroyed_by_op Omove end.",
+            "VernacDefinition",
+            "ba1ffdbbe9c1f2d0be9528e8417cd601cf82bf67"
+        ],
+        [
+            "Definition well_typed_move (env: regenv) (dst: loc) (e: eqs) : bool := match dst with | R r => true | S sl ofs ty => loc_type_compat env dst e end.",
+            "VernacDefinition",
+            "a5d8e23829cf22389327da89d7a5b69d9442c8da"
+        ],
+        [
+            "Fixpoint track_moves (env: regenv) (mv: moves) (e: eqs) : option eqs := match mv with | nil => Some e | MV src dst :: mv => do e1 <- track_moves env mv e; assertion (can_undef_except dst (destroyed_by_move src dst)) e1; assertion (well_typed_move env dst e1); subst_loc dst src e1 | MVmakelong src1 src2 dst :: mv => assertion (negb Archi.ptr64); do e1 <- track_moves env mv e; assertion (long_type_compat env (R dst) e1); subst_loc_pair (R dst) (R src1) (R src2) e1 | MVlowlong src dst :: mv => assertion (negb Archi.ptr64); do e1 <- track_moves env mv e; subst_loc_part (R dst) (R src) Low e1 | MVhighlong src dst :: mv => assertion (negb Archi.ptr64); do e1 <- track_moves env mv e; subst_loc_part (R dst) (R src) High e1 end.",
+            "VernacFixpoint",
+            "0172e66ccd20dca270230b584cfbb28a032c0455"
+        ],
+        [
+            "Definition transfer_use_def (args: list reg) (res: reg) (args': list mreg) (res': mreg) (undefs: list mreg) (e: eqs) : option eqs := let e1 := remove_equation (Eq Full res (R res')) e in assertion (reg_loc_unconstrained res (R res') e1); assertion (can_undef undefs e1); add_equations args args' e1.",
+            "VernacDefinition",
+            "aaeebfb769df942ce1139bb732a037c0cc2f94d6"
+        ],
+        [
+            "Definition kind_first_word := if Archi.big_endian then High else Low.",
+            "VernacDefinition",
+            "c35ea8d255c28a29a1509e96a815f34947bab0fb"
+        ],
+        [
+            "Definition kind_second_word := if Archi.big_endian then Low else High.",
+            "VernacDefinition",
+            "d23ae1009664dd7ee6a253683229a5c7c893b136"
+        ],
+        [
+            "Definition transfer_aux (f: RTL.function) (env: regenv) (shape: block_shape) (e: eqs) : option eqs := match shape with | BSnop mv s => track_moves env mv e | BSmove src dst mv s => track_moves env mv (subst_reg dst src e) | BSmakelong src1 src2 dst mv s => let e1 := subst_reg_kind dst High src1 Full e in let e2 := subst_reg_kind dst Low src2 Full e1 in assertion (reg_unconstrained dst e2); track_moves env mv e2 | BSlowlong src dst mv s => let e1 := subst_reg_kind dst Full src Low e in assertion (reg_unconstrained dst e1); track_moves env mv e1 | BShighlong src dst mv s => let e1 := subst_reg_kind dst Full src High e in assertion (reg_unconstrained dst e1); track_moves env mv e1 | BSop op args res mv1 args' res' mv2 s => do e1 <- track_moves env mv2 e; do e2 <- transfer_use_def args res args' res' (destroyed_by_op op) e1; track_moves env mv1 e2 | BSopdead op args res mv s => assertion (reg_unconstrained res e); track_moves env mv e | BSload chunk addr args dst mv1 args' dst' mv2 s => do e1 <- track_moves env mv2 e; do e2 <- transfer_use_def args dst args' dst' (destroyed_by_load chunk addr) e1; track_moves env mv1 e2 | BSload2 addr addr' args dst mv1 args1' dst1' mv2 args2' dst2' mv3 s => do e1 <- track_moves env mv3 e; let e2 := remove_equation (Eq kind_second_word dst (R dst2')) e1 in assertion (loc_unconstrained (R dst2') e2); assertion (can_undef (destroyed_by_load Mint32 addr') e2); do e3 <- add_equations args args2' e2; do e4 <- track_moves env mv2 e3; let e5 := remove_equation (Eq kind_first_word dst (R dst1')) e4 in assertion (loc_unconstrained (R dst1') e5); assertion (can_undef (destroyed_by_load Mint32 addr) e5); assertion (reg_unconstrained dst e5); do e6 <- add_equations args args1' e5; track_moves env mv1 e6 | BSload2_1 addr args dst mv1 args' dst' mv2 s => do e1 <- track_moves env mv2 e; let e2 := remove_equation (Eq kind_first_word dst (R dst')) e1 in assertion (reg_loc_unconstrained dst (R dst') e2); assertion (can_undef (destroyed_by_load Mint32 addr) e2); do e3 <- add_equations args args' e2; track_moves env mv1 e3 | BSload2_2 addr addr' args dst mv1 args' dst' mv2 s => do e1 <- track_moves env mv2 e; let e2 := remove_equation (Eq kind_second_word dst (R dst')) e1 in assertion (reg_loc_unconstrained dst (R dst') e2); assertion (can_undef (destroyed_by_load Mint32 addr') e2); do e3 <- add_equations args args' e2; track_moves env mv1 e3 | BSloaddead chunk addr args dst mv s => assertion (reg_unconstrained dst e); track_moves env mv e | BSstore chunk addr args src mv args' src' s => assertion (can_undef (destroyed_by_store chunk addr) e); do e1 <- add_equations (src :: args) (src' :: args') e; track_moves env mv e1 | BSstore2 addr addr' args src mv1 args1' src1' mv2 args2' src2' s => assertion (can_undef (destroyed_by_store Mint32 addr') e); do e1 <- add_equations args args2' (add_equation (Eq kind_second_word src (R src2')) e); do e2 <- track_moves env mv2 e1; assertion (can_undef (destroyed_by_store Mint32 addr) e2); do e3 <- add_equations args args1' (add_equation (Eq kind_first_word src (R src1')) e2); track_moves env mv1 e3 | BScall sg ros args res mv1 ros' mv2 s => let args' := loc_arguments sg in let res' := loc_result sg in do e1 <- track_moves env mv2 e; do e2 <- remove_equations_res res res' e1; assertion (forallb (fun l => reg_loc_unconstrained res l e2) (map R (regs_of_rpair res'))); assertion (no_caller_saves e2); do e3 <- add_equation_ros ros ros' e2; do e4 <- add_equations_args args (sig_args sg) args' e3; track_moves env mv1 e4 | BStailcall sg ros args mv1 ros' => let args' := loc_arguments sg in assertion (tailcall_is_possible sg); assertion (opt_typ_eq sg.(sig_res) f.(RTL.fn_sig).(sig_res)); assertion (ros_compatible_tailcall ros'); do e1 <- add_equation_ros ros ros' empty_eqs; do e2 <- add_equations_args args (sig_args sg) args' e1; track_moves env mv1 e2 | BSbuiltin ef args res mv1 args' res' mv2 s => do e1 <- track_moves env mv2 e; do e2 <- remove_equations_builtin_res env res res' e1; assertion (forallb (fun r => reg_unconstrained r e2) (params_of_builtin_res res)); assertion (forallb (fun mr => loc_unconstrained (R mr) e2) (params_of_builtin_res res')); assertion (can_undef (destroyed_by_builtin ef) e2); do e3 <- match ef with | EF_debug _ _ _ => add_equations_debug_args env args args' e2 | _ => add_equations_builtin_args env args args' e2 end; track_moves env mv1 e3 | BScond cond args mv args' s1 s2 => assertion (can_undef (destroyed_by_cond cond) e); do e1 <- add_equations args args' e; track_moves env mv e1 | BSjumptable arg mv arg' tbl => assertion (can_undef destroyed_by_jumptable e); track_moves env mv (add_equation (Eq Full arg (R arg')) e) | BSreturn None mv => track_moves env mv empty_eqs | BSreturn (Some arg) mv => let arg' := loc_result (RTL.fn_sig f) in do e1 <- add_equations_res arg (sig_res (RTL.fn_sig f)) arg' empty_eqs; track_moves env mv e1 end.",
+            "VernacDefinition",
+            "7b4784863a252c619d42e20b2856f8a9653ad954"
+        ],
+        [
+            "Definition transfer (f: RTL.function) (env: regenv) (shapes: PTree.t block_shape) (pc: node) (after: res eqs) : res eqs := match after with | Error _ => after | OK e => match shapes!pc with | None => Error(MSG \"At PC \" :: POS pc :: MSG \": unmatched block\" :: nil) | Some shape => match transfer_aux f env shape e with | None => Error(MSG \"At PC \" :: POS pc :: MSG \": invalid register allocation\" :: nil) | Some e' => OK e' end end end.",
+            "VernacDefinition",
+            "9a077185982ceda83dd4cf66bbbfb48d3f63d9e7"
+        ],
+        [
+            "Module LEq <: SEMILATTICE.",
+            "VernacDefineModule",
+            "eb4ff7dddcce4bfbd65e6015fb1d76980814cd45"
+        ],
+        [
+            "Definition t := res eqs.",
+            "VernacDefinition",
+            "8e12bbcc4c511a41acaaa2edb653af98a4170743"
+        ],
+        [
+            "Definition eq (x y: t) := match x, y with | OK a, OK b => EqSet.Equal a b | Error _, Error _ => True | _, _ => False end.",
+            "VernacDefinition",
+            "bbf3a840a8ff8b8179e4bcb5ea0f71924da6d945"
+        ],
+        [
+            "Lemma eq_refl: forall x, eq x x.",
+            "VernacStartTheoremProof",
+            "c0741461ec3ebf95df4fc4ebbf1bebac9dd5ff59"
+        ],
+        [
+            "intros; destruct x; simpl; auto.",
+            "VernacExtend",
+            "af50002bca3c79997e4f585fc0690f4133eaaf6b"
+        ],
+        [
+            "red; tauto.",
+            "VernacExtend",
+            "86096a8f01fc632f49d98392e9366840d4a279cc"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma eq_sym: forall x y, eq x y -> eq y x.",
+            "VernacStartTheoremProof",
+            "692a5ac196f60f7b68e928594898f2c8812358af"
+        ],
+        [
+            "unfold eq; intros; destruct x; destruct y; auto.",
+            "VernacExtend",
+            "85dd0d4e76d1db369a52cb14a941eaae2679a815"
+        ],
+        [
+            "red in H; red; intros.",
+            "VernacExtend",
+            "3721968e19dcab0d653ee3502984f27b495b65c5"
+        ],
+        [
+            "rewrite H; tauto.",
+            "VernacExtend",
+            "5de2ab75e53ae590f63da139665505a2cbc4c2d0"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma eq_trans: forall x y z, eq x y -> eq y z -> eq x z.",
+            "VernacStartTheoremProof",
+            "1a7eef4592c61e17d255e85f4b2fb7dc005386f2"
+        ],
+        [
+            "unfold eq; intros.",
+            "VernacExtend",
+            "396210e0f0e83e774c52c6b6e5dffd3c5beae6a7"
+        ],
+        [
+            "destruct x; destruct y; try contradiction; destruct z; auto.",
+            "VernacExtend",
+            "f545e959ff2420675298d095fd6c46823bbd5dba"
+        ],
+        [
+            "red in H; red in H0; red; intros.",
+            "VernacExtend",
+            "3ddc6a6343203d577b1e0ac622c5f55e160f4a4c"
+        ],
+        [
+            "rewrite H.",
+            "VernacExtend",
+            "6192df8b89486a3ba89a78e26e0d70cae2dc94c2"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition beq (x y: t) := match x, y with | OK a, OK b => EqSet.equal a b | Error _, Error _ => true | _, _ => false end.",
+            "VernacDefinition",
+            "474f081311207de731e1221867a9fe88f981f07c"
+        ],
+        [
+            "Lemma beq_correct: forall x y, beq x y = true -> eq x y.",
+            "VernacStartTheoremProof",
+            "e4990dea034db2b33ccf9496a563b02967ce258c"
+        ],
+        [
+            "unfold beq, eq; intros.",
+            "VernacExtend",
+            "8d7cd6fdc3906dc11e998fda5ff973002340c5cb"
+        ],
+        [
+            "destruct x; destruct y.",
+            "VernacExtend",
+            "66b6bbed80f19a7ddf75313e3d1e4cc780d5f91f"
+        ],
+        [
+            "apply EqSet.equal_2.",
+            "VernacExtend",
+            "74e99e6681b9e92943d719b2141c1916a57a192a"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "discriminate.",
+            "VernacExtend",
+            "66ca81b65e1a53372a2515fdfdd2a6b0677cb9c8"
+        ],
+        [
+            "discriminate.",
+            "VernacExtend",
+            "66ca81b65e1a53372a2515fdfdd2a6b0677cb9c8"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition ge (x y: t) := match x, y with | OK a, OK b => EqSet.Subset b a | Error _, _ => True | _, Error _ => False end.",
+            "VernacDefinition",
+            "4ee5676acddbf50fac1272cfe4949ae00218bac8"
+        ],
+        [
+            "Lemma ge_refl: forall x y, eq x y -> ge x y.",
+            "VernacStartTheoremProof",
+            "169d0ad676e0306653660955139f274c9b6d611b"
+        ],
+        [
+            "unfold eq, ge, EqSet.Equal, EqSet.Subset; intros.",
+            "VernacExtend",
+            "ee60adb880c2a0dbba5f8ae389f8deed104e2cd8"
+        ],
+        [
+            "destruct x; destruct y; auto.",
+            "VernacExtend",
+            "8922e721a6fd6874aabf90d2d9dc2e25564bc26a"
+        ],
+        [
+            "intros; rewrite H; auto.",
+            "VernacExtend",
+            "2129e25ac9d107422a9b610c0a4b072d70a8c035"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma ge_trans: forall x y z, ge x y -> ge y z -> ge x z.",
+            "VernacStartTheoremProof",
+            "101a2cb0ee8cac4bd53bfba9e8cb3ed2802183fd"
+        ],
+        [
+            "unfold ge, EqSet.Subset; intros.",
+            "VernacExtend",
+            "ed800cc44e400ef7f4dd47b60990cc890ce683a9"
+        ],
+        [
+            "destruct x; auto; destruct y; try contradiction.",
+            "VernacExtend",
+            "f7b74ac9e8a9f8cd9dc43cfd91ca8501c12bf85a"
+        ],
+        [
+            "destruct z; eauto.",
+            "VernacExtend",
+            "05ae79362812148dce26eec7a62b3611fcfe7bd3"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition bot: t := OK empty_eqs.",
+            "VernacDefinition",
+            "1babb1abe315db734a9200ab6fe9d5fcd028e88c"
+        ],
+        [
+            "Lemma ge_bot: forall x, ge x bot.",
+            "VernacStartTheoremProof",
+            "e9384b19a3789e7495885ed8c4dd1e8b653f6e81"
+        ],
+        [
+            "unfold ge, bot, EqSet.Subset; simpl; intros.",
+            "VernacExtend",
+            "5f74f05b27c841e9a0302ced9ca32ea07fad71dc"
+        ],
+        [
+            "destruct x; auto.",
+            "VernacExtend",
+            "e693b97b98b28f6f305ce1b2e3d77ebaa690911c"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "elim (EqSet.empty_1 H).",
+            "VernacExtend",
+            "817665684925d61252aa29ef33251c5e60a8cc47"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Program Definition lub (x y: t) : t := match x, y return _ with | OK a, OK b => OK (mkeqs (EqSet.union (eqs1 a) (eqs1 b)) (EqSet2.union (eqs2 a) (eqs2 b)) _) | OK _, Error _ => y | Error _, _ => x end.",
+            "VernacDefinition",
+            "1d40a17f5dccb4f1709a25a9f0b7daf1c4aa1f33"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "split; intros.",
+            "VernacExtend",
+            "3c0a2af2969d0c39838e9010244dfd28201b7f3e"
+        ],
+        [
+            "apply EqSet2.union_1 in H.",
+            "VernacExtend",
+            "f45dff1099d2d8b190c276b5668ae2673eda2e66"
+        ],
+        [
+            "destruct H; rewrite eqs_same in H.",
+            "VernacExtend",
+            "9464ef9ba99331bb74a39cafc08aae13014e5641"
+        ],
+        [
+            "apply EqSet.union_2; auto.",
+            "VernacExtend",
+            "686177b47d490dc2aee36e4d0194bd92714d41f8"
+        ],
+        [
+            "apply EqSet.union_3; auto.",
+            "VernacExtend",
+            "284f28bab0eddb73baf088affd9c2fc2fc5903b1"
+        ],
+        [
+            "apply EqSet.union_1 in H.",
+            "VernacExtend",
+            "a87b3547d4bf0361a436ece2df9981793dc56e12"
+        ],
+        [
+            "destruct H; rewrite <- eqs_same in H.",
+            "VernacExtend",
+            "a435299fe9ce8477a063ac26aa47fe459ff17aa3"
+        ],
+        [
+            "apply EqSet2.union_2; auto.",
+            "VernacExtend",
+            "52c3fdceeb7df35abd3f25e57a3c3cd85f58a2b2"
+        ],
+        [
+            "apply EqSet2.union_3; auto.",
+            "VernacExtend",
+            "7f843c4858ea2efd6da5219f2065b8cdf0959837"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma ge_lub_left: forall x y, ge (lub x y) x.",
+            "VernacStartTheoremProof",
+            "61945699b1c91c090ff15db1d21ef47aaad3f6e3"
+        ],
+        [
+            "unfold lub, ge, EqSet.Subset; intros.",
+            "VernacExtend",
+            "9d24244e8b3b1e9bc23d3276460638d6017fef09"
+        ],
+        [
+            "destruct x; destruct y; auto.",
+            "VernacExtend",
+            "8922e721a6fd6874aabf90d2d9dc2e25564bc26a"
+        ],
+        [
+            "intros; apply EqSet.union_2; auto.",
+            "VernacExtend",
+            "f38969877cdd4a9482561089d7d26ef9d30b9f25"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma ge_lub_right: forall x y, ge (lub x y) y.",
+            "VernacStartTheoremProof",
+            "7b03928bdfadd1eea38d574f7921a5ca6022a341"
+        ],
+        [
+            "unfold lub, ge, EqSet.Subset; intros.",
+            "VernacExtend",
+            "9d24244e8b3b1e9bc23d3276460638d6017fef09"
+        ],
+        [
+            "destruct x; destruct y; auto.",
+            "VernacExtend",
+            "8922e721a6fd6874aabf90d2d9dc2e25564bc26a"
+        ],
+        [
+            "intros; apply EqSet.union_3; auto.",
+            "VernacExtend",
+            "cd24574ea8a94d8ef6966f7c2f2424162a422516"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End LEq.",
+            "VernacEndSegment",
+            "a9b494c357c5695e1e9d88aa6ecf82690d41032c"
+        ],
+        [
+            "Module DS := Backward_Dataflow_Solver(LEq)(NodeSetBackward).",
+            "VernacDefineModule",
+            "a9804c52333f1480f10a696761b5691105019f58"
+        ],
+        [
+            "Definition successors_block_shape (bsh: block_shape) : list node := match bsh with | BSnop mv s => s :: nil | BSmove src dst mv s => s :: nil | BSmakelong src1 src2 dst mv s => s :: nil | BSlowlong src dst mv s => s :: nil | BShighlong src dst mv s => s :: nil | BSop op args res mv1 args' res' mv2 s => s :: nil | BSopdead op args res mv s => s :: nil | BSload chunk addr args dst mv1 args' dst' mv2 s => s :: nil | BSload2 addr addr' args dst mv1 args1' dst1' mv2 args2' dst2' mv3 s => s :: nil | BSload2_1 addr args dst mv1 args' dst' mv2 s => s :: nil | BSload2_2 addr addr' args dst mv1 args' dst' mv2 s => s :: nil | BSloaddead chunk addr args dst mv s => s :: nil | BSstore chunk addr args src mv1 args' src' s => s :: nil | BSstore2 addr addr' args src mv1 args1' src1' mv2 args2' src2' s => s :: nil | BScall sg ros args res mv1 ros' mv2 s => s :: nil | BStailcall sg ros args mv1 ros' => nil | BSbuiltin ef args res mv1 args' res' mv2 s => s :: nil | BScond cond args mv args' s1 s2 => s1 :: s2 :: nil | BSjumptable arg mv arg' tbl => tbl | BSreturn optarg mv => nil end.",
+            "VernacDefinition",
+            "5ba5656858ff355e84f692d2bc2d6294637b5666"
+        ],
+        [
+            "Definition analyze (f: RTL.function) (env: regenv) (bsh: PTree.t block_shape) := DS.fixpoint_allnodes bsh successors_block_shape (transfer f env bsh).",
+            "VernacDefinition",
+            "9fc6ad6e985f19107335a081b4a19f75f7f02cdd"
+        ],
+        [
+            "Function compat_entry (rparams: list reg) (lparams: list (rpair loc)) (e: eqs) {struct rparams} : bool := match rparams, lparams with | nil, nil => true | r1 :: rl, One l1 :: ll => compat_left r1 l1 e && compat_entry rl ll e | r1 :: rl, Twolong l1 l2 :: ll => compat_left2 r1 l1 l2 e && compat_entry rl ll e | _, _ => false end.",
+            "VernacExtend",
+            "8b161c345371ecbece02957fa24704b521dcc3a8"
+        ],
+        [
+            "Definition check_entrypoints_aux (rtl: RTL.function) (ltl: LTL.function) (env: regenv) (e1: eqs) : option unit := do mv <- pair_entrypoints rtl ltl; do e2 <- track_moves env mv e1; assertion (compat_entry (RTL.fn_params rtl) (loc_parameters (RTL.fn_sig rtl)) e2); assertion (can_undef destroyed_at_function_entry e2); assertion (zeq (RTL.fn_stacksize rtl) (LTL.fn_stacksize ltl)); assertion (signature_eq (RTL.fn_sig rtl) (LTL.fn_sig ltl)); Some tt.",
+            "VernacDefinition",
+            "ff7215de12c3e543b67c5967566b869123f1372d"
+        ],
+        [
+            "Local Close Scope option_monad_scope.",
+            "VernacOpenCloseScope",
+            "e11ab85620c5a408d837f9c3209b2a9769e64f67"
+        ],
+        [
+            "Local Open Scope error_monad_scope.",
+            "VernacOpenCloseScope",
+            "c40f2a3704d268aa6535e825182aaec0e665bbd5"
+        ],
+        [
+            "Definition check_entrypoints (rtl: RTL.function) (ltl: LTL.function) (env: regenv) (bsh: PTree.t block_shape) (a: PMap.t LEq.t): res unit := do e1 <- transfer rtl env bsh (RTL.fn_entrypoint rtl) a!!(RTL.fn_entrypoint rtl); match check_entrypoints_aux rtl ltl env e1 with | None => Error (msg \"invalid register allocation at entry point\") | Some _ => OK tt end.",
+            "VernacDefinition",
+            "c59a1562087e4a4c27c6342903f6302cde715346"
+        ],
+        [
+            "Definition check_function (rtl: RTL.function) (ltl: LTL.function) (env: regenv): res unit := let bsh := pair_codes rtl ltl in match analyze rtl env bsh with | None => Error (msg \"allocation analysis diverges\") | Some a => check_entrypoints rtl ltl env bsh a end.",
+            "VernacDefinition",
+            "d4dd715878397f355180ce9502ad4c7383df00b3"
+        ],
+        [
+            "Parameter regalloc: RTL.function -> res LTL.function.",
+            "VernacAssumption",
+            "1cc4aa0191dd380ca354080023a51021274354eb"
+        ],
+        [
+            "Definition transf_function (f: RTL.function) : res LTL.function := match type_function f with | Error m => Error m | OK env => match regalloc f with | Error m => Error m | OK tf => do x <- check_function f tf env; OK tf end end.",
+            "VernacDefinition",
+            "5940291beca82028a4b03977aa7f94d227f47dc1"
+        ],
+        [
+            "Definition transf_fundef (fd: RTL.fundef) : res LTL.fundef := AST.transf_partial_fundef transf_function fd.",
+            "VernacDefinition",
+            "e864025ba2e79efd1bb01a951858a0c237e7c983"
+        ],
+        [
+            "Definition transf_program (p: RTL.program) : res LTL.program := transform_partial_program transf_fundef p.",
+            "VernacDefinition",
+            "39dd8f591121237beabe96ec9c2f641fa2bf5eeb"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "index_inj",
+            "line_nb": 25,
+            "steps": [
+                {
+                    "command": [
+                        "destruct x; destruct y; simpl; congruence.",
+                        "VernacExtend",
+                        "38cf74b37acf7aab62fc95788d1c710eb638eeaa"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "eq",
+            "line_nb": 28,
+            "steps": [
+                {
+                    "command": [
+                        "decide equality.",
+                        "VernacExtend",
+                        "10aba07d521545accbb51a4c2e0695a9ddce3199"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "lt_trans",
+            "line_nb": 43,
+            "steps": [
+                {
+                    "command": [
+                        "unfold lt; intros.",
+                        "VernacExtend",
+                        "205da0deef097404a05d1cd9de262baf2ce15084"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H.",
+                        "VernacExtend",
+                        "8b2bca015429da94c456243b461e17a2a0582c40"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H0.",
+                        "VernacExtend",
+                        "5c8f6cb3dc303d56935d6ec271a1de04f6790225"
+                    ]
+                },
+                {
+                    "command": [
+                        "left; eapply Plt_trans; eauto.",
+                        "VernacExtend",
+                        "0b82e255436e7ced20d3cd89a15483b5dbbb5f15"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H0.",
+                        "VernacExtend",
+                        "5c8f6cb3dc303d56935d6ec271a1de04f6790225"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- H0.",
+                        "VernacExtend",
+                        "f6718c09e494e327328e3c2003dd236939e231f9"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H.",
+                        "VernacExtend",
+                        "8b2bca015429da94c456243b461e17a2a0582c40"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H.",
+                        "VernacExtend",
+                        "6192df8b89486a3ba89a78e26e0d70cae2dc94c2"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H0.",
+                        "VernacExtend",
+                        "5c8f6cb3dc303d56935d6ec271a1de04f6790225"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H0.",
+                        "VernacExtend",
+                        "5c8f6cb3dc303d56935d6ec271a1de04f6790225"
+                    ]
+                },
+                {
+                    "command": [
+                        "right; split; auto.",
+                        "VernacExtend",
+                        "1cc5054ad1405940e563f1d7ddce468251301130"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition.",
+                        "VernacExtend",
+                        "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+                    ]
+                },
+                {
+                    "command": [
+                        "left; eapply OrderedLoc.lt_trans; eauto.",
+                        "VernacExtend",
+                        "72a70b4416379740c08a1cab37cefa65f72c8cbc"
+                    ]
+                },
+                {
+                    "command": [
+                        "left; congruence.",
+                        "VernacExtend",
+                        "bc0b2cc81db2fe562b3b2f1af1e7273a6d9e66c7"
+                    ]
+                },
+                {
+                    "command": [
+                        "left; congruence.",
+                        "VernacExtend",
+                        "bc0b2cc81db2fe562b3b2f1af1e7273a6d9e66c7"
+                    ]
+                },
+                {
+                    "command": [
+                        "right; split.",
+                        "VernacExtend",
+                        "7f40e6faa2e8d6f2ee2a39b745aa28054e5d87de"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply OrderedEqKind.lt_trans; eauto.",
+                        "VernacExtend",
+                        "bc2a4da5281358b99a2be9fc77d1a8c86431ec98"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "lt_not_eq",
+            "line_nb": 65,
+            "steps": [
+                {
+                    "command": [
+                        "unfold lt, eq; intros; red; intros.",
+                        "VernacExtend",
+                        "75ae9097818b249c51b6f12203846d2e15d85425"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst y.",
+                        "VernacExtend",
+                        "f056a00b852bc549d1b8bb21d500c90d8ff37bf8"
+                    ]
+                },
+                {
+                    "command": [
+                        "intuition.",
+                        "VernacExtend",
+                        "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+                    ]
+                },
+                {
+                    "command": [
+                        "eelim Plt_strict; eauto.",
+                        "VernacExtend",
+                        "5c6404876065c3d5879d139ab23f6387a4346e8e"
+                    ]
+                },
+                {
+                    "command": [
+                        "eelim OrderedLoc.lt_not_eq; eauto.",
+                        "VernacExtend",
+                        "8cdc48ff5182f364a9869d3d2b76ebeaac3a87e4"
+                    ]
+                },
+                {
+                    "command": [
+                        "red; auto.",
+                        "VernacExtend",
+                        "cab1687c6da0e60977d47d2335ecbd5d45e7e0b2"
+                    ]
+                },
+                {
+                    "command": [
+                        "eelim OrderedEqKind.lt_not_eq; eauto.",
+                        "VernacExtend",
+                        "78454c8215889978885e918e6f810d82067955f9"
+                    ]
+                },
+                {
+                    "command": [
+                        "red; auto.",
+                        "VernacExtend",
+                        "cab1687c6da0e60977d47d2335ecbd5d45e7e0b2"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "compare",
+            "line_nb": 75,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (OrderedPositive.compare (ereg x) (ereg y)).",
+                        "VernacExtend",
+                        "adb2e355f0e60d361ffcbb9fed78b83ed384036c"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply LT.",
+                        "VernacExtend",
+                        "24e3957f91d7cbcee1692dc32db9dc559817d3ff"
+                    ]
+                },
+                {
+                    "command": [
+                        "red; auto.",
+                        "VernacExtend",
+                        "cab1687c6da0e60977d47d2335ecbd5d45e7e0b2"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (OrderedLoc.compare (eloc x) (eloc y)).",
+                        "VernacExtend",
+                        "71e10f42806b95e6118fb43ce801231b60e2f872"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply LT.",
+                        "VernacExtend",
+                        "24e3957f91d7cbcee1692dc32db9dc559817d3ff"
+                    ]
+                },
+                {
+                    "command": [
+                        "red; auto.",
+                        "VernacExtend",
+                        "cab1687c6da0e60977d47d2335ecbd5d45e7e0b2"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (OrderedEqKind.compare (ekind x) (ekind y)).",
+                        "VernacExtend",
+                        "23c3d362beb800fcf89cce6e0fd27db63c425f32"
+                    ]
+                },
+                {
+                    "command": [
+                        "*",
+                        "VernacBullet",
+                        "8a329d054468e0c41ce333043e0978e30eed7b98"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply LT.",
+                        "VernacExtend",
+                        "24e3957f91d7cbcee1692dc32db9dc559817d3ff"
+                    ]
+                },
+                {
+                    "command": [
+                        "red; auto.",
+                        "VernacExtend",
+                        "cab1687c6da0e60977d47d2335ecbd5d45e7e0b2"
+                    ]
+                },
+                {
+                    "command": [
+                        "*",
+                        "VernacBullet",
+                        "8a329d054468e0c41ce333043e0978e30eed7b98"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply EQ.",
+                        "VernacExtend",
+                        "51b5c167bb92ae165883e8ba0a3c5a65f6646647"
+                    ]
+                },
+                {
+                    "command": [
+                        "red in e; red in e0; red in e1; red.",
+                        "VernacExtend",
+                        "da70d012e6563aba19b218175d5f143534344ffb"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct x; destruct y; simpl in *; congruence.",
+                        "VernacExtend",
+                        "57b54a02bdeac8f1be433431a8f42739247ed093"
+                    ]
+                },
+                {
+                    "command": [
+                        "*",
+                        "VernacBullet",
+                        "8a329d054468e0c41ce333043e0978e30eed7b98"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply GT.",
+                        "VernacExtend",
+                        "04ef71b2bd64f684183c59e21351a8d677c3fc29"
+                    ]
+                },
+                {
+                    "command": [
+                        "red; auto.",
+                        "VernacExtend",
+                        "cab1687c6da0e60977d47d2335ecbd5d45e7e0b2"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply GT.",
+                        "VernacExtend",
+                        "04ef71b2bd64f684183c59e21351a8d677c3fc29"
+                    ]
+                },
+                {
+                    "command": [
+                        "red; auto.",
+                        "VernacExtend",
+                        "cab1687c6da0e60977d47d2335ecbd5d45e7e0b2"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply GT.",
+                        "VernacExtend",
+                        "04ef71b2bd64f684183c59e21351a8d677c3fc29"
+                    ]
+                },
+                {
+                    "command": [
+                        "red; auto.",
+                        "VernacExtend",
+                        "cab1687c6da0e60977d47d2335ecbd5d45e7e0b2"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "eq_dec",
+            "line_nb": 105,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "decide equality.",
+                        "VernacExtend",
+                        "10aba07d521545accbb51a4c2e0695a9ddce3199"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Loc.eq.",
+                        "VernacExtend",
+                        "f03e51559f817ed6e79f3e1b5e5573acbc176cf3"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply peq.",
+                        "VernacExtend",
+                        "5e99d9ae8e5eadf6309ec1189544d29135be0996"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply IndexedEqKind.eq.",
+                        "VernacExtend",
+                        "79caebe3b0e01c0e4c5588c39d594b52f96f24c4"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "empty_eqs_obligation_1",
+            "line_nb": 191,
+            "steps": [
+                {
+                    "command": [
+                        "split; intros.",
+                        "VernacExtend",
+                        "3c0a2af2969d0c39838e9010244dfd28201b7f3e"
+                    ]
+                },
+                {
+                    "command": [
+                        "eelim EqSet2.empty_1; eauto.",
+                        "VernacExtend",
+                        "aabd236754da80a3b8dbf76926ef9158d6b006dd"
+                    ]
+                },
+                {
+                    "command": [
+                        "eelim EqSet.empty_1; eauto.",
+                        "VernacExtend",
+                        "02384585837e5467b5dcd4b3444d44ef6219b51b"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "add_equation_obligation_1",
+            "line_nb": 197,
+            "steps": [
+                {
+                    "command": [
+                        "split; intros.",
+                        "VernacExtend",
+                        "3c0a2af2969d0c39838e9010244dfd28201b7f3e"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (OrderedEquation'.eq_dec q q0).",
+                        "VernacExtend",
+                        "c090513e5bdb2b34bcd1d7b851f1f52d3e35a957"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply EqSet.add_1; auto.",
+                        "VernacExtend",
+                        "a5003be1ce6f358deb00c193ac958bb7816c764c"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply EqSet.add_2.",
+                        "VernacExtend",
+                        "bc893b8384de06de45ccb30512588d728b5e7591"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (eqs_same e).",
+                        "VernacExtend",
+                        "f93546293d564afa06df0d7896bd582397d86dbf"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply EqSet2.add_3 with q; auto.",
+                        "VernacExtend",
+                        "151aedfae40d883455a692142423484f82ea0e8d"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (OrderedEquation.eq_dec q q0).",
+                        "VernacExtend",
+                        "91fed05b2f78725bddcb9ad93f771f623b5f892a"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply EqSet2.add_1; auto.",
+                        "VernacExtend",
+                        "8761d45afe08305d9533485aebb7b0c3e2b0b0d1"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply EqSet2.add_2.",
+                        "VernacExtend",
+                        "f7333b94c9aac7f8f818bff42708119bfca37c3c"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (eqs_same e).",
+                        "VernacExtend",
+                        "f93546293d564afa06df0d7896bd582397d86dbf"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply EqSet.add_3 with q; auto.",
+                        "VernacExtend",
+                        "b889efacc479af7cbbdecb2a9b99f068f3c2bcbd"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "remove_equation_obligation_1",
+            "line_nb": 211,
+            "steps": [
+                {
+                    "command": [
+                        "split; intros.",
+                        "VernacExtend",
+                        "3c0a2af2969d0c39838e9010244dfd28201b7f3e"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (OrderedEquation'.eq_dec q q0).",
+                        "VernacExtend",
+                        "c090513e5bdb2b34bcd1d7b851f1f52d3e35a957"
+                    ]
+                },
+                {
+                    "command": [
+                        "eelim EqSet2.remove_1; eauto.",
+                        "VernacExtend",
+                        "d1e51bce3cc6dd389cf4603038af74b7e892d57a"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply EqSet.remove_2; auto.",
+                        "VernacExtend",
+                        "8118d237a11ebb675338b6ead14258a79dc31012"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (eqs_same e).",
+                        "VernacExtend",
+                        "f93546293d564afa06df0d7896bd582397d86dbf"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply EqSet2.remove_3 with q; auto.",
+                        "VernacExtend",
+                        "1f66b611fda9abf24921f504131777b3dc112ddd"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (OrderedEquation.eq_dec q q0).",
+                        "VernacExtend",
+                        "91fed05b2f78725bddcb9ad93f771f623b5f892a"
+                    ]
+                },
+                {
+                    "command": [
+                        "eelim EqSet.remove_1; eauto.",
+                        "VernacExtend",
+                        "c1d3ff36d9fd9b582c79026bcd12b412099b468f"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply EqSet2.remove_2; auto.",
+                        "VernacExtend",
+                        "c8fa68290b9d1f39936d595812342abd58067fff"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (eqs_same e).",
+                        "VernacExtend",
+                        "f93546293d564afa06df0d7896bd582397d86dbf"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply EqSet.remove_3 with q; auto.",
+                        "VernacExtend",
+                        "61f7ef32864259e2b56f2a0a627992c4c0b1292a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "eq_refl",
+            "line_nb": 265,
+            "steps": [
+                {
+                    "command": [
+                        "intros; destruct x; simpl; auto.",
+                        "VernacExtend",
+                        "af50002bca3c79997e4f585fc0690f4133eaaf6b"
+                    ]
+                },
+                {
+                    "command": [
+                        "red; tauto.",
+                        "VernacExtend",
+                        "86096a8f01fc632f49d98392e9366840d4a279cc"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "eq_sym",
+            "line_nb": 269,
+            "steps": [
+                {
+                    "command": [
+                        "unfold eq; intros; destruct x; destruct y; auto.",
+                        "VernacExtend",
+                        "85dd0d4e76d1db369a52cb14a941eaae2679a815"
+                    ]
+                },
+                {
+                    "command": [
+                        "red in H; red; intros.",
+                        "VernacExtend",
+                        "3721968e19dcab0d653ee3502984f27b495b65c5"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H; tauto.",
+                        "VernacExtend",
+                        "5de2ab75e53ae590f63da139665505a2cbc4c2d0"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "eq_trans",
+            "line_nb": 274,
+            "steps": [
+                {
+                    "command": [
+                        "unfold eq; intros.",
+                        "VernacExtend",
+                        "396210e0f0e83e774c52c6b6e5dffd3c5beae6a7"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct x; destruct y; try contradiction; destruct z; auto.",
+                        "VernacExtend",
+                        "f545e959ff2420675298d095fd6c46823bbd5dba"
+                    ]
+                },
+                {
+                    "command": [
+                        "red in H; red in H0; red; intros.",
+                        "VernacExtend",
+                        "3ddc6a6343203d577b1e0ac622c5f55e160f4a4c"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H.",
+                        "VernacExtend",
+                        "6192df8b89486a3ba89a78e26e0d70cae2dc94c2"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "beq_correct",
+            "line_nb": 282,
+            "steps": [
+                {
+                    "command": [
+                        "unfold beq, eq; intros.",
+                        "VernacExtend",
+                        "8d7cd6fdc3906dc11e998fda5ff973002340c5cb"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct x; destruct y.",
+                        "VernacExtend",
+                        "66b6bbed80f19a7ddf75313e3d1e4cc780d5f91f"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply EqSet.equal_2.",
+                        "VernacExtend",
+                        "74e99e6681b9e92943d719b2141c1916a57a192a"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "discriminate.",
+                        "VernacExtend",
+                        "66ca81b65e1a53372a2515fdfdd2a6b0677cb9c8"
+                    ]
+                },
+                {
+                    "command": [
+                        "discriminate.",
+                        "VernacExtend",
+                        "66ca81b65e1a53372a2515fdfdd2a6b0677cb9c8"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ge_refl",
+            "line_nb": 292,
+            "steps": [
+                {
+                    "command": [
+                        "unfold eq, ge, EqSet.Equal, EqSet.Subset; intros.",
+                        "VernacExtend",
+                        "ee60adb880c2a0dbba5f8ae389f8deed104e2cd8"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct x; destruct y; auto.",
+                        "VernacExtend",
+                        "8922e721a6fd6874aabf90d2d9dc2e25564bc26a"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros; rewrite H; auto.",
+                        "VernacExtend",
+                        "2129e25ac9d107422a9b610c0a4b072d70a8c035"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ge_trans",
+            "line_nb": 297,
+            "steps": [
+                {
+                    "command": [
+                        "unfold ge, EqSet.Subset; intros.",
+                        "VernacExtend",
+                        "ed800cc44e400ef7f4dd47b60990cc890ce683a9"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct x; auto; destruct y; try contradiction.",
+                        "VernacExtend",
+                        "f7b74ac9e8a9f8cd9dc43cfd91ca8501c12bf85a"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct z; eauto.",
+                        "VernacExtend",
+                        "05ae79362812148dce26eec7a62b3611fcfe7bd3"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ge_bot",
+            "line_nb": 303,
+            "steps": [
+                {
+                    "command": [
+                        "unfold ge, bot, EqSet.Subset; simpl; intros.",
+                        "VernacExtend",
+                        "5f74f05b27c841e9a0302ced9ca32ea07fad71dc"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct x; auto.",
+                        "VernacExtend",
+                        "e693b97b98b28f6f305ce1b2e3d77ebaa690911c"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "elim (EqSet.empty_1 H).",
+                        "VernacExtend",
+                        "817665684925d61252aa29ef33251c5e60a8cc47"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "lub_obligation_1",
+            "line_nb": 310,
+            "steps": [
+                {
+                    "command": [
+                        "split; intros.",
+                        "VernacExtend",
+                        "3c0a2af2969d0c39838e9010244dfd28201b7f3e"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply EqSet2.union_1 in H.",
+                        "VernacExtend",
+                        "f45dff1099d2d8b190c276b5668ae2673eda2e66"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; rewrite eqs_same in H.",
+                        "VernacExtend",
+                        "9464ef9ba99331bb74a39cafc08aae13014e5641"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply EqSet.union_2; auto.",
+                        "VernacExtend",
+                        "686177b47d490dc2aee36e4d0194bd92714d41f8"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply EqSet.union_3; auto.",
+                        "VernacExtend",
+                        "284f28bab0eddb73baf088affd9c2fc2fc5903b1"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply EqSet.union_1 in H.",
+                        "VernacExtend",
+                        "a87b3547d4bf0361a436ece2df9981793dc56e12"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H; rewrite <- eqs_same in H.",
+                        "VernacExtend",
+                        "a435299fe9ce8477a063ac26aa47fe459ff17aa3"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply EqSet2.union_2; auto.",
+                        "VernacExtend",
+                        "52c3fdceeb7df35abd3f25e57a3c3cd85f58a2b2"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply EqSet2.union_3; auto.",
+                        "VernacExtend",
+                        "7f843c4858ea2efd6da5219f2065b8cdf0959837"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ge_lub_left",
+            "line_nb": 321,
+            "steps": [
+                {
+                    "command": [
+                        "unfold lub, ge, EqSet.Subset; intros.",
+                        "VernacExtend",
+                        "9d24244e8b3b1e9bc23d3276460638d6017fef09"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct x; destruct y; auto.",
+                        "VernacExtend",
+                        "8922e721a6fd6874aabf90d2d9dc2e25564bc26a"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros; apply EqSet.union_2; auto.",
+                        "VernacExtend",
+                        "f38969877cdd4a9482561089d7d26ef9d30b9f25"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ge_lub_right",
+            "line_nb": 326,
+            "steps": [
+                {
+                    "command": [
+                        "unfold lub, ge, EqSet.Subset; intros.",
+                        "VernacExtend",
+                        "9d24244e8b3b1e9bc23d3276460638d6017fef09"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct x; destruct y; auto.",
+                        "VernacExtend",
+                        "8922e721a6fd6874aabf90d2d9dc2e25564bc26a"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros; apply EqSet.union_3; auto.",
+                        "VernacExtend",
+                        "cd24574ea8a94d8ef6966f7c2f2424162a422516"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,345 @@
+{
+    "filename": "cparser/MenhirLib/Interpreter.v",
+    "coq_project": "CompCert",
+    "vernac_cmds": [
+        [
+            "Require Import Streams.",
+            "VernacRequire",
+            "a5434de7332fb37ff7339d156041eb614016dee2"
+        ],
+        [
+            "Require Import List.",
+            "VernacRequire",
+            "d9bcce4a390afeb160107bf87c6f7abe3d82c6d6"
+        ],
+        [
+            "Require Import Syntax.",
+            "VernacRequire",
+            "f7333e1bc90f5c9993df336e6bf762d9d566cbfe"
+        ],
+        [
+            "Require Automaton.",
+            "VernacRequire",
+            "2a0cbee8eee90ef23660cd2aaf73b263992155b4"
+        ],
+        [
+            "Require Import Alphabet.",
+            "VernacRequire",
+            "319f2088e96907602758beab43ff96f8fdb554b7"
+        ],
+        [
+            "Module Make(Import A:Automaton.T).",
+            "VernacDefineModule",
+            "dd5d48cf97451a72eafee54b66f197b4fb42feee"
+        ],
+        [
+            "Inductive result (A:Type) := | Err: result A | OK: A -> result A.",
+            "VernacInductive",
+            "23b4e90c38f99c5ee1cdf34f66a568e0cfbca785"
+        ],
+        [
+            "Arguments Err [A].",
+            "VernacArguments",
+            "d525e4afb80aa07964464b913f5751f3f0268840"
+        ],
+        [
+            "Arguments OK [A].",
+            "VernacArguments",
+            "ee43e5d9c7db3211ba052f8386c5dd9981d7d893"
+        ],
+        [
+            "Definition bind {A B: Type} (f: result A) (g: A -> result B): result B := match f with | OK x => g x | Err => Err end.",
+            "VernacDefinition",
+            "ea12dd23f6eda70fffc43b8f5f20010f5cc02599"
+        ],
+        [
+            "Definition bind2 {A B C: Type} (f: result (A * B)) (g: A -> B -> result C): result C := match f with | OK (x, y) => g x y | Err => Err end.",
+            "VernacDefinition",
+            "13292a21b0947af5297fb5028d910d28766a78a1"
+        ],
+        [
+            "Notation \"'do' X <- A ; B\" := (bind A (fun X => B)) (at level 200, X ident, A at level 100, B at level 200).",
+            "VernacNotation",
+            "b1c8cafb951a3f33b0b12bb1a3543f6ae4a8fa3c"
+        ],
+        [
+            "Notation \"'do' ( X , Y ) <- A ; B\" := (bind2 A (fun X Y => B)) (at level 200, X ident, Y ident, A at level 100, B at level 200).",
+            "VernacNotation",
+            "61ff62c468be4c09136af00822b73769ec3fd28b"
+        ],
+        [
+            "Fixpoint app_str {A:Type} (l:list A) (s:Stream A) := match l with | nil => s | cons t q => Cons t (app_str q s) end.",
+            "VernacFixpoint",
+            "8b893bd3caaebdc2a708712496132b0e766ac767"
+        ],
+        [
+            "Infix \"++\" := app_str (right associativity, at level 60).",
+            "VernacInfix",
+            "b3d23f98850d4ed6812d59cc181fafd338659864"
+        ],
+        [
+            "Lemma app_str_app_assoc {A:Type} (l1 l2:list A) (s:Stream A) : l1 ++ (l2 ++ s) = (l1 ++ l2) ++ s.",
+            "VernacStartTheoremProof",
+            "7f0880a62cc8550137bfb68898e195cbbd6a7e7f"
+        ],
+        [
+            "induction l1.",
+            "VernacExtend",
+            "dfeb7bb70eb7390d22f3eada025c33a176cd1338"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite IHl1.",
+            "VernacExtend",
+            "ff982e15bacd402f06c6809dc374790cc3fb6db2"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition noninitstate_type state := symbol_semantic_type (last_symb_of_non_init_state state).",
+            "VernacDefinition",
+            "9ed5f55d6470ff67bc483519600931a078644a2b"
+        ],
+        [
+            "Definition stack := list (sigT noninitstate_type).",
+            "VernacDefinition",
+            "0996109bbdd8ab9cb66cbbfb2cfe0ce6c1b02610"
+        ],
+        [
+            "Section Init.",
+            "VernacBeginSection",
+            "c06dfb0c56d9fe9e0c0d717bed78ead1330ea6b7"
+        ],
+        [
+            "Variable init : initstate.",
+            "VernacAssumption",
+            "6ac82c73d0d5e65173bb7d8dcef28295cadcb7ed"
+        ],
+        [
+            "Definition state_of_stack (stack:stack): state := match stack with | [] => init | existT _ s _::_ => s end.",
+            "VernacDefinition",
+            "168f899488eef45659df05d5deceb9a1c80bb5c2"
+        ],
+        [
+            "Fixpoint pop (symbols_to_pop:list symbol) (stack_cur:stack): forall {A:Type} (action:arrows_right A (map symbol_semantic_type symbols_to_pop)), result (stack * A) := match symbols_to_pop return forall {A:Type} (action:arrows_right A (map _ symbols_to_pop)), result (stack * A) with | [] => fun A action => OK (stack_cur, action) | t::q => fun A action => match stack_cur with | existT _ state_cur sem::stack_rec => match compare_eqdec (last_symb_of_non_init_state state_cur) t with | left e => let sem_conv := eq_rect _ symbol_semantic_type sem _ e in pop q stack_rec (action sem_conv) | right _ => Err end | [] => Err end end.",
+            "VernacFixpoint",
+            "c58d922382dada927da45c6839cea55b558f6783"
+        ],
+        [
+            "Inductive step_result := | Fail_sr: step_result | Accept_sr: symbol_semantic_type (NT (start_nt init)) -> Stream token -> step_result | Progress_sr: stack -> Stream token -> step_result.",
+            "VernacInductive",
+            "3610fa4d8cf51e00453dfe0bae29af91eaaf097b"
+        ],
+        [
+            "Program Definition prod_action': forall p, arrows_right (symbol_semantic_type (NT (prod_lhs p))) (map symbol_semantic_type (prod_rhs_rev p)):= fun p => eq_rect _ (fun x => x) (prod_action p) _ _.",
+            "VernacDefinition",
+            "acc7a4ab01b02ca837f85b1d8089b8b7d3e70c4f"
+        ],
+        [
+            "Next Obligation.",
+            "VernacExtend",
+            "de5e6a0a7a163af0d8463969c3ff4241d7d5bba0"
+        ],
+        [
+            "unfold arrows_left, arrows_right; simpl.",
+            "VernacExtend",
+            "c723d0df6a0ba3240d8b83b4718e13f20c493fa2"
+        ],
+        [
+            "rewrite <- fold_left_rev_right, <- map_rev, rev_involutive.",
+            "VernacExtend",
+            "06a2a69beeb11008e03df555d0613275bd1a613d"
+        ],
+        [
+            "reflexivity.",
+            "VernacExtend",
+            "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition reduce_step stack_cur production buffer: result step_result := do (stack_new, sem) <- pop (prod_rhs_rev production) stack_cur (prod_action' production); match goto_table (state_of_stack stack_new) (prod_lhs production) with | Some (exist _ state_new e) => let sem := eq_rect _ _ sem _ e in OK (Progress_sr (existT noninitstate_type state_new sem::stack_new) buffer) | None => match stack_new with | [] => match compare_eqdec (prod_lhs production) (start_nt init) with | left e => let sem := eq_rect _ (fun nt => symbol_semantic_type (NT nt)) sem _ e in OK (Accept_sr sem buffer) | right _ => Err end | _::_ => Err end end.",
+            "VernacDefinition",
+            "92200d9611fad8517f00ed9dc48170963483f77e"
+        ],
+        [
+            "Definition step stack_cur buffer: result step_result := match action_table (state_of_stack stack_cur) with | Default_reduce_act production => reduce_step stack_cur production buffer | Lookahead_act awt => match Streams.hd buffer with | existT _ term sem => match awt term with | Shift_act state_new e => let sem_conv := eq_rect _ symbol_semantic_type sem _ e in OK (Progress_sr (existT noninitstate_type state_new sem_conv::stack_cur) (Streams.tl buffer)) | Reduce_act production => reduce_step stack_cur production buffer | Fail_action => OK Fail_sr end end end.",
+            "VernacDefinition",
+            "379121a58ac6d4d571520c956cd6473036bba40f"
+        ],
+        [
+            "Inductive parse_result := | Fail_pr: parse_result | Timeout_pr: parse_result | Parsed_pr: symbol_semantic_type (NT (start_nt init)) -> Stream token -> parse_result.",
+            "VernacInductive",
+            "7f53e26581c3f0792d3d841888b10df6c041f90c"
+        ],
+        [
+            "Fixpoint parse_fix stack_cur buffer n_steps: result parse_result:= match n_steps with | O => OK Timeout_pr | S it => do r <- step stack_cur buffer; match r with | Fail_sr => OK Fail_pr | Accept_sr t buffer_new => OK (Parsed_pr t buffer_new) | Progress_sr s buffer_new => parse_fix s buffer_new it end end.",
+            "VernacFixpoint",
+            "a100a332e246211050f58dd2494978b52198fd6c"
+        ],
+        [
+            "Definition parse buffer n_steps: result parse_result := parse_fix [] buffer n_steps.",
+            "VernacDefinition",
+            "5a20e448fd722586bbac8c37bf9452b1c6b6988c"
+        ],
+        [
+            "End Init.",
+            "VernacEndSegment",
+            "57fd3e49285e9807924d0d302839677d0bce5184"
+        ],
+        [
+            "Arguments Fail_sr [init].",
+            "VernacArguments",
+            "dd97bb1a27ab7bd811c45c87d5f244f9de44c7e7"
+        ],
+        [
+            "Arguments Accept_sr [init] _ _.",
+            "VernacArguments",
+            "510cc79e5bd293b1efe44cbfc0ea0250e0601d05"
+        ],
+        [
+            "Arguments Progress_sr [init] _ _.",
+            "VernacArguments",
+            "cba4ddca052b33340fabed4c3bf8bf1b7ff8754a"
+        ],
+        [
+            "Arguments Fail_pr [init].",
+            "VernacArguments",
+            "ed6180aed4b64290bff59d77224143aca2e9dd45"
+        ],
+        [
+            "Arguments Timeout_pr [init].",
+            "VernacArguments",
+            "212f94e642b5d17a9db00f298c23f87dfe77d678"
+        ],
+        [
+            "Arguments Parsed_pr [init] _ _.",
+            "VernacArguments",
+            "8e2c55d4d3bed7dc7e883c932e8c102e2024d87e"
+        ],
+        [
+            "End Make.",
+            "VernacEndSegment",
+            "158dcf795fe84f422408437686b9ec9e7417690b"
+        ],
+        [
+            "Module Type T(A:Automaton.T).",
+            "VernacDeclareModuleType",
+            "b7b77b25ff13edd223640c9afbc4560c17b89f1c"
+        ],
+        [
+            "Include (Make A).",
+            "VernacInclude",
+            "3cc095de0debac5c477055910897b74b815efe41"
+        ],
+        [
+            "End T.",
+            "VernacEndSegment",
+            "5f7f4e5b1207202de2b9b8fab051afb32f267d25"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "app_str_app_assoc",
+            "line_nb": 15,
+            "steps": [
+                {
+                    "command": [
+                        "induction l1.",
+                        "VernacExtend",
+                        "dfeb7bb70eb7390d22f3eada025c33a176cd1338"
+                    ]
+                },
+                {
+                    "command": [
+                        "reflexivity.",
+                        "VernacExtend",
+                        "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite IHl1.",
+                        "VernacExtend",
+                        "ff982e15bacd402f06c6809dc374790cc3fb6db2"
+                    ]
+                },
+                {
+                    "command": [
+                        "reflexivity.",
+                        "VernacExtend",
+                        "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "prod_action'_obligation_1",
+            "line_nb": 30,
+            "steps": [
+                {
+                    "command": [
+                        "unfold arrows_left, arrows_right; simpl.",
+                        "VernacExtend",
+                        "c723d0df6a0ba3240d8b83b4718e13f20c493fa2"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- fold_left_rev_right, <- map_rev, rev_involutive.",
+                        "VernacExtend",
+                        "06a2a69beeb11008e03df555d0613275bd1a613d"
+                    ]
+                },
+                {
+                    "command": [
+                        "reflexivity.",
+                        "VernacExtend",
+                        "5cd1ae044f26cd6d89a5a5147c1d4fc5fc719d83"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

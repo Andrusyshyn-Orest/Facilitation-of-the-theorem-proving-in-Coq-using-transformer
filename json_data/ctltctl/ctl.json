@@ -1,0 +1,1430 @@
+{
+    "filename": "ctl.v",
+    "coq_project": "ctltctl",
+    "vernac_cmds": [
+        [
+            "Set Implicit Arguments.",
+            "VernacSetOption",
+            "9e84ff8896f028601d8aded48c1d4aebe60aa584"
+        ],
+        [
+            "Unset Strict Implicit.",
+            "VernacUnsetOption",
+            "2842adaf6959318f2042805935c46f513bdc0348"
+        ],
+        [
+            "Require Export Streams.",
+            "VernacRequire",
+            "9075345f75dd69df0e27f9c132a4b712ad23f79b"
+        ],
+        [
+            "Require Import time_clocks.",
+            "VernacRequire",
+            "d1451c92af302f185edbac2e6ab112eb1da83596"
+        ],
+        [
+            "Infix \"^\" := Cons.",
+            "VernacInfix",
+            "7ed9d66cc0c1b67307582fa161b1da1bd97a1085"
+        ],
+        [
+            "Section TemporalOperators_CTL.",
+            "VernacBeginSection",
+            "d5c3a6c7b918c7d2c9f700cccdd8f3cd77b8b031"
+        ],
+        [
+            "Variable Label : Set.",
+            "VernacAssumption",
+            "90c34c6ce076b894ed1eb8c14e57233cd3a3abb9"
+        ],
+        [
+            "Variable S : Set.",
+            "VernacAssumption",
+            "2a0c7ebd77cf024747eefc8ea669e9e85a92c160"
+        ],
+        [
+            "Variable tr : S -> Label -> S -> Prop.",
+            "VernacAssumption",
+            "0e7b8515fdc1da9deed490b69d9dd2eb6becd4e7"
+        ],
+        [
+            "Variable inv : S -> Prop.",
+            "VernacAssumption",
+            "0c4ff587ab9507945c846acf05591060615279b8"
+        ],
+        [
+            "Variable inc : S -> Instant -> S.",
+            "VernacAssumption",
+            "871d61e78778745db2b3050ff372434506f3e997"
+        ],
+        [
+            "Notation SPath := (Stream S) (only parsing).",
+            "VernacSyntacticDefinition",
+            "21fadf05fad4db7f14c29699fe7497f867a2df3b"
+        ],
+        [
+            "CoInductive ForAllS (P : Stream S -> Prop) : Stream S -> Prop := forallS : forall (x : Stream S) (s : S), P (s ^ x) -> ForAllS P x -> ForAllS P (s ^ x).",
+            "VernacInductive",
+            "43210558c41313715f215dad9bb9c46f60e51c20"
+        ],
+        [
+            "Inductive ExistsS (P : Stream S -> Prop) : Stream S -> Prop := | Here : forall x : Stream S, P x -> ExistsS P x | Further : forall (x : Stream S) (s : S), ExistsS P x -> ExistsS P (s ^ x).",
+            "VernacInductive",
+            "ab7a5a4829a32071a3bd787a076d2a84f4f9a8ea"
+        ],
+        [
+            "CoInductive isTrace : Stream S -> Prop := | isTraceTick : forall (x : Stream S) (s : S), inv (inc s tick) -> isTrace (inc s tick ^ x) -> isTrace (s ^ inc s tick ^ x) | isTraceDisc : forall (x : Stream S) (s1 s2 : S) (l : Label), tr s1 l s2 -> inv s2 -> isTrace (s2 ^ x) -> isTrace (s1 ^ s2 ^ x).",
+            "VernacInductive",
+            "edb3bb3e5cd20e094b711cb9851858c4a14ca847"
+        ],
+        [
+            "Definition isTraceFrom (Sini : S) (x : Stream S) := Sini = hd x /\\ isTrace x.",
+            "VernacDefinition",
+            "4abc6324c3792278a88e4cb5adee64d154b19dfb"
+        ],
+        [
+            "Inductive Until (P Q : Stream S -> Prop) : Stream S -> Prop := | UntilFurther : forall (s : S) (x : Stream S), P (s ^ x) -> Until P Q x -> Until P Q (s ^ x) | UntilHere : forall x : Stream S, Q x -> Until P Q x.",
+            "VernacInductive",
+            "68d67728d182fa7e384da2f041eb72391282f150"
+        ],
+        [
+            "Inductive EX_Until (Sini : S) (P Q : Stream S -> Prop) : Prop := ExUntil : forall x : Stream S, isTraceFrom Sini x -> Until P Q x -> EX_Until Sini P Q.",
+            "VernacInductive",
+            "9005c76f547006bf4cc14be5a8a5c15204c0e4e7"
+        ],
+        [
+            "Definition FA_Until (Sini : S) (P Q : Stream S -> Prop) := forall x : Stream S, isTraceFrom Sini x -> Until P Q x.",
+            "VernacDefinition",
+            "2bfbec089d99ae0f41a21d593f0a431a9131cfdf"
+        ],
+        [
+            "Definition Always (Sini : S) (P : Stream S -> Prop) := forall x : Stream S, isTraceFrom Sini x -> ForAllS P x.",
+            "VernacDefinition",
+            "c78e457812847081cc64ec6e59b3b44f0cf2ce8f"
+        ],
+        [
+            "Definition Inevitable (Sini : S) (P : Stream S -> Prop) := forall x : Stream S, isTraceFrom Sini x -> ExistsS P x.",
+            "VernacDefinition",
+            "0f9ffb3f04b64a32030e4541e3dec43be779943b"
+        ],
+        [
+            "Inductive Posible (Sini : S) (P : Stream S -> Prop) : Prop := posible : forall x : Stream S, isTraceFrom Sini x -> ExistsS P x -> Posible Sini P.",
+            "VernacInductive",
+            "daeb115c114c4e0da69219b9f7cc13a8399bb8d9"
+        ],
+        [
+            "Inductive SafePath (Sini : S) (P : Stream S -> Prop) : Prop := safePath : forall x : Stream S, isTraceFrom Sini x -> ForAllS P x -> SafePath Sini P.",
+            "VernacInductive",
+            "f6cfba4434c636d31d05dacb6b98439875d4a24e"
+        ],
+        [
+            "Theorem Equiv1 : forall (Sini : S) (P : Stream S -> Prop), Posible Sini P <-> EX_Until Sini (fun _ : Stream S => True) P.",
+            "VernacStartTheoremProof",
+            "9fb49f92640c59d598bbdcfb560ff94e6b0aa009"
+        ],
+        [
+            "unfold iff in |- *; intros; split; intro.",
+            "VernacExtend",
+            "9e1e710e023fdfc2783f131bef1565da8af55217"
+        ],
+        [
+            "inversion_clear H.",
+            "VernacExtend",
+            "90909d92eb32e95a21a5b90b29a49dc97bcea342"
+        ],
+        [
+            "apply ExUntil with (P := fun _ : Stream S => True) (1 := H0).",
+            "VernacExtend",
+            "af5246ca28d054a04ef8f5594e20d20fc2280815"
+        ],
+        [
+            "elim H1; intros.",
+            "VernacExtend",
+            "6b7bcf9d739b14ca3a09271e2c3493e16c5e2914"
+        ],
+        [
+            "constructor 2; assumption.",
+            "VernacExtend",
+            "ab79242ee38462af2e7b3d6db095a8cd3e36d557"
+        ],
+        [
+            "constructor 1; trivial.",
+            "VernacExtend",
+            "25eaec67a0f652a15d0ce483cbe8830c4fe52d78"
+        ],
+        [
+            "inversion_clear H.",
+            "VernacExtend",
+            "90909d92eb32e95a21a5b90b29a49dc97bcea342"
+        ],
+        [
+            "apply posible with (1 := H0).",
+            "VernacExtend",
+            "10d176d0f832be7d329ab349cada4a0ca794590c"
+        ],
+        [
+            "elim H1; intros.",
+            "VernacExtend",
+            "6b7bcf9d739b14ca3a09271e2c3493e16c5e2914"
+        ],
+        [
+            "constructor 2; assumption.",
+            "VernacExtend",
+            "ab79242ee38462af2e7b3d6db095a8cd3e36d557"
+        ],
+        [
+            "constructor 1; assumption.",
+            "VernacExtend",
+            "f84672d84299f2633ec8efc6293368ade37330b7"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem Equiv2 : forall (Sini : S) (P : Stream S -> Prop), Inevitable Sini P <-> FA_Until Sini (fun _ : Stream S => True) P.",
+            "VernacStartTheoremProof",
+            "0f05cb52f33c9264482573af3178f718ce7d5666"
+        ],
+        [
+            "unfold iff, Inevitable, FA_Until in |- *; intros; split; intros.",
+            "VernacExtend",
+            "597758151694fd347917f150740ef765717611bb"
+        ],
+        [
+            "elim (H x H0); intros.",
+            "VernacExtend",
+            "f75f5c01b0781d161a6bd50f76a8a18844232ed8"
+        ],
+        [
+            "constructor 2; assumption.",
+            "VernacExtend",
+            "ab79242ee38462af2e7b3d6db095a8cd3e36d557"
+        ],
+        [
+            "constructor 1; trivial.",
+            "VernacExtend",
+            "25eaec67a0f652a15d0ce483cbe8830c4fe52d78"
+        ],
+        [
+            "elim (H x H0); intros.",
+            "VernacExtend",
+            "f75f5c01b0781d161a6bd50f76a8a18844232ed8"
+        ],
+        [
+            "constructor 2; assumption.",
+            "VernacExtend",
+            "ab79242ee38462af2e7b3d6db095a8cd3e36d557"
+        ],
+        [
+            "constructor 1; assumption.",
+            "VernacExtend",
+            "f84672d84299f2633ec8efc6293368ade37330b7"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma ConsTrace : forall (s1 s2 : S) (x z : Stream S), isTraceFrom s2 z -> isTraceFrom s1 (s1 ^ s2 ^ x) -> isTraceFrom s1 (s1 ^ z).",
+            "VernacStartTheoremProof",
+            "b4594db56bab3c46c78f6d495adc7b423c0e8354"
+        ],
+        [
+            "unfold isTraceFrom in |- *; simpl in |- *.",
+            "VernacExtend",
+            "baea2a0d49c14a7ae609df8d2f0a8924fa9d429b"
+        ],
+        [
+            "simple destruct z; simple destruct 1; simple destruct 3; simpl in |- *; intros.",
+            "VernacExtend",
+            "6b6c03dc626c6f9fcf8ad7ff835b1f268d31a322"
+        ],
+        [
+            "compute in H0; rewrite H0 in H4.",
+            "VernacExtend",
+            "4e55c1e3efb4a53c211cdb5e7bc239883fda0459"
+        ],
+        [
+            "inversion_clear H4 in H1.",
+            "VernacExtend",
+            "3565363b43e3968004d672e9ef281eb166efdcd3"
+        ],
+        [
+            "split; [ trivial | apply (isTraceTick H5 H1) ].",
+            "VernacExtend",
+            "308a7ac7795277e5a80171ba36f8d3dd852c3d28"
+        ],
+        [
+            "split; [ trivial | apply (isTraceDisc H5 H6 H1) ].",
+            "VernacExtend",
+            "438bf35d054cbca4ab046938af940512730c4f23"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma notPosible : forall (P : Stream S -> Prop) (s1 : S), ~ Posible s1 P -> forall (z : Stream S) (s2 : S), isTraceFrom s1 (s1 ^ s2 ^ z) -> ~ Posible s2 P.",
+            "VernacStartTheoremProof",
+            "4810f1e890ca5f5dc20562da48fb34998526d138"
+        ],
+        [
+            "unfold not at 2 in |- *; intros.",
+            "VernacExtend",
+            "9dad6fc670b75f3c5a4e5548f70f7a5655c9a115"
+        ],
+        [
+            "elim H1; intros.",
+            "VernacExtend",
+            "6b7bcf9d739b14ca3a09271e2c3493e16c5e2914"
+        ],
+        [
+            "apply H; cut (isTraceFrom s1 (s1 ^ x)).",
+            "VernacExtend",
+            "2fdb340deb38026b673325bd755a750b0412b7cb"
+        ],
+        [
+            "intro H4; apply (posible (P:=P) H4).",
+            "VernacExtend",
+            "eee56d7f975b411eba2534d640885c20a963a0e6"
+        ],
+        [
+            "apply Further; assumption.",
+            "VernacExtend",
+            "bc4229f3883f411b9ea9bcce9fb020d927a1e4bf"
+        ],
+        [
+            "apply ConsTrace with (1 := H2) (2 := H0); assumption.",
+            "VernacExtend",
+            "00cd768a6a2ac947929005f4c6dd0372ecd154b7"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Require Import Classical.",
+            "VernacRequire",
+            "4cc53198e8d48bbb9dcca109b0e59a015dd7a5bb"
+        ],
+        [
+            "Theorem Equiv3 : forall (Sini : S) (P : Stream S -> Prop), Always Sini P <-> ~ Posible Sini (fun s : Stream S => ~ P s).",
+            "VernacStartTheoremProof",
+            "5391f8f80ddf0f376f54d6d1e8ff5ebd4ac94edc"
+        ],
+        [
+            "unfold iff, Always, not in |- *; intros; split.",
+            "VernacExtend",
+            "247486a35a27a9d75f7d6298945abf05a45ec6d8"
+        ],
+        [
+            "intros H H0; inversion_clear H0.",
+            "VernacExtend",
+            "66ff88fd8d243fcafd75c7e76a94251afb52d01a"
+        ],
+        [
+            "generalize (H x H1); elim H2; intros.",
+            "VernacExtend",
+            "906837eb774951991bc2f9faf71516a3858a3d2c"
+        ],
+        [
+            "inversion_clear H3 in H0.",
+            "VernacExtend",
+            "057d9ed53dec0ccc8f142aaa1c3c28db3034665d"
+        ],
+        [
+            "apply (H0 H4).",
+            "VernacExtend",
+            "9b8094a9108d0c3e05d16abb21bdcdc1753ede90"
+        ],
+        [
+            "inversion_clear H4.",
+            "VernacExtend",
+            "48216828fc957e4d634a0462fc329b427275d260"
+        ],
+        [
+            "apply (H3 H6).",
+            "VernacExtend",
+            "481ff37663abdb05503ed0bc3c48902fddc449d2"
+        ],
+        [
+            "generalize Sini; cofix u.",
+            "VernacExtend",
+            "10cfb2c7a8cc206e22056dd1b2baeaba80f5fa32"
+        ],
+        [
+            "simple destruct x; intros; constructor.",
+            "VernacExtend",
+            "5fe8a0d8f3ea92053ffe41122286b2bb14a6162f"
+        ],
+        [
+            "elim (classic (P (s ^ s0))); [ trivial | intros ].",
+            "VernacExtend",
+            "9e665d19058de7f7db194025485f0046080c0a47"
+        ],
+        [
+            "absurd (Posible Sini0 (fun s : Stream S => ~ P s)).",
+            "VernacExtend",
+            "4b4bb1a5b4cc8716a7e5ab6b47aa432ac692708b"
+        ],
+        [
+            "assumption.",
+            "VernacExtend",
+            "41f0308313ff87e6ab2782f90d6021ec4b55d932"
+        ],
+        [
+            "apply posible with (1 := H0).",
+            "VernacExtend",
+            "10d176d0f832be7d329ab349cada4a0ca794590c"
+        ],
+        [
+            "constructor 1; assumption.",
+            "VernacExtend",
+            "f84672d84299f2633ec8efc6293368ade37330b7"
+        ],
+        [
+            "elim H0; simpl in |- *; intros.",
+            "VernacExtend",
+            "98c563acf90eec50118fa7d1c09d01cec9ca1089"
+        ],
+        [
+            "apply (u (hd s0)); intros.",
+            "VernacExtend",
+            "01710ceab3265b846e845a0571e08940c024eb75"
+        ],
+        [
+            "generalize H0; clear H0; generalize H3; clear H3.",
+            "VernacExtend",
+            "d0f0f182bbac8f2ef4df50f5aa6788d8b7728ef0"
+        ],
+        [
+            "rewrite <- H1; case s0; simpl in |- *; intros.",
+            "VernacExtend",
+            "f91b4cba1dc0f46f81422496e1ebe082c8ce4b8f"
+        ],
+        [
+            "apply (notPosible (P:=fun s : Stream S => ~ P s) H H0); assumption.",
+            "VernacExtend",
+            "c3fc38bd0d9aa7659e6f59d1989ce2e518cdbd68"
+        ],
+        [
+            "inversion_clear H2; simpl in |- *.",
+            "VernacExtend",
+            "46d1702655f630c0abbb427cdb25b56d3aa7206e"
+        ],
+        [
+            "unfold isTraceFrom in |- *; split; trivial.",
+            "VernacExtend",
+            "9b4ef5544f860e9cf4a21e99590fdf3b246dd106"
+        ],
+        [
+            "unfold isTraceFrom in |- *; split; trivial.",
+            "VernacExtend",
+            "9b4ef5544f860e9cf4a21e99590fdf3b246dd106"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma not_EX : forall (P : Stream S -> Prop) (x : Stream S) (s : S), ~ ExistsS P (s ^ x) -> ~ ExistsS P x.",
+            "VernacStartTheoremProof",
+            "58749d5acd92ce64acd9f5e40e62a45eb07611ab"
+        ],
+        [
+            "unfold not in |- *; intros.",
+            "VernacExtend",
+            "a373869c1c99731a8797825160ba5f5ab7a057a9"
+        ],
+        [
+            "apply (H (Further s H0)).",
+            "VernacExtend",
+            "0389fa529dafeb8bfd3399e19b5eabf71c4ba287"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem Equiv4 : forall (Sini : S) (P : Stream S -> Prop), SafePath Sini P <-> ~ Inevitable Sini (fun s : Stream S => ~ P s).",
+            "VernacStartTheoremProof",
+            "b34904f5772cc336c8ee9fb08f7486521a452a16"
+        ],
+        [
+            "unfold iff, Inevitable, not in |- *; intros; split.",
+            "VernacExtend",
+            "f19f86103ea27d4bc55aaf1547a5464245dad978"
+        ],
+        [
+            "intro sp; inversion sp; intros.",
+            "VernacExtend",
+            "4958b0f50ff0fb585b57562d0e82e7d83dbdaf19"
+        ],
+        [
+            "generalize H0; elim (H1 x H); intros.",
+            "VernacExtend",
+            "f4ebd18f2f48ab9cf4137dfa7c736671cce36049"
+        ],
+        [
+            "inversion_clear H3 in H2.",
+            "VernacExtend",
+            "6d21fbcd29c2d933015bc62e05ec99b46cd045e9"
+        ],
+        [
+            "apply (H2 H4).",
+            "VernacExtend",
+            "f15cad68dca64cd33b61e33d9b9f96c4861bb29a"
+        ],
+        [
+            "apply H3; inversion_clear H4; assumption.",
+            "VernacExtend",
+            "df48f8cb0b562545a201bd08acaf4c9bcafec29a"
+        ],
+        [
+            "intro H; elim (not_all_ex_not (Stream S) (fun x : Stream S => isTraceFrom Sini x -> ExistsS (fun s : Stream S => P s -> False) x) H).",
+            "VernacExtend",
+            "2d1a5a9780b18b10ea874c881392717a52d8d0dc"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "generalize (not_imply_elim2 (isTraceFrom Sini x) (ExistsS (fun s : Stream S => ~ P s) x) H0).",
+            "VernacExtend",
+            "c87e7bc03baf5d56fba4abe6d02e03be1ddb21a6"
+        ],
+        [
+            "generalize (not_imply_elim (isTraceFrom Sini x) (ExistsS (fun s : Stream S => ~ P s) x) H0); intros.",
+            "VernacExtend",
+            "208536b28f7d121d68f76f6cb63c3af78e713473"
+        ],
+        [
+            "apply safePath with (1 := H1).",
+            "VernacExtend",
+            "0e027d850708ec971efba639faea46063c0265fd"
+        ],
+        [
+            "generalize H1; clear H1; generalize H2; clear H2.",
+            "VernacExtend",
+            "425920472acd217c8f68c462738e6149be7ff51e"
+        ],
+        [
+            "generalize x; generalize Sini; cofix u.",
+            "VernacExtend",
+            "1f8fa7ca70c232c6e48a1715a40b05a380d1293a"
+        ],
+        [
+            "simple destruct x0; intros; constructor.",
+            "VernacExtend",
+            "696afd283d85ff82dd7fd0e6889af273b77ed0a0"
+        ],
+        [
+            "elim (classic (P (s ^ s0))); [ trivial | intro ].",
+            "VernacExtend",
+            "584a455b283639893b0c6b8b9ab5c0b79af9321e"
+        ],
+        [
+            "elim (H2 (Here (P:=fun s : Stream S => ~ P s) H3)).",
+            "VernacExtend",
+            "0c75561792b0c4ea68252a684a68e43224ceb30f"
+        ],
+        [
+            "apply u with (Sini := hd s0).",
+            "VernacExtend",
+            "41d8be76a3ffa21dcdc8fe7872e54b6f2bc8bc83"
+        ],
+        [
+            "generalize H2; clear H2; case s0; unfold not in |- *; intros.",
+            "VernacExtend",
+            "4bffaff9ad2c44333f57673fa6ce9077c1cc9d8b"
+        ],
+        [
+            "apply (not_EX H2 H3).",
+            "VernacExtend",
+            "bc72851f4a8b23eefcaf67fe0ad34f40da224e2f"
+        ],
+        [
+            "elim H1; intros ig trace; inversion_clear trace.",
+            "VernacExtend",
+            "e7b3c7c49cda7b0293c70731da7d9627dc3513bc"
+        ],
+        [
+            "unfold isTraceFrom in |- *; split; trivial.",
+            "VernacExtend",
+            "9b4ef5544f860e9cf4a21e99590fdf3b246dd106"
+        ],
+        [
+            "unfold isTraceFrom in |- *; split; trivial.",
+            "VernacExtend",
+            "9b4ef5544f860e9cf4a21e99590fdf3b246dd106"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem Mon_I_S : forall (x : Stream S) (Pg Pp : Stream S -> Prop), ForAllS Pg x -> (forall s : Stream S, Pg s -> Pp s) -> ForAllS Pp x.",
+            "VernacStartTheoremProof",
+            "d617c42e4a9f3b5aa70bf5c28081f85e0a2b2d8b"
+        ],
+        [
+            "cofix u; intro x; case x; intros.",
+            "VernacExtend",
+            "411fd286d68f2108b6da288fa615cac70ec6a06f"
+        ],
+        [
+            "case H; constructor.",
+            "VernacExtend",
+            "eee66192e06d017144011fd39ffd3406d3d6a1f7"
+        ],
+        [
+            "apply (H0 (s1 ^ x0) H1).",
+            "VernacExtend",
+            "cf5dd11e45020b5594ced20b412f9b426703ffaf"
+        ],
+        [
+            "apply (u x0 Pg Pp H2 H0).",
+            "VernacExtend",
+            "daeecf28206424599c7722bd22aeb8b9551da4b8"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem Conj_S : forall (x : Stream S) (P1 P2 : Stream S -> Prop), ForAllS P1 x -> ForAllS P2 x -> ForAllS (fun s : Stream S => P1 s /\\ P2 s) x.",
+            "VernacStartTheoremProof",
+            "00af0581a5c3572bc1732bcc010ba2b98a60c235"
+        ],
+        [
+            "cofix u; intro x; case x; intros.",
+            "VernacExtend",
+            "411fd286d68f2108b6da288fa615cac70ec6a06f"
+        ],
+        [
+            "inversion_clear H; inversion_clear H0.",
+            "VernacExtend",
+            "a3a264fe7e36953984b0a5de48c77a3870a8f2fa"
+        ],
+        [
+            "constructor; [ split | apply (u s0) ]; assumption.",
+            "VernacExtend",
+            "90b1e2731593f0d576a1a545dba504d58c66b62e"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem Mon_I_EX_S : forall (x : Stream S) (Pg Pp : Stream S -> Prop), ExistsS Pg x -> (forall s : Stream S, Pg s -> Pp s) -> ExistsS Pp x.",
+            "VernacStartTheoremProof",
+            "0be950064939270fbbd13d1e02bb2cc7441b70a9"
+        ],
+        [
+            "simple induction 1; intros.",
+            "VernacExtend",
+            "8b54c80df1b4890684639c3f84a62f176fb57476"
+        ],
+        [
+            "constructor 1; apply (H1 x0 H0).",
+            "VernacExtend",
+            "c8e8e25db8029031f4c9489458bbd6b538c2dfc2"
+        ],
+        [
+            "constructor 2; apply (H1 H2).",
+            "VernacExtend",
+            "5742721ff28881af66aec33ed602534a24801135"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem OneStep_EX : forall (x : Stream S) (P : Stream S -> Prop), ExistsS P x -> forall s : S, ExistsS P (s ^ x).",
+            "VernacStartTheoremProof",
+            "73be3b0c7a3ff336fd10846bb9c09be0842b0a09"
+        ],
+        [
+            "intros; constructor 2; assumption.",
+            "VernacExtend",
+            "3e871852d389943e5bcb3dbf7b598df079b8a452"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End TemporalOperators_CTL.",
+            "VernacEndSegment",
+            "96c8cfd85ef16f57032cff54dbf52708548d6e1a"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "Equiv1",
+            "line_nb": 23,
+            "steps": [
+                {
+                    "command": [
+                        "unfold iff in |- *; intros; split; intro.",
+                        "VernacExtend",
+                        "9e1e710e023fdfc2783f131bef1565da8af55217"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion_clear H.",
+                        "VernacExtend",
+                        "90909d92eb32e95a21a5b90b29a49dc97bcea342"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply ExUntil with (P := fun _ : Stream S => True) (1 := H0).",
+                        "VernacExtend",
+                        "af5246ca28d054a04ef8f5594e20d20fc2280815"
+                    ]
+                },
+                {
+                    "command": [
+                        "elim H1; intros.",
+                        "VernacExtend",
+                        "6b7bcf9d739b14ca3a09271e2c3493e16c5e2914"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor 2; assumption.",
+                        "VernacExtend",
+                        "ab79242ee38462af2e7b3d6db095a8cd3e36d557"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor 1; trivial.",
+                        "VernacExtend",
+                        "25eaec67a0f652a15d0ce483cbe8830c4fe52d78"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion_clear H.",
+                        "VernacExtend",
+                        "90909d92eb32e95a21a5b90b29a49dc97bcea342"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply posible with (1 := H0).",
+                        "VernacExtend",
+                        "10d176d0f832be7d329ab349cada4a0ca794590c"
+                    ]
+                },
+                {
+                    "command": [
+                        "elim H1; intros.",
+                        "VernacExtend",
+                        "6b7bcf9d739b14ca3a09271e2c3493e16c5e2914"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor 2; assumption.",
+                        "VernacExtend",
+                        "ab79242ee38462af2e7b3d6db095a8cd3e36d557"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor 1; assumption.",
+                        "VernacExtend",
+                        "f84672d84299f2633ec8efc6293368ade37330b7"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Equiv2",
+            "line_nb": 36,
+            "steps": [
+                {
+                    "command": [
+                        "unfold iff, Inevitable, FA_Until in |- *; intros; split; intros.",
+                        "VernacExtend",
+                        "597758151694fd347917f150740ef765717611bb"
+                    ]
+                },
+                {
+                    "command": [
+                        "elim (H x H0); intros.",
+                        "VernacExtend",
+                        "f75f5c01b0781d161a6bd50f76a8a18844232ed8"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor 2; assumption.",
+                        "VernacExtend",
+                        "ab79242ee38462af2e7b3d6db095a8cd3e36d557"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor 1; trivial.",
+                        "VernacExtend",
+                        "25eaec67a0f652a15d0ce483cbe8830c4fe52d78"
+                    ]
+                },
+                {
+                    "command": [
+                        "elim (H x H0); intros.",
+                        "VernacExtend",
+                        "f75f5c01b0781d161a6bd50f76a8a18844232ed8"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor 2; assumption.",
+                        "VernacExtend",
+                        "ab79242ee38462af2e7b3d6db095a8cd3e36d557"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor 1; assumption.",
+                        "VernacExtend",
+                        "f84672d84299f2633ec8efc6293368ade37330b7"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ConsTrace",
+            "line_nb": 45,
+            "steps": [
+                {
+                    "command": [
+                        "unfold isTraceFrom in |- *; simpl in |- *.",
+                        "VernacExtend",
+                        "baea2a0d49c14a7ae609df8d2f0a8924fa9d429b"
+                    ]
+                },
+                {
+                    "command": [
+                        "simple destruct z; simple destruct 1; simple destruct 3; simpl in |- *; intros.",
+                        "VernacExtend",
+                        "6b6c03dc626c6f9fcf8ad7ff835b1f268d31a322"
+                    ]
+                },
+                {
+                    "command": [
+                        "compute in H0; rewrite H0 in H4.",
+                        "VernacExtend",
+                        "4e55c1e3efb4a53c211cdb5e7bc239883fda0459"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion_clear H4 in H1.",
+                        "VernacExtend",
+                        "3565363b43e3968004d672e9ef281eb166efdcd3"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; [ trivial | apply (isTraceTick H5 H1) ].",
+                        "VernacExtend",
+                        "308a7ac7795277e5a80171ba36f8d3dd852c3d28"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; [ trivial | apply (isTraceDisc H5 H6 H1) ].",
+                        "VernacExtend",
+                        "438bf35d054cbca4ab046938af940512730c4f23"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "notPosible",
+            "line_nb": 53,
+            "steps": [
+                {
+                    "command": [
+                        "unfold not at 2 in |- *; intros.",
+                        "VernacExtend",
+                        "9dad6fc670b75f3c5a4e5548f70f7a5655c9a115"
+                    ]
+                },
+                {
+                    "command": [
+                        "elim H1; intros.",
+                        "VernacExtend",
+                        "6b7bcf9d739b14ca3a09271e2c3493e16c5e2914"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply H; cut (isTraceFrom s1 (s1 ^ x)).",
+                        "VernacExtend",
+                        "2fdb340deb38026b673325bd755a750b0412b7cb"
+                    ]
+                },
+                {
+                    "command": [
+                        "intro H4; apply (posible (P:=P) H4).",
+                        "VernacExtend",
+                        "eee56d7f975b411eba2534d640885c20a963a0e6"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Further; assumption.",
+                        "VernacExtend",
+                        "bc4229f3883f411b9ea9bcce9fb020d927a1e4bf"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply ConsTrace with (1 := H2) (2 := H0); assumption.",
+                        "VernacExtend",
+                        "00cd768a6a2ac947929005f4c6dd0372ecd154b7"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Equiv3",
+            "line_nb": 62,
+            "steps": [
+                {
+                    "command": [
+                        "unfold iff, Always, not in |- *; intros; split.",
+                        "VernacExtend",
+                        "247486a35a27a9d75f7d6298945abf05a45ec6d8"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros H H0; inversion_clear H0.",
+                        "VernacExtend",
+                        "66ff88fd8d243fcafd75c7e76a94251afb52d01a"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize (H x H1); elim H2; intros.",
+                        "VernacExtend",
+                        "906837eb774951991bc2f9faf71516a3858a3d2c"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion_clear H3 in H0.",
+                        "VernacExtend",
+                        "057d9ed53dec0ccc8f142aaa1c3c28db3034665d"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (H0 H4).",
+                        "VernacExtend",
+                        "9b8094a9108d0c3e05d16abb21bdcdc1753ede90"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion_clear H4.",
+                        "VernacExtend",
+                        "48216828fc957e4d634a0462fc329b427275d260"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (H3 H6).",
+                        "VernacExtend",
+                        "481ff37663abdb05503ed0bc3c48902fddc449d2"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize Sini; cofix u.",
+                        "VernacExtend",
+                        "10cfb2c7a8cc206e22056dd1b2baeaba80f5fa32"
+                    ]
+                },
+                {
+                    "command": [
+                        "simple destruct x; intros; constructor.",
+                        "VernacExtend",
+                        "5fe8a0d8f3ea92053ffe41122286b2bb14a6162f"
+                    ]
+                },
+                {
+                    "command": [
+                        "elim (classic (P (s ^ s0))); [ trivial | intros ].",
+                        "VernacExtend",
+                        "9e665d19058de7f7db194025485f0046080c0a47"
+                    ]
+                },
+                {
+                    "command": [
+                        "absurd (Posible Sini0 (fun s : Stream S => ~ P s)).",
+                        "VernacExtend",
+                        "4b4bb1a5b4cc8716a7e5ab6b47aa432ac692708b"
+                    ]
+                },
+                {
+                    "command": [
+                        "assumption.",
+                        "VernacExtend",
+                        "41f0308313ff87e6ab2782f90d6021ec4b55d932"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply posible with (1 := H0).",
+                        "VernacExtend",
+                        "10d176d0f832be7d329ab349cada4a0ca794590c"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor 1; assumption.",
+                        "VernacExtend",
+                        "f84672d84299f2633ec8efc6293368ade37330b7"
+                    ]
+                },
+                {
+                    "command": [
+                        "elim H0; simpl in |- *; intros.",
+                        "VernacExtend",
+                        "98c563acf90eec50118fa7d1c09d01cec9ca1089"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (u (hd s0)); intros.",
+                        "VernacExtend",
+                        "01710ceab3265b846e845a0571e08940c024eb75"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize H0; clear H0; generalize H3; clear H3.",
+                        "VernacExtend",
+                        "d0f0f182bbac8f2ef4df50f5aa6788d8b7728ef0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- H1; case s0; simpl in |- *; intros.",
+                        "VernacExtend",
+                        "f91b4cba1dc0f46f81422496e1ebe082c8ce4b8f"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (notPosible (P:=fun s : Stream S => ~ P s) H H0); assumption.",
+                        "VernacExtend",
+                        "c3fc38bd0d9aa7659e6f59d1989ce2e518cdbd68"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion_clear H2; simpl in |- *.",
+                        "VernacExtend",
+                        "46d1702655f630c0abbb427cdb25b56d3aa7206e"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold isTraceFrom in |- *; split; trivial.",
+                        "VernacExtend",
+                        "9b4ef5544f860e9cf4a21e99590fdf3b246dd106"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold isTraceFrom in |- *; split; trivial.",
+                        "VernacExtend",
+                        "9b4ef5544f860e9cf4a21e99590fdf3b246dd106"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "not_EX",
+            "line_nb": 86,
+            "steps": [
+                {
+                    "command": [
+                        "unfold not in |- *; intros.",
+                        "VernacExtend",
+                        "a373869c1c99731a8797825160ba5f5ab7a057a9"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (H (Further s H0)).",
+                        "VernacExtend",
+                        "0389fa529dafeb8bfd3399e19b5eabf71c4ba287"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Equiv4",
+            "line_nb": 90,
+            "steps": [
+                {
+                    "command": [
+                        "unfold iff, Inevitable, not in |- *; intros; split.",
+                        "VernacExtend",
+                        "f19f86103ea27d4bc55aaf1547a5464245dad978"
+                    ]
+                },
+                {
+                    "command": [
+                        "intro sp; inversion sp; intros.",
+                        "VernacExtend",
+                        "4958b0f50ff0fb585b57562d0e82e7d83dbdaf19"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize H0; elim (H1 x H); intros.",
+                        "VernacExtend",
+                        "f4ebd18f2f48ab9cf4137dfa7c736671cce36049"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion_clear H3 in H2.",
+                        "VernacExtend",
+                        "6d21fbcd29c2d933015bc62e05ec99b46cd045e9"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (H2 H4).",
+                        "VernacExtend",
+                        "f15cad68dca64cd33b61e33d9b9f96c4861bb29a"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply H3; inversion_clear H4; assumption.",
+                        "VernacExtend",
+                        "df48f8cb0b562545a201bd08acaf4c9bcafec29a"
+                    ]
+                },
+                {
+                    "command": [
+                        "intro H; elim (not_all_ex_not (Stream S) (fun x : Stream S => isTraceFrom Sini x -> ExistsS (fun s : Stream S => P s -> False) x) H).",
+                        "VernacExtend",
+                        "2d1a5a9780b18b10ea874c881392717a52d8d0dc"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize (not_imply_elim2 (isTraceFrom Sini x) (ExistsS (fun s : Stream S => ~ P s) x) H0).",
+                        "VernacExtend",
+                        "c87e7bc03baf5d56fba4abe6d02e03be1ddb21a6"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize (not_imply_elim (isTraceFrom Sini x) (ExistsS (fun s : Stream S => ~ P s) x) H0); intros.",
+                        "VernacExtend",
+                        "208536b28f7d121d68f76f6cb63c3af78e713473"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply safePath with (1 := H1).",
+                        "VernacExtend",
+                        "0e027d850708ec971efba639faea46063c0265fd"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize H1; clear H1; generalize H2; clear H2.",
+                        "VernacExtend",
+                        "425920472acd217c8f68c462738e6149be7ff51e"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize x; generalize Sini; cofix u.",
+                        "VernacExtend",
+                        "1f8fa7ca70c232c6e48a1715a40b05a380d1293a"
+                    ]
+                },
+                {
+                    "command": [
+                        "simple destruct x0; intros; constructor.",
+                        "VernacExtend",
+                        "696afd283d85ff82dd7fd0e6889af273b77ed0a0"
+                    ]
+                },
+                {
+                    "command": [
+                        "elim (classic (P (s ^ s0))); [ trivial | intro ].",
+                        "VernacExtend",
+                        "584a455b283639893b0c6b8b9ab5c0b79af9321e"
+                    ]
+                },
+                {
+                    "command": [
+                        "elim (H2 (Here (P:=fun s : Stream S => ~ P s) H3)).",
+                        "VernacExtend",
+                        "0c75561792b0c4ea68252a684a68e43224ceb30f"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply u with (Sini := hd s0).",
+                        "VernacExtend",
+                        "41d8be76a3ffa21dcdc8fe7872e54b6f2bc8bc83"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize H2; clear H2; case s0; unfold not in |- *; intros.",
+                        "VernacExtend",
+                        "4bffaff9ad2c44333f57673fa6ce9077c1cc9d8b"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (not_EX H2 H3).",
+                        "VernacExtend",
+                        "bc72851f4a8b23eefcaf67fe0ad34f40da224e2f"
+                    ]
+                },
+                {
+                    "command": [
+                        "elim H1; intros ig trace; inversion_clear trace.",
+                        "VernacExtend",
+                        "e7b3c7c49cda7b0293c70731da7d9627dc3513bc"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold isTraceFrom in |- *; split; trivial.",
+                        "VernacExtend",
+                        "9b4ef5544f860e9cf4a21e99590fdf3b246dd106"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold isTraceFrom in |- *; split; trivial.",
+                        "VernacExtend",
+                        "9b4ef5544f860e9cf4a21e99590fdf3b246dd106"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Mon_I_S",
+            "line_nb": 114,
+            "steps": [
+                {
+                    "command": [
+                        "cofix u; intro x; case x; intros.",
+                        "VernacExtend",
+                        "411fd286d68f2108b6da288fa615cac70ec6a06f"
+                    ]
+                },
+                {
+                    "command": [
+                        "case H; constructor.",
+                        "VernacExtend",
+                        "eee66192e06d017144011fd39ffd3406d3d6a1f7"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (H0 (s1 ^ x0) H1).",
+                        "VernacExtend",
+                        "cf5dd11e45020b5594ced20b412f9b426703ffaf"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (u x0 Pg Pp H2 H0).",
+                        "VernacExtend",
+                        "daeecf28206424599c7722bd22aeb8b9551da4b8"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Conj_S",
+            "line_nb": 120,
+            "steps": [
+                {
+                    "command": [
+                        "cofix u; intro x; case x; intros.",
+                        "VernacExtend",
+                        "411fd286d68f2108b6da288fa615cac70ec6a06f"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion_clear H; inversion_clear H0.",
+                        "VernacExtend",
+                        "a3a264fe7e36953984b0a5de48c77a3870a8f2fa"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor; [ split | apply (u s0) ]; assumption.",
+                        "VernacExtend",
+                        "90b1e2731593f0d576a1a545dba504d58c66b62e"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Mon_I_EX_S",
+            "line_nb": 125,
+            "steps": [
+                {
+                    "command": [
+                        "simple induction 1; intros.",
+                        "VernacExtend",
+                        "8b54c80df1b4890684639c3f84a62f176fb57476"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor 1; apply (H1 x0 H0).",
+                        "VernacExtend",
+                        "c8e8e25db8029031f4c9489458bbd6b538c2dfc2"
+                    ]
+                },
+                {
+                    "command": [
+                        "constructor 2; apply (H1 H2).",
+                        "VernacExtend",
+                        "5742721ff28881af66aec33ed602534a24801135"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "OneStep_EX",
+            "line_nb": 130,
+            "steps": [
+                {
+                    "command": [
+                        "intros; constructor 2; assumption.",
+                        "VernacExtend",
+                        "3e871852d389943e5bcb3dbf7b598df079b8a452"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

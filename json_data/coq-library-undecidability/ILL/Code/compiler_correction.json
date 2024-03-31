@@ -1,0 +1,1695 @@
+{
+    "filename": "ILL/Code/compiler_correction.v",
+    "coq_project": "coq-library-undecidability",
+    "vernac_cmds": [
+        [
+            "Require Import List Arith Omega.",
+            "VernacRequire",
+            "2384442a3f0b1bbc4c470e59943da44aa7d6ec91"
+        ],
+        [
+            "Require Import utils subcode sss bsm_defs compiler.",
+            "VernacRequire",
+            "70ae7ab90a0147e80118699f3b8479784000745b"
+        ],
+        [
+            "Set Implicit Arguments.",
+            "VernacSetOption",
+            "9e84ff8896f028601d8aded48c1d4aebe60aa584"
+        ],
+        [
+            "Section comp.",
+            "VernacBeginSection",
+            "9d300dcc4d32dd645c2bca2a8ed9a342a9b46811"
+        ],
+        [
+            "Variable (X Y : Set) (icomp : (nat -> nat) -> nat -> X -> list Y) (ilen : X -> nat) (Hilen : forall lnk n x, length (icomp lnk n x) = ilen x) .",
+            "VernacAssumption",
+            "7522ebcd6be2c725b486c843b23a39283e9b9aa9"
+        ],
+        [
+            "Variables (state_X state_Y : Type) (step_X : X -> (nat*state_X) -> (nat*state_X) -> Prop) (step_Y : Y -> (nat*state_Y) -> (nat*state_Y) -> Prop).",
+            "VernacAssumption",
+            "297291e799c72007d15fa98a81ac158425cb5e0e"
+        ],
+        [
+            "Notation \"i '/X/' s -1> t\" := (step_X i s t) (at level 70, no associativity).",
+            "VernacNotation",
+            "4cfcf20dd3bd30cbe65d0448a0faab6517ee4726"
+        ],
+        [
+            "Notation \"P '/X/' s '-[' k ']->' t\" := (sss_steps step_X P k s t) (at level 70, no associativity).",
+            "VernacNotation",
+            "3908fc18647c20ba3d3dbbf058cf6d86da69babe"
+        ],
+        [
+            "Notation \"P '/X/' s '-+>' t\" := (sss_progress step_X P s t) (at level 70, no associativity).",
+            "VernacNotation",
+            "f8a4710bc8f94ac2881ad6a68aa83595c64a005a"
+        ],
+        [
+            "Notation \"P '/X/' s ->> t\" := (sss_compute step_X P s t) (at level 70, no associativity).",
+            "VernacNotation",
+            "8bdc89fdd78c51c9cd62694a341f4471b00935e2"
+        ],
+        [
+            "Notation \"P '/X/' s '~~>' t\" := (sss_output step_X P s t) (at level 70, no associativity).",
+            "VernacNotation",
+            "85cd212a93098d688e5858b404032be2ca34f6d3"
+        ],
+        [
+            "Notation \"P '/X/' s \u2193\" := (sss_terminates step_X P s)(at level 70, no associativity).",
+            "VernacNotation",
+            "adef45c766b73f0867d1504ffa63f35e66c7d0bd"
+        ],
+        [
+            "Notation \"i '/Y/' s -1> t\" := (step_Y i s t) (at level 70, no associativity).",
+            "VernacNotation",
+            "f3d25d9e738d13b514e9ea60e5f53b3eb8004cd2"
+        ],
+        [
+            "Notation \"P '/Y/' s '-[' k ']->' t\" := (sss_steps step_Y P k s t) (at level 70, no associativity).",
+            "VernacNotation",
+            "e779962a779dc986a53ddac78e725f2bbcd0a96c"
+        ],
+        [
+            "Notation \"P '/Y/' s '-+>' t\" := (sss_progress step_Y P s t) (at level 70, no associativity).",
+            "VernacNotation",
+            "60a77b617557229bc7393cfe60f1f1a909d12261"
+        ],
+        [
+            "Notation \"P '/Y/' s ->> t\" := (sss_compute step_Y P s t) (at level 70, no associativity).",
+            "VernacNotation",
+            "027975f32339ffed7ee0bfc9956be0a1e765c1d2"
+        ],
+        [
+            "Notation \"P '/Y/' s '~~>' t\" := (sss_output step_Y P s t) (at level 70, no associativity).",
+            "VernacNotation",
+            "908fb699a026387c6484e90e5ba3903e9b480013"
+        ],
+        [
+            "Notation \"P '/Y/' s \u2193\" := (sss_terminates step_Y P s)(at level 70, no associativity).",
+            "VernacNotation",
+            "29e11423582b9086032ccbca4ad34f8b5c2ebb73"
+        ],
+        [
+            "Hypothesis (step_X_tot : forall I st1, exists st2, I /X/ st1 -1> st2) (step_Y_fun : forall I st st1 st2, I /Y/ st -1> st1 -> I /Y/ st -1> st2 -> st1 = st2).",
+            "VernacAssumption",
+            "b0f59a9b37904ff32671200731f875d7a559fcc1"
+        ],
+        [
+            "Variable (simul : state_X -> state_Y -> Prop).",
+            "VernacAssumption",
+            "f9b5f206f73b7e29577eec339ce72d67e0ca989c"
+        ],
+        [
+            "Infix \"\u22c8\" := simul (at level 70, no associativity).",
+            "VernacInfix",
+            "e82ff40decd62f7777e4b50d7344f504c9b3c68a"
+        ],
+        [
+            "Definition instruction_compiler_sound := forall lnk I i1 v1 i2 v2 w1, I /X/ (i1,v1) -1> (i2,v2) -> lnk (1+i1) = length (icomp lnk i1 I) + lnk i1 -> v1 \u22c8 w1 -> exists w2, (lnk i1,icomp lnk i1 I) /Y/ (lnk i1,w1) -+> (lnk i2,w2) /\\ v2 \u22c8 w2.",
+            "VernacDefinition",
+            "0a50508d0b70c054125e44e3ef166a42b26ed409"
+        ],
+        [
+            "Hypothesis Hicomp : instruction_compiler_sound.",
+            "VernacAssumption",
+            "281efe24069154de90cb3583da97a35a29334789"
+        ],
+        [
+            "Section correctness.",
+            "VernacBeginSection",
+            "c57c82881c4bec9efcb943291fbf9d935eff1acf"
+        ],
+        [
+            "Variables (linker : nat -> nat) (P : nat * list X) (Q : nat * list Y) (HPQ : forall i I, (i,I::nil) <sc P -> (linker i, icomp linker i I) <sc Q /\\ linker (1+i) = ilen I + linker i).",
+            "VernacAssumption",
+            "303435adb6e961567098629c49c2bd1053b18d1c"
+        ],
+        [
+            "Theorem compiler_sound i1 v1 i2 v2 w1 : v1 \u22c8 w1 /\\ P /X/ (i1,v1) ->> (i2,v2) -> exists w2, v2 \u22c8 w2 /\\ Q /Y/ (linker i1,w1) ->> (linker i2,w2).",
+            "VernacStartTheoremProof",
+            "6463d3f1f1ed5e5309bff4764024965484c12920"
+        ],
+        [
+            "change i1 with (fst (i1,v1)) at 2; change v1 with (snd (i1,v1)) at 1.",
+            "VernacExtend",
+            "66655f0b7eae97c19a5090bddcc57dec5ecc705b"
+        ],
+        [
+            "change i2 with (fst (i2,v2)) at 2; change v2 with (snd (i2,v2)) at 2.",
+            "VernacExtend",
+            "6c704fc8b23bff641366c20f7726fe75dd5d2f6d"
+        ],
+        [
+            "generalize (i1,v1) (i2,v2); clear i1 v1 i2 v2.",
+            "VernacExtend",
+            "d1cd62273beeb3e3776c9ec666d164ff6cbaeffa"
+        ],
+        [
+            "intros st1 st2 (H1 & q & H2); revert H2 w1 H1.",
+            "VernacExtend",
+            "e9f31c4be112df24a5c6c384dee3816de99ec2f2"
+        ],
+        [
+            "induction 1 as [ (i1,v1) | q (i1,v1) (i2,v2) st3 H1 H2 IH2]; simpl; intros w1 H0.",
+            "VernacExtend",
+            "356cb4da294783f3d053addede0ad51e938a71c8"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "exists w1; split; auto; exists 0; constructor.",
+            "VernacExtend",
+            "b43c0e42c69a877e33c00ccaee420421dcbc78e1"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct H1 as (k & l & I & r & v' & G1 & G2 & G3).",
+            "VernacExtend",
+            "6a6b585ca4ef09d9296c494c4c26dc0d1fda4a12"
+        ],
+        [
+            "inversion G2; subst v' i1; clear G2.",
+            "VernacExtend",
+            "ad34e3adea0de22a646a1650dda78edcb81c2f5f"
+        ],
+        [
+            "destruct (Hicomp linker) with (1 := G3) (3 := H0) as (w2 & G4 & G5).",
+            "VernacExtend",
+            "a6a17b901c7ae8a3e332ce39ca7ea6b9ef0fd134"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "rewrite Hilen; apply HPQ; subst; exists l, r; auto.",
+            "VernacExtend",
+            "bdb449e3f80b142e81ae4d5fafe812d6c1be4dba"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "destruct (IH2 _ G5) as (w3 & G6 & G7).",
+            "VernacExtend",
+            "06269184b3ddc255d38ba34104945f0fba3c8ecb"
+        ],
+        [
+            "exists w3; split; auto.",
+            "VernacExtend",
+            "086213119f1736b774c1116405bd9a339c20be7c"
+        ],
+        [
+            "apply sss_compute_trans with (2 := G7); simpl.",
+            "VernacExtend",
+            "9586913085ae11fa7ca7490b43253b322633a162"
+        ],
+        [
+            "apply sss_progress_compute.",
+            "VernacExtend",
+            "d96884d4ebd4e6e9344e8ffbc5b38344a29b0a15"
+        ],
+        [
+            "revert G4; apply subcode_sss_progress.",
+            "VernacExtend",
+            "87d19d23071687c08d82b84831768a0ff440a484"
+        ],
+        [
+            "apply HPQ; subst; exists l, r; auto.",
+            "VernacExtend",
+            "1f05eec183174cff9667e2054fec5e9e470f5b60"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Local Lemma compiler_complete_step p st1 w1 w3 : snd st1 \u22c8 snd w1 -> linker (fst st1) = fst w1 -> in_code (fst st1) P -> out_code (fst w3) Q -> Q /Y/ w1 -[p]-> w3 -> exists q st2 w2, snd st2 \u22c8 snd w2 /\\ linker (fst st2) = fst w2 /\\ P /X/ st1 ->> st2 /\\ Q /Y/ w2 -[q]-> w3 /\\ q < p.",
+            "VernacStartTheoremProof",
+            "e8d9c62bcd16c415c20d5aeca4e663d691c8fb6e"
+        ],
+        [
+            "revert st1 w1 w3; intros (i1,v1) (j1,w1) (j3,w3); simpl fst; simpl snd.",
+            "VernacExtend",
+            "1ece9db750529fe8906754210c4573e63d4d1f94"
+        ],
+        [
+            "intros H1 H2 H3 H4 H5.",
+            "VernacExtend",
+            "d4ba4695a18dfbd5c7b6125233c02d6df5c7121e"
+        ],
+        [
+            "destruct (in_code_subcode H3) as (I & HI).",
+            "VernacExtend",
+            "37ad5f15a5414ccf936e170fb7537c000954536d"
+        ],
+        [
+            "destruct HPQ with (1 := HI) as (H6 & H7).",
+            "VernacExtend",
+            "9391810322bcabc1641547c46affb1c6d78ee90a"
+        ],
+        [
+            "assert (out_code j3 (linker i1, icomp linker i1 I)) as G2.",
+            "VernacExtend",
+            "dee295a1268f01969afe2ade2b424357cd4fbfea"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "revert H4; apply subcode_out_code; auto.",
+            "VernacExtend",
+            "a0415236de97c1e299af435821519b89a20a13cb"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "assert (H8 : ilen I <> 0).",
+            "VernacExtend",
+            "4ed4f18c8cdbcd246fa611fe0b5339e12e55309f"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "intros H.",
+            "VernacExtend",
+            "5cfae87a34fa7b59a257c9640f1b674f6e6d780b"
+        ],
+        [
+            "destruct (step_X_tot I (i1,v1)) as ((i2,v2) & Hst).",
+            "VernacExtend",
+            "326d531fe8d7ebfc7e8eb606e479c98d2f7ff505"
+        ],
+        [
+            "apply (Hicomp linker) with (3 := H1) in Hst; auto.",
+            "VernacExtend",
+            "6ac49b76e0ea4d5a7c8bb548aaa037b4ec0e3557"
+        ],
+        [
+            "2: rewrite Hilen; auto.",
+            "VernacExtend",
+            "2239bfb1f8582057a1997bb8fe0a3a6d5aff0fe6"
+        ],
+        [
+            "destruct Hst as (w2 & (q & Hq1 & Hq2) & _).",
+            "VernacExtend",
+            "d9ddfc040c9a957aa1026a5f3d4e7c9267817013"
+        ],
+        [
+            "rewrite <- (Hilen linker i1) in H.",
+            "VernacExtend",
+            "03c10a2b1af71fc2ff67ae6cfc51d0cb4844cfd6"
+        ],
+        [
+            "destruct (icomp linker i1 I); try discriminate.",
+            "VernacExtend",
+            "6208d7cc40ab21679640244bd6a90dd4cec57969"
+        ],
+        [
+            "apply sss_steps_stall, proj1 in Hq2; simpl; omega.",
+            "VernacExtend",
+            "3f8ba78471f8fbb1f176f30bc380d002e92f1485"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "assert (in_code (linker i1) (linker i1, icomp linker i1 I)) as G3.",
+            "VernacExtend",
+            "bad7df6c14f63ae55d0f9ab2c7a42a1cefe19bed"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "simpl; rewrite (Hilen linker i1 I); omega.",
+            "VernacExtend",
+            "adf96439e7e616d03b924ebe54452cd8253e554d"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "rewrite <- H2 in H5.",
+            "VernacExtend",
+            "665bd7deae02bf8e090ab21566afa39de3806bea"
+        ],
+        [
+            "destruct (step_X_tot I (i1,v1)) as ((i2,v2) & G4).",
+            "VernacExtend",
+            "d08d3cd460124f74b39e79bed26c7939de249d12"
+        ],
+        [
+            "destruct (Hicomp linker) with (1 := G4) (3 := H1) as (w2 & G5 & G6).",
+            "VernacExtend",
+            "5f111e0c1a92c7963bd135ac6cc6e03461d34871"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "rewrite H7, Hilen; auto.",
+            "VernacExtend",
+            "81dc49450ac0e5b06e1e06c7319f54357759fadc"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "apply subcode_sss_progress_inv with (3 := H6) (4 := G5) in H5; auto.",
+            "VernacExtend",
+            "ec4f72173e259a7bc88ecb6414393215223a5393"
+        ],
+        [
+            "destruct H5 as (q & H5 & G7).",
+            "VernacExtend",
+            "5f585ac2be6a63edc7cd5da9e8479cc214db7741"
+        ],
+        [
+            "exists q, (i2,v2), (linker i2, w2); simpl; repeat (split; auto).",
+            "VernacExtend",
+            "1c98673be81a2c71f7b6663f421fd5cc97f18b9c"
+        ],
+        [
+            "apply subcode_sss_compute with (1 := HI).",
+            "VernacExtend",
+            "9b17f63111bb960d2c8cfa82d85b49ee37c2c456"
+        ],
+        [
+            "exists 1; apply sss_steps_1.",
+            "VernacExtend",
+            "3b6875cb217eb5ff0c2a20b9a25e8bca8b753fc7"
+        ],
+        [
+            "exists i1, nil, I, nil, v1; repeat (split; auto).",
+            "VernacExtend",
+            "c056314eb07aef2f35e56834fcddc224a1bc5c29"
+        ],
+        [
+            "f_equal; simpl; omega.",
+            "VernacExtend",
+            "b5f115310e665ce9a057ea2902ddfa24c4b72b4b"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem compiler_complete i1 v1 w1 : v1 \u22c8 w1 -> Q /Y/ (linker i1,w1) \u2193 -> P /X/ (i1,v1) \u2193.",
+            "VernacStartTheoremProof",
+            "8bcf7615cecf2e87b78391ee8a2ad0dfc6f403ff"
+        ],
+        [
+            "intros H1 (st & (q & H2) & H3).",
+            "VernacExtend",
+            "af3ad8ba27a2d2437f7cff8180ac5c4cf3b9b885"
+        ],
+        [
+            "revert i1 v1 w1 H1 H2 H3.",
+            "VernacExtend",
+            "a1a4eac335bee9e35bdef5386f18249e3d9d9198"
+        ],
+        [
+            "induction q as [ q IHq ] using (well_founded_induction lt_wf).",
+            "VernacExtend",
+            "ea2c5f33f469e85f49d1cdfb0f0715bff77d063d"
+        ],
+        [
+            "intros i1 v1 w1 H1 H2 H3.",
+            "VernacExtend",
+            "8b586b24495f05b5f59c88695724dda3e3e8f5ee"
+        ],
+        [
+            "destruct (in_out_code_dec i1 P) as [ H4 | H4 ].",
+            "VernacExtend",
+            "e40c6acb3c6e70b56302b2fd82108dfaa5e35f48"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct compiler_complete_step with (5 := H2) (st1 := (i1,v1)) as (p & (i2,v2) & (j2,w2) & G1 & G2 & G3 & G4 & G5); auto; simpl in *; subst j2.",
+            "VernacExtend",
+            "21f48bf00a9ec0b9b34d0da1f08774e6fbf7524b"
+        ],
+        [
+            "destruct IHq with (1 := G5) (2 := G1) (3 := G4) as ((i3 & v3) & F3 & F4); auto.",
+            "VernacExtend",
+            "e40c0dce3389ad1953f2262ac9f2f1975808650e"
+        ],
+        [
+            "exists (i3,v3); repeat (split; auto).",
+            "VernacExtend",
+            "7c62dc27933c63c977ff25680afaffef3d23e0b7"
+        ],
+        [
+            "apply sss_compute_trans with (1 := G3); auto.",
+            "VernacExtend",
+            "5901cb49513f4d987de23cf8949653f0b9e4f695"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "exists (i1,v1); repeat (split; auto).",
+            "VernacExtend",
+            "ddd0317c02646358302140c11fbfb8f8dda82ae2"
+        ],
+        [
+            "exists 0; constructor.",
+            "VernacExtend",
+            "6ebd74e0fe4bcbcf9c432bee74bcd075d3190cbc"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Corollary compiler_complete' i1 v1 w1 st : v1 \u22c8 w1 /\\ Q /Y/ (linker i1,w1) ~~> st -> exists i2 v2 w2, v2 \u22c8 w2 /\\ P /X/ (i1,v1) ~~> (i2,v2) /\\ Q /Y/ (linker i2,w2) ~~> st.",
+            "VernacStartTheoremProof",
+            "54bb491a1ad529ee08474e19cdc189a43d4fc3fb"
+        ],
+        [
+            "intros (H1 & H2).",
+            "VernacExtend",
+            "cbe4fae06561c7d97a3cceb65a0c2d56dc027b9e"
+        ],
+        [
+            "destruct compiler_complete with (1 := H1) (2 := ex_intro (fun x => Q /Y/ (linker i1, w1) ~~> x) _ H2) as ((i2,v2) & H3 & H4).",
+            "VernacExtend",
+            "6d295d35b7c289c3fa8aa04f09d03a0ebac9a3c8"
+        ],
+        [
+            "exists i2, v2.",
+            "VernacExtend",
+            "b35d5954e7135a67d8868f7c7ee46eaa015b185b"
+        ],
+        [
+            "destruct (compiler_sound (conj H1 H3)) as (w2 & H5 & H6).",
+            "VernacExtend",
+            "a01fa4223ad8f1f25be70d1bd1d13f66f2927325"
+        ],
+        [
+            "exists w2; do 2 (split; auto).",
+            "VernacExtend",
+            "39a592baa480c6a0cb181ec559d96ed3f25e889b"
+        ],
+        [
+            "split; auto.",
+            "VernacExtend",
+            "fcd44a714bd12fa54b1c7746996e44dbac16df06"
+        ],
+        [
+            "destruct H2 as (H2 & H0); split; auto.",
+            "VernacExtend",
+            "a277a05bf894da55caadcddf956eb68cad36d39e"
+        ],
+        [
+            "apply sss_compute_inv with (3 := H6); auto.",
+            "VernacExtend",
+            "1518aab0ac7c773907eda46638ac231c3f50f937"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End correctness.",
+            "VernacEndSegment",
+            "ad97c3b6aabff3e5ce85471b9ebcf2395692bcc8"
+        ],
+        [
+            "Variable (P : nat * list X) (iQ : nat).",
+            "VernacAssumption",
+            "0092ce49ff641e03fe575ec942f885a4dc71a70d"
+        ],
+        [
+            "Let iP := fst P.",
+            "VernacDefinition",
+            "a8e2fb37884e8dd1b6cc8aaf25d3a80f2805856d"
+        ],
+        [
+            "Let cP := snd P.",
+            "VernacDefinition",
+            "72b88285b680de217d4c8d40dcf563c15a6f0a58"
+        ],
+        [
+            "Let err := iQ+length_compiler ilen cP.",
+            "VernacDefinition",
+            "9240d767d95936f462358147d224a972f5dfdb70"
+        ],
+        [
+            "Definition gen_linker := linker ilen (iP,cP) iQ err.",
+            "VernacDefinition",
+            "4c9efade9bc66946a65c045c36161a0212c821cf"
+        ],
+        [
+            "Definition gen_compiler := compiler icomp ilen (iP,cP) iQ err.",
+            "VernacDefinition",
+            "1db65808f7b0d5a522fad0b7d6e697400599db1a"
+        ],
+        [
+            "Notation cQ := gen_compiler.",
+            "VernacSyntacticDefinition",
+            "7d8fe26e531d29f8c944abd988d72117ad598c28"
+        ],
+        [
+            "Notation lnk := gen_linker.",
+            "VernacSyntacticDefinition",
+            "a42d5c518312483811df41428d9b08d780099a28"
+        ],
+        [
+            "Let P_eq : P = (iP,cP).",
+            "VernacDefinition",
+            "b2f9f3914822e1348da7786ff7b818976e3852c9"
+        ],
+        [
+            "unfold iP, cP; destruct P; auto.",
+            "VernacExtend",
+            "41e7b3a3a662276abe8378a9158fd62509c0e92d"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Fact gen_linker_out i : out_code i (iP,cP) -> lnk i = iQ+length cQ.",
+            "VernacStartTheoremProof",
+            "a818a917dfe6263fe1b31467db6dafa9e1d47dc8"
+        ],
+        [
+            "intros H.",
+            "VernacExtend",
+            "5cfae87a34fa7b59a257c9640f1b674f6e6d780b"
+        ],
+        [
+            "unfold lnk.",
+            "VernacExtend",
+            "59748f1ba7100f41bf306ac86fbe6dc6afeea27c"
+        ],
+        [
+            "rewrite linker_out_err; unfold err; simpl; auto.",
+            "VernacExtend",
+            "2f9a91cb5c1753e6b810bba585137442e96b4ffc"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "unfold cQ; rewrite compiler_length; auto.",
+            "VernacExtend",
+            "68688d879f8fed43a539011c644b555bde1415e6"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem gen_compiler_sound i1 v1 i2 v2 w1 : v1 \u22c8 w1 /\\ (iP,cP) /X/ (i1,v1) ~~> (i2,v2) -> exists w2, v2 \u22c8 w2 /\\ (iQ,cQ) /Y/ (lnk i1,w1) ~~> (lnk i2,w2).",
+            "VernacStartTheoremProof",
+            "1cd3e70bcec384e5746df69d3e93a6f5ce252b20"
+        ],
+        [
+            "intros (H1 & H2 & H3).",
+            "VernacExtend",
+            "fbffe239ce87a668f983eee6c400377bd7bf8d72"
+        ],
+        [
+            "destruct compiler_sound with (2 := conj H1 H2) (linker := gen_linker) (Q := (iQ,cQ)) as (w2 & G1 & G2).",
+            "VernacExtend",
+            "c9b28bf120b619921cadf2e730729f57e76a9f5b"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply compiler_subcode; auto.",
+            "VernacExtend",
+            "81016fbdcdc05858d98583e4c1396a468662d464"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "simpl fst in H3.",
+            "VernacExtend",
+            "07b783aa40d184ae73f896e510b2ea3b4e8e98b7"
+        ],
+        [
+            "exists w2; split; auto.",
+            "VernacExtend",
+            "15b3c6358437c5fc9a5f8570fe0559fb950a587e"
+        ],
+        [
+            "split; auto; simpl.",
+            "VernacExtend",
+            "00d5326321c3cbfb49a562799d01b977e17ae3cc"
+        ],
+        [
+            "rewrite <- gen_linker_out with i2; auto.",
+            "VernacExtend",
+            "f69ef2454c6ab53d62e864649bc76533843f1ed0"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem gen_compiler_complete i1 v1 w1 : v1 \u22c8 w1 -> (iQ,gen_compiler) /Y/ (gen_linker i1,w1) \u2193 -> (iP,cP) /X/ (i1,v1) \u2193.",
+            "VernacStartTheoremProof",
+            "d95b1b001e0b34d4247de3937baecce460015d33"
+        ],
+        [
+            "apply compiler_complete, compiler_subcode; auto.",
+            "VernacExtend",
+            "13d4cac73437393e0e151363a1427d09e7a6e3a1"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Corollary gen_compiler_output v w i' v' : v \u22c8 w -> (iP,cP) /X/ (iP,v) ~~> (i',v') -> exists w', (iQ,gen_compiler) /Y/ (iQ,w) ~~> (code_end (iQ,cQ),w') /\\ v' \u22c8 w'.",
+            "VernacStartTheoremProof",
+            "b0237c8e069e9bf4909923b93eeeff4c4c65add4"
+        ],
+        [
+            "intros H H1.",
+            "VernacExtend",
+            "f90b700bbefa6697efef1ee2f5acdc7c3b4b6561"
+        ],
+        [
+            "destruct gen_compiler_sound with (1 := conj H H1) as (w1 & H2 & H3).",
+            "VernacExtend",
+            "9c40242a29a9e1e9131e0c4137fd95aa7ab9d863"
+        ],
+        [
+            "exists w1.",
+            "VernacExtend",
+            "2d1178db04d1c94514942f4f9ab2f306e1391d18"
+        ],
+        [
+            "simpl; rewrite <- gen_linker_out with i'.",
+            "VernacExtend",
+            "9e49830355216cb2119c029d42fb1c6cb78485af"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite <- (linker_code_start ilen (iP,cP) iQ err) at 2; auto.",
+            "VernacExtend",
+            "9180747cb920e691ced9d4b36f6c3aa0448a298a"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "apply H1.",
+            "VernacExtend",
+            "3fcc9345bbf6ea218ca825a16c0f27912de9bd67"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Corollary gen_compiler_terminates v w : v \u22c8 w -> (iQ,gen_compiler) /Y/ (iQ,w) \u2193 -> (iP,cP) /X/ (iP,v) \u2193.",
+            "VernacStartTheoremProof",
+            "f6a490bb8119d6d99d2016d6e9e5a0b6b0376014"
+        ],
+        [
+            "intros H (w' & H').",
+            "VernacExtend",
+            "c0db3e3cc656bca5d9ee4d5abe50a59a12810157"
+        ],
+        [
+            "apply gen_compiler_complete with (1 := H).",
+            "VernacExtend",
+            "5f472b3dea51bc3d891bad10ea8ce1ad7c6ac880"
+        ],
+        [
+            "unfold gen_linker; rewrite linker_code_start; auto; firstorder.",
+            "VernacExtend",
+            "d741b0627720295616fc48cce02b3a921ecd0cf8"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Theorem gen_compiler_correction : { lnk : nat -> nat & { Q | fst Q = iQ /\\ lnk iP = iQ /\\ (forall i, out_code i P -> lnk i = code_end Q) /\\ (forall i1 v1 w1 i2 v2, v1 \u22c8 w1 /\\ P /X/ (i1,v1) ~~> (i2,v2) -> exists w2, v2 \u22c8 w2 /\\ Q /Y/ (lnk i1,w1) ~~> (lnk i2,w2)) /\\ (forall i1 v1 w1 j2 w2, v1 \u22c8 w1 /\\ Q /Y/ (lnk i1,w1) ~~> (j2,w2) -> exists i2 v2, v2 \u22c8 w2 /\\ P /X/ (i1,v1) ~~> (i2,v2) /\\ j2 = lnk i2) } }.",
+            "VernacStartTheoremProof",
+            "ae3fe99c0b4dded3ee61d260be8eb8775735e05d"
+        ],
+        [
+            "exists lnk, (iQ,cQ); split; auto; split; [ | split ].",
+            "VernacExtend",
+            "4f0473b4d10088b9fa1cfc92b9a5e7d80da332f3"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite <- (linker_code_start ilen (iP,cP) iQ err); auto.",
+            "VernacExtend",
+            "f27e06bbad65e61b9b29d455ee576c05950dbe60"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite P_eq; apply gen_linker_out.",
+            "VernacExtend",
+            "79b1b89d04f1aea82336ec2b5f6f398384249344"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "rewrite P_eq.",
+            "VernacExtend",
+            "4e485b0078ceac7f899735772f2cce062e17b29f"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "intros i1 v1 w1 i2 v2 H.",
+            "VernacExtend",
+            "6d255793be58a76a05645bb8389a430ae4a23aa6"
+        ],
+        [
+            "destruct gen_compiler_sound with (1 := H) as (w2 & H3 & H4).",
+            "VernacExtend",
+            "91c7fe015cacae19ea7ed1efca34b62062822e3d"
+        ],
+        [
+            "exists w2; split; auto.",
+            "VernacExtend",
+            "15b3c6358437c5fc9a5f8570fe0559fb950a587e"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "intros i1 v1 w1 j2 w2 (H1 & H2).",
+            "VernacExtend",
+            "1cee7043cf97ef3e4a1c77bbe6fa83a298273130"
+        ],
+        [
+            "destruct gen_compiler_complete with (1 := H1) (i1 := i1) as ((i3,v3) & H3).",
+            "VernacExtend",
+            "f02d8f9901d14da104c38986a7c08864177fec1b"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "exists (j2,w2); auto.",
+            "VernacExtend",
+            "96384b71a62c3dcd8e270a6c4c804102aa420a0b"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct gen_compiler_sound with (1 := conj H1 H3) as (w3 & H4 & H5).",
+            "VernacExtend",
+            "f54907d5dd9721efaf80e4e1d66648c471e0be16"
+        ],
+        [
+            "generalize (sss_output_fun step_Y_fun H2 H5); inversion 1.",
+            "VernacExtend",
+            "75730dee586519e382528756d55d5143c71947b0"
+        ],
+        [
+            "exists i3, v3; auto.",
+            "VernacExtend",
+            "c2260c7797251fdc063cb92cb218c7c9dfe9dd98"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "End comp.",
+            "VernacEndSegment",
+            "c1eacf6901e2e8d775a297ece47c274ea45744fd"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "compiler_sound",
+            "line_nb": 25,
+            "steps": [
+                {
+                    "command": [
+                        "change i1 with (fst (i1,v1)) at 2; change v1 with (snd (i1,v1)) at 1.",
+                        "VernacExtend",
+                        "66655f0b7eae97c19a5090bddcc57dec5ecc705b"
+                    ]
+                },
+                {
+                    "command": [
+                        "change i2 with (fst (i2,v2)) at 2; change v2 with (snd (i2,v2)) at 2.",
+                        "VernacExtend",
+                        "6c704fc8b23bff641366c20f7726fe75dd5d2f6d"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize (i1,v1) (i2,v2); clear i1 v1 i2 v2.",
+                        "VernacExtend",
+                        "d1cd62273beeb3e3776c9ec666d164ff6cbaeffa"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros st1 st2 (H1 & q & H2); revert H2 w1 H1.",
+                        "VernacExtend",
+                        "e9f31c4be112df24a5c6c384dee3816de99ec2f2"
+                    ]
+                },
+                {
+                    "command": [
+                        "induction 1 as [ (i1,v1) | q (i1,v1) (i2,v2) st3 H1 H2 IH2]; simpl; intros w1 H0.",
+                        "VernacExtend",
+                        "356cb4da294783f3d053addede0ad51e938a71c8"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists w1; split; auto; exists 0; constructor.",
+                        "VernacExtend",
+                        "b43c0e42c69a877e33c00ccaee420421dcbc78e1"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H1 as (k & l & I & r & v' & G1 & G2 & G3).",
+                        "VernacExtend",
+                        "6a6b585ca4ef09d9296c494c4c26dc0d1fda4a12"
+                    ]
+                },
+                {
+                    "command": [
+                        "inversion G2; subst v' i1; clear G2.",
+                        "VernacExtend",
+                        "ad34e3adea0de22a646a1650dda78edcb81c2f5f"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (Hicomp linker) with (1 := G3) (3 := H0) as (w2 & G4 & G5).",
+                        "VernacExtend",
+                        "a6a17b901c7ae8a3e332ce39ca7ea6b9ef0fd134"
+                    ]
+                },
+                {
+                    "command": [
+                        "*",
+                        "VernacBullet",
+                        "8a329d054468e0c41ce333043e0978e30eed7b98"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Hilen; apply HPQ; subst; exists l, r; auto.",
+                        "VernacExtend",
+                        "bdb449e3f80b142e81ae4d5fafe812d6c1be4dba"
+                    ]
+                },
+                {
+                    "command": [
+                        "*",
+                        "VernacBullet",
+                        "8a329d054468e0c41ce333043e0978e30eed7b98"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (IH2 _ G5) as (w3 & G6 & G7).",
+                        "VernacExtend",
+                        "06269184b3ddc255d38ba34104945f0fba3c8ecb"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists w3; split; auto.",
+                        "VernacExtend",
+                        "086213119f1736b774c1116405bd9a339c20be7c"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply sss_compute_trans with (2 := G7); simpl.",
+                        "VernacExtend",
+                        "9586913085ae11fa7ca7490b43253b322633a162"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply sss_progress_compute.",
+                        "VernacExtend",
+                        "d96884d4ebd4e6e9344e8ffbc5b38344a29b0a15"
+                    ]
+                },
+                {
+                    "command": [
+                        "revert G4; apply subcode_sss_progress.",
+                        "VernacExtend",
+                        "87d19d23071687c08d82b84831768a0ff440a484"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply HPQ; subst; exists l, r; auto.",
+                        "VernacExtend",
+                        "1f05eec183174cff9667e2054fec5e9e470f5b60"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "compiler_complete",
+            "line_nb": 85,
+            "steps": [
+                {
+                    "command": [
+                        "intros H1 (st & (q & H2) & H3).",
+                        "VernacExtend",
+                        "af3ad8ba27a2d2437f7cff8180ac5c4cf3b9b885"
+                    ]
+                },
+                {
+                    "command": [
+                        "revert i1 v1 w1 H1 H2 H3.",
+                        "VernacExtend",
+                        "a1a4eac335bee9e35bdef5386f18249e3d9d9198"
+                    ]
+                },
+                {
+                    "command": [
+                        "induction q as [ q IHq ] using (well_founded_induction lt_wf).",
+                        "VernacExtend",
+                        "ea2c5f33f469e85f49d1cdfb0f0715bff77d063d"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros i1 v1 w1 H1 H2 H3.",
+                        "VernacExtend",
+                        "8b586b24495f05b5f59c88695724dda3e3e8f5ee"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (in_out_code_dec i1 P) as [ H4 | H4 ].",
+                        "VernacExtend",
+                        "e40c6acb3c6e70b56302b2fd82108dfaa5e35f48"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct compiler_complete_step with (5 := H2) (st1 := (i1,v1)) as (p & (i2,v2) & (j2,w2) & G1 & G2 & G3 & G4 & G5); auto; simpl in *; subst j2.",
+                        "VernacExtend",
+                        "21f48bf00a9ec0b9b34d0da1f08774e6fbf7524b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct IHq with (1 := G5) (2 := G1) (3 := G4) as ((i3 & v3) & F3 & F4); auto.",
+                        "VernacExtend",
+                        "e40c0dce3389ad1953f2262ac9f2f1975808650e"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists (i3,v3); repeat (split; auto).",
+                        "VernacExtend",
+                        "7c62dc27933c63c977ff25680afaffef3d23e0b7"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply sss_compute_trans with (1 := G3); auto.",
+                        "VernacExtend",
+                        "5901cb49513f4d987de23cf8949653f0b9e4f695"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists (i1,v1); repeat (split; auto).",
+                        "VernacExtend",
+                        "ddd0317c02646358302140c11fbfb8f8dda82ae2"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists 0; constructor.",
+                        "VernacExtend",
+                        "6ebd74e0fe4bcbcf9c432bee74bcd075d3190cbc"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "compiler_complete'",
+            "line_nb": 100,
+            "steps": [
+                {
+                    "command": [
+                        "intros (H1 & H2).",
+                        "VernacExtend",
+                        "cbe4fae06561c7d97a3cceb65a0c2d56dc027b9e"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct compiler_complete with (1 := H1) (2 := ex_intro (fun x => Q /Y/ (linker i1, w1) ~~> x) _ H2) as ((i2,v2) & H3 & H4).",
+                        "VernacExtend",
+                        "6d295d35b7c289c3fa8aa04f09d03a0ebac9a3c8"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists i2, v2.",
+                        "VernacExtend",
+                        "b35d5954e7135a67d8868f7c7ee46eaa015b185b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (compiler_sound (conj H1 H3)) as (w2 & H5 & H6).",
+                        "VernacExtend",
+                        "a01fa4223ad8f1f25be70d1bd1d13f66f2927325"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists w2; do 2 (split; auto).",
+                        "VernacExtend",
+                        "39a592baa480c6a0cb181ec559d96ed3f25e889b"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; auto.",
+                        "VernacExtend",
+                        "fcd44a714bd12fa54b1c7746996e44dbac16df06"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H2 as (H2 & H0); split; auto.",
+                        "VernacExtend",
+                        "a277a05bf894da55caadcddf956eb68cad36d39e"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply sss_compute_inv with (3 := H6); auto.",
+                        "VernacExtend",
+                        "1518aab0ac7c773907eda46638ac231c3f50f937"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "P_eq",
+            "line_nb": 119,
+            "steps": [
+                {
+                    "command": [
+                        "unfold iP, cP; destruct P; auto.",
+                        "VernacExtend",
+                        "41e7b3a3a662276abe8378a9158fd62509c0e92d"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "gen_linker_out",
+            "line_nb": 122,
+            "steps": [
+                {
+                    "command": [
+                        "intros H.",
+                        "VernacExtend",
+                        "5cfae87a34fa7b59a257c9640f1b674f6e6d780b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold lnk.",
+                        "VernacExtend",
+                        "59748f1ba7100f41bf306ac86fbe6dc6afeea27c"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite linker_out_err; unfold err; simpl; auto.",
+                        "VernacExtend",
+                        "2f9a91cb5c1753e6b810bba585137442e96b4ffc"
+                    ]
+                },
+                {
+                    "command": [
+                        "*",
+                        "VernacBullet",
+                        "8a329d054468e0c41ce333043e0978e30eed7b98"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold cQ; rewrite compiler_length; auto.",
+                        "VernacExtend",
+                        "68688d879f8fed43a539011c644b555bde1415e6"
+                    ]
+                },
+                {
+                    "command": [
+                        "*",
+                        "VernacBullet",
+                        "8a329d054468e0c41ce333043e0978e30eed7b98"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "gen_compiler_sound",
+            "line_nb": 131,
+            "steps": [
+                {
+                    "command": [
+                        "intros (H1 & H2 & H3).",
+                        "VernacExtend",
+                        "fbffe239ce87a668f983eee6c400377bd7bf8d72"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct compiler_sound with (2 := conj H1 H2) (linker := gen_linker) (Q := (iQ,cQ)) as (w2 & G1 & G2).",
+                        "VernacExtend",
+                        "c9b28bf120b619921cadf2e730729f57e76a9f5b"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply compiler_subcode; auto.",
+                        "VernacExtend",
+                        "81016fbdcdc05858d98583e4c1396a468662d464"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl fst in H3.",
+                        "VernacExtend",
+                        "07b783aa40d184ae73f896e510b2ea3b4e8e98b7"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists w2; split; auto.",
+                        "VernacExtend",
+                        "15b3c6358437c5fc9a5f8570fe0559fb950a587e"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; auto; simpl.",
+                        "VernacExtend",
+                        "00d5326321c3cbfb49a562799d01b977e17ae3cc"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- gen_linker_out with i2; auto.",
+                        "VernacExtend",
+                        "f69ef2454c6ab53d62e864649bc76533843f1ed0"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "gen_compiler_complete",
+            "line_nb": 142,
+            "steps": [
+                {
+                    "command": [
+                        "apply compiler_complete, compiler_subcode; auto.",
+                        "VernacExtend",
+                        "13d4cac73437393e0e151363a1427d09e7a6e3a1"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "gen_compiler_output",
+            "line_nb": 145,
+            "steps": [
+                {
+                    "command": [
+                        "intros H H1.",
+                        "VernacExtend",
+                        "f90b700bbefa6697efef1ee2f5acdc7c3b4b6561"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct gen_compiler_sound with (1 := conj H H1) as (w1 & H2 & H3).",
+                        "VernacExtend",
+                        "9c40242a29a9e1e9131e0c4137fd95aa7ab9d863"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists w1.",
+                        "VernacExtend",
+                        "2d1178db04d1c94514942f4f9ab2f306e1391d18"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl; rewrite <- gen_linker_out with i'.",
+                        "VernacExtend",
+                        "9e49830355216cb2119c029d42fb1c6cb78485af"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- (linker_code_start ilen (iP,cP) iQ err) at 2; auto.",
+                        "VernacExtend",
+                        "9180747cb920e691ced9d4b36f6c3aa0448a298a"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply H1.",
+                        "VernacExtend",
+                        "3fcc9345bbf6ea218ca825a16c0f27912de9bd67"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "gen_compiler_terminates",
+            "line_nb": 155,
+            "steps": [
+                {
+                    "command": [
+                        "intros H (w' & H').",
+                        "VernacExtend",
+                        "c0db3e3cc656bca5d9ee4d5abe50a59a12810157"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply gen_compiler_complete with (1 := H).",
+                        "VernacExtend",
+                        "5f472b3dea51bc3d891bad10ea8ce1ad7c6ac880"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold gen_linker; rewrite linker_code_start; auto; firstorder.",
+                        "VernacExtend",
+                        "d741b0627720295616fc48cce02b3a921ecd0cf8"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "gen_compiler_correction",
+            "line_nb": 160,
+            "steps": [
+                {
+                    "command": [
+                        "exists lnk, (iQ,cQ); split; auto; split; [ | split ].",
+                        "VernacExtend",
+                        "4f0473b4d10088b9fa1cfc92b9a5e7d80da332f3"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- (linker_code_start ilen (iP,cP) iQ err); auto.",
+                        "VernacExtend",
+                        "f27e06bbad65e61b9b29d455ee576c05950dbe60"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite P_eq; apply gen_linker_out.",
+                        "VernacExtend",
+                        "79b1b89d04f1aea82336ec2b5f6f398384249344"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite P_eq.",
+                        "VernacExtend",
+                        "4e485b0078ceac7f899735772f2cce062e17b29f"
+                    ]
+                },
+                {
+                    "command": [
+                        "split.",
+                        "VernacExtend",
+                        "55abc140132bd88981001ac656020469a8d503eb"
+                    ]
+                },
+                {
+                    "command": [
+                        "*",
+                        "VernacBullet",
+                        "8a329d054468e0c41ce333043e0978e30eed7b98"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros i1 v1 w1 i2 v2 H.",
+                        "VernacExtend",
+                        "6d255793be58a76a05645bb8389a430ae4a23aa6"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct gen_compiler_sound with (1 := H) as (w2 & H3 & H4).",
+                        "VernacExtend",
+                        "91c7fe015cacae19ea7ed1efca34b62062822e3d"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists w2; split; auto.",
+                        "VernacExtend",
+                        "15b3c6358437c5fc9a5f8570fe0559fb950a587e"
+                    ]
+                },
+                {
+                    "command": [
+                        "*",
+                        "VernacBullet",
+                        "8a329d054468e0c41ce333043e0978e30eed7b98"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros i1 v1 w1 j2 w2 (H1 & H2).",
+                        "VernacExtend",
+                        "1cee7043cf97ef3e4a1c77bbe6fa83a298273130"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct gen_compiler_complete with (1 := H1) (i1 := i1) as ((i3,v3) & H3).",
+                        "VernacExtend",
+                        "f02d8f9901d14da104c38986a7c08864177fec1b"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists (j2,w2); auto.",
+                        "VernacExtend",
+                        "96384b71a62c3dcd8e270a6c4c804102aa420a0b"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct gen_compiler_sound with (1 := conj H1 H3) as (w3 & H4 & H5).",
+                        "VernacExtend",
+                        "f54907d5dd9721efaf80e4e1d66648c471e0be16"
+                    ]
+                },
+                {
+                    "command": [
+                        "generalize (sss_output_fun step_Y_fun H2 H5); inversion 1.",
+                        "VernacExtend",
+                        "75730dee586519e382528756d55d5143c71947b0"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists i3, v3; auto.",
+                        "VernacExtend",
+                        "c2260c7797251fdc063cb92cb218c7c9dfe9dd98"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

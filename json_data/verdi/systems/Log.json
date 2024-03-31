@@ -1,0 +1,193 @@
+{
+    "filename": "systems/Log.v",
+    "coq_project": "verdi",
+    "vernac_cmds": [
+        [
+            "Require Import Verdi.Verdi.",
+            "VernacRequire",
+            "0e1dbcd85e6257dada3df6be709464bd18aff5ac"
+        ],
+        [
+            "Require Import Cheerios.Cheerios.",
+            "VernacRequire",
+            "16849e20c6eed40074c99fb332f1a361f701150e"
+        ],
+        [
+            "Import DeserializerNotations.",
+            "VernacImport",
+            "db3cf56ed051293d59d6bc7c090ab36d014c94e1"
+        ],
+        [
+            "Set Implicit Arguments.",
+            "VernacSetOption",
+            "9e84ff8896f028601d8aded48c1d4aebe60aa584"
+        ],
+        [
+            "Section Log.",
+            "VernacBeginSection",
+            "cf98baeff1cf609b707057322966f8a1761fae55"
+        ],
+        [
+            "Context {orig_base_params : BaseParams}.",
+            "VernacContext",
+            "69028e681894580fbc36a6124a9136decfafb159"
+        ],
+        [
+            "Context {orig_multi_params : MultiParams orig_base_params}.",
+            "VernacContext",
+            "692c0242367fb056a6bbecc097c4105250bd8749"
+        ],
+        [
+            "Context {orig_failure_params : FailureParams orig_multi_params}.",
+            "VernacContext",
+            "646ef0f7c705745674e5068bcc56f8b0696048ec"
+        ],
+        [
+            "Context {data_serializer : Serializer data}.",
+            "VernacContext",
+            "1ec49bc41eb9c7aeb63f5bcb159316239730202c"
+        ],
+        [
+            "Context {name_serializer : Serializer name}.",
+            "VernacContext",
+            "41b36f01bb002aa64c356c2f32f431e73ddd9bd0"
+        ],
+        [
+            "Context {msg_serializer : Serializer msg}.",
+            "VernacContext",
+            "adede02191a430c9b79d4cf0a92974475d033843"
+        ],
+        [
+            "Context {input_serializer : Serializer input}.",
+            "VernacContext",
+            "48888728e62c6a0ed0868a255b217712cfc8ee5d"
+        ],
+        [
+            "Variable snapshot_interval : nat.",
+            "VernacAssumption",
+            "b8fa6d72e3ef627a532890383ac24a83258e551c"
+        ],
+        [
+            "Definition entry : Type := input + (name * msg).",
+            "VernacDefinition",
+            "3b91061c4d206c0944911a1d70f4614b2fde5707"
+        ],
+        [
+            "Inductive log_files := | Count | Snapshot | Log.",
+            "VernacInductive",
+            "69e6d8739526685d697dc8d199ffaa278ea099ab"
+        ],
+        [
+            "Definition log_files_eq_dec : forall x y : log_files, {x = y} + {x <> y}.",
+            "VernacDefinition",
+            "5587100cd1a24c19b8ec53345cef984c77a919a9"
+        ],
+        [
+            "decide equality.",
+            "VernacExtend",
+            "10aba07d521545accbb51a4c2e0695a9ddce3199"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Record log_state := mk_log_state { log_num_entries : nat ; log_data : data }.",
+            "VernacInductive",
+            "fcf65ccf632bc4fa1936e364c25c50c2f9b0d0e2"
+        ],
+        [
+            "Definition log_handler_result (num_entries : nat) (e : entry) (out : list output) (d : data) (ps : list (name * msg)) := if S num_entries =? snapshot_interval then ([Delete Log; Write Snapshot (serialize d); Write Count (serialize 0)], out, mk_log_state 0 d, ps) else ([Append Log (serialize e); Write Count (serialize (S num_entries))], out, mk_log_state (S num_entries) d, ps).",
+            "VernacDefinition",
+            "036bca7315f28d7db3ab4eaac77ac40269f9e460"
+        ],
+        [
+            "Definition log_net_handlers dst src m st : list (disk_op log_files) * list output * log_state * list (name * msg) := let '(out, d, ps) := net_handlers dst src m (log_data st) in log_handler_result (log_num_entries st) (inr (src , m)) out d ps.",
+            "VernacDefinition",
+            "17c0d2f9b955de5c6614fcb2bebcd85c4e176d99"
+        ],
+        [
+            "Definition log_input_handlers h inp st : list (disk_op log_files) * list output * log_state * list (name * msg) := let '(out, d, ps) := input_handlers h inp (log_data st) in log_handler_result (log_num_entries st) (inl inp) out d ps.",
+            "VernacDefinition",
+            "491143717404e430a820a1f265455bc5734e93f5"
+        ],
+        [
+            "Instance log_base_params : BaseParams := { data := log_state ; input := input ; output := output }.",
+            "VernacInstance",
+            "bba7969a6b4500680f84cd6d9dc227bdea3df3d9"
+        ],
+        [
+            "Instance log_multi_params : DiskOpMultiParams log_base_params := { do_name := name; file_name := log_files; do_name_eq_dec := name_eq_dec; do_msg := msg; do_msg_eq_dec := msg_eq_dec; file_name_eq_dec := log_files_eq_dec; do_nodes := nodes; do_all_names_nodes := all_names_nodes; do_no_dup_nodes := no_dup_nodes; do_net_handlers := log_net_handlers; do_input_handlers := log_input_handlers }.",
+            "VernacInstance",
+            "643c8e00e80c6b077faf5b303d0e353ff5906421"
+        ],
+        [
+            "Definition channel_to_log (channel : file_name -> option IOStreamWriter.in_channel) : option (list entry * @data orig_base_params) := match channel Count, channel Log, channel Snapshot with | Some s1, Some s2, Some s3 => match from_channel deserialize s1 with | Some n => match from_channel (list_deserialize_rec _ _ n) s2 with | Some es => match from_channel deserialize s3 with | Some snap => Some (es, snap) | None => None end | None => None end | None => None end | _, _, _ => None end.",
+            "VernacDefinition",
+            "93fe92f074a9d3f05849d22dcc4707a1eb8bef24"
+        ],
+        [
+            "Definition apply_entry h d e := match e with | inl inp => let '(_, d', _) := input_handlers h inp d in d' | inr (src, m) => let '(_, d', _) := net_handlers h src m d in d' end.",
+            "VernacDefinition",
+            "bdb7abe7b6946a5284ac7e775a04dbe5a36d37be"
+        ],
+        [
+            "Definition apply_log h (d : @data orig_base_params) (entries : list entry) : @data orig_base_params := fold_left (apply_entry h) entries d.",
+            "VernacDefinition",
+            "27dffd694b9ea703e81d4118625e4598f261ad0a"
+        ],
+        [
+            "Definition do_log_reboot (h : do_name) (w : log_files -> option IOStreamWriter.in_channel) : data * list (disk_op log_files) := let d := match channel_to_log w with | Some (es, d) => reboot (apply_log h d es) | None => init_handlers h end in (mk_log_state 0 d, [Delete Log; Write Snapshot (serialize d); Write Count (serialize 0)]).",
+            "VernacDefinition",
+            "fba99ff98d1810fd57230020b2eb482d4e55b11b"
+        ],
+        [
+            "Instance log_failure_params : DiskOpFailureParams log_multi_params := { do_reboot := do_log_reboot }.",
+            "VernacInstance",
+            "b815ffa771192c3c608a68a8cf5ece6dad3261c0"
+        ],
+        [
+            "End Log.",
+            "VernacEndSegment",
+            "71c1477d4e2d766c237fb54c24f4b24d0df46c2f"
+        ],
+        [
+            "Hint Extern 5 (@BaseParams) => apply log_base_params : typeclass_instances.",
+            "VernacHints",
+            "fb187a493996869beac910d880b27b86d0573470"
+        ],
+        [
+            "Hint Extern 5 (@DiskOpMultiParams _) => apply log_multi_params : typeclass_instances.",
+            "VernacHints",
+            "cb1d49b3d541d6dd288120877e51193134f45509"
+        ],
+        [
+            "Hint Extern 5 (@DiskOpFailureParams _ _) => apply log_failure_params : typeclass_instances.",
+            "VernacHints",
+            "d9fd6fbd70e33677b8b32eb9a75a6990894ce321"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "log_files_eq_dec",
+            "line_nb": 15,
+            "steps": [
+                {
+                    "command": [
+                        "decide equality.",
+                        "VernacExtend",
+                        "10aba07d521545accbb51a4c2e0695a9ddce3199"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        }
+    ]
+}

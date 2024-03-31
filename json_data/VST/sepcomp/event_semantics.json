@@ -1,0 +1,4835 @@
+{
+    "filename": "sepcomp/event_semantics.v",
+    "coq_project": "VST",
+    "vernac_cmds": [
+        [
+            "Require Import compcert.lib.Coqlib.",
+            "VernacRequire",
+            "0e8012a6c0062230df0c959370d96e0e84eae6bb"
+        ],
+        [
+            "Require Import compcert.lib.Maps.",
+            "VernacRequire",
+            "26c63953d85f7ad9c2666fdc8a1e61132cc296ac"
+        ],
+        [
+            "Require Import compcert.lib.Integers.",
+            "VernacRequire",
+            "0da1bf41e581d14cf922c3b0e0da86b37eba58b1"
+        ],
+        [
+            "Require Import compcert.common.Values.",
+            "VernacRequire",
+            "775d93857ac31b6b7ea7c564f3005cd032b058e4"
+        ],
+        [
+            "Require Import compcert.common.Memory.",
+            "VernacRequire",
+            "1bcc8a48806b43e63931d2d9d9db00d32c04ecd3"
+        ],
+        [
+            "Require Import compcert.common.Events.",
+            "VernacRequire",
+            "01769267d70377c3b32fc2ee4c817e37e70fbe77"
+        ],
+        [
+            "Require Import compcert.common.AST.",
+            "VernacRequire",
+            "736cc8fb6e99f68efba7c58bdf7b2370507d5002"
+        ],
+        [
+            "Require Import compcert.common.Globalenvs.",
+            "VernacRequire",
+            "19e3823b22beaaafca00973760a7b196c05f250f"
+        ],
+        [
+            "Require Import VST.msl.Extensionality.",
+            "VernacRequire",
+            "d43c56d815451e20eca5a50b2225b539844939c0"
+        ],
+        [
+            "Require Import VST.sepcomp.mem_lemmas.",
+            "VernacRequire",
+            "7393c5e519a442929c8652f31f16011286768526"
+        ],
+        [
+            "Require Import VST.sepcomp.semantics.",
+            "VernacRequire",
+            "a2be15457f8bb984f06f0e1c749919cf8e319def"
+        ],
+        [
+            "Require Import VST.sepcomp.semantics_lemmas.",
+            "VernacRequire",
+            "6d02f97bdf7968a14093643c3ba44de71ca181ad"
+        ],
+        [
+            "Inductive mem_event := Write : forall (b : block) (ofs : Z) (bytes : list memval), mem_event | Read : forall (b:block) (ofs n:Z) (bytes: list memval), mem_event | Alloc: forall (b:block)(lo hi:Z), mem_event | Free: forall (l: list (block * Z * Z)), mem_event.",
+            "VernacInductive",
+            "01839df3767fe0c0e299c87858fbb9eee43c0d17"
+        ],
+        [
+            "Fixpoint ev_elim (m:mem) (T: list mem_event) (m':mem):Prop := match T with nil => m'=m | (Read b ofs n bytes :: R) => Mem.loadbytes m b ofs n = Some bytes /\\ ev_elim m R m' | (Write b ofs bytes :: R) => exists m'', Mem.storebytes m b ofs bytes = Some m'' /\\ ev_elim m'' R m' | (Alloc b lo hi :: R) => exists m'', Mem.alloc m lo hi = (m'',b) /\\ ev_elim m'' R m' | (Free l :: R) => exists m'', Mem.free_list m l = Some m'' /\\ ev_elim m'' R m' end.",
+            "VernacFixpoint",
+            "3363038fbc7a6a5f310c1423d080958aac1ac741"
+        ],
+        [
+            "Definition pmax (popt qopt: option permission): option permission := match popt, qopt with _, None => popt | None, _ => qopt | Some p, Some q => if Mem.perm_order_dec p q then Some p else Some q end.",
+            "VernacDefinition",
+            "5a1d8a9fe4dc999a269f309b6c6511aae8008d67"
+        ],
+        [
+            "Lemma po_pmax_I p q1 q2: Mem.perm_order'' p q1 -> Mem.perm_order'' p q2 -> Mem.perm_order'' p (pmax q1 q2).",
+            "VernacStartTheoremProof",
+            "410c53099e5a2c4f45182ea1ef476721e232c91b"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "destruct q1; destruct q2; simpl in *; trivial.",
+            "VernacExtend",
+            "b41021b7a3ea517f9aad8ed212b60b4bc5a6719c"
+        ],
+        [
+            "destruct (Mem.perm_order_dec p0 p1); trivial.",
+            "VernacExtend",
+            "0082572de986b89b8103d4828a87eacf6fc21fc1"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Fixpoint cur_perm (l: block * Z) (T: list mem_event): option permission := match T with nil => None | (mu :: R) => let popt := cur_perm l R in match mu, l with | (Read b ofs n bytes), (b',ofs') => pmax (if eq_block b b' && zle ofs ofs' && zlt ofs' (ofs+n) then Some Readable else None) popt | (Write b ofs bytes), (b',ofs') => pmax (if eq_block b b' && zle ofs ofs' && zlt ofs' (ofs+ Zlength bytes) then Some Writable else None) popt | (Alloc b lo hi), (b',ofs') => if eq_block b b' then None else popt | (Free l), (b',ofs') => List.fold_right (fun tr qopt => match tr with (b,lo,hi) => if eq_block b b' && zle lo ofs' && zlt ofs' hi then Some Freeable else qopt end) popt l end end.",
+            "VernacFixpoint",
+            "77ec5de71394e3e0ac9a7728394c41713c7fd72c"
+        ],
+        [
+            "Lemma po_None popt: Mem.perm_order'' popt None.",
+            "VernacStartTheoremProof",
+            "093e7f1d15cc4e49cf6be2027df5a2c970756696"
+        ],
+        [
+            "destruct popt; simpl; trivial.",
+            "VernacExtend",
+            "5ba889fe66f1dc2fa683d8abe936c3a19f1a99ad"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma ev_perm b ofs: forall T m m', ev_elim m T m' -> Mem.perm_order'' ((Mem.mem_access m) !! b ofs Cur) (cur_perm (b,ofs) T).",
+            "VernacStartTheoremProof",
+            "95c565fae043b31ad670da71c5871fb7d7b8018e"
+        ],
+        [
+            "induction T; simpl; intros.",
+            "VernacExtend",
+            "0dda4d317199719d77f40b96ed8762616a1344e4"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "apply po_None.",
+            "VernacExtend",
+            "083fb67f99a6608789c530728149b5a2bd80981d"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct a.",
+            "VernacExtend",
+            "3f53f61a7882a1bcc65ff705b5afc6c02a0dddf5"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct H as [m'' [SB EV]].",
+            "VernacExtend",
+            "17a3c1827f5367d910fbb9e6142e32c92c04e91f"
+        ],
+        [
+            "specialize (IHT _ _ EV); clear EV.",
+            "VernacExtend",
+            "31d751ff1d0318ef9b70f09d1f11367f081d7ed1"
+        ],
+        [
+            "rewrite (Mem.storebytes_access _ _ _ _ _ SB) in *.",
+            "VernacExtend",
+            "6b7189fb2c5068b04c979cefddfcd4dfcd36fee3"
+        ],
+        [
+            "eapply po_pmax_I; try eassumption.",
+            "VernacExtend",
+            "d569aab655299a79b38db0ce47d494c687506227"
+        ],
+        [
+            "remember (eq_block b0 b && zle ofs0 ofs && zlt ofs (ofs0 + Zlength bytes)) as d.",
+            "VernacExtend",
+            "f8a5186b78820e726e606148335d40bf4636d1e6"
+        ],
+        [
+            "destruct d; try solve [apply po_None].",
+            "VernacExtend",
+            "cd42416e6c62ab0fe54e596642de870c92cb0826"
+        ],
+        [
+            "destruct (eq_block b0 b); simpl in *; try discriminate.",
+            "VernacExtend",
+            "a05bf75ba2766e201445f5cf2fd3e8f21a331ea8"
+        ],
+        [
+            "destruct (zle ofs0 ofs); simpl in *; try discriminate.",
+            "VernacExtend",
+            "51710f0abf7e8ae872a4ffc3b3deedc13a3c5965"
+        ],
+        [
+            "destruct (zlt ofs (ofs0 + Zlength bytes)); simpl in *; try discriminate.",
+            "VernacExtend",
+            "4304c7a9a94aca237f6a850b081310428f1d8011"
+        ],
+        [
+            "rewrite Zlength_correct in *.",
+            "VernacExtend",
+            "cd6681f42bfd1eeb8973da267ab3773501f5a083"
+        ],
+        [
+            "apply Mem.storebytes_range_perm in SB.",
+            "VernacExtend",
+            "aa8011833cc85bcb6bca429b3545311285ac34b3"
+        ],
+        [
+            "exploit (SB ofs); try omega.",
+            "VernacExtend",
+            "f165b61a8bc0dc8351e9a150c1969faa283cc6d1"
+        ],
+        [
+            "intros; subst; assumption.",
+            "VernacExtend",
+            "732464341b6d67564bcbff417546f0660477ecd7"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct H as [LB EV].",
+            "VernacExtend",
+            "c5825e66eae28f1df2d8c10cfce78aafcf9ea1b5"
+        ],
+        [
+            "specialize (IHT _ _ EV); clear EV.",
+            "VernacExtend",
+            "31d751ff1d0318ef9b70f09d1f11367f081d7ed1"
+        ],
+        [
+            "eapply po_pmax_I; try eassumption.",
+            "VernacExtend",
+            "d569aab655299a79b38db0ce47d494c687506227"
+        ],
+        [
+            "remember (eq_block b0 b && zle ofs0 ofs && zlt ofs (ofs0 + n)) as d.",
+            "VernacExtend",
+            "ef88a4fc71b89e3bd3e8b52e5af1d9d426eb8fb3"
+        ],
+        [
+            "destruct d; try solve [apply po_None].",
+            "VernacExtend",
+            "cd42416e6c62ab0fe54e596642de870c92cb0826"
+        ],
+        [
+            "destruct (eq_block b0 b); simpl in *; try discriminate.",
+            "VernacExtend",
+            "a05bf75ba2766e201445f5cf2fd3e8f21a331ea8"
+        ],
+        [
+            "destruct (zle ofs0 ofs); simpl in *; try discriminate.",
+            "VernacExtend",
+            "51710f0abf7e8ae872a4ffc3b3deedc13a3c5965"
+        ],
+        [
+            "destruct (zlt ofs (ofs0 + n)); simpl in *; try discriminate.",
+            "VernacExtend",
+            "6f7be603318d4607202753d4e03801e7666a4301"
+        ],
+        [
+            "apply Mem.loadbytes_range_perm in LB.",
+            "VernacExtend",
+            "d2d865bb5e24a8eb80430c61df114cd21f3ae1c1"
+        ],
+        [
+            "exploit (LB ofs); try omega.",
+            "VernacExtend",
+            "dd85d63f31523f0bc0113203ea90e57bb1e6456c"
+        ],
+        [
+            "intros; subst; assumption.",
+            "VernacExtend",
+            "732464341b6d67564bcbff417546f0660477ecd7"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct H as [m'' [ALLOC EV]].",
+            "VernacExtend",
+            "5f51a6d5c81eacdf6b5391ad611eae1e1ddf561c"
+        ],
+        [
+            "specialize (IHT _ _ EV); clear EV.",
+            "VernacExtend",
+            "31d751ff1d0318ef9b70f09d1f11367f081d7ed1"
+        ],
+        [
+            "destruct (eq_block b0 b); subst; try solve [apply po_None].",
+            "VernacExtend",
+            "7c7887b31818c8586f84b73e18fe935dc20746d3"
+        ],
+        [
+            "eapply po_trans; try eassumption.",
+            "VernacExtend",
+            "a58a0ad35b56fd06a438eaf837e4344fb1f5ff5b"
+        ],
+        [
+            "remember ((Mem.mem_access m'') !! b ofs Cur) as d.",
+            "VernacExtend",
+            "7ef1bf57c1e3534329d7f37b8461e2cce249891f"
+        ],
+        [
+            "destruct d; try solve [apply po_None].",
+            "VernacExtend",
+            "cd42416e6c62ab0fe54e596642de870c92cb0826"
+        ],
+        [
+            "symmetry in Heqd.",
+            "VernacExtend",
+            "9930b3f96aca8439c2f2669895b84bd20e617b34"
+        ],
+        [
+            "apply (Mem.perm_alloc_4 _ _ _ _ _ ALLOC b ofs Cur p).",
+            "VernacExtend",
+            "b318381d23acf7e4b12ed24376eec794d00cca13"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "unfold Mem.perm; rewrite Heqd.",
+            "VernacExtend",
+            "5812c8b63f9c14ffcaeda8eb15237230904a1349"
+        ],
+        [
+            "destruct p; simpl; constructor.",
+            "VernacExtend",
+            "9b1b9c25546d95450408df0b033532e9c373b004"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "intros N; subst; elim n; trivial.",
+            "VernacExtend",
+            "cff30085ecf7ba78eaaba3dcec2aad644eaa695d"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct H as [m'' [FR EV]].",
+            "VernacExtend",
+            "8a145db0ba937f547877b16f77283776f5a8c2a5"
+        ],
+        [
+            "specialize (IHT _ _ EV); clear EV.",
+            "VernacExtend",
+            "31d751ff1d0318ef9b70f09d1f11367f081d7ed1"
+        ],
+        [
+            "generalize dependent m.",
+            "VernacExtend",
+            "cb5344e7f2b46935cd228d14255cfa5d2837cf33"
+        ],
+        [
+            "induction l; simpl; intros.",
+            "VernacExtend",
+            "34e9ea5965da389dfe8faf53c8ea4965d4fdcc22"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "inv FR.",
+            "VernacExtend",
+            "3585a84f91e9a96e0e9e412371639e49de1c3c54"
+        ],
+        [
+            "assumption.",
+            "VernacExtend",
+            "41f0308313ff87e6ab2782f90d6021ec4b55d932"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "destruct a as [[bb lo] hi].",
+            "VernacExtend",
+            "00699075bb9bcd9292d6e554c933f01e4ed60c3d"
+        ],
+        [
+            "remember (Mem.free m bb lo hi) as p.",
+            "VernacExtend",
+            "f7200da8bff4bc6b9a1ca47842b3be04703984f2"
+        ],
+        [
+            "destruct p; inv FR; symmetry in Heqp.",
+            "VernacExtend",
+            "b4bb72b501113b331544404c69760ed913cedacb"
+        ],
+        [
+            "specialize (IHl _ H0).",
+            "VernacExtend",
+            "0bd53fd242f673a641be9915aca1ff96b7509a3f"
+        ],
+        [
+            "remember (eq_block bb b && zle lo ofs && zlt ofs hi) as d.",
+            "VernacExtend",
+            "dbdd52bd54c2ff5ec13eba5adf7d20ff5c99d25c"
+        ],
+        [
+            "destruct d.",
+            "VernacExtend",
+            "1a5a5ee8e6606716052625637ceedc06cdd2cb87"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "clear - Heqp Heqd.",
+            "VernacExtend",
+            "fbf5791baafecffbce934afc539db46a1e9cdda8"
+        ],
+        [
+            "apply Mem.free_range_perm in Heqp.",
+            "VernacExtend",
+            "da37a1909f9865fd75e86b91eca2ce8b54ce0c7d"
+        ],
+        [
+            "destruct (eq_block bb b); simpl in Heqd; inv Heqd.",
+            "VernacExtend",
+            "0ec84dcdfa5ebc49dd902571057f63e385ca9d85"
+        ],
+        [
+            "exploit (Heqp ofs); clear Heqp; trivial.",
+            "VernacExtend",
+            "2dabb1fd3575bd378afb0bc75d8f6846a44164f6"
+        ],
+        [
+            "destruct (zle lo ofs); try discriminate.",
+            "VernacExtend",
+            "4382b4c86254bf82a8bd800ec26e9376bc296be7"
+        ],
+        [
+            "destruct (zlt ofs hi); try discriminate.",
+            "VernacExtend",
+            "4a8a018be0496d3750c5e087aad0c359fb65f113"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "eapply po_trans; try eassumption.",
+            "VernacExtend",
+            "a58a0ad35b56fd06a438eaf837e4344fb1f5ff5b"
+        ],
+        [
+            "clear - Heqp.",
+            "VernacExtend",
+            "1f9a79039259252270124700c002da287a45a898"
+        ],
+        [
+            "remember ((Mem.mem_access m0) !! b ofs Cur) as perm2.",
+            "VernacExtend",
+            "3b1b4701e70c0386bc1bf1ab9eb6038bbbe8ebde"
+        ],
+        [
+            "destruct perm2; try solve [apply po_None].",
+            "VernacExtend",
+            "e0e27bf19b38a4ecd1bc99feaf0bcaed7be117df"
+        ],
+        [
+            "exploit (Mem.perm_free_3 _ _ _ _ _ Heqp); unfold Mem.perm.",
+            "VernacExtend",
+            "da5c053d480e33f4186540e3f5b7dd9932e89886"
+        ],
+        [
+            "rewrite <- Heqperm2.",
+            "VernacExtend",
+            "ebafc02da648bb03df9e157540e7d0478e3de7ae"
+        ],
+        [
+            "apply perm_refl.",
+            "VernacExtend",
+            "c9924b8118505b42e4a68782b991f72d43440838"
+        ],
+        [
+            "simpl; trivial.",
+            "VernacExtend",
+            "700c92fe710eacabdba1c0df7cd3aac36ec19aa1"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma ev_elim_app: forall T1 m1 m2 (EV1:ev_elim m1 T1 m2) T2 m3 (EV2: ev_elim m2 T2 m3), ev_elim m1 (T1++T2) m3.",
+            "VernacStartTheoremProof",
+            "b8fe5eabf7841782f29decd2291895a1e389a0d5"
+        ],
+        [
+            "induction T1; simpl; intros; subst; trivial.",
+            "VernacExtend",
+            "d3c910098f43f7fd11141ff028cf636c04f3383b"
+        ],
+        [
+            "destruct a.",
+            "VernacExtend",
+            "3f53f61a7882a1bcc65ff705b5afc6c02a0dddf5"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct EV1 as [mm [SB EV]].",
+            "VernacExtend",
+            "78c54ff6f7bb8b9310d6d59a25a31a1c1226165b"
+        ],
+        [
+            "specialize (IHT1 _ _ EV _ _ EV2).",
+            "VernacExtend",
+            "2b9807de1f745bd5de7a1b5912598fa1f74aff47"
+        ],
+        [
+            "exists mm; split; trivial.",
+            "VernacExtend",
+            "9193c5d1ec235b09000d2a8e1058b1232d391b87"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct EV1 as [LB EV].",
+            "VernacExtend",
+            "02b7af5c8011282bb43cf4303a38ad4d3a0074cf"
+        ],
+        [
+            "specialize (IHT1 _ _ EV _ _ EV2).",
+            "VernacExtend",
+            "2b9807de1f745bd5de7a1b5912598fa1f74aff47"
+        ],
+        [
+            "split; trivial.",
+            "VernacExtend",
+            "51e6eaa57561ac50797e703222408862cfba3b15"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct EV1 as [mm [AL EV]].",
+            "VernacExtend",
+            "8278dd1327b36af2c8b6abd74cb83f71bd74a414"
+        ],
+        [
+            "specialize (IHT1 _ _ EV _ _ EV2).",
+            "VernacExtend",
+            "2b9807de1f745bd5de7a1b5912598fa1f74aff47"
+        ],
+        [
+            "exists mm; split; trivial.",
+            "VernacExtend",
+            "9193c5d1ec235b09000d2a8e1058b1232d391b87"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct EV1 as [mm [FL EV]].",
+            "VernacExtend",
+            "dd313504690d907c8b0292b11300e1a863ef46b6"
+        ],
+        [
+            "specialize (IHT1 _ _ EV _ _ EV2).",
+            "VernacExtend",
+            "2b9807de1f745bd5de7a1b5912598fa1f74aff47"
+        ],
+        [
+            "exists mm; split; trivial.",
+            "VernacExtend",
+            "9193c5d1ec235b09000d2a8e1058b1232d391b87"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma ev_elim_split: forall T1 T2 m1 m3 (EV1:ev_elim m1 (T1++T2) m3), exists m2, ev_elim m1 T1 m2 /\\ ev_elim m2 T2 m3.",
+            "VernacStartTheoremProof",
+            "89d2d9a323b2b348cf05dd5362cefb36eb7c85c2"
+        ],
+        [
+            "induction T1; simpl; intros.",
+            "VernacExtend",
+            "24dc952340bed91ad0f5d179308541c87445fa2c"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "exists m1; split; trivial.",
+            "VernacExtend",
+            "d3cbf383ab24787901209bb897d96060077aa579"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct a.",
+            "VernacExtend",
+            "3f53f61a7882a1bcc65ff705b5afc6c02a0dddf5"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct EV1 as [mm [SB EV]].",
+            "VernacExtend",
+            "78c54ff6f7bb8b9310d6d59a25a31a1c1226165b"
+        ],
+        [
+            "destruct (IHT1 _ _ _ EV) as [m2 [EV1 EV2]].",
+            "VernacExtend",
+            "aff58202f6b66a6bacf78887584d9d4b18134b93"
+        ],
+        [
+            "exists m2; split; trivial.",
+            "VernacExtend",
+            "683efc2cd4599c316113a657381068dccd88eebe"
+        ],
+        [
+            "exists mm; split; trivial.",
+            "VernacExtend",
+            "9193c5d1ec235b09000d2a8e1058b1232d391b87"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct EV1 as [LB EV].",
+            "VernacExtend",
+            "02b7af5c8011282bb43cf4303a38ad4d3a0074cf"
+        ],
+        [
+            "destruct (IHT1 _ _ _ EV) as [m2 [EV1 EV2]].",
+            "VernacExtend",
+            "aff58202f6b66a6bacf78887584d9d4b18134b93"
+        ],
+        [
+            "exists m2; split; trivial.",
+            "VernacExtend",
+            "683efc2cd4599c316113a657381068dccd88eebe"
+        ],
+        [
+            "split; trivial.",
+            "VernacExtend",
+            "51e6eaa57561ac50797e703222408862cfba3b15"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct EV1 as [mm [AL EV]].",
+            "VernacExtend",
+            "8278dd1327b36af2c8b6abd74cb83f71bd74a414"
+        ],
+        [
+            "destruct (IHT1 _ _ _ EV) as [m2 [EV1 EV2]].",
+            "VernacExtend",
+            "aff58202f6b66a6bacf78887584d9d4b18134b93"
+        ],
+        [
+            "exists m2; split; trivial.",
+            "VernacExtend",
+            "683efc2cd4599c316113a657381068dccd88eebe"
+        ],
+        [
+            "exists mm; split; trivial.",
+            "VernacExtend",
+            "9193c5d1ec235b09000d2a8e1058b1232d391b87"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct EV1 as [mm [SB EV]].",
+            "VernacExtend",
+            "78c54ff6f7bb8b9310d6d59a25a31a1c1226165b"
+        ],
+        [
+            "destruct (IHT1 _ _ _ EV) as [m2 [EV1 EV2]].",
+            "VernacExtend",
+            "aff58202f6b66a6bacf78887584d9d4b18134b93"
+        ],
+        [
+            "exists m2; split; trivial.",
+            "VernacExtend",
+            "683efc2cd4599c316113a657381068dccd88eebe"
+        ],
+        [
+            "exists mm; split; trivial.",
+            "VernacExtend",
+            "9193c5d1ec235b09000d2a8e1058b1232d391b87"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Record EvSem {C} := { msem :> @MemSem C ; ev_step: C -> mem -> list mem_event -> C -> mem -> Prop ; ev_step_ax1: forall c m T c' m', ev_step c m T c' m' -> corestep msem c m c' m' ; ev_step_ax2: forall c m c' m', corestep msem c m c' m' -> exists T, ev_step c m T c' m' ; ev_step_fun: forall c m T' c' m' T'' c'' m'', ev_step c m T' c' m' -> ev_step c m T'' c'' m'' -> T'=T'' ; ev_step_elim: forall c m T c' m' (STEP: ev_step c m T c' m'), ev_elim m T m' }.",
+            "VernacInductive",
+            "e45c29ed31b6bdd2f6811cb7ecaab68c09d53ed4"
+        ],
+        [
+            "Lemma Ev_sem_cur_perm {C} (R: @EvSem C) c m T c' m' b ofs (D: ev_step R c m T c' m'): Mem.perm_order'' ((Mem.mem_access m) !! b ofs Cur) (cur_perm (b,ofs) T).",
+            "VernacStartTheoremProof",
+            "21ed6695ded8e48dcba90d2d4d073d32ade2a865"
+        ],
+        [
+            "eapply ev_perm.",
+            "VernacExtend",
+            "fd9f9428b55ad52756b9bc8b372224ab6c1f59a5"
+        ],
+        [
+            "eapply ev_step_elim; eassumption.",
+            "VernacExtend",
+            "0994c31eec2f528257b89936437ed04f235fb8cf"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Require Import List.",
+            "VernacRequire",
+            "d9bcce4a390afeb160107bf87c6f7abe3d82c6d6"
+        ],
+        [
+            "Import ListNotations.",
+            "VernacImport",
+            "52647db2a3b752153a8cbd37039246f200bccdee"
+        ],
+        [
+            "Definition in_free_list (b : block) ofs xs := exists x, List.In x xs /\\ let '(b', lo, hi) := x in b = b' /\\ (lo <= ofs < hi)%Z.",
+            "VernacDefinition",
+            "37e367fd49012d0b457b85ea0743a8cf1711c088"
+        ],
+        [
+            "Fixpoint in_free_list_trace (b : block) ofs es := match es with | Free l :: es => in_free_list b ofs l \\/ in_free_list_trace b ofs es | _ :: es => in_free_list_trace b ofs es | nil => False end.",
+            "VernacFixpoint",
+            "09a805296bfad1549633efb2b3ccaabe5f0ffc97"
+        ],
+        [
+            "Lemma EFLT_char es: forall b ofs, in_free_list_trace b ofs es <-> exists l lo hi, In (Free l) es /\\ In ((b, lo), hi) l /\\ lo <= ofs < hi.",
+            "VernacStartTheoremProof",
+            "c05fff0fb0e45486f92d94ef0f30346bf5d4cac6"
+        ],
+        [
+            "induction es; simpl.",
+            "VernacExtend",
+            "9b46fd0c2846dfa8ce3c642a20d1cbca190a7694"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "split; intros; try contradiction.",
+            "VernacExtend",
+            "573c56b6725acc559cd9b20831532b764cca4319"
+        ],
+        [
+            "destruct H as [? [? [? [? ?]]]].",
+            "VernacExtend",
+            "b2f33e8526a19665b0d2a326b80f233c5f5fa276"
+        ],
+        [
+            "contradiction.",
+            "VernacExtend",
+            "9b6a5c45e1144cbbccd544effb2a97082518704a"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct a.",
+            "VernacExtend",
+            "3f53f61a7882a1bcc65ff705b5afc6c02a0dddf5"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "destruct (IHes b ofs).",
+            "VernacExtend",
+            "e226b8845503d33190c682144a69d6bd7a304638"
+        ],
+        [
+            "split; intros.",
+            "VernacExtend",
+            "3c0a2af2969d0c39838e9010244dfd28201b7f3e"
+        ],
+        [
+            "++",
+            "VernacBullet",
+            "cac3e4fa1e090b315e8d0c45d2700cf7c59ed246"
+        ],
+        [
+            "destruct (H H1) as [? [? [? [? ?]]]].",
+            "VernacExtend",
+            "52727ea6dc3b4bc05845277fe11efe2c595e299b"
+        ],
+        [
+            "eexists; eexists; eexists.",
+            "VernacExtend",
+            "d89d6edb197d6ff411ec31d19c70d1555239b747"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "right.",
+            "VernacExtend",
+            "27e417a3497755767e1a1d6ba87753ecddaee6b7"
+        ],
+        [
+            "apply H2.",
+            "VernacExtend",
+            "17101978526a14fb5ad41816224a2fc35cc3d256"
+        ],
+        [
+            "apply H3.",
+            "VernacExtend",
+            "fa1602da0db2a348e9fad204067364eaad2a120f"
+        ],
+        [
+            "++",
+            "VernacBullet",
+            "cac3e4fa1e090b315e8d0c45d2700cf7c59ed246"
+        ],
+        [
+            "destruct H1 as [? [? [? [? ?]]]].",
+            "VernacExtend",
+            "08d9ff2ac5b2b81963cead4c5dd41f9ef62043c6"
+        ],
+        [
+            "destruct H1.",
+            "VernacExtend",
+            "e752c2122f55c888e09082f784a6da990b01fbe7"
+        ],
+        [
+            "discriminate.",
+            "VernacExtend",
+            "66ca81b65e1a53372a2515fdfdd2a6b0677cb9c8"
+        ],
+        [
+            "apply H0.",
+            "VernacExtend",
+            "c75b3371fc84f2aae811de7e80b1bdb43e4d249a"
+        ],
+        [
+            "eexists; eexists; eexists.",
+            "VernacExtend",
+            "d89d6edb197d6ff411ec31d19c70d1555239b747"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "eassumption.",
+            "VernacExtend",
+            "909bfe8655bf95c07560744f733991163ce6cf7e"
+        ],
+        [
+            "apply H2.",
+            "VernacExtend",
+            "17101978526a14fb5ad41816224a2fc35cc3d256"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "destruct (IHes b ofs).",
+            "VernacExtend",
+            "e226b8845503d33190c682144a69d6bd7a304638"
+        ],
+        [
+            "split; intros.",
+            "VernacExtend",
+            "3c0a2af2969d0c39838e9010244dfd28201b7f3e"
+        ],
+        [
+            "++",
+            "VernacBullet",
+            "cac3e4fa1e090b315e8d0c45d2700cf7c59ed246"
+        ],
+        [
+            "destruct (H H1) as [? [? [? [? ?]]]].",
+            "VernacExtend",
+            "52727ea6dc3b4bc05845277fe11efe2c595e299b"
+        ],
+        [
+            "eexists; eexists; eexists.",
+            "VernacExtend",
+            "d89d6edb197d6ff411ec31d19c70d1555239b747"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "right.",
+            "VernacExtend",
+            "27e417a3497755767e1a1d6ba87753ecddaee6b7"
+        ],
+        [
+            "apply H2.",
+            "VernacExtend",
+            "17101978526a14fb5ad41816224a2fc35cc3d256"
+        ],
+        [
+            "apply H3.",
+            "VernacExtend",
+            "fa1602da0db2a348e9fad204067364eaad2a120f"
+        ],
+        [
+            "++",
+            "VernacBullet",
+            "cac3e4fa1e090b315e8d0c45d2700cf7c59ed246"
+        ],
+        [
+            "destruct H1 as [? [? [? [? ?]]]].",
+            "VernacExtend",
+            "08d9ff2ac5b2b81963cead4c5dd41f9ef62043c6"
+        ],
+        [
+            "destruct H1.",
+            "VernacExtend",
+            "e752c2122f55c888e09082f784a6da990b01fbe7"
+        ],
+        [
+            "discriminate.",
+            "VernacExtend",
+            "66ca81b65e1a53372a2515fdfdd2a6b0677cb9c8"
+        ],
+        [
+            "apply H0.",
+            "VernacExtend",
+            "c75b3371fc84f2aae811de7e80b1bdb43e4d249a"
+        ],
+        [
+            "eexists; eexists; eexists.",
+            "VernacExtend",
+            "d89d6edb197d6ff411ec31d19c70d1555239b747"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "eassumption.",
+            "VernacExtend",
+            "909bfe8655bf95c07560744f733991163ce6cf7e"
+        ],
+        [
+            "apply H2.",
+            "VernacExtend",
+            "17101978526a14fb5ad41816224a2fc35cc3d256"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "destruct (IHes b ofs).",
+            "VernacExtend",
+            "e226b8845503d33190c682144a69d6bd7a304638"
+        ],
+        [
+            "split; intros.",
+            "VernacExtend",
+            "3c0a2af2969d0c39838e9010244dfd28201b7f3e"
+        ],
+        [
+            "++",
+            "VernacBullet",
+            "cac3e4fa1e090b315e8d0c45d2700cf7c59ed246"
+        ],
+        [
+            "destruct (H H1) as [? [? [? [? ?]]]].",
+            "VernacExtend",
+            "52727ea6dc3b4bc05845277fe11efe2c595e299b"
+        ],
+        [
+            "eexists; eexists; eexists.",
+            "VernacExtend",
+            "d89d6edb197d6ff411ec31d19c70d1555239b747"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "right.",
+            "VernacExtend",
+            "27e417a3497755767e1a1d6ba87753ecddaee6b7"
+        ],
+        [
+            "apply H2.",
+            "VernacExtend",
+            "17101978526a14fb5ad41816224a2fc35cc3d256"
+        ],
+        [
+            "apply H3.",
+            "VernacExtend",
+            "fa1602da0db2a348e9fad204067364eaad2a120f"
+        ],
+        [
+            "++",
+            "VernacBullet",
+            "cac3e4fa1e090b315e8d0c45d2700cf7c59ed246"
+        ],
+        [
+            "destruct H1 as [? [? [? [? ?]]]].",
+            "VernacExtend",
+            "08d9ff2ac5b2b81963cead4c5dd41f9ef62043c6"
+        ],
+        [
+            "destruct H1.",
+            "VernacExtend",
+            "e752c2122f55c888e09082f784a6da990b01fbe7"
+        ],
+        [
+            "discriminate.",
+            "VernacExtend",
+            "66ca81b65e1a53372a2515fdfdd2a6b0677cb9c8"
+        ],
+        [
+            "apply H0.",
+            "VernacExtend",
+            "c75b3371fc84f2aae811de7e80b1bdb43e4d249a"
+        ],
+        [
+            "eexists; eexists; eexists.",
+            "VernacExtend",
+            "d89d6edb197d6ff411ec31d19c70d1555239b747"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "eassumption.",
+            "VernacExtend",
+            "909bfe8655bf95c07560744f733991163ce6cf7e"
+        ],
+        [
+            "apply H2.",
+            "VernacExtend",
+            "17101978526a14fb5ad41816224a2fc35cc3d256"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "destruct (IHes b ofs).",
+            "VernacExtend",
+            "e226b8845503d33190c682144a69d6bd7a304638"
+        ],
+        [
+            "split; intros.",
+            "VernacExtend",
+            "3c0a2af2969d0c39838e9010244dfd28201b7f3e"
+        ],
+        [
+            "++",
+            "VernacBullet",
+            "cac3e4fa1e090b315e8d0c45d2700cf7c59ed246"
+        ],
+        [
+            "destruct H1.",
+            "VernacExtend",
+            "e752c2122f55c888e09082f784a6da990b01fbe7"
+        ],
+        [
+            "destruct H1 as [[[? ?] ?] [? [? ?]]]; subst b0.",
+            "VernacExtend",
+            "222dca91fe1f3002afe8a7111b4b53b3a5f170d1"
+        ],
+        [
+            "exists l, z, z0.",
+            "VernacExtend",
+            "1d5ee90a98180a8aa7cbfbbeefc4966aeee254dd"
+        ],
+        [
+            "split; eauto.",
+            "VernacExtend",
+            "f3520b20a884376c5c10e2f9e716eedc86a566b6"
+        ],
+        [
+            "destruct (H H1) as [? [? [? [? ?]]]].",
+            "VernacExtend",
+            "52727ea6dc3b4bc05845277fe11efe2c595e299b"
+        ],
+        [
+            "eexists; eexists; eexists.",
+            "VernacExtend",
+            "d89d6edb197d6ff411ec31d19c70d1555239b747"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "right.",
+            "VernacExtend",
+            "27e417a3497755767e1a1d6ba87753ecddaee6b7"
+        ],
+        [
+            "apply H2.",
+            "VernacExtend",
+            "17101978526a14fb5ad41816224a2fc35cc3d256"
+        ],
+        [
+            "apply H3.",
+            "VernacExtend",
+            "fa1602da0db2a348e9fad204067364eaad2a120f"
+        ],
+        [
+            "++",
+            "VernacBullet",
+            "cac3e4fa1e090b315e8d0c45d2700cf7c59ed246"
+        ],
+        [
+            "destruct H1 as [? [? [? [? [? ?]]]]].",
+            "VernacExtend",
+            "4be520c4ee7ae65dcbf4d8d775adeedb239ef602"
+        ],
+        [
+            "destruct H1.",
+            "VernacExtend",
+            "e752c2122f55c888e09082f784a6da990b01fbe7"
+        ],
+        [
+            "inv H1.",
+            "VernacExtend",
+            "2c43d1971eb5aa98166f6ec686cc2a4f1886b0a4"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "red.",
+            "VernacExtend",
+            "95a3fb9e13ce19fdc8e335912fb83e57a9512b14"
+        ],
+        [
+            "exists ((b,x0),x1).",
+            "VernacExtend",
+            "06e1cf98f42785bc0b51febdd9d8cdd517313290"
+        ],
+        [
+            "split; trivial.",
+            "VernacExtend",
+            "51e6eaa57561ac50797e703222408862cfba3b15"
+        ],
+        [
+            "split; trivial.",
+            "VernacExtend",
+            "51e6eaa57561ac50797e703222408862cfba3b15"
+        ],
+        [
+            "right.",
+            "VernacExtend",
+            "27e417a3497755767e1a1d6ba87753ecddaee6b7"
+        ],
+        [
+            "apply H0.",
+            "VernacExtend",
+            "c75b3371fc84f2aae811de7e80b1bdb43e4d249a"
+        ],
+        [
+            "exists x, x0 , x1.",
+            "VernacExtend",
+            "825f458c2bb3bdb064231bfc19248bc4ae43523d"
+        ],
+        [
+            "split; trivial.",
+            "VernacExtend",
+            "51e6eaa57561ac50797e703222408862cfba3b15"
+        ],
+        [
+            "split; trivial.",
+            "VernacExtend",
+            "51e6eaa57561ac50797e703222408862cfba3b15"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma freelist_mem_access_1 b ofs p: forall l m (ACC:(Mem.mem_access m) !! b ofs Cur = Some p) m1 (FL: Mem.free_list m1 l = Some m), (Mem.mem_access m1) !! b ofs Cur = Some p.",
+            "VernacStartTheoremProof",
+            "253db9d930eb744523797d38b9920f421c5e7df0"
+        ],
+        [
+            "induction l; simpl; intros.",
+            "VernacExtend",
+            "34e9ea5965da389dfe8faf53c8ea4965d4fdcc22"
+        ],
+        [
+            "inv FL; trivial.",
+            "VernacExtend",
+            "c0f51f1e161f234180f7e55e1a34a7d52154df85"
+        ],
+        [
+            "destruct a.",
+            "VernacExtend",
+            "3f53f61a7882a1bcc65ff705b5afc6c02a0dddf5"
+        ],
+        [
+            "destruct p0.",
+            "VernacExtend",
+            "9a183eb321c909af79a9078faaf7dba0ab23fd1d"
+        ],
+        [
+            "case_eq (Mem.free m1 b0 z0 z); intros; rewrite H in FL; try discriminate.",
+            "VernacExtend",
+            "e3fda7a47c6f1ce3142cd7d0cf3bfae1f7a907dc"
+        ],
+        [
+            "eapply free_access_inv; eauto.",
+            "VernacExtend",
+            "96d1eb7648b308bf73b36187ddcd0cb29cfed5b8"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma freelist_access_2 b ofs: forall l (FL: in_free_list b ofs l) m m' (FR : Mem.free_list m l = Some m'), (Mem.mem_access m') !! b ofs Cur = None /\\ Mem.valid_block m' b.",
+            "VernacStartTheoremProof",
+            "12641d5f5985813a1659106c4a453c5fdcd49d72"
+        ],
+        [
+            "intros l FL.",
+            "VernacExtend",
+            "5be66de0ae73dc74e158a72e2d9a646ea2d24eae"
+        ],
+        [
+            "destruct FL as [[[? ?] ?] [? [? ?]]]; subst b0.",
+            "VernacExtend",
+            "0954fe390bacc306e5bc4ecab53d3d47c5bd769e"
+        ],
+        [
+            "induction l; simpl; intros.",
+            "VernacExtend",
+            "34e9ea5965da389dfe8faf53c8ea4965d4fdcc22"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct H.",
+            "VernacExtend",
+            "8b2bca015429da94c456243b461e17a2a0582c40"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "case_eq (Mem.free m b z z0); intros; rewrite H in FR; try discriminate.",
+            "VernacExtend",
+            "468ccd35c76620203ea3c660995efa42dcb0cac6"
+        ],
+        [
+            "clear IHl.",
+            "VernacExtend",
+            "8bbd9602dc9b79bb59ead5a20fa2e5495ddfe01a"
+        ],
+        [
+            "case_eq ((Mem.mem_access m') !! b ofs Cur); intros; trivial.",
+            "VernacExtend",
+            "880c3c4cd6196942b10bdf9aeb1defdb8e316a47"
+        ],
+        [
+            "++",
+            "VernacBullet",
+            "cac3e4fa1e090b315e8d0c45d2700cf7c59ed246"
+        ],
+        [
+            "exploit freelist_mem_access_1.",
+            "VernacExtend",
+            "2dd7ae0e15477978617f716eaa62496d702b3fbd"
+        ],
+        [
+            "eassumption.",
+            "VernacExtend",
+            "909bfe8655bf95c07560744f733991163ce6cf7e"
+        ],
+        [
+            "eassumption.",
+            "VernacExtend",
+            "909bfe8655bf95c07560744f733991163ce6cf7e"
+        ],
+        [
+            "intros XX.",
+            "VernacExtend",
+            "e438dd3a85ec3e898cbc9543efb2c1c891befda2"
+        ],
+        [
+            "exfalso.",
+            "VernacExtend",
+            "f6514338e7c49f3c5a647bc69b7154700a8e57f1"
+        ],
+        [
+            "apply Mem.free_result in H.",
+            "VernacExtend",
+            "0864cee870ecbdcc94e9b8e9459ee4ef479ae818"
+        ],
+        [
+            "subst m0.",
+            "VernacExtend",
+            "5b1967d9bd453db792743be7ffa86d7c5fc4aefb"
+        ],
+        [
+            "simpl in XX.",
+            "VernacExtend",
+            "42f7b08c1253d8aa50fa93f9d37b4bbe29d1354b"
+        ],
+        [
+            "rewrite PMap.gss in XX.",
+            "VernacExtend",
+            "734629d373f9da2b6adb598ebe4703395201000e"
+        ],
+        [
+            "case_eq (zle z ofs && zlt ofs z0); intros; rewrite H in *; try discriminate.",
+            "VernacExtend",
+            "7e05b85bbf30ead50254b2c9d0750a9036daea7e"
+        ],
+        [
+            "destruct (zle z ofs); try omega; simpl in *.",
+            "VernacExtend",
+            "6e3e166a0be4728d6b14afb922a10c0e27ad559e"
+        ],
+        [
+            "destruct ( zlt ofs z0); try omega.",
+            "VernacExtend",
+            "3faafe32675acd7e8337dbef25ac95c598a1de9c"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "++",
+            "VernacBullet",
+            "cac3e4fa1e090b315e8d0c45d2700cf7c59ed246"
+        ],
+        [
+            "split; trivial.",
+            "VernacExtend",
+            "51e6eaa57561ac50797e703222408862cfba3b15"
+        ],
+        [
+            "eapply freelist_forward; eauto.",
+            "VernacExtend",
+            "281d6d3ce7b1944316e579ecf96e9fa6290065e1"
+        ],
+        [
+            "exploit Mem.free_range_perm.",
+            "VernacExtend",
+            "eed9a29ede7efecae4be59f2b407fced8a258474"
+        ],
+        [
+            "eassumption.",
+            "VernacExtend",
+            "909bfe8655bf95c07560744f733991163ce6cf7e"
+        ],
+        [
+            "eassumption.",
+            "VernacExtend",
+            "909bfe8655bf95c07560744f733991163ce6cf7e"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "eapply Mem.valid_block_free_1; try eassumption.",
+            "VernacExtend",
+            "e45b34822938df5555dd5c8e57f937cb3b7af8d9"
+        ],
+        [
+            "eapply Mem.perm_valid_block; eauto.",
+            "VernacExtend",
+            "9561c81f2d25c19881f4626eacf58b9e7f5a63be"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "destruct a.",
+            "VernacExtend",
+            "3f53f61a7882a1bcc65ff705b5afc6c02a0dddf5"
+        ],
+        [
+            "destruct p.",
+            "VernacExtend",
+            "b4e16e38d42fc59fab0ab4e95e065fc358d5a1ad"
+        ],
+        [
+            "case_eq (Mem.free m b0 z2 z1); intros; rewrite H0 in FR; try discriminate.",
+            "VernacExtend",
+            "513e4c50a9a7875ee96217731ac2e725c2d7d9af"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma freelist_access_3 b ofs: forall l m (ACC: (Mem.mem_access m) !! b ofs Cur = None) (VB: Mem.valid_block m b) m' (FL: Mem.free_list m l = Some m'), (Mem.mem_access m') !! b ofs Cur = None.",
+            "VernacStartTheoremProof",
+            "1081809aa25efb59d7c4e4c901deb41d753339a1"
+        ],
+        [
+            "induction l; simpl; intros.",
+            "VernacExtend",
+            "34e9ea5965da389dfe8faf53c8ea4965d4fdcc22"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "inv FL; trivial.",
+            "VernacExtend",
+            "c0f51f1e161f234180f7e55e1a34a7d52154df85"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct a as [[? ?] ?].",
+            "VernacExtend",
+            "1812492447fd9d94f4563d61498c1c6e240fc502"
+        ],
+        [
+            "case_eq (Mem.free m b0 z z0); intros; rewrite H in FL; try discriminate.",
+            "VernacExtend",
+            "a3e62039c563ecfaf6091af510ce59009f53f784"
+        ],
+        [
+            "eapply (IHl m0); trivial.",
+            "VernacExtend",
+            "03e0a0b2934695ba835fdf65dde402ceace22af6"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct (eq_block b0 b); subst.",
+            "VernacExtend",
+            "7e4eb097862a70f1fbf6107293ee31199937d75a"
+        ],
+        [
+            "apply Mem.free_result in H.",
+            "VernacExtend",
+            "0864cee870ecbdcc94e9b8e9459ee4ef479ae818"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite PMap.gss, ACC.",
+            "VernacExtend",
+            "79fa42b41853bf9f504d4a681b4b398aadb66860"
+        ],
+        [
+            "destruct (zle z ofs && zlt ofs z0); trivial.",
+            "VernacExtend",
+            "3720f8d13869c0842f14f9c13f864cd7d5665e0a"
+        ],
+        [
+            "apply Mem.free_result in H.",
+            "VernacExtend",
+            "0864cee870ecbdcc94e9b8e9459ee4ef479ae818"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite PMap.gso; eauto.",
+            "VernacExtend",
+            "00a1fbb153c665a7c5d0378a412ca83c58b6509b"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "eapply Mem.valid_block_free_1; eauto.",
+            "VernacExtend",
+            "f841eaba32ae9519be975529fe2a097c6ca49cc2"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma ev_elim_accessNone b ofs: forall ev m' m'' (EV:ev_elim m'' ev m') (ACC: (Mem.mem_access m'') !! b ofs Cur = None) (VB: Mem.valid_block m'' b), (Mem.mem_access m') !! b ofs Cur = None.",
+            "VernacStartTheoremProof",
+            "556c6d29660d8f0b2262fff642a8d9b4e30de33a"
+        ],
+        [
+            "induction ev; simpl; intros.",
+            "VernacExtend",
+            "899e0007b42c5f44cab136e41f025e1ad45a6e50"
+        ],
+        [
+            "subst; trivial.",
+            "VernacExtend",
+            "5e01514cf2c2ef4c0cbcbb78bcc4307f62cee790"
+        ],
+        [
+            "destruct a.",
+            "VernacExtend",
+            "3f53f61a7882a1bcc65ff705b5afc6c02a0dddf5"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct EV as [? [? EV]].",
+            "VernacExtend",
+            "14762d950878974a0f4f310b7a0ad20c5685118b"
+        ],
+        [
+            "exploit Mem.storebytes_valid_block_1; eauto.",
+            "VernacExtend",
+            "10a11843e721ce709120a237fe7ead9d20aec9b7"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "apply Mem.storebytes_access in H.",
+            "VernacExtend",
+            "05afb84c48800c7c654f59580a05b4830a224405"
+        ],
+        [
+            "rewrite <- H in *; clear H.",
+            "VernacExtend",
+            "1651ad3bf9cedda2cfb95dc2211977e1fca83eb3"
+        ],
+        [
+            "apply (IHev _ _ EV ACC H0).",
+            "VernacExtend",
+            "94622270863547392731ba56f19295818b0d8c6b"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct EV as [? EV].",
+            "VernacExtend",
+            "12ef341806aac7d13f17fb5d936ef8a30c4916a2"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct EV as [? [? EV]].",
+            "VernacExtend",
+            "14762d950878974a0f4f310b7a0ad20c5685118b"
+        ],
+        [
+            "apply (IHev _ _ EV); clear IHev EV.",
+            "VernacExtend",
+            "ae52d1bf1d0038141a2905472f722c7e05d7ed5c"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "Transparent Mem.alloc.",
+            "VernacSetOpacity",
+            "0ed824755e46f8e62feb879c700d38fa1f2c116c"
+        ],
+        [
+            "unfold Mem.alloc in H.",
+            "VernacExtend",
+            "b819934c5e5245839a13b9d3b0cfe71a69de1b6b"
+        ],
+        [
+            "Opaque Mem.alloc.",
+            "VernacSetOpacity",
+            "091d161a438f4c69c59a1a7b07e5c0b0cb1e8c5b"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite PMap.gso; trivial.",
+            "VernacExtend",
+            "ca6c74fcf979c85f6d7a03f53e73ac9c716ec0aa"
+        ],
+        [
+            "unfold Mem.valid_block in VB.",
+            "VernacExtend",
+            "42f2fe130502910c9e2ad28bb26f3d19192f1763"
+        ],
+        [
+            "xomega.",
+            "VernacExtend",
+            "92dc13ff6a078243e0cd72420247996d076ca43b"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "eapply Mem.valid_block_alloc; eauto.",
+            "VernacExtend",
+            "f82aa184170e5680f8cdbb79552fdf97ae150056"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct EV as [? [? EV]].",
+            "VernacExtend",
+            "14762d950878974a0f4f310b7a0ad20c5685118b"
+        ],
+        [
+            "apply (IHev _ _ EV); clear IHev.",
+            "VernacExtend",
+            "f1658717d28f9c82b6ed90bf6f050df1476b4dd3"
+        ],
+        [
+            "2: eapply freelist_forward; eauto.",
+            "VernacExtend",
+            "ed7c3d8e8746b7d198b3f7d7485a80d1ae70c15f"
+        ],
+        [
+            "clear EV ev m'.",
+            "VernacExtend",
+            "7b097f621a5780be40a95e4f34e84053ebed5bca"
+        ],
+        [
+            "eapply freelist_access_3; eassumption.",
+            "VernacExtend",
+            "a40b7465f55e4503b3191d77938acc42fea4601e"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma ev_elim_valid_block: forall ev m m' (EV: ev_elim m ev m') b (VB : Mem.valid_block m b), Mem.valid_block m' b.",
+            "VernacStartTheoremProof",
+            "ee38e593ea1a621144327d86d6d36c5839ef3e9d"
+        ],
+        [
+            "induction ev; simpl; intros; subst; trivial.",
+            "VernacExtend",
+            "844a730fade4c2bbfcc7d2bf3b098994f672629f"
+        ],
+        [
+            "destruct a.",
+            "VernacExtend",
+            "3f53f61a7882a1bcc65ff705b5afc6c02a0dddf5"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct EV as [? [? EV]].",
+            "VernacExtend",
+            "14762d950878974a0f4f310b7a0ad20c5685118b"
+        ],
+        [
+            "exploit Mem.storebytes_valid_block_1.",
+            "VernacExtend",
+            "0c0772b29db66a5e17c46a5b2834c6a64a58c460"
+        ],
+        [
+            "apply H.",
+            "VernacExtend",
+            "4b47b71ad0f800d57cbdc591d68949e07decb540"
+        ],
+        [
+            "eassumption.",
+            "VernacExtend",
+            "909bfe8655bf95c07560744f733991163ce6cf7e"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct EV as [? EV].",
+            "VernacExtend",
+            "12ef341806aac7d13f17fb5d936ef8a30c4916a2"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct EV as [? [? EV]].",
+            "VernacExtend",
+            "14762d950878974a0f4f310b7a0ad20c5685118b"
+        ],
+        [
+            "exploit Mem.valid_block_alloc.",
+            "VernacExtend",
+            "1a51381d64f1b515351c1289040cf436922335fc"
+        ],
+        [
+            "apply H.",
+            "VernacExtend",
+            "4b47b71ad0f800d57cbdc591d68949e07decb540"
+        ],
+        [
+            "eassumption.",
+            "VernacExtend",
+            "909bfe8655bf95c07560744f733991163ce6cf7e"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct EV as [? [? EV]].",
+            "VernacExtend",
+            "14762d950878974a0f4f310b7a0ad20c5685118b"
+        ],
+        [
+            "exploit freelist_forward; eauto.",
+            "VernacExtend",
+            "51254aa9ea26db154e80ca4d8dde274a29f93d00"
+        ],
+        [
+            "intros [? _].",
+            "VernacExtend",
+            "4ed4938b9d57a034764bb0aa646238fde05a27d5"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma ev_elim_free_1 b ofs: forall ev m m', ev_elim m ev m' -> in_free_list_trace b ofs ev -> (Mem.perm m b ofs Cur Freeable \\/ ~ Mem.valid_block m b) /\\ (Mem.mem_access m') !! b ofs Cur = None /\\ Mem.valid_block m' b /\\ exists e, List.In e ev /\\ match e with | Free _ => True | _ => False end.",
+            "VernacStartTheoremProof",
+            "6926bb4039d755b9f820de5828c35a71437cc141"
+        ],
+        [
+            "induction ev; simpl; intros; try contradiction.",
+            "VernacExtend",
+            "813810fd6e56035571128bd040d7b40bfbeec61b"
+        ],
+        [
+            "destruct a.",
+            "VernacExtend",
+            "3f53f61a7882a1bcc65ff705b5afc6c02a0dddf5"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct H as [m'' [ST EV]].",
+            "VernacExtend",
+            "e3bb0bf710a3a8e05feaada86e401a01bea2e299"
+        ],
+        [
+            "specialize (Mem.storebytes_access _ _ _ _ _ ST); intros ACCESS.",
+            "VernacExtend",
+            "fbb8cc8b13c48a55ed3597fc5bd43bb2d6625e76"
+        ],
+        [
+            "destruct (eq_block b0 b); subst.",
+            "VernacExtend",
+            "7e4eb097862a70f1fbf6107293ee31199937d75a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct (IHev _ _ EV H0) as [IHa [IHb [IHc [e [E HE]]]]]; clear IHev.",
+            "VernacExtend",
+            "48f04330de19f9a4785233462cd62eacbfbf17ee"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "destruct IHa.",
+            "VernacExtend",
+            "e2e6ad2be0398464edaa1cc5818721674fd2277b"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "eapply Mem.perm_storebytes_2; eauto.",
+            "VernacExtend",
+            "97c15efc3f2af926bd5ce0ded61266d070991583"
+        ],
+        [
+            "right.",
+            "VernacExtend",
+            "27e417a3497755767e1a1d6ba87753ecddaee6b7"
+        ],
+        [
+            "intros N.",
+            "VernacExtend",
+            "118d8cc76afed992d416336eb00759d8eee4e0b4"
+        ],
+        [
+            "apply H.",
+            "VernacExtend",
+            "4b47b71ad0f800d57cbdc591d68949e07decb540"
+        ],
+        [
+            "eapply Mem.storebytes_valid_block_1; eauto.",
+            "VernacExtend",
+            "48c5e6a07ec2ef6e370b473f73170a9ae21d4d55"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "split; trivial.",
+            "VernacExtend",
+            "51e6eaa57561ac50797e703222408862cfba3b15"
+        ],
+        [
+            "split; trivial.",
+            "VernacExtend",
+            "51e6eaa57561ac50797e703222408862cfba3b15"
+        ],
+        [
+            "exists e.",
+            "VernacExtend",
+            "4e644c830fdbbe811077e17f446c7832b57a4f89"
+        ],
+        [
+            "split; trivial.",
+            "VernacExtend",
+            "51e6eaa57561ac50797e703222408862cfba3b15"
+        ],
+        [
+            "right; trivial.",
+            "VernacExtend",
+            "0340ad4c708a2ae89a0d63d55c2e24a5dd555b53"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct (IHev _ _ EV H0) as [IHa [IHb [IHc [e [E HE]]]]]; clear IHev.",
+            "VernacExtend",
+            "48f04330de19f9a4785233462cd62eacbfbf17ee"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "destruct IHa.",
+            "VernacExtend",
+            "e2e6ad2be0398464edaa1cc5818721674fd2277b"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "eapply Mem.perm_storebytes_2; eassumption.",
+            "VernacExtend",
+            "a400a6a42106cfe7bb985fb3d7b3e1d7e3d26ca8"
+        ],
+        [
+            "right; intros N.",
+            "VernacExtend",
+            "a449f9cb4214857f4f6732a32297bacd05dbcfdf"
+        ],
+        [
+            "apply H.",
+            "VernacExtend",
+            "4b47b71ad0f800d57cbdc591d68949e07decb540"
+        ],
+        [
+            "eapply Mem.storebytes_valid_block_1; eauto.",
+            "VernacExtend",
+            "48c5e6a07ec2ef6e370b473f73170a9ae21d4d55"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "trivial.",
+            "VernacExtend",
+            "6704630005ea37c1f66f817f0d3cb83967ca08c5"
+        ],
+        [
+            "split; trivial.",
+            "VernacExtend",
+            "51e6eaa57561ac50797e703222408862cfba3b15"
+        ],
+        [
+            "exists e.",
+            "VernacExtend",
+            "4e644c830fdbbe811077e17f446c7832b57a4f89"
+        ],
+        [
+            "split; trivial.",
+            "VernacExtend",
+            "51e6eaa57561ac50797e703222408862cfba3b15"
+        ],
+        [
+            "right; trivial.",
+            "VernacExtend",
+            "0340ad4c708a2ae89a0d63d55c2e24a5dd555b53"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct H.",
+            "VernacExtend",
+            "8b2bca015429da94c456243b461e17a2a0582c40"
+        ],
+        [
+            "destruct (IHev _ _ H1 H0) as [IHa [IHb [IHc [e [E HE]]]]]; clear IHev.",
+            "VernacExtend",
+            "c3c6d28764db0f6c843e35a03e0f81d7252ff66d"
+        ],
+        [
+            "split; trivial.",
+            "VernacExtend",
+            "51e6eaa57561ac50797e703222408862cfba3b15"
+        ],
+        [
+            "split; trivial.",
+            "VernacExtend",
+            "51e6eaa57561ac50797e703222408862cfba3b15"
+        ],
+        [
+            "split; trivial.",
+            "VernacExtend",
+            "51e6eaa57561ac50797e703222408862cfba3b15"
+        ],
+        [
+            "exists e.",
+            "VernacExtend",
+            "4e644c830fdbbe811077e17f446c7832b57a4f89"
+        ],
+        [
+            "split; trivial.",
+            "VernacExtend",
+            "51e6eaa57561ac50797e703222408862cfba3b15"
+        ],
+        [
+            "right; trivial.",
+            "VernacExtend",
+            "0340ad4c708a2ae89a0d63d55c2e24a5dd555b53"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct H as [m'' [ALLOC EV]].",
+            "VernacExtend",
+            "5f51a6d5c81eacdf6b5391ad611eae1e1ddf561c"
+        ],
+        [
+            "destruct (IHev _ _ EV H0) as [IHa [IHb [IHc [e [E HE]]]]]; clear IHev.",
+            "VernacExtend",
+            "48f04330de19f9a4785233462cd62eacbfbf17ee"
+        ],
+        [
+            "destruct (eq_block b0 b); subst.",
+            "VernacExtend",
+            "7e4eb097862a70f1fbf6107293ee31199937d75a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "right.",
+            "VernacExtend",
+            "27e417a3497755767e1a1d6ba87753ecddaee6b7"
+        ],
+        [
+            "eapply Mem.fresh_block_alloc.",
+            "VernacExtend",
+            "a8c18158341f79190748f6238a36eecbb46e6d20"
+        ],
+        [
+            "eauto.",
+            "VernacExtend",
+            "d5f3a05ca887c29bb0b422fc64ae2775fea3935e"
+        ],
+        [
+            "split; trivial.",
+            "VernacExtend",
+            "51e6eaa57561ac50797e703222408862cfba3b15"
+        ],
+        [
+            "split; trivial.",
+            "VernacExtend",
+            "51e6eaa57561ac50797e703222408862cfba3b15"
+        ],
+        [
+            "exists e.",
+            "VernacExtend",
+            "4e644c830fdbbe811077e17f446c7832b57a4f89"
+        ],
+        [
+            "split; trivial.",
+            "VernacExtend",
+            "51e6eaa57561ac50797e703222408862cfba3b15"
+        ],
+        [
+            "right; trivial.",
+            "VernacExtend",
+            "0340ad4c708a2ae89a0d63d55c2e24a5dd555b53"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "destruct IHa.",
+            "VernacExtend",
+            "e2e6ad2be0398464edaa1cc5818721674fd2277b"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "eapply Mem.perm_alloc_4; eauto.",
+            "VernacExtend",
+            "c81cbf2c58af1dd495601a5d9d29f6e9ea844457"
+        ],
+        [
+            "right; intros N.",
+            "VernacExtend",
+            "a449f9cb4214857f4f6732a32297bacd05dbcfdf"
+        ],
+        [
+            "apply H.",
+            "VernacExtend",
+            "4b47b71ad0f800d57cbdc591d68949e07decb540"
+        ],
+        [
+            "eapply Mem.valid_block_alloc; eauto.",
+            "VernacExtend",
+            "f82aa184170e5680f8cdbb79552fdf97ae150056"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "split; trivial.",
+            "VernacExtend",
+            "51e6eaa57561ac50797e703222408862cfba3b15"
+        ],
+        [
+            "split; trivial.",
+            "VernacExtend",
+            "51e6eaa57561ac50797e703222408862cfba3b15"
+        ],
+        [
+            "exists e.",
+            "VernacExtend",
+            "4e644c830fdbbe811077e17f446c7832b57a4f89"
+        ],
+        [
+            "split; trivial.",
+            "VernacExtend",
+            "51e6eaa57561ac50797e703222408862cfba3b15"
+        ],
+        [
+            "right; trivial.",
+            "VernacExtend",
+            "0340ad4c708a2ae89a0d63d55c2e24a5dd555b53"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct H as [m'' [FR EV]].",
+            "VernacExtend",
+            "8a145db0ba937f547877b16f77283776f5a8c2a5"
+        ],
+        [
+            "destruct H0.",
+            "VernacExtend",
+            "5c8f6cb3dc303d56935d6ec271a1de04f6790225"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "clear IHev.",
+            "VernacExtend",
+            "ba24f2421bc86c2ce431c21af5520a0373db22c9"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "destruct (valid_block_dec m b).",
+            "VernacExtend",
+            "eaee29e1ee0e146c867e5e213d66d181220922e3"
+        ],
+        [
+            "2: right; trivial.",
+            "VernacExtend",
+            "674e8818549d77d6a4f2901f97eaabb9483368d7"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "clear EV m'.",
+            "VernacExtend",
+            "5b9b87d4bbae99419d8065ddc0729bbbc67d9587"
+        ],
+        [
+            "generalize dependent m''.",
+            "VernacExtend",
+            "cba0b0867db136ad666a7cc367b812c410a6e45c"
+        ],
+        [
+            "generalize dependent m.",
+            "VernacExtend",
+            "cb5344e7f2b46935cd228d14255cfa5d2837cf33"
+        ],
+        [
+            "destruct H as [[[bb lo] hi] [X [? Y]]]; subst bb.",
+            "VernacExtend",
+            "9a20262860ab8a929ee171b2ab062fbd5d3960dd"
+        ],
+        [
+            "induction l; simpl in *; intros.",
+            "VernacExtend",
+            "99445c59afbd509e85ea8fe2c4a7062e0946eb46"
+        ],
+        [
+            "contradiction.",
+            "VernacExtend",
+            "9b6a5c45e1144cbbccd544effb2a97082518704a"
+        ],
+        [
+            "destruct X; subst.",
+            "VernacExtend",
+            "083b636fe4d772c7bc425c92b5d1d1d61dc6bd98"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "case_eq (Mem.free m b lo hi); intros; rewrite H in FR; try discriminate.",
+            "VernacExtend",
+            "d82460452d2de85bfa98d95b4ba135b66ccc5c03"
+        ],
+        [
+            "eapply Mem.free_range_perm; eassumption.",
+            "VernacExtend",
+            "752ce7d9bf6e6a2c49b1ba5b1f40028f80b52b74"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct a.",
+            "VernacExtend",
+            "3f53f61a7882a1bcc65ff705b5afc6c02a0dddf5"
+        ],
+        [
+            "destruct p.",
+            "VernacExtend",
+            "b4e16e38d42fc59fab0ab4e95e065fc358d5a1ad"
+        ],
+        [
+            "case_eq (Mem.free m b0 z0 z); intros; rewrite H0 in FR; try discriminate.",
+            "VernacExtend",
+            "dce3901a611c3b41c8bab25fe158db79d79dfa78"
+        ],
+        [
+            "eapply Mem.perm_free_3.",
+            "VernacExtend",
+            "1aa99d84ff91d178f07dadd3897e4d698de2f141"
+        ],
+        [
+            "eassumption.",
+            "VernacExtend",
+            "909bfe8655bf95c07560744f733991163ce6cf7e"
+        ],
+        [
+            "eapply IHl; try eassumption.",
+            "VernacExtend",
+            "f64e99d1fd941d3646e26c3a08485201028a4fb7"
+        ],
+        [
+            "eapply Mem.valid_block_free_1; eauto.",
+            "VernacExtend",
+            "f841eaba32ae9519be975529fe2a097c6ca49cc2"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "exploit freelist_access_2.",
+            "VernacExtend",
+            "9fd196ed4db943324440fc19ea0ad05335f60eaf"
+        ],
+        [
+            "eassumption.",
+            "VernacExtend",
+            "909bfe8655bf95c07560744f733991163ce6cf7e"
+        ],
+        [
+            "eassumption.",
+            "VernacExtend",
+            "909bfe8655bf95c07560744f733991163ce6cf7e"
+        ],
+        [
+            "intros [ACC VB].",
+            "VernacExtend",
+            "91d274051650e7cd63182c6b995bfd3f0abfa213"
+        ],
+        [
+            "clear FR m l H.",
+            "VernacExtend",
+            "850beac6fcb72095ce49824c7fea6669dfed263d"
+        ],
+        [
+            "eapply ev_elim_accessNone; eauto.",
+            "VernacExtend",
+            "d42638be45bdaf52239c73a6ae740c02c9e496b0"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "exploit freelist_access_2; eauto.",
+            "VernacExtend",
+            "5eb69d302f6a7f9f13ca0cbbd76814c913d01077"
+        ],
+        [
+            "intros [ACC VB].",
+            "VernacExtend",
+            "91d274051650e7cd63182c6b995bfd3f0abfa213"
+        ],
+        [
+            "eapply ev_elim_valid_block; eauto.",
+            "VernacExtend",
+            "676269986e5ff5d9aa8cfb9c0aaf4fc63159657f"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "exists (Free l).",
+            "VernacExtend",
+            "8adb0ac0d0c8216699a3580a8774dcb107a0ff0b"
+        ],
+        [
+            "intuition.",
+            "VernacExtend",
+            "ebd9388eeb482972743f9cce5cbddbd85ca5bdfd"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct (IHev _ _ EV H) as [IHa [IHb [IHc [e [E HE]]]]]; clear IHev.",
+            "VernacExtend",
+            "8ee1a2554da23e43b184273d6ccf60d83e8aa77c"
+        ],
+        [
+            "split.",
+            "VernacExtend",
+            "55abc140132bd88981001ac656020469a8d503eb"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "destruct IHa.",
+            "VernacExtend",
+            "e2e6ad2be0398464edaa1cc5818721674fd2277b"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "eapply perm_freelist; eauto.",
+            "VernacExtend",
+            "8bce4e0edc854f35464f413e51c39e04edd0268f"
+        ],
+        [
+            "right; intros N.",
+            "VernacExtend",
+            "a449f9cb4214857f4f6732a32297bacd05dbcfdf"
+        ],
+        [
+            "apply H0.",
+            "VernacExtend",
+            "c75b3371fc84f2aae811de7e80b1bdb43e4d249a"
+        ],
+        [
+            "eapply freelist_forward; eauto.",
+            "VernacExtend",
+            "281d6d3ce7b1944316e579ecf96e9fa6290065e1"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "split; trivial.",
+            "VernacExtend",
+            "51e6eaa57561ac50797e703222408862cfba3b15"
+        ],
+        [
+            "split; trivial.",
+            "VernacExtend",
+            "51e6eaa57561ac50797e703222408862cfba3b15"
+        ],
+        [
+            "exists e.",
+            "VernacExtend",
+            "4e644c830fdbbe811077e17f446c7832b57a4f89"
+        ],
+        [
+            "split; trivial.",
+            "VernacExtend",
+            "51e6eaa57561ac50797e703222408862cfba3b15"
+        ],
+        [
+            "right; trivial.",
+            "VernacExtend",
+            "0340ad4c708a2ae89a0d63d55c2e24a5dd555b53"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma perm_order_pp_refl p: Mem.perm_order'' p p.",
+            "VernacStartTheoremProof",
+            "8693d8d0bf87609c49295b9fd0bcf8a0647f7181"
+        ],
+        [
+            "unfold Mem.perm_order''.",
+            "VernacExtend",
+            "26440b978cd0163df546184a673065516da2277c"
+        ],
+        [
+            "destruct p; trivial.",
+            "VernacExtend",
+            "fe0724c9c788d935c679ffa901e4a6459dea594c"
+        ],
+        [
+            "apply perm_refl.",
+            "VernacExtend",
+            "c9924b8118505b42e4a68782b991f72d43440838"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma in_free_list_dec b ofs xs: {in_free_list b ofs xs} + {~in_free_list b ofs xs}.",
+            "VernacStartTheoremProof",
+            "a5167775f05671bae2cb991d1e7efb6d4616c24f"
+        ],
+        [
+            "unfold in_free_list.",
+            "VernacExtend",
+            "e1da84063fa1af7a612b709072051d5c5998afaf"
+        ],
+        [
+            "induction xs; simpl.",
+            "VernacExtend",
+            "40c854081c19706371701b3faa91a9a85bff1fbc"
+        ],
+        [
+            "right.",
+            "VernacExtend",
+            "27e417a3497755767e1a1d6ba87753ecddaee6b7"
+        ],
+        [
+            "intros N.",
+            "VernacExtend",
+            "118d8cc76afed992d416336eb00759d8eee4e0b4"
+        ],
+        [
+            "destruct N as [[[? ?] ?] [? _]].",
+            "VernacExtend",
+            "7c0c85fe770b90305ca5c015c88a9713164b662a"
+        ],
+        [
+            "trivial.",
+            "VernacExtend",
+            "6704630005ea37c1f66f817f0d3cb83967ca08c5"
+        ],
+        [
+            "destruct IHxs.",
+            "VernacExtend",
+            "d2c53de34b22ff87f5297488f174851be2228354"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "destruct e as [? [? ?]].",
+            "VernacExtend",
+            "fb07586d999985e27c659925fc0e3276ff2066ab"
+        ],
+        [
+            "exists x.",
+            "VernacExtend",
+            "800bf7613c74a608ff1ecae6bb20d349d4e8f84d"
+        ],
+        [
+            "split; eauto.",
+            "VernacExtend",
+            "f3520b20a884376c5c10e2f9e716eedc86a566b6"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct a as [[? ?] ?].",
+            "VernacExtend",
+            "1812492447fd9d94f4563d61498c1c6e240fc502"
+        ],
+        [
+            "destruct (eq_block b0 b); subst.",
+            "VernacExtend",
+            "7e4eb097862a70f1fbf6107293ee31199937d75a"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct (zle z ofs).",
+            "VernacExtend",
+            "23eae6354d99bdb222cc41d45057449bf29553a5"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "destruct (zlt ofs z0).",
+            "VernacExtend",
+            "b8e7568af4b61fbf8be0cadd164a4077af709c98"
+        ],
+        [
+            "--",
+            "VernacBullet",
+            "ba168e40f4056f7e624b4823d483fd7320648256"
+        ],
+        [
+            "left.",
+            "VernacExtend",
+            "06dad9fc5698018f3f1213205145fec906c612b1"
+        ],
+        [
+            "exists (b, z, z0).",
+            "VernacExtend",
+            "75d1ba17e6dee07225f2e789afd842249b7249e4"
+        ],
+        [
+            "split; eauto.",
+            "VernacExtend",
+            "f3520b20a884376c5c10e2f9e716eedc86a566b6"
+        ],
+        [
+            "--",
+            "VernacBullet",
+            "ba168e40f4056f7e624b4823d483fd7320648256"
+        ],
+        [
+            "right.",
+            "VernacExtend",
+            "27e417a3497755767e1a1d6ba87753ecddaee6b7"
+        ],
+        [
+            "intros [[[? ?] ?] [? [? ?]]].",
+            "VernacExtend",
+            "3ffa8c0f67cf40818397f168faf5113682baad9f"
+        ],
+        [
+            "subst b0.",
+            "VernacExtend",
+            "478b7c325e8a76ce9bafb9db976206add8bd3245"
+        ],
+        [
+            "destruct H.",
+            "VernacExtend",
+            "8b2bca015429da94c456243b461e17a2a0582c40"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "apply n; clear n.",
+            "VernacExtend",
+            "56c5cbea2ffa17a2d76ebe7acc508b9a003269e4"
+        ],
+        [
+            "exists (b, z1, z2).",
+            "VernacExtend",
+            "6c6e4d8a0fd4fb080466ffa39ec636ff70cc42c6"
+        ],
+        [
+            "split; eauto.",
+            "VernacExtend",
+            "f3520b20a884376c5c10e2f9e716eedc86a566b6"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "right.",
+            "VernacExtend",
+            "27e417a3497755767e1a1d6ba87753ecddaee6b7"
+        ],
+        [
+            "intros [[[? ?] ?] [? [? ?]]].",
+            "VernacExtend",
+            "3ffa8c0f67cf40818397f168faf5113682baad9f"
+        ],
+        [
+            "subst b0.",
+            "VernacExtend",
+            "478b7c325e8a76ce9bafb9db976206add8bd3245"
+        ],
+        [
+            "destruct H.",
+            "VernacExtend",
+            "8b2bca015429da94c456243b461e17a2a0582c40"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "omega.",
+            "VernacExtend",
+            "32c6c865d255452c7e10c77111456d1981cede39"
+        ],
+        [
+            "apply n; clear n.",
+            "VernacExtend",
+            "56c5cbea2ffa17a2d76ebe7acc508b9a003269e4"
+        ],
+        [
+            "exists (b, z1, z2).",
+            "VernacExtend",
+            "6c6e4d8a0fd4fb080466ffa39ec636ff70cc42c6"
+        ],
+        [
+            "split; eauto.",
+            "VernacExtend",
+            "f3520b20a884376c5c10e2f9e716eedc86a566b6"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "right.",
+            "VernacExtend",
+            "27e417a3497755767e1a1d6ba87753ecddaee6b7"
+        ],
+        [
+            "intros [[[? ?] ?] [? [? ?]]].",
+            "VernacExtend",
+            "3ffa8c0f67cf40818397f168faf5113682baad9f"
+        ],
+        [
+            "subst b1.",
+            "VernacExtend",
+            "3f211979d3468cb50c2cb8daf8036690c71e088c"
+        ],
+        [
+            "destruct H.",
+            "VernacExtend",
+            "8b2bca015429da94c456243b461e17a2a0582c40"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "congruence.",
+            "VernacExtend",
+            "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+        ],
+        [
+            "apply n; clear n.",
+            "VernacExtend",
+            "56c5cbea2ffa17a2d76ebe7acc508b9a003269e4"
+        ],
+        [
+            "exists (b, z1, z2).",
+            "VernacExtend",
+            "6c6e4d8a0fd4fb080466ffa39ec636ff70cc42c6"
+        ],
+        [
+            "split; eauto.",
+            "VernacExtend",
+            "f3520b20a884376c5c10e2f9e716eedc86a566b6"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma in_free_list_trace_dec b ofs: forall es, {in_free_list_trace b ofs es} + {~in_free_list_trace b ofs es}.",
+            "VernacStartTheoremProof",
+            "eda975493b954403d031d61642df02be5c51fd04"
+        ],
+        [
+            "induction es; simpl.",
+            "VernacExtend",
+            "9b46fd0c2846dfa8ce3c642a20d1cbca190a7694"
+        ],
+        [
+            "right; intros N; trivial.",
+            "VernacExtend",
+            "fe2f2aae7757d280a176f3b5fe39bb70cf33f7ec"
+        ],
+        [
+            "destruct IHes.",
+            "VernacExtend",
+            "436c8a2e008896523929456b9c3e3a5726fd3e34"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct a; try solve [left; eauto].",
+            "VernacExtend",
+            "fe3fa2935253e81585ba91d121c434e3ac785f05"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct a; try solve [right; eauto].",
+            "VernacExtend",
+            "c7ca0a5bfe3b54f8c7f6e9394109ff0da7dc7d6d"
+        ],
+        [
+            "destruct (in_free_list_dec b ofs l).",
+            "VernacExtend",
+            "beff8e07d133c135ecb15631717e11b3ecc3ff43"
+        ],
+        [
+            "left; left; trivial.",
+            "VernacExtend",
+            "523a49814689106a37f10dcce6f7c16c7ac5e10f"
+        ],
+        [
+            "right; intros N.",
+            "VernacExtend",
+            "a449f9cb4214857f4f6732a32297bacd05dbcfdf"
+        ],
+        [
+            "destruct N; contradiction.",
+            "VernacExtend",
+            "b09bdead4e259946cc126610db66354b7fd11789"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma freelist_access_1 b ofs: forall l, ~ in_free_list b ofs l -> forall m m' : mem, Mem.free_list m l = Some m' -> (Mem.mem_access m') !! b ofs Cur = (Mem.mem_access m) !! b ofs Cur.",
+            "VernacStartTheoremProof",
+            "f3c6320d5361784e5cad213e3063674b454b340f"
+        ],
+        [
+            "induction l; simpl; intros.",
+            "VernacExtend",
+            "34e9ea5965da389dfe8faf53c8ea4965d4fdcc22"
+        ],
+        [
+            "inv H0.",
+            "VernacExtend",
+            "52c34ef20c88d5292e2350aff94f149a3968b772"
+        ],
+        [
+            "trivial.",
+            "VernacExtend",
+            "6704630005ea37c1f66f817f0d3cb83967ca08c5"
+        ],
+        [
+            "destruct a as [[? ?] ?].",
+            "VernacExtend",
+            "1812492447fd9d94f4563d61498c1c6e240fc502"
+        ],
+        [
+            "remember (Mem.free m b0 z z0) as q; destruct q; try discriminate.",
+            "VernacExtend",
+            "3f9b5887b0e0ec54c0a52cd14ece3a22520b9d4a"
+        ],
+        [
+            "symmetry in Heqq.",
+            "VernacExtend",
+            "3404264a08ed0dc17fba0e9f70ba0f86ad0acd53"
+        ],
+        [
+            "assert (~ in_free_list b ofs l).",
+            "VernacExtend",
+            "ed6f751375afcbb1b75adb4f0f28f278d56df0f8"
+        ],
+        [
+            "{",
+            "VernacSubproof",
+            "184cabd02aa0a33f23f10474ea95789b1f149361"
+        ],
+        [
+            "intros N.",
+            "VernacExtend",
+            "118d8cc76afed992d416336eb00759d8eee4e0b4"
+        ],
+        [
+            "elim H.",
+            "VernacExtend",
+            "853aa440c3a3810be05f0f87d0e688c05b92253d"
+        ],
+        [
+            "destruct N as [? [? ?]].",
+            "VernacExtend",
+            "30a22daf1bac08ef82d7222b5e68efa318f45f69"
+        ],
+        [
+            "exists x.",
+            "VernacExtend",
+            "800bf7613c74a608ff1ecae6bb20d349d4e8f84d"
+        ],
+        [
+            "split; eauto.",
+            "VernacExtend",
+            "f3520b20a884376c5c10e2f9e716eedc86a566b6"
+        ],
+        [
+            "right; trivial.",
+            "VernacExtend",
+            "0340ad4c708a2ae89a0d63d55c2e24a5dd555b53"
+        ],
+        [
+            "}",
+            "VernacEndSubproof",
+            "85f27874ef16421341373f4b062b6d1605043af9"
+        ],
+        [
+            "rewrite (IHl H1 _ _ H0).",
+            "VernacExtend",
+            "a5e5c8fc3c11a8fb8c6f90ec3fdddb11253e71b7"
+        ],
+        [
+            "clear IHl H0.",
+            "VernacExtend",
+            "50fc2aa179bd24db168b1f1dc4da54e91752de5f"
+        ],
+        [
+            "Transparent Mem.free.",
+            "VernacSetOpacity",
+            "0df0e26ff0ec20dfafe7c6bf79c058a7349b11f8"
+        ],
+        [
+            "unfold Mem.free in Heqq.",
+            "VernacExtend",
+            "0045b03b173450df451d491b129b6aeb38104c89"
+        ],
+        [
+            "remember (Mem.range_perm_dec m b0 z z0 Cur Freeable).",
+            "VernacExtend",
+            "aeeb56818ef7bbd3c2d2e49fa0a67d697997e255"
+        ],
+        [
+            "destruct s; inv Heqq; clear Heqs.",
+            "VernacExtend",
+            "fcc3bb1ea03e7e56ade80c2dfbd2b7ee9fde3bb2"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite PMap.gsspec.",
+            "VernacExtend",
+            "208df7f9699f271a00c45eb42e79661332f7bd43"
+        ],
+        [
+            "destruct (peq b b0); subst; trivial.",
+            "VernacExtend",
+            "7b7065b0b91172fd38e330c7b53929c3e4746e5e"
+        ],
+        [
+            "destruct (zle z ofs); simpl; trivial.",
+            "VernacExtend",
+            "a350556adeb8ce84935d9299eae06c0817ac3310"
+        ],
+        [
+            "destruct (zlt ofs z0); simpl; trivial.",
+            "VernacExtend",
+            "6479e3de8cc8bc33c8b9d9d6c9582a1d39d501eb"
+        ],
+        [
+            "elim H.",
+            "VernacExtend",
+            "853aa440c3a3810be05f0f87d0e688c05b92253d"
+        ],
+        [
+            "unfold in_free_list.",
+            "VernacExtend",
+            "e1da84063fa1af7a612b709072051d5c5998afaf"
+        ],
+        [
+            "exists (b0, z, z0).",
+            "VernacExtend",
+            "bb31603003b57a36925181332e30faf2397a0833"
+        ],
+        [
+            "split; eauto.",
+            "VernacExtend",
+            "f3520b20a884376c5c10e2f9e716eedc86a566b6"
+        ],
+        [
+            "left; trivial.",
+            "VernacExtend",
+            "2f1efd67ff23560c270a9589d0d1b100a9c80732"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma ev_elim_free_2 b ofs: forall ev m m' (EV: ev_elim m ev m') (T: ~ in_free_list_trace b ofs ev), Mem.perm_order'' ((Mem.mem_access m') !! b ofs Cur) ((Mem.mem_access m) !! b ofs Cur).",
+            "VernacStartTheoremProof",
+            "a2cbbe652b1453255b53ca53638d40b8e94daaac"
+        ],
+        [
+            "induction ev; simpl; intros.",
+            "VernacExtend",
+            "899e0007b42c5f44cab136e41f025e1ad45a6e50"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "subst.",
+            "VernacExtend",
+            "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+        ],
+        [
+            "apply perm_order_pp_refl.",
+            "VernacExtend",
+            "da3255804675de49fe5f4fce825830d591107a1b"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct a.",
+            "VernacExtend",
+            "3f53f61a7882a1bcc65ff705b5afc6c02a0dddf5"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct EV as [m'' [ST EV]].",
+            "VernacExtend",
+            "4247d24b2556b535525261df27f56ba52eb8647f"
+        ],
+        [
+            "apply Mem.storebytes_access in ST.",
+            "VernacExtend",
+            "c36168ef3c2b7115e227df41fa4f1106281818a2"
+        ],
+        [
+            "rewrite <- ST.",
+            "VernacExtend",
+            "a7fc60130f4172f3415998e4d9227a6efd841950"
+        ],
+        [
+            "apply (IHev _ _ EV T).",
+            "VernacExtend",
+            "b939857a89dd76ac12ed2bb8b8702f03e4048166"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct EV as [LD EV].",
+            "VernacExtend",
+            "f72cb607aef430655334d8091846dec3dce057c0"
+        ],
+        [
+            "apply (IHev _ _ EV T).",
+            "VernacExtend",
+            "b939857a89dd76ac12ed2bb8b8702f03e4048166"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct EV as [m'' [ALLOC EV]].",
+            "VernacExtend",
+            "abf0ee47f894e7561970eb86b2cdcb78f0357ad4"
+        ],
+        [
+            "eapply po_trans.",
+            "VernacExtend",
+            "2a576338561f0d957f67e5c9f7d67a28471199d8"
+        ],
+        [
+            "apply (IHev _ _ EV T).",
+            "VernacExtend",
+            "b939857a89dd76ac12ed2bb8b8702f03e4048166"
+        ],
+        [
+            "clear IHev.",
+            "VernacExtend",
+            "ba24f2421bc86c2ce431c21af5520a0373db22c9"
+        ],
+        [
+            "unfold Mem.perm_order''.",
+            "VernacExtend",
+            "26440b978cd0163df546184a673065516da2277c"
+        ],
+        [
+            "remember ((Mem.mem_access m'') !! b ofs Cur) as q.",
+            "VernacExtend",
+            "a8e412cd9a82948a5501febbbe2c66f54e26ea5d"
+        ],
+        [
+            "symmetry in Heqq; destruct q.",
+            "VernacExtend",
+            "e073e8bf90ab995cb9701eeec7d0bca34f5d20d8"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "exploit Mem.perm_alloc_inv.",
+            "VernacExtend",
+            "68bfdc78b07c5be049f230c00c4de0218b514696"
+        ],
+        [
+            "eassumption.",
+            "VernacExtend",
+            "909bfe8655bf95c07560744f733991163ce6cf7e"
+        ],
+        [
+            "unfold Mem.perm.",
+            "VernacExtend",
+            "0e90023c67f783cc4d032c93210fb0c5f3fd3a94"
+        ],
+        [
+            "rewrite Heqq.",
+            "VernacExtend",
+            "f15d3ed82d8aa523e1fee8d8120973caef9a81f2"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "apply perm_refl.",
+            "VernacExtend",
+            "c9924b8118505b42e4a68782b991f72d43440838"
+        ],
+        [
+            "destruct (eq_block b b0); simpl; intros; subst.",
+            "VernacExtend",
+            "173fde9b9dc061948d786de4bac67ebe5f8b9e28"
+        ],
+        [
+            "++",
+            "VernacBullet",
+            "cac3e4fa1e090b315e8d0c45d2700cf7c59ed246"
+        ],
+        [
+            "rewrite Mem.nextblock_noaccess; trivial.",
+            "VernacExtend",
+            "3135f8baa4d56b4cf63576b3dd3b190021d655b6"
+        ],
+        [
+            "intros N.",
+            "VernacExtend",
+            "118d8cc76afed992d416336eb00759d8eee4e0b4"
+        ],
+        [
+            "eapply Mem.fresh_block_alloc; eassumption.",
+            "VernacExtend",
+            "4593d38b6c32c85862552106b19f8d59bfcabffd"
+        ],
+        [
+            "++",
+            "VernacBullet",
+            "cac3e4fa1e090b315e8d0c45d2700cf7c59ed246"
+        ],
+        [
+            "Transparent Mem.alloc.",
+            "VernacSetOpacity",
+            "0ed824755e46f8e62feb879c700d38fa1f2c116c"
+        ],
+        [
+            "unfold Mem.alloc in ALLOC.",
+            "VernacExtend",
+            "86ef440bca78fe1a9f5e0dae1b06e7d324d0f3fa"
+        ],
+        [
+            "inv ALLOC.",
+            "VernacExtend",
+            "6c81db6ca3cf420d6bdd0c2c4d4b8013a0268abd"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "clear EV.",
+            "VernacExtend",
+            "003218a8f3844e23c90669b6b5fa7c6066d9b59a"
+        ],
+        [
+            "Opaque Mem.alloc.",
+            "VernacSetOpacity",
+            "091d161a438f4c69c59a1a7b07e5c0b0cb1e8c5b"
+        ],
+        [
+            "remember ((Mem.mem_access m) !! b ofs Cur) as r.",
+            "VernacExtend",
+            "2519c10e24f132a4dd46440b909f156b9c7ff2a8"
+        ],
+        [
+            "destruct r; trivial.",
+            "VernacExtend",
+            "068219a028147b8fbb4aa44aecdc9d88d3fd0ae5"
+        ],
+        [
+            "symmetry in Heqr.",
+            "VernacExtend",
+            "eadf36508019bc9452960846d2ef89cadf0cd29f"
+        ],
+        [
+            "rewrite PMap.gso in Heqq; trivial.",
+            "VernacExtend",
+            "91910553124aa9925f077232e80ccbe76a97d778"
+        ],
+        [
+            "rewrite Heqq in Heqr.",
+            "VernacExtend",
+            "c893aaa2a57c4087dbb85651c1f4baa05c54cab3"
+        ],
+        [
+            "inv Heqr.",
+            "VernacExtend",
+            "86fc056990c1ef939bc329d303aec0167d854c28"
+        ],
+        [
+            "apply perm_refl.",
+            "VernacExtend",
+            "c9924b8118505b42e4a68782b991f72d43440838"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "erewrite alloc_access_inv_None; eauto.",
+            "VernacExtend",
+            "139ccc93135abaebecf6aee440789084f23fd249"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct EV as [m'' [FR EV]].",
+            "VernacExtend",
+            "94d060f935e31b910d9537490eec83a5f1190838"
+        ],
+        [
+            "specialize (IHev _ _ EV).",
+            "VernacExtend",
+            "515e07524a8fef4a56d35f01a3bb86b1f28346db"
+        ],
+        [
+            "destruct (in_free_list_dec b ofs l).",
+            "VernacExtend",
+            "beff8e07d133c135ecb15631717e11b3ecc3ff43"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "elim T.",
+            "VernacExtend",
+            "2bd7baedd7ffc8c623041dbcfaa024e03b63f4c4"
+        ],
+        [
+            "left; trivial.",
+            "VernacExtend",
+            "2f1efd67ff23560c270a9589d0d1b100a9c80732"
+        ],
+        [
+            "*",
+            "VernacBullet",
+            "8a329d054468e0c41ce333043e0978e30eed7b98"
+        ],
+        [
+            "destruct (in_free_list_trace_dec b ofs ev).",
+            "VernacExtend",
+            "7b1d900ffd03f4b4afece5d71fdaf7a18e664e8b"
+        ],
+        [
+            "elim T.",
+            "VernacExtend",
+            "2bd7baedd7ffc8c623041dbcfaa024e03b63f4c4"
+        ],
+        [
+            "right; trivial.",
+            "VernacExtend",
+            "0340ad4c708a2ae89a0d63d55c2e24a5dd555b53"
+        ],
+        [
+            "eapply po_trans.",
+            "VernacExtend",
+            "2a576338561f0d957f67e5c9f7d67a28471199d8"
+        ],
+        [
+            "apply IHev; trivial.",
+            "VernacExtend",
+            "7dd5250a740a2b368669d6d4ca75dff9810ae7cf"
+        ],
+        [
+            "erewrite freelist_access_1; eauto.",
+            "VernacExtend",
+            "6df6db6b111a7e4390f6eb4b6c44d81e3298fa51"
+        ],
+        [
+            "apply perm_order_pp_refl.",
+            "VernacExtend",
+            "da3255804675de49fe5f4fce825830d591107a1b"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma free_list_cases: forall l m m' b ofs (Hfree: Mem.free_list m l = Some m'), ((Mem.mem_access m) !! b ofs Cur = Some Freeable /\\ (Mem.mem_access m') !! b ofs Cur = None) \\/ ((Mem.mem_access m) !! b ofs Cur = (Mem.mem_access m') !! b ofs Cur).",
+            "VernacStartTheoremProof",
+            "9b3a1ee0e3e4d43da5deb192b8b315042b65bd71"
+        ],
+        [
+            "induction l; simpl; intros.",
+            "VernacExtend",
+            "34e9ea5965da389dfe8faf53c8ea4965d4fdcc22"
+        ],
+        [
+            "inv Hfree.",
+            "VernacExtend",
+            "acd8166de02f2dbfcbf73d75a37458680d539045"
+        ],
+        [
+            "right; trivial.",
+            "VernacExtend",
+            "0340ad4c708a2ae89a0d63d55c2e24a5dd555b53"
+        ],
+        [
+            "destruct a as [[bb lo] hi].",
+            "VernacExtend",
+            "00699075bb9bcd9292d6e554c933f01e4ed60c3d"
+        ],
+        [
+            "remember (Mem.free m bb lo hi) as q; symmetry in Heqq.",
+            "VernacExtend",
+            "8c7cc806402591ff3777262abc5ea8b0ad4c9939"
+        ],
+        [
+            "destruct q; inv Hfree.",
+            "VernacExtend",
+            "43baffcf4d51565b4da6cced1e9d633600e9bf69"
+        ],
+        [
+            "specialize (IHl _ _ b ofs H0); clear H0.",
+            "VernacExtend",
+            "9adfc2bc8c5f4ba3fe4f9d60f4a26ea7e394d0c2"
+        ],
+        [
+            "Transparent Mem.free.",
+            "VernacSetOpacity",
+            "0df0e26ff0ec20dfafe7c6bf79c058a7349b11f8"
+        ],
+        [
+            "unfold Mem.free in Heqq.",
+            "VernacExtend",
+            "0045b03b173450df451d491b129b6aeb38104c89"
+        ],
+        [
+            "Opaque Mem.free.",
+            "VernacSetOpacity",
+            "a666c7d36942e593c26a895f5289eb475c9ce10a"
+        ],
+        [
+            "remember (Mem.range_perm_dec m bb lo hi Cur Freeable).",
+            "VernacExtend",
+            "788760e81f7e6d11283894ecd4333823dc3ec235"
+        ],
+        [
+            "destruct s; try discriminate.",
+            "VernacExtend",
+            "0ce61d542ee68ef321c862ca19a2c217f48ebda7"
+        ],
+        [
+            "inv Heqq.",
+            "VernacExtend",
+            "981af191c6579d20a5fca0ca909afca55d89f6ef"
+        ],
+        [
+            "clear Heqs.",
+            "VernacExtend",
+            "ed8bbc52e908254654cd0edabd8206dad886f149"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "rewrite PMap.gsspec in *.",
+            "VernacExtend",
+            "f26c2cf9cdf26af4bf9ba7bfd042830e24ebfd8b"
+        ],
+        [
+            "destruct (peq b bb); subst; trivial.",
+            "VernacExtend",
+            "f4cd14a8ef7cb82786d781d3ae2774ec7a0b3d9d"
+        ],
+        [
+            "destruct IHl.",
+            "VernacExtend",
+            "5023d678c5ea5fdc921ea6734602a6fd328c8a06"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct H.",
+            "VernacExtend",
+            "8b2bca015429da94c456243b461e17a2a0582c40"
+        ],
+        [
+            "rewrite H0; clear H0.",
+            "VernacExtend",
+            "fabeca7858ebb717928a37dd7ab85d95711cf62f"
+        ],
+        [
+            "destruct (zle lo ofs); try discriminate; simpl in *.",
+            "VernacExtend",
+            "7acba92ec9039a98692aafa32a040028a0f8918f"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct (zlt ofs hi); try discriminate; simpl in *.",
+            "VernacExtend",
+            "2aed112ed7967d7bbe619f488816dca50b3329b0"
+        ],
+        [
+            "rewrite H.",
+            "VernacExtend",
+            "6192df8b89486a3ba89a78e26e0d70cae2dc94c2"
+        ],
+        [
+            "left; split; trivial.",
+            "VernacExtend",
+            "bb08f79acdb3338a8faae32b7db83c00fb4f67c7"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite H.",
+            "VernacExtend",
+            "6192df8b89486a3ba89a78e26e0d70cae2dc94c2"
+        ],
+        [
+            "left; split; trivial.",
+            "VernacExtend",
+            "bb08f79acdb3338a8faae32b7db83c00fb4f67c7"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct (zle lo ofs); simpl in *; try solve [right; trivial].",
+            "VernacExtend",
+            "4dcaed50f09166cea9237c346c4778ce4eaa4f37"
+        ],
+        [
+            "destruct (zlt ofs hi); simpl in *; try solve [right; trivial].",
+            "VernacExtend",
+            "9448365f912c587a9aa1e85d1e07d43ef447b0a1"
+        ],
+        [
+            "rewrite <- H; clear H.",
+            "VernacExtend",
+            "639ff2bdef73709ce82bcd4c2d465279300358e5"
+        ],
+        [
+            "assert (A: lo <= ofs < hi) by omega.",
+            "VernacExtend",
+            "ed6a3b75f98842d460e6235a0bc7808b2ac0460b"
+        ],
+        [
+            "specialize (r _ A).",
+            "VernacExtend",
+            "62dc13ca8bf163f22773ef3524bb98995b4eab7e"
+        ],
+        [
+            "unfold Mem.perm, Mem.perm_order' in r.",
+            "VernacExtend",
+            "ca9289cfc2270cee47ec0fdaae00dab5904561fc"
+        ],
+        [
+            "remember ((Mem.mem_access m) !! bb ofs Cur) as q.",
+            "VernacExtend",
+            "797fad1de164455581c42c8f56598d7e18a13f9a"
+        ],
+        [
+            "destruct q; try contradiction.",
+            "VernacExtend",
+            "fee755d71e8e8a682682e2e9f1b7345127a84a98"
+        ],
+        [
+            "left; split; trivial.",
+            "VernacExtend",
+            "bb08f79acdb3338a8faae32b7db83c00fb4f67c7"
+        ],
+        [
+            "destruct p; simpl in *; trivial; inv r.",
+            "VernacExtend",
+            "a3653a8fcdd24f8624f976aad43b2e331bc4a7b5"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "po_pmax_I",
+            "line_nb": 15,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct q1; destruct q2; simpl in *; trivial.",
+                        "VernacExtend",
+                        "b41021b7a3ea517f9aad8ed212b60b4bc5a6719c"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (Mem.perm_order_dec p0 p1); trivial.",
+                        "VernacExtend",
+                        "0082572de986b89b8103d4828a87eacf6fc21fc1"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "po_None",
+            "line_nb": 21,
+            "steps": [
+                {
+                    "command": [
+                        "destruct popt; simpl; trivial.",
+                        "VernacExtend",
+                        "5ba889fe66f1dc2fa683d8abe936c3a19f1a99ad"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ev_elim_app",
+            "line_nb": 106,
+            "steps": [
+                {
+                    "command": [
+                        "induction T1; simpl; intros; subst; trivial.",
+                        "VernacExtend",
+                        "d3c910098f43f7fd11141ff028cf636c04f3383b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a.",
+                        "VernacExtend",
+                        "3f53f61a7882a1bcc65ff705b5afc6c02a0dddf5"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct EV1 as [mm [SB EV]].",
+                        "VernacExtend",
+                        "78c54ff6f7bb8b9310d6d59a25a31a1c1226165b"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (IHT1 _ _ EV _ _ EV2).",
+                        "VernacExtend",
+                        "2b9807de1f745bd5de7a1b5912598fa1f74aff47"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists mm; split; trivial.",
+                        "VernacExtend",
+                        "9193c5d1ec235b09000d2a8e1058b1232d391b87"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct EV1 as [LB EV].",
+                        "VernacExtend",
+                        "02b7af5c8011282bb43cf4303a38ad4d3a0074cf"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (IHT1 _ _ EV _ _ EV2).",
+                        "VernacExtend",
+                        "2b9807de1f745bd5de7a1b5912598fa1f74aff47"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; trivial.",
+                        "VernacExtend",
+                        "51e6eaa57561ac50797e703222408862cfba3b15"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct EV1 as [mm [AL EV]].",
+                        "VernacExtend",
+                        "8278dd1327b36af2c8b6abd74cb83f71bd74a414"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (IHT1 _ _ EV _ _ EV2).",
+                        "VernacExtend",
+                        "2b9807de1f745bd5de7a1b5912598fa1f74aff47"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists mm; split; trivial.",
+                        "VernacExtend",
+                        "9193c5d1ec235b09000d2a8e1058b1232d391b87"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct EV1 as [mm [FL EV]].",
+                        "VernacExtend",
+                        "dd313504690d907c8b0292b11300e1a863ef46b6"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (IHT1 _ _ EV _ _ EV2).",
+                        "VernacExtend",
+                        "2b9807de1f745bd5de7a1b5912598fa1f74aff47"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists mm; split; trivial.",
+                        "VernacExtend",
+                        "9193c5d1ec235b09000d2a8e1058b1232d391b87"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ev_elim_split",
+            "line_nb": 126,
+            "steps": [
+                {
+                    "command": [
+                        "induction T1; simpl; intros.",
+                        "VernacExtend",
+                        "24dc952340bed91ad0f5d179308541c87445fa2c"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists m1; split; trivial.",
+                        "VernacExtend",
+                        "d3cbf383ab24787901209bb897d96060077aa579"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a.",
+                        "VernacExtend",
+                        "3f53f61a7882a1bcc65ff705b5afc6c02a0dddf5"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct EV1 as [mm [SB EV]].",
+                        "VernacExtend",
+                        "78c54ff6f7bb8b9310d6d59a25a31a1c1226165b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (IHT1 _ _ _ EV) as [m2 [EV1 EV2]].",
+                        "VernacExtend",
+                        "aff58202f6b66a6bacf78887584d9d4b18134b93"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists m2; split; trivial.",
+                        "VernacExtend",
+                        "683efc2cd4599c316113a657381068dccd88eebe"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists mm; split; trivial.",
+                        "VernacExtend",
+                        "9193c5d1ec235b09000d2a8e1058b1232d391b87"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct EV1 as [LB EV].",
+                        "VernacExtend",
+                        "02b7af5c8011282bb43cf4303a38ad4d3a0074cf"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (IHT1 _ _ _ EV) as [m2 [EV1 EV2]].",
+                        "VernacExtend",
+                        "aff58202f6b66a6bacf78887584d9d4b18134b93"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists m2; split; trivial.",
+                        "VernacExtend",
+                        "683efc2cd4599c316113a657381068dccd88eebe"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; trivial.",
+                        "VernacExtend",
+                        "51e6eaa57561ac50797e703222408862cfba3b15"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct EV1 as [mm [AL EV]].",
+                        "VernacExtend",
+                        "8278dd1327b36af2c8b6abd74cb83f71bd74a414"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (IHT1 _ _ _ EV) as [m2 [EV1 EV2]].",
+                        "VernacExtend",
+                        "aff58202f6b66a6bacf78887584d9d4b18134b93"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists m2; split; trivial.",
+                        "VernacExtend",
+                        "683efc2cd4599c316113a657381068dccd88eebe"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists mm; split; trivial.",
+                        "VernacExtend",
+                        "9193c5d1ec235b09000d2a8e1058b1232d391b87"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct EV1 as [mm [SB EV]].",
+                        "VernacExtend",
+                        "78c54ff6f7bb8b9310d6d59a25a31a1c1226165b"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (IHT1 _ _ _ EV) as [m2 [EV1 EV2]].",
+                        "VernacExtend",
+                        "aff58202f6b66a6bacf78887584d9d4b18134b93"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists m2; split; trivial.",
+                        "VernacExtend",
+                        "683efc2cd4599c316113a657381068dccd88eebe"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists mm; split; trivial.",
+                        "VernacExtend",
+                        "9193c5d1ec235b09000d2a8e1058b1232d391b87"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "freelist_mem_access_1",
+            "line_nb": 258,
+            "steps": [
+                {
+                    "command": [
+                        "induction l; simpl; intros.",
+                        "VernacExtend",
+                        "34e9ea5965da389dfe8faf53c8ea4965d4fdcc22"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv FL; trivial.",
+                        "VernacExtend",
+                        "c0f51f1e161f234180f7e55e1a34a7d52154df85"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a.",
+                        "VernacExtend",
+                        "3f53f61a7882a1bcc65ff705b5afc6c02a0dddf5"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct p0.",
+                        "VernacExtend",
+                        "9a183eb321c909af79a9078faaf7dba0ab23fd1d"
+                    ]
+                },
+                {
+                    "command": [
+                        "case_eq (Mem.free m1 b0 z0 z); intros; rewrite H in FL; try discriminate.",
+                        "VernacExtend",
+                        "e3fda7a47c6f1ce3142cd7d0cf3bfae1f7a907dc"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply free_access_inv; eauto.",
+                        "VernacExtend",
+                        "96d1eb7648b308bf73b36187ddcd0cb29cfed5b8"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "freelist_access_3",
+            "line_nb": 308,
+            "steps": [
+                {
+                    "command": [
+                        "induction l; simpl; intros.",
+                        "VernacExtend",
+                        "34e9ea5965da389dfe8faf53c8ea4965d4fdcc22"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv FL; trivial.",
+                        "VernacExtend",
+                        "c0f51f1e161f234180f7e55e1a34a7d52154df85"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a as [[? ?] ?].",
+                        "VernacExtend",
+                        "1812492447fd9d94f4563d61498c1c6e240fc502"
+                    ]
+                },
+                {
+                    "command": [
+                        "case_eq (Mem.free m b0 z z0); intros; rewrite H in FL; try discriminate.",
+                        "VernacExtend",
+                        "a3e62039c563ecfaf6091af510ce59009f53f784"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply (IHl m0); trivial.",
+                        "VernacExtend",
+                        "03e0a0b2934695ba835fdf65dde402ceace22af6"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (eq_block b0 b); subst.",
+                        "VernacExtend",
+                        "7e4eb097862a70f1fbf6107293ee31199937d75a"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Mem.free_result in H.",
+                        "VernacExtend",
+                        "0864cee870ecbdcc94e9b8e9459ee4ef479ae818"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst.",
+                        "VernacExtend",
+                        "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PMap.gss, ACC.",
+                        "VernacExtend",
+                        "79fa42b41853bf9f504d4a681b4b398aadb66860"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (zle z ofs && zlt ofs z0); trivial.",
+                        "VernacExtend",
+                        "3720f8d13869c0842f14f9c13f864cd7d5665e0a"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply Mem.free_result in H.",
+                        "VernacExtend",
+                        "0864cee870ecbdcc94e9b8e9459ee4ef479ae818"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst.",
+                        "VernacExtend",
+                        "ccc9cb848804101be22a0bb6c324861981c5c7f1"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite PMap.gso; eauto.",
+                        "VernacExtend",
+                        "00a1fbb153c665a7c5d0378a412ca83c58b6509b"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply Mem.valid_block_free_1; eauto.",
+                        "VernacExtend",
+                        "f841eaba32ae9519be975529fe2a097c6ca49cc2"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "perm_order_pp_refl",
+            "line_nb": 531,
+            "steps": [
+                {
+                    "command": [
+                        "unfold Mem.perm_order''.",
+                        "VernacExtend",
+                        "26440b978cd0163df546184a673065516da2277c"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct p; trivial.",
+                        "VernacExtend",
+                        "fe0724c9c788d935c679ffa901e4a6459dea594c"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply perm_refl.",
+                        "VernacExtend",
+                        "c9924b8118505b42e4a68782b991f72d43440838"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "in_free_list_dec",
+            "line_nb": 536,
+            "steps": [
+                {
+                    "command": [
+                        "unfold in_free_list.",
+                        "VernacExtend",
+                        "e1da84063fa1af7a612b709072051d5c5998afaf"
+                    ]
+                },
+                {
+                    "command": [
+                        "induction xs; simpl.",
+                        "VernacExtend",
+                        "40c854081c19706371701b3faa91a9a85bff1fbc"
+                    ]
+                },
+                {
+                    "command": [
+                        "right.",
+                        "VernacExtend",
+                        "27e417a3497755767e1a1d6ba87753ecddaee6b7"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros N.",
+                        "VernacExtend",
+                        "118d8cc76afed992d416336eb00759d8eee4e0b4"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct N as [[[? ?] ?] [? _]].",
+                        "VernacExtend",
+                        "7c0c85fe770b90305ca5c015c88a9713164b662a"
+                    ]
+                },
+                {
+                    "command": [
+                        "trivial.",
+                        "VernacExtend",
+                        "6704630005ea37c1f66f817f0d3cb83967ca08c5"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct IHxs.",
+                        "VernacExtend",
+                        "d2c53de34b22ff87f5297488f174851be2228354"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "left.",
+                        "VernacExtend",
+                        "06dad9fc5698018f3f1213205145fec906c612b1"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct e as [? [? ?]].",
+                        "VernacExtend",
+                        "fb07586d999985e27c659925fc0e3276ff2066ab"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists x.",
+                        "VernacExtend",
+                        "800bf7613c74a608ff1ecae6bb20d349d4e8f84d"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; eauto.",
+                        "VernacExtend",
+                        "f3520b20a884376c5c10e2f9e716eedc86a566b6"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a as [[? ?] ?].",
+                        "VernacExtend",
+                        "1812492447fd9d94f4563d61498c1c6e240fc502"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (eq_block b0 b); subst.",
+                        "VernacExtend",
+                        "7e4eb097862a70f1fbf6107293ee31199937d75a"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (zle z ofs).",
+                        "VernacExtend",
+                        "23eae6354d99bdb222cc41d45057449bf29553a5"
+                    ]
+                },
+                {
+                    "command": [
+                        "*",
+                        "VernacBullet",
+                        "8a329d054468e0c41ce333043e0978e30eed7b98"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (zlt ofs z0).",
+                        "VernacExtend",
+                        "b8e7568af4b61fbf8be0cadd164a4077af709c98"
+                    ]
+                },
+                {
+                    "command": [
+                        "--",
+                        "VernacBullet",
+                        "ba168e40f4056f7e624b4823d483fd7320648256"
+                    ]
+                },
+                {
+                    "command": [
+                        "left.",
+                        "VernacExtend",
+                        "06dad9fc5698018f3f1213205145fec906c612b1"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists (b, z, z0).",
+                        "VernacExtend",
+                        "75d1ba17e6dee07225f2e789afd842249b7249e4"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; eauto.",
+                        "VernacExtend",
+                        "f3520b20a884376c5c10e2f9e716eedc86a566b6"
+                    ]
+                },
+                {
+                    "command": [
+                        "--",
+                        "VernacBullet",
+                        "ba168e40f4056f7e624b4823d483fd7320648256"
+                    ]
+                },
+                {
+                    "command": [
+                        "right.",
+                        "VernacExtend",
+                        "27e417a3497755767e1a1d6ba87753ecddaee6b7"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [[[? ?] ?] [? [? ?]]].",
+                        "VernacExtend",
+                        "3ffa8c0f67cf40818397f168faf5113682baad9f"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst b0.",
+                        "VernacExtend",
+                        "478b7c325e8a76ce9bafb9db976206add8bd3245"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H.",
+                        "VernacExtend",
+                        "8b2bca015429da94c456243b461e17a2a0582c40"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply n; clear n.",
+                        "VernacExtend",
+                        "56c5cbea2ffa17a2d76ebe7acc508b9a003269e4"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists (b, z1, z2).",
+                        "VernacExtend",
+                        "6c6e4d8a0fd4fb080466ffa39ec636ff70cc42c6"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; eauto.",
+                        "VernacExtend",
+                        "f3520b20a884376c5c10e2f9e716eedc86a566b6"
+                    ]
+                },
+                {
+                    "command": [
+                        "*",
+                        "VernacBullet",
+                        "8a329d054468e0c41ce333043e0978e30eed7b98"
+                    ]
+                },
+                {
+                    "command": [
+                        "right.",
+                        "VernacExtend",
+                        "27e417a3497755767e1a1d6ba87753ecddaee6b7"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [[[? ?] ?] [? [? ?]]].",
+                        "VernacExtend",
+                        "3ffa8c0f67cf40818397f168faf5113682baad9f"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst b0.",
+                        "VernacExtend",
+                        "478b7c325e8a76ce9bafb9db976206add8bd3245"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H.",
+                        "VernacExtend",
+                        "8b2bca015429da94c456243b461e17a2a0582c40"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "omega.",
+                        "VernacExtend",
+                        "32c6c865d255452c7e10c77111456d1981cede39"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply n; clear n.",
+                        "VernacExtend",
+                        "56c5cbea2ffa17a2d76ebe7acc508b9a003269e4"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists (b, z1, z2).",
+                        "VernacExtend",
+                        "6c6e4d8a0fd4fb080466ffa39ec636ff70cc42c6"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; eauto.",
+                        "VernacExtend",
+                        "f3520b20a884376c5c10e2f9e716eedc86a566b6"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "right.",
+                        "VernacExtend",
+                        "27e417a3497755767e1a1d6ba87753ecddaee6b7"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros [[[? ?] ?] [? [? ?]]].",
+                        "VernacExtend",
+                        "3ffa8c0f67cf40818397f168faf5113682baad9f"
+                    ]
+                },
+                {
+                    "command": [
+                        "subst b1.",
+                        "VernacExtend",
+                        "3f211979d3468cb50c2cb8daf8036690c71e088c"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H.",
+                        "VernacExtend",
+                        "8b2bca015429da94c456243b461e17a2a0582c40"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "congruence.",
+                        "VernacExtend",
+                        "d8c818f6cffeaee6a722a71acc77f2d6e5199eb9"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply n; clear n.",
+                        "VernacExtend",
+                        "56c5cbea2ffa17a2d76ebe7acc508b9a003269e4"
+                    ]
+                },
+                {
+                    "command": [
+                        "exists (b, z1, z2).",
+                        "VernacExtend",
+                        "6c6e4d8a0fd4fb080466ffa39ec636ff70cc42c6"
+                    ]
+                },
+                {
+                    "command": [
+                        "split; eauto.",
+                        "VernacExtend",
+                        "f3520b20a884376c5c10e2f9e716eedc86a566b6"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "in_free_list_trace_dec",
+            "line_nb": 591,
+            "steps": [
+                {
+                    "command": [
+                        "induction es; simpl.",
+                        "VernacExtend",
+                        "9b46fd0c2846dfa8ce3c642a20d1cbca190a7694"
+                    ]
+                },
+                {
+                    "command": [
+                        "right; intros N; trivial.",
+                        "VernacExtend",
+                        "fe2f2aae7757d280a176f3b5fe39bb70cf33f7ec"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct IHes.",
+                        "VernacExtend",
+                        "436c8a2e008896523929456b9c3e3a5726fd3e34"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a; try solve [left; eauto].",
+                        "VernacExtend",
+                        "fe3fa2935253e81585ba91d121c434e3ac785f05"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct a; try solve [right; eauto].",
+                        "VernacExtend",
+                        "c7ca0a5bfe3b54f8c7f6e9394109ff0da7dc7d6d"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (in_free_list_dec b ofs l).",
+                        "VernacExtend",
+                        "beff8e07d133c135ecb15631717e11b3ecc3ff43"
+                    ]
+                },
+                {
+                    "command": [
+                        "left; left; trivial.",
+                        "VernacExtend",
+                        "523a49814689106a37f10dcce6f7c16c7ac5e10f"
+                    ]
+                },
+                {
+                    "command": [
+                        "right; intros N.",
+                        "VernacExtend",
+                        "a449f9cb4214857f4f6732a32297bacd05dbcfdf"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct N; contradiction.",
+                        "VernacExtend",
+                        "b09bdead4e259946cc126610db66354b7fd11789"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

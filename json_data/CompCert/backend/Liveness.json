@@ -1,0 +1,191 @@
+{
+    "filename": "backend/Liveness.v",
+    "coq_project": "CompCert",
+    "vernac_cmds": [
+        [
+            "Require Import Coqlib.",
+            "VernacRequire",
+            "bbbe15041aca3a03300067f7acd445b462d537cc"
+        ],
+        [
+            "Require Import Maps.",
+            "VernacRequire",
+            "f9a27637102e60e06a3c1ceb5a01819e80b9f645"
+        ],
+        [
+            "Require Import Lattice.",
+            "VernacRequire",
+            "cbff06b741c16b3d01b08496bcfb374021168eb1"
+        ],
+        [
+            "Require Import AST.",
+            "VernacRequire",
+            "d103ecb096c06f34167fba01dd861491b0d5e84e"
+        ],
+        [
+            "Require Import Op.",
+            "VernacRequire",
+            "ade4899dcb267df47fd0e69e3c413086816e6a6f"
+        ],
+        [
+            "Require Import Registers.",
+            "VernacRequire",
+            "1607f789f69481494f718ae4501bc795077da4d4"
+        ],
+        [
+            "Require Import RTL.",
+            "VernacRequire",
+            "4de1de47bcd350514abb6fbc1070eb15c88d7b2b"
+        ],
+        [
+            "Require Import Kildall.",
+            "VernacRequire",
+            "a83554212e232e32d4661d40263312501a4ce323"
+        ],
+        [
+            "Notation reg_live := Regset.add.",
+            "VernacSyntacticDefinition",
+            "3ef40a75f5c6707dda3df00db85a54d8ca7c5103"
+        ],
+        [
+            "Notation reg_dead := Regset.remove.",
+            "VernacSyntacticDefinition",
+            "d926d293b1cd1493a7b2d0f1d6c8165a04927243"
+        ],
+        [
+            "Definition reg_option_live (or: option reg) (lv: Regset.t) := match or with None => lv | Some r => reg_live r lv end.",
+            "VernacDefinition",
+            "7949d151558a763cea4755e25686220e34e0e6fd"
+        ],
+        [
+            "Definition reg_sum_live (ros: reg + ident) (lv: Regset.t) := match ros with inl r => reg_live r lv | inr s => lv end.",
+            "VernacDefinition",
+            "1c3a5f8225b541c52c8d28b551393940f348f341"
+        ],
+        [
+            "Fixpoint reg_list_live (rl: list reg) (lv: Regset.t) {struct rl} : Regset.t := match rl with | nil => lv | r1 :: rs => reg_list_live rs (reg_live r1 lv) end.",
+            "VernacFixpoint",
+            "986fe964eeb6aa8db69a4e376fe483883af284c6"
+        ],
+        [
+            "Fixpoint reg_list_dead (rl: list reg) (lv: Regset.t) {struct rl} : Regset.t := match rl with | nil => lv | r1 :: rs => reg_list_dead rs (reg_dead r1 lv) end.",
+            "VernacFixpoint",
+            "ab07979a4bc13ebfb646e85b3911362f8a613607"
+        ],
+        [
+            "Definition transfer (f: function) (pc: node) (after: Regset.t) : Regset.t := match f.(fn_code)!pc with | None => Regset.empty | Some i => match i with | Inop s => after | Iop op args res s => if Regset.mem res after then reg_list_live args (reg_dead res after) else after | Iload chunk addr args dst s => if Regset.mem dst after then reg_list_live args (reg_dead dst after) else after | Istore chunk addr args src s => reg_list_live args (reg_live src after) | Icall sig ros args res s => reg_list_live args (reg_sum_live ros (reg_dead res after)) | Itailcall sig ros args => reg_list_live args (reg_sum_live ros Regset.empty) | Ibuiltin ef args res s => reg_list_live (params_of_builtin_args args) (reg_list_dead (params_of_builtin_res res) after) | Icond cond args ifso ifnot => reg_list_live args after | Ijumptable arg tbl => reg_live arg after | Ireturn optarg => reg_option_live optarg Regset.empty end end.",
+            "VernacDefinition",
+            "9bd5c931e2d441097f7f848ef015f6314e672874"
+        ],
+        [
+            "Module RegsetLat := LFSet(Regset).",
+            "VernacDefineModule",
+            "9757c5f8e6b7be72df24f6c49a19dc71def9734d"
+        ],
+        [
+            "Module DS := Backward_Dataflow_Solver(RegsetLat)(NodeSetBackward).",
+            "VernacDefineModule",
+            "eaa2e1725065e7a55c8094a06c0213afaa417c6f"
+        ],
+        [
+            "Definition analyze (f: function): option (PMap.t Regset.t) := DS.fixpoint f.(fn_code) successors_instr (transfer f).",
+            "VernacDefinition",
+            "4046d93235a81d31e420b3339c5a9fef3a419fab"
+        ],
+        [
+            "Lemma analyze_solution: forall f live n i s, analyze f = Some live -> f.(fn_code)!n = Some i -> In s (successors_instr i) -> Regset.Subset (transfer f s live!!s) live!!n.",
+            "VernacStartTheoremProof",
+            "4f00e40750a4e089a1d51c1e4b59c753cfae4251"
+        ],
+        [
+            "unfold analyze; intros.",
+            "VernacExtend",
+            "544134fbc0cd1b8bc42dc557f092da4dae471eec"
+        ],
+        [
+            "eapply DS.fixpoint_solution; eauto.",
+            "VernacExtend",
+            "d30df96280585ca839ead66407af69e03864660d"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold transfer; rewrite H2.",
+            "VernacExtend",
+            "7f6043de2956f0c95bb9ce45bf5ecff1fcf92493"
+        ],
+        [
+            "apply DS.L.eq_refl.",
+            "VernacExtend",
+            "375087bdae55ca6fc5586376bac5b9d3b8706cd0"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Definition last_uses_at (live: PMap.t Regset.t) (pc: node) (i: instruction) : list reg := let l := live!!pc in let lu := List.filter (fun r => negb (Regset.mem r l)) (instr_uses i) in match instr_defs i with | None => lu | Some r => if Regset.mem r l then lu else r :: lu end.",
+            "VernacDefinition",
+            "a05e6ec5f2d2ac3e394f6341e6935aa957e27551"
+        ],
+        [
+            "Definition last_uses (f: function) : PTree.t (list reg) := match analyze f with | None => PTree.empty (list reg) | Some live => PTree.map (last_uses_at live) f.(fn_code) end.",
+            "VernacDefinition",
+            "a3377961d6d90b64607fb16418209efd405061d2"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "analyze_solution",
+            "line_nb": 18,
+            "steps": [
+                {
+                    "command": [
+                        "unfold analyze; intros.",
+                        "VernacExtend",
+                        "544134fbc0cd1b8bc42dc557f092da4dae471eec"
+                    ]
+                },
+                {
+                    "command": [
+                        "eapply DS.fixpoint_solution; eauto.",
+                        "VernacExtend",
+                        "d30df96280585ca839ead66407af69e03864660d"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold transfer; rewrite H2.",
+                        "VernacExtend",
+                        "7f6043de2956f0c95bb9ce45bf5ecff1fcf92493"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply DS.L.eq_refl.",
+                        "VernacExtend",
+                        "375087bdae55ca6fc5586376bac5b9d3b8706cd0"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

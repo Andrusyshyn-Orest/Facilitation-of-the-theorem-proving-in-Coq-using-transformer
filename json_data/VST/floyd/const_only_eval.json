@@ -1,0 +1,3506 @@
+{
+    "filename": "floyd/const_only_eval.v",
+    "coq_project": "VST",
+    "vernac_cmds": [
+        [
+            "Require Import VST.floyd.base.",
+            "VernacRequire",
+            "71eaece31f1eafc55d4fb2e652963b16885d7953"
+        ],
+        [
+            "Require Import VST.floyd.val_lemmas.",
+            "VernacRequire",
+            "1360eb8a152923e773ffd6c8c81b508d40af4468"
+        ],
+        [
+            "Require Import VST.floyd.typecheck_lemmas.",
+            "VernacRequire",
+            "70a007a4e7af0b3dd2774e6496e9983b2b6d3242"
+        ],
+        [
+            "Definition const_only_isUnOpResultType {CS: compspecs} op typeof_a valueof_a ty : bool := match op with | Cop.Onotbool => match typeof_a with | Tint _ _ _ | Tlong _ _ | Tfloat _ _ => is_int_type ty | Tpointer _ _ => if Archi.ptr64 then match valueof_a with | Vlong v => andb (negb (eqb_type (typeof_a) int_or_ptr_type)) (andb (is_int_type ty) (Z.eqb 0 (Int64.unsigned v))) | _ => false end else match valueof_a with | Vint v => andb (negb (eqb_type typeof_a int_or_ptr_type)) (andb (is_int_type ty) (Z.eqb 0 (Int.unsigned v))) | _ => false end | _ => false end | Cop.Onotint => match Cop.classify_notint (typeof_a) with | Cop.notint_default => false | Cop.notint_case_i _ => (is_int32_type ty) | Cop.notint_case_l _ => (is_long_type ty) end | Cop.Oneg => match Cop.classify_neg (typeof_a) with | Cop.neg_case_i sg => andb (is_int32_type ty) match (typeof_a) with | Tint _ Signed _ => match valueof_a with | Vint v => negb (Z.eqb (Int.signed v) Int.min_signed) | _ => false end | Tlong Signed _ => match valueof_a with | Vlong v => negb (Z.eqb (Int64.signed v) Int64.min_signed) | _ => false end | _ => true end | Cop.neg_case_f => is_float_type ty | Cop.neg_case_s => is_single_type ty | _ => false end | Cop.Oabsfloat =>match Cop.classify_neg (typeof_a) with | Cop.neg_case_i sg => is_float_type ty | Cop.neg_case_l _ => is_float_type ty | Cop.neg_case_f => is_float_type ty | Cop.neg_case_s => is_float_type ty | _ => false end end.",
+            "VernacDefinition",
+            "d980173621c8860452b22487741b112f3a41ee74"
+        ],
+        [
+            "Definition const_only_isBinOpResultType {CS: compspecs} op typeof_a1 valueof_a1 typeof_a2 valueof_a2 ty : bool := match op with | Cop.Oadd => match Cop.classify_add (typeof_a1) (typeof_a2) with | Cop.add_case_pi t _ | Cop.add_case_pl t => andb (andb (andb (match valueof_a1 with Vptr _ _ => true | _ => false end) (complete_type cenv_cs t)) (negb (eqb_type (typeof_a1) int_or_ptr_type))) (is_pointer_type ty) | Cop.add_case_ip _ t | Cop.add_case_lp t => andb (andb (andb (match valueof_a2 with Vptr _ _ => true | _ => false end) (complete_type cenv_cs t)) (negb (eqb_type (typeof_a2) int_or_ptr_type))) (is_pointer_type ty) | Cop.add_default => false end | _ => false end.",
+            "VernacDefinition",
+            "1886486da048da35dffc2be569f46fa447cb0669"
+        ],
+        [
+            "Definition const_only_isCastResultType {CS: compspecs} (t1 t2: type) (valueof_a: val) : bool := false.",
+            "VernacDefinition",
+            "3385395d49513c68c027e635098edf87578cbc9e"
+        ],
+        [
+            "Fixpoint const_only_eval_expr {cs: compspecs} (e: Clight.expr): option val := match e with | Econst_int i (Tint I32 _ _) => Some (Vint i) | Econst_int _ _ => None | Econst_long i ty => None | Econst_float f (Tfloat F64 _) => Some (Vfloat f) | Econst_float _ _ => None | Econst_single f (Tfloat F32 _) => Some (Vsingle f) | Econst_single _ _ => None | Etempvar id ty => None | Evar _ _ => None | Eaddrof a ty => None | Eunop op a ty => match const_only_eval_expr a with | Some v => if const_only_isUnOpResultType op (typeof a) v ty then Some (eval_unop op (typeof a) v) else None | None => None end | Ebinop op a1 a2 ty => match (const_only_eval_expr a1), (const_only_eval_expr a2) with | Some v1, Some v2 => if const_only_isBinOpResultType op (typeof a1) v1 (typeof a2) v2 ty then Some (eval_binop op (typeof a1) (typeof a2) v1 v2) else None | _, _ => None end | Ecast a ty => match const_only_eval_expr a with | Some v => if const_only_isCastResultType (typeof a) ty v then Some (eval_cast (typeof a) ty v) else None | None => None end | Ederef a ty => None | Efield a i ty => None | Esizeof t t0 => if andb (complete_type cenv_cs t) (eqb_type t0 size_t) then Some (Vptrofs (Ptrofs.repr (sizeof t))) else None | Ealignof t t0 => if andb (complete_type cenv_cs t) (eqb_type t0 size_t) then Some (Vptrofs (Ptrofs.repr (alignof t))) else None end.",
+            "VernacFixpoint",
+            "0da8991f83468e16fe3ffd8d3fa9a66a4f116055"
+        ],
+        [
+            "Lemma const_only_isUnOpResultType_spec: forall {cs: compspecs} rho u e t P, const_only_isUnOpResultType u (typeof e) (eval_expr e rho) t = true -> P |-- denote_tc_assert (isUnOpResultType u e t) rho.",
+            "VernacStartTheoremProof",
+            "bbb38f2a002cfdd6553d7a038883b171e0700877"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold isUnOpResultType.",
+            "VernacExtend",
+            "f3820215e08985834de1ac79790a2d458ea22afa"
+        ],
+        [
+            "unfold const_only_isUnOpResultType in H.",
+            "VernacExtend",
+            "aa3c15a63310567e59eb0bb01e47a0ee5f84d2dd"
+        ],
+        [
+            "destruct u.",
+            "VernacExtend",
+            "dee8b63128905ddbe2f11c2896ff9a49d579fc5f"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct (typeof e); try solve [inv H | rewrite H; exact (@prop_right mpred _ True _ I)].",
+            "VernacExtend",
+            "3debb8fc4e7b233e5750492da809dd2dfc238e1f"
+        ],
+        [
+            "rewrite !denote_tc_assert_andp.",
+            "VernacExtend",
+            "7c4bae0ae75a4ba8a88d589c6a89d7191b19268e"
+        ],
+        [
+            "match goal with | |- context [denote_tc_assert (tc_test_eq ?a ?b)] => change (denote_tc_assert (tc_test_eq a b)) with (expr2.denote_tc_assert (tc_test_eq a b)) end.",
+            "VernacExtend",
+            "a7cfaff6d4d2c4f50fd666b948e6f0957e5824e9"
+        ],
+        [
+            "rewrite binop_lemmas2.denote_tc_assert_test_eq'.",
+            "VernacExtend",
+            "427b9c7e49428803f841c8b02e08afb5cb9a1b7d"
+        ],
+        [
+            "simpl expr2.denote_tc_assert.",
+            "VernacExtend",
+            "e2f3c704de3454d9a3f766ded5ecbc9272f4f545"
+        ],
+        [
+            "unfold_lift.",
+            "VernacExtend",
+            "49cc678292f20068718dd6f7d6f838fc96506b4c"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "unfold tc_int_or_ptr_type.",
+            "VernacExtend",
+            "4415ac3eb7b7acf3243f1a5118f867a70c2997a6"
+        ],
+        [
+            "destruct Archi.ptr64 eqn:HH.",
+            "VernacExtend",
+            "4f220edbfc890c6d7bff6c99e5eb547cc14b6005"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct (eval_expr e rho); try solve [inv H].",
+            "VernacExtend",
+            "2e1dd3e766d9224ac876895208d08e0fae2736f7"
+        ],
+        [
+            "rewrite !andb_true_iff in H.",
+            "VernacExtend",
+            "bf29e3aa7380d9383455394322453f5be06ca9cd"
+        ],
+        [
+            "destruct H as [? [? ?]].",
+            "VernacExtend",
+            "7b80d34d0c991fb27b92313d17ea8675f1173807"
+        ],
+        [
+            "rewrite H, H0.",
+            "VernacExtend",
+            "6a2c6e8b471f6fb686cf1a7e2e3992d01a326476"
+        ],
+        [
+            "rewrite Z.eqb_eq in H1.",
+            "VernacExtend",
+            "17bfd1aca2f8d6289bb2850c73d7577594566637"
+        ],
+        [
+            "apply andp_right; [exact (@prop_right mpred _ True _ I) |].",
+            "VernacExtend",
+            "b90de50fdbbe8641e568bcf0376735843805a5bf"
+        ],
+        [
+            "apply andp_right; [exact (@prop_right mpred _ True _ I) |].",
+            "VernacExtend",
+            "b90de50fdbbe8641e568bcf0376735843805a5bf"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite HH.",
+            "VernacExtend",
+            "da2353338a3557b6b8cb2bfb56a56528ae55710e"
+        ],
+        [
+            "change (P |-- (!! (i = Int64.zero)) && (!! (Int64.zero = Int64.zero)))%logic.",
+            "VernacExtend",
+            "8bdc90f98b639a442d100e330f860205c80f4c6f"
+        ],
+        [
+            "apply andp_right; apply prop_right; auto.",
+            "VernacExtend",
+            "826ff1cf6cc0573e269866616bfcfae73aba9798"
+        ],
+        [
+            "rewrite <- (Int64.repr_unsigned i), <- H1.",
+            "VernacExtend",
+            "aee0e1fdec8aebad07335546e64e94e2b58b6242"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "destruct (eval_expr e rho); try solve [inv H].",
+            "VernacExtend",
+            "2e1dd3e766d9224ac876895208d08e0fae2736f7"
+        ],
+        [
+            "rewrite !andb_true_iff in H.",
+            "VernacExtend",
+            "bf29e3aa7380d9383455394322453f5be06ca9cd"
+        ],
+        [
+            "destruct H as [? [? ?]].",
+            "VernacExtend",
+            "7b80d34d0c991fb27b92313d17ea8675f1173807"
+        ],
+        [
+            "rewrite H, H0.",
+            "VernacExtend",
+            "6a2c6e8b471f6fb686cf1a7e2e3992d01a326476"
+        ],
+        [
+            "rewrite Z.eqb_eq in H1.",
+            "VernacExtend",
+            "17bfd1aca2f8d6289bb2850c73d7577594566637"
+        ],
+        [
+            "apply andp_right; [exact (@prop_right mpred _ True _ I) |].",
+            "VernacExtend",
+            "b90de50fdbbe8641e568bcf0376735843805a5bf"
+        ],
+        [
+            "apply andp_right; [exact (@prop_right mpred _ True _ I) |].",
+            "VernacExtend",
+            "b90de50fdbbe8641e568bcf0376735843805a5bf"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "rewrite HH.",
+            "VernacExtend",
+            "da2353338a3557b6b8cb2bfb56a56528ae55710e"
+        ],
+        [
+            "change (P |-- (!! (i = Int.zero)) && (!! (Int.zero = Int.zero)))%logic.",
+            "VernacExtend",
+            "2db81274c173cca328ce721d18c7d28e5b487a93"
+        ],
+        [
+            "apply andp_right; apply prop_right; auto.",
+            "VernacExtend",
+            "826ff1cf6cc0573e269866616bfcfae73aba9798"
+        ],
+        [
+            "rewrite <- (Int.repr_unsigned i), <- H1.",
+            "VernacExtend",
+            "5d2d8e1c2f1558d64c0c7d9525652a532302a4d1"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct (Cop.classify_notint (typeof e)); try solve [inv H | rewrite H; exact (@prop_right mpred _ True _ I)].",
+            "VernacExtend",
+            "37051c07163687c3cecffac03c1a69ca0e4b5ce9"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct (Cop.classify_neg (typeof e)); try solve [inv H | rewrite H; exact (@prop_right mpred _ True _ I)].",
+            "VernacExtend",
+            "23605150b0f5e6fd4823d3360fc63a5d08c3f25a"
+        ],
+        [
+            "rewrite !andb_true_iff in H.",
+            "VernacExtend",
+            "bf29e3aa7380d9383455394322453f5be06ca9cd"
+        ],
+        [
+            "destruct H.",
+            "VernacExtend",
+            "8b2bca015429da94c456243b461e17a2a0582c40"
+        ],
+        [
+            "rewrite H; simpl.",
+            "VernacExtend",
+            "9d8fceb2956840b5cbf41ba3844c2d68196d141c"
+        ],
+        [
+            "destruct (typeof e) as [| ? [|] | [|] | | | | | |]; try solve [exact (@prop_right mpred _ True _ I)].",
+            "VernacExtend",
+            "885ce4717d8ba5f514642d918ecd2df33eb34618"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "unfold_lift.",
+            "VernacExtend",
+            "49cc678292f20068718dd6f7d6f838fc96506b4c"
+        ],
+        [
+            "unfold denote_tc_nosignedover.",
+            "VernacExtend",
+            "81b2ea11993ab63e16a119f7adac2d4f830cf58e"
+        ],
+        [
+            "destruct (eval_expr e rho); try solve [inv H0].",
+            "VernacExtend",
+            "9120c15519c42c17ddaa7edd80d2a01a0246561d"
+        ],
+        [
+            "rewrite negb_true_iff in H0.",
+            "VernacExtend",
+            "a89ba6968f0d98ea575d8bff3ae45f6756eec2c9"
+        ],
+        [
+            "rewrite Z.eqb_neq in H0.",
+            "VernacExtend",
+            "2206ff1a9470039aff2df9bc47e1c7cbb13554de"
+        ],
+        [
+            "apply prop_right.",
+            "VernacExtend",
+            "951daa52f148695942d4aefc563d5e92d8ec02ff"
+        ],
+        [
+            "change (Int.signed Int.zero) with 0.",
+            "VernacExtend",
+            "a14380b0e7f777742c5171007660635936b56e18"
+        ],
+        [
+            "rep_omega.",
+            "VernacExtend",
+            "41dfe20803b7e2448c0c8c8e355b919fa38aa228"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "unfold_lift.",
+            "VernacExtend",
+            "49cc678292f20068718dd6f7d6f838fc96506b4c"
+        ],
+        [
+            "unfold denote_tc_nosignedover.",
+            "VernacExtend",
+            "81b2ea11993ab63e16a119f7adac2d4f830cf58e"
+        ],
+        [
+            "destruct (eval_expr e rho); try solve [inv H0].",
+            "VernacExtend",
+            "9120c15519c42c17ddaa7edd80d2a01a0246561d"
+        ],
+        [
+            "rewrite negb_true_iff in H0.",
+            "VernacExtend",
+            "a89ba6968f0d98ea575d8bff3ae45f6756eec2c9"
+        ],
+        [
+            "rewrite Z.eqb_neq in H0.",
+            "VernacExtend",
+            "2206ff1a9470039aff2df9bc47e1c7cbb13554de"
+        ],
+        [
+            "apply prop_right.",
+            "VernacExtend",
+            "951daa52f148695942d4aefc563d5e92d8ec02ff"
+        ],
+        [
+            "change (Int64.signed Int64.zero) with 0.",
+            "VernacExtend",
+            "41b11136ea357420c03a38f9c5f85a26267711b4"
+        ],
+        [
+            "rep_omega.",
+            "VernacExtend",
+            "41dfe20803b7e2448c0c8c8e355b919fa38aa228"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct (Cop.classify_neg (typeof e)); try solve [inv H | rewrite H; exact (@prop_right mpred _ True _ I)].",
+            "VernacExtend",
+            "23605150b0f5e6fd4823d3360fc63a5d08c3f25a"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma const_only_isBinOpResultType_spec: forall {cs: compspecs} rho b e1 e2 t P, const_only_isBinOpResultType b (typeof e1) (eval_expr e1 rho) (typeof e2) (eval_expr e2 rho) t = true -> P |-- denote_tc_assert (isBinOpResultType b e1 e2 t) rho.",
+            "VernacStartTheoremProof",
+            "f5e2017c4b9400277b615e1caf3df7d0351cbf40"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold isBinOpResultType.",
+            "VernacExtend",
+            "ff9fe0b2173e11a06274be6d484e03c41cff229c"
+        ],
+        [
+            "unfold const_only_isBinOpResultType in H.",
+            "VernacExtend",
+            "4b601692566d12b014969a4abf36c5b1204935c6"
+        ],
+        [
+            "destruct b.",
+            "VernacExtend",
+            "8903a74740ba2d4b9b293ac81ed015a01a553cd0"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "destruct (Cop.classify_add (typeof e1) (typeof e2)).",
+            "VernacExtend",
+            "a92293d2c6b7736fdf142ba67b170e1c4118a250"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite !denote_tc_assert_andp; simpl.",
+            "VernacExtend",
+            "135f5a3fcf60f4ec7b43d0b91b5d96f4b2da098f"
+        ],
+        [
+            "unfold_lift.",
+            "VernacExtend",
+            "49cc678292f20068718dd6f7d6f838fc96506b4c"
+        ],
+        [
+            "unfold tc_int_or_ptr_type, denote_tc_isptr.",
+            "VernacExtend",
+            "ea05602c289456793ddb8078a4d4b9ee23a71cbe"
+        ],
+        [
+            "destruct (eval_expr e1 rho); inv H.",
+            "VernacExtend",
+            "17c6d79f7a951584c439763db4759d0c6022c83b"
+        ],
+        [
+            "rewrite !andb_true_iff in H1.",
+            "VernacExtend",
+            "e001a2814ec3f8303e7f33eb8fcdde48fc569f82"
+        ],
+        [
+            "destruct H1 as [[? ?] ?].",
+            "VernacExtend",
+            "b085f419b47223596bece56ab274775068578083"
+        ],
+        [
+            "rewrite H, H0, H1.",
+            "VernacExtend",
+            "115db225bae3dda67a9a12550860f771ac0ae010"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "repeat apply andp_right; apply prop_right; auto.",
+            "VernacExtend",
+            "9ca9edf02e6168285038f0dba569f27f6ee1cd4b"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite !denote_tc_assert_andp; simpl.",
+            "VernacExtend",
+            "135f5a3fcf60f4ec7b43d0b91b5d96f4b2da098f"
+        ],
+        [
+            "unfold_lift.",
+            "VernacExtend",
+            "49cc678292f20068718dd6f7d6f838fc96506b4c"
+        ],
+        [
+            "unfold tc_int_or_ptr_type, denote_tc_isptr.",
+            "VernacExtend",
+            "ea05602c289456793ddb8078a4d4b9ee23a71cbe"
+        ],
+        [
+            "destruct (eval_expr e1 rho); inv H.",
+            "VernacExtend",
+            "17c6d79f7a951584c439763db4759d0c6022c83b"
+        ],
+        [
+            "rewrite !andb_true_iff in H1.",
+            "VernacExtend",
+            "e001a2814ec3f8303e7f33eb8fcdde48fc569f82"
+        ],
+        [
+            "destruct H1 as [[? ?] ?].",
+            "VernacExtend",
+            "b085f419b47223596bece56ab274775068578083"
+        ],
+        [
+            "rewrite H, H0, H1.",
+            "VernacExtend",
+            "115db225bae3dda67a9a12550860f771ac0ae010"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "repeat apply andp_right; apply prop_right; auto.",
+            "VernacExtend",
+            "9ca9edf02e6168285038f0dba569f27f6ee1cd4b"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite !denote_tc_assert_andp; simpl.",
+            "VernacExtend",
+            "135f5a3fcf60f4ec7b43d0b91b5d96f4b2da098f"
+        ],
+        [
+            "unfold_lift.",
+            "VernacExtend",
+            "49cc678292f20068718dd6f7d6f838fc96506b4c"
+        ],
+        [
+            "unfold tc_int_or_ptr_type, denote_tc_isptr.",
+            "VernacExtend",
+            "ea05602c289456793ddb8078a4d4b9ee23a71cbe"
+        ],
+        [
+            "destruct (eval_expr e2 rho); inv H.",
+            "VernacExtend",
+            "9e6c9d03fd1a0d74e8a8646fa06d322a2918749c"
+        ],
+        [
+            "rewrite !andb_true_iff in H1.",
+            "VernacExtend",
+            "e001a2814ec3f8303e7f33eb8fcdde48fc569f82"
+        ],
+        [
+            "destruct H1 as [[? ?] ?].",
+            "VernacExtend",
+            "b085f419b47223596bece56ab274775068578083"
+        ],
+        [
+            "rewrite H, H0, H1.",
+            "VernacExtend",
+            "115db225bae3dda67a9a12550860f771ac0ae010"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "repeat apply andp_right; apply prop_right; auto.",
+            "VernacExtend",
+            "9ca9edf02e6168285038f0dba569f27f6ee1cd4b"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "rewrite !denote_tc_assert_andp; simpl.",
+            "VernacExtend",
+            "135f5a3fcf60f4ec7b43d0b91b5d96f4b2da098f"
+        ],
+        [
+            "unfold_lift.",
+            "VernacExtend",
+            "49cc678292f20068718dd6f7d6f838fc96506b4c"
+        ],
+        [
+            "unfold tc_int_or_ptr_type, denote_tc_isptr.",
+            "VernacExtend",
+            "ea05602c289456793ddb8078a4d4b9ee23a71cbe"
+        ],
+        [
+            "destruct (eval_expr e2 rho); inv H.",
+            "VernacExtend",
+            "9e6c9d03fd1a0d74e8a8646fa06d322a2918749c"
+        ],
+        [
+            "rewrite !andb_true_iff in H1.",
+            "VernacExtend",
+            "e001a2814ec3f8303e7f33eb8fcdde48fc569f82"
+        ],
+        [
+            "destruct H1 as [[? ?] ?].",
+            "VernacExtend",
+            "b085f419b47223596bece56ab274775068578083"
+        ],
+        [
+            "rewrite H, H0, H1.",
+            "VernacExtend",
+            "115db225bae3dda67a9a12550860f771ac0ae010"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "repeat apply andp_right; apply prop_right; auto.",
+            "VernacExtend",
+            "9ca9edf02e6168285038f0dba569f27f6ee1cd4b"
+        ],
+        [
+            "-",
+            "VernacBullet",
+            "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma const_only_isCastResultType_spec: forall {cs: compspecs} rho e t P, const_only_isCastResultType (typeof e) t (eval_expr e rho) = true -> P |-- denote_tc_assert (isCastResultType (typeof e) t e) rho.",
+            "VernacStartTheoremProof",
+            "e3126f64eaa20cfcf072fe68374052fd2b7bae75"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma const_only_eval_expr_eq: forall {cs: compspecs} rho e v, const_only_eval_expr e = Some v -> eval_expr e rho = v.",
+            "VernacStartTheoremProof",
+            "2f86221b9282a776e99942bc747475f90676b22c"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "revert v H; induction e; try solve [intros; inv H; auto].",
+            "VernacExtend",
+            "edab4a4555ae57f72e984767541267375f713fc3"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "destruct t as [| [| | |] | | | | | | |]; inv H.",
+            "VernacExtend",
+            "c75d60bdd4799bdf1e4286bd1b4dd78822389b55"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "destruct t as [| | | [|] | | | | |]; inv H.",
+            "VernacExtend",
+            "db6c7aa797ab0a17d08e9afbc02837520e6d02ac"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "destruct t as [| | | [|] | | | | |]; inv H.",
+            "VernacExtend",
+            "db6c7aa797ab0a17d08e9afbc02837520e6d02ac"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "unfold option_map in H.",
+            "VernacExtend",
+            "55460c9d2d8f20506bcd3aeb30ae196365c384a8"
+        ],
+        [
+            "destruct (const_only_eval_expr e); inv H.",
+            "VernacExtend",
+            "f4b04a8d056a6f7cfcf8174c273ba45fb43299db"
+        ],
+        [
+            "destruct (const_only_isUnOpResultType u (typeof e) v0 t); inv H1.",
+            "VernacExtend",
+            "40adad8ae77e92bb5959ee14ce7661d0e5d80e3f"
+        ],
+        [
+            "specialize (IHe _ eq_refl).",
+            "VernacExtend",
+            "0d00cfcf7190cbb2f7eb1f44c11759410f9eb625"
+        ],
+        [
+            "unfold_lift.",
+            "VernacExtend",
+            "49cc678292f20068718dd6f7d6f838fc96506b4c"
+        ],
+        [
+            "rewrite IHe; auto.",
+            "VernacExtend",
+            "7f3466177045975447e9b913f147d09c01124357"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "unfold option_map in H.",
+            "VernacExtend",
+            "55460c9d2d8f20506bcd3aeb30ae196365c384a8"
+        ],
+        [
+            "destruct (const_only_eval_expr e1); inv H.",
+            "VernacExtend",
+            "0525207a2338a4b3bcc314166645cbd2dde234dd"
+        ],
+        [
+            "destruct (const_only_eval_expr e2); inv H1.",
+            "VernacExtend",
+            "cb9d8c1fccbc30fcc26f3cc7f4cf27bfa3d49d12"
+        ],
+        [
+            "destruct (const_only_isBinOpResultType b (typeof e1) v0 (typeof e2) v1 t); inv H0.",
+            "VernacExtend",
+            "072ebab90df169b50f66d7239a7af246491f2b68"
+        ],
+        [
+            "specialize (IHe1 _ eq_refl).",
+            "VernacExtend",
+            "e184c0fba891ec450e00a7027edca47b6eeb9b3d"
+        ],
+        [
+            "specialize (IHe2 _ eq_refl).",
+            "VernacExtend",
+            "ccd8014d89209059fbef3f4cdceefab566894d97"
+        ],
+        [
+            "unfold_lift.",
+            "VernacExtend",
+            "49cc678292f20068718dd6f7d6f838fc96506b4c"
+        ],
+        [
+            "rewrite IHe1, IHe2; auto.",
+            "VernacExtend",
+            "1cf5238f79e8cafe6c058d0c4f75b66a96a29d09"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "unfold option_map in H.",
+            "VernacExtend",
+            "55460c9d2d8f20506bcd3aeb30ae196365c384a8"
+        ],
+        [
+            "destruct (const_only_eval_expr e); inv H.",
+            "VernacExtend",
+            "f4b04a8d056a6f7cfcf8174c273ba45fb43299db"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "destruct (complete_type cenv_cs t && eqb_type t0 size_t); inv H.",
+            "VernacExtend",
+            "42ed464fc2ebc0d9b4110590709ea825700e3ff3"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "destruct (complete_type cenv_cs t && eqb_type t0 size_t); inv H.",
+            "VernacExtend",
+            "42ed464fc2ebc0d9b4110590709ea825700e3ff3"
+        ],
+        [
+            "auto.",
+            "VernacExtend",
+            "1f09da0addd069b3b65326f8c71967acc1e985af"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ],
+        [
+            "Lemma const_only_eval_expr_tc: forall {cs: compspecs} Delta e v P, const_only_eval_expr e = Some v -> P |-- tc_expr Delta e.",
+            "VernacStartTheoremProof",
+            "e387b8e3ab6fa6f681ed689cc0f733d48d8a0894"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "intro rho.",
+            "VernacExtend",
+            "340a6646b01296f706bfd718a4f2fa78cb01cc3b"
+        ],
+        [
+            "revert v H; induction e; try solve [intros; inv H].",
+            "VernacExtend",
+            "aaf360d424c6ce93c6c3b3fc5ccea9a7da378519"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "destruct t as [| [| | |] | | | | | | |]; inv H1.",
+            "VernacExtend",
+            "d6531a777df51149e8cf3a8d9d358bef5cfbcf6b"
+        ],
+        [
+            "exact (@prop_right mpred _ True _ I).",
+            "VernacExtend",
+            "f740bb357bdca18d8fbf59119ee0ba0d985c62a0"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "destruct t as [| | | [|] | | | | |]; inv H1.",
+            "VernacExtend",
+            "de6d0606df7ed719d1f778169b528c4cc3e8fa3e"
+        ],
+        [
+            "exact (@prop_right mpred _ True _ I).",
+            "VernacExtend",
+            "f740bb357bdca18d8fbf59119ee0ba0d985c62a0"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "destruct t as [| | | [|] | | | | |]; inv H1.",
+            "VernacExtend",
+            "de6d0606df7ed719d1f778169b528c4cc3e8fa3e"
+        ],
+        [
+            "exact (@prop_right mpred _ True _ I).",
+            "VernacExtend",
+            "f740bb357bdca18d8fbf59119ee0ba0d985c62a0"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold tc_expr in *.",
+            "VernacExtend",
+            "529e59d5a4ff6f823356478b061a4680483f0baf"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "unfold option_map in H.",
+            "VernacExtend",
+            "55460c9d2d8f20506bcd3aeb30ae196365c384a8"
+        ],
+        [
+            "destruct (const_only_eval_expr e) eqn:HH; inv H.",
+            "VernacExtend",
+            "72f9b309f66f51566afad41f5779bb788b1cfbbf"
+        ],
+        [
+            "specialize (IHe _ eq_refl).",
+            "VernacExtend",
+            "0d00cfcf7190cbb2f7eb1f44c11759410f9eb625"
+        ],
+        [
+            "unfold_lift.",
+            "VernacExtend",
+            "49cc678292f20068718dd6f7d6f838fc96506b4c"
+        ],
+        [
+            "rewrite denote_tc_assert_andp; simpl; apply andp_right; auto.",
+            "VernacExtend",
+            "b043c9ba704f73de33bdb98f3fa810611bc635da"
+        ],
+        [
+            "apply const_only_isUnOpResultType_spec.",
+            "VernacExtend",
+            "30d3fb798cba0d9fc2576c319aa5b9e7f56624fb"
+        ],
+        [
+            "apply (const_only_eval_expr_eq rho) in HH.",
+            "VernacExtend",
+            "1c33e9145366151c1fe888a78eba1a8df8f8796c"
+        ],
+        [
+            "rewrite HH.",
+            "VernacExtend",
+            "da2353338a3557b6b8cb2bfb56a56528ae55710e"
+        ],
+        [
+            "destruct (const_only_isUnOpResultType u (typeof e) v0 t); inv H1; auto.",
+            "VernacExtend",
+            "5ca4e770987460f6562d228ee8bf26ab9ed3060c"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold tc_expr in *.",
+            "VernacExtend",
+            "529e59d5a4ff6f823356478b061a4680483f0baf"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "unfold option_map in H.",
+            "VernacExtend",
+            "55460c9d2d8f20506bcd3aeb30ae196365c384a8"
+        ],
+        [
+            "destruct (const_only_eval_expr e1) eqn:HH1; inv H.",
+            "VernacExtend",
+            "2efe4cb0fb4af9f25d02faf8428f7b0a7d8b4fb8"
+        ],
+        [
+            "destruct (const_only_eval_expr e2) eqn:HH2; inv H1.",
+            "VernacExtend",
+            "9b40d744145e2e638a333ee71fc592bd95f8a0c7"
+        ],
+        [
+            "specialize (IHe1 _ eq_refl).",
+            "VernacExtend",
+            "e184c0fba891ec450e00a7027edca47b6eeb9b3d"
+        ],
+        [
+            "specialize (IHe2 _ eq_refl).",
+            "VernacExtend",
+            "ccd8014d89209059fbef3f4cdceefab566894d97"
+        ],
+        [
+            "unfold_lift.",
+            "VernacExtend",
+            "49cc678292f20068718dd6f7d6f838fc96506b4c"
+        ],
+        [
+            "rewrite !denote_tc_assert_andp; simpl; repeat apply andp_right; auto.",
+            "VernacExtend",
+            "b9dfe195c946d8a064c032e06d8ffaeed224a1d4"
+        ],
+        [
+            "apply const_only_isBinOpResultType_spec.",
+            "VernacExtend",
+            "590151df2f92621230dd2e12cbc047d4a8f93ca9"
+        ],
+        [
+            "apply (const_only_eval_expr_eq rho) in HH1.",
+            "VernacExtend",
+            "c40991ffbd88a829f212d8b4b89c1e6649374b50"
+        ],
+        [
+            "apply (const_only_eval_expr_eq rho) in HH2.",
+            "VernacExtend",
+            "bcf8f534327e4f6a2ce9d91cc76692d910b6f8ac"
+        ],
+        [
+            "rewrite HH1, HH2.",
+            "VernacExtend",
+            "ae62f951ef3127e2599f1e9e7f740a2192b5f68d"
+        ],
+        [
+            "destruct (const_only_isBinOpResultType b (typeof e1) v0 (typeof e2) v1 t); inv H0; auto.",
+            "VernacExtend",
+            "c7e186367c462f399ae0482002bddabf69cd0081"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "unfold tc_expr in *.",
+            "VernacExtend",
+            "529e59d5a4ff6f823356478b061a4680483f0baf"
+        ],
+        [
+            "simpl in *.",
+            "VernacExtend",
+            "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+        ],
+        [
+            "unfold option_map in H.",
+            "VernacExtend",
+            "55460c9d2d8f20506bcd3aeb30ae196365c384a8"
+        ],
+        [
+            "destruct (const_only_eval_expr e) eqn:HH; inv H.",
+            "VernacExtend",
+            "72f9b309f66f51566afad41f5779bb788b1cfbbf"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "unfold tc_expr.",
+            "VernacExtend",
+            "12dc66c97196b373cb3844e16b07a3663bdc69a9"
+        ],
+        [
+            "simpl typecheck_expr.",
+            "VernacExtend",
+            "bf3111365b3bfb5d46d055333ecd013a2357132a"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "destruct (complete_type cenv_cs t && eqb_type t0 size_t) eqn:HH; inv H1.",
+            "VernacExtend",
+            "2ba949570257c8ac82f1b4d672a2f1b8b65f6ca7"
+        ],
+        [
+            "rewrite andb_true_iff in HH.",
+            "VernacExtend",
+            "1630c7e6b2747fd0c417d0e1239e6d53066bb249"
+        ],
+        [
+            "unfold tuint in HH; destruct HH.",
+            "VernacExtend",
+            "9b93e7a3462f24807c8351647fa4c011e588b7f0"
+        ],
+        [
+            "rewrite H, H0.",
+            "VernacExtend",
+            "6a2c6e8b471f6fb686cf1a7e2e3992d01a326476"
+        ],
+        [
+            "exact (@prop_right mpred _ True _ I).",
+            "VernacExtend",
+            "f740bb357bdca18d8fbf59119ee0ba0d985c62a0"
+        ],
+        [
+            "+",
+            "VernacBullet",
+            "3ddfc0515f916e562bacf863647e0107cb15aa13"
+        ],
+        [
+            "intros.",
+            "VernacExtend",
+            "1b4df911c5412d25278e46f48402870ba987996b"
+        ],
+        [
+            "inv H.",
+            "VernacExtend",
+            "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+        ],
+        [
+            "unfold tc_expr.",
+            "VernacExtend",
+            "12dc66c97196b373cb3844e16b07a3663bdc69a9"
+        ],
+        [
+            "simpl typecheck_expr.",
+            "VernacExtend",
+            "bf3111365b3bfb5d46d055333ecd013a2357132a"
+        ],
+        [
+            "simpl.",
+            "VernacExtend",
+            "1b93169f4cf876d207c1fab22a2347202ab48d85"
+        ],
+        [
+            "destruct (complete_type cenv_cs t && eqb_type t0 size_t) eqn:HH; inv H1.",
+            "VernacExtend",
+            "2ba949570257c8ac82f1b4d672a2f1b8b65f6ca7"
+        ],
+        [
+            "rewrite andb_true_iff in HH.",
+            "VernacExtend",
+            "1630c7e6b2747fd0c417d0e1239e6d53066bb249"
+        ],
+        [
+            "unfold tuint in HH; destruct HH.",
+            "VernacExtend",
+            "9b93e7a3462f24807c8351647fa4c011e588b7f0"
+        ],
+        [
+            "rewrite H, H0.",
+            "VernacExtend",
+            "6a2c6e8b471f6fb686cf1a7e2e3992d01a326476"
+        ],
+        [
+            "exact (@prop_right mpred _ True _ I).",
+            "VernacExtend",
+            "f740bb357bdca18d8fbf59119ee0ba0d985c62a0"
+        ],
+        [
+            "Qed.",
+            "VernacEndProof",
+            "6eee6c55dea8e22a11abc36404343a43e520a888"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "const_only_isUnOpResultType_spec",
+            "line_nb": 7,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold isUnOpResultType.",
+                        "VernacExtend",
+                        "f3820215e08985834de1ac79790a2d458ea22afa"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold const_only_isUnOpResultType in H.",
+                        "VernacExtend",
+                        "aa3c15a63310567e59eb0bb01e47a0ee5f84d2dd"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct u.",
+                        "VernacExtend",
+                        "dee8b63128905ddbe2f11c2896ff9a49d579fc5f"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (typeof e); try solve [inv H | rewrite H; exact (@prop_right mpred _ True _ I)].",
+                        "VernacExtend",
+                        "3debb8fc4e7b233e5750492da809dd2dfc238e1f"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite !denote_tc_assert_andp.",
+                        "VernacExtend",
+                        "7c4bae0ae75a4ba8a88d589c6a89d7191b19268e"
+                    ]
+                },
+                {
+                    "command": [
+                        "match goal with | |- context [denote_tc_assert (tc_test_eq ?a ?b)] => change (denote_tc_assert (tc_test_eq a b)) with (expr2.denote_tc_assert (tc_test_eq a b)) end.",
+                        "VernacExtend",
+                        "a7cfaff6d4d2c4f50fd666b948e6f0957e5824e9"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite binop_lemmas2.denote_tc_assert_test_eq'.",
+                        "VernacExtend",
+                        "427b9c7e49428803f841c8b02e08afb5cb9a1b7d"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl expr2.denote_tc_assert.",
+                        "VernacExtend",
+                        "e2f3c704de3454d9a3f766ded5ecbc9272f4f545"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold_lift.",
+                        "VernacExtend",
+                        "49cc678292f20068718dd6f7d6f838fc96506b4c"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold tc_int_or_ptr_type.",
+                        "VernacExtend",
+                        "4415ac3eb7b7acf3243f1a5118f867a70c2997a6"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct Archi.ptr64 eqn:HH.",
+                        "VernacExtend",
+                        "4f220edbfc890c6d7bff6c99e5eb547cc14b6005"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (eval_expr e rho); try solve [inv H].",
+                        "VernacExtend",
+                        "2e1dd3e766d9224ac876895208d08e0fae2736f7"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite !andb_true_iff in H.",
+                        "VernacExtend",
+                        "bf29e3aa7380d9383455394322453f5be06ca9cd"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H as [? [? ?]].",
+                        "VernacExtend",
+                        "7b80d34d0c991fb27b92313d17ea8675f1173807"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H, H0.",
+                        "VernacExtend",
+                        "6a2c6e8b471f6fb686cf1a7e2e3992d01a326476"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Z.eqb_eq in H1.",
+                        "VernacExtend",
+                        "17bfd1aca2f8d6289bb2850c73d7577594566637"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply andp_right; [exact (@prop_right mpred _ True _ I) |].",
+                        "VernacExtend",
+                        "b90de50fdbbe8641e568bcf0376735843805a5bf"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply andp_right; [exact (@prop_right mpred _ True _ I) |].",
+                        "VernacExtend",
+                        "b90de50fdbbe8641e568bcf0376735843805a5bf"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite HH.",
+                        "VernacExtend",
+                        "da2353338a3557b6b8cb2bfb56a56528ae55710e"
+                    ]
+                },
+                {
+                    "command": [
+                        "change (P |-- (!! (i = Int64.zero)) && (!! (Int64.zero = Int64.zero)))%logic.",
+                        "VernacExtend",
+                        "8bdc90f98b639a442d100e330f860205c80f4c6f"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply andp_right; apply prop_right; auto.",
+                        "VernacExtend",
+                        "826ff1cf6cc0573e269866616bfcfae73aba9798"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- (Int64.repr_unsigned i), <- H1.",
+                        "VernacExtend",
+                        "aee0e1fdec8aebad07335546e64e94e2b58b6242"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (eval_expr e rho); try solve [inv H].",
+                        "VernacExtend",
+                        "2e1dd3e766d9224ac876895208d08e0fae2736f7"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite !andb_true_iff in H.",
+                        "VernacExtend",
+                        "bf29e3aa7380d9383455394322453f5be06ca9cd"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H as [? [? ?]].",
+                        "VernacExtend",
+                        "7b80d34d0c991fb27b92313d17ea8675f1173807"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H, H0.",
+                        "VernacExtend",
+                        "6a2c6e8b471f6fb686cf1a7e2e3992d01a326476"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Z.eqb_eq in H1.",
+                        "VernacExtend",
+                        "17bfd1aca2f8d6289bb2850c73d7577594566637"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply andp_right; [exact (@prop_right mpred _ True _ I) |].",
+                        "VernacExtend",
+                        "b90de50fdbbe8641e568bcf0376735843805a5bf"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply andp_right; [exact (@prop_right mpred _ True _ I) |].",
+                        "VernacExtend",
+                        "b90de50fdbbe8641e568bcf0376735843805a5bf"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite HH.",
+                        "VernacExtend",
+                        "da2353338a3557b6b8cb2bfb56a56528ae55710e"
+                    ]
+                },
+                {
+                    "command": [
+                        "change (P |-- (!! (i = Int.zero)) && (!! (Int.zero = Int.zero)))%logic.",
+                        "VernacExtend",
+                        "2db81274c173cca328ce721d18c7d28e5b487a93"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply andp_right; apply prop_right; auto.",
+                        "VernacExtend",
+                        "826ff1cf6cc0573e269866616bfcfae73aba9798"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite <- (Int.repr_unsigned i), <- H1.",
+                        "VernacExtend",
+                        "5d2d8e1c2f1558d64c0c7d9525652a532302a4d1"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (Cop.classify_notint (typeof e)); try solve [inv H | rewrite H; exact (@prop_right mpred _ True _ I)].",
+                        "VernacExtend",
+                        "37051c07163687c3cecffac03c1a69ca0e4b5ce9"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (Cop.classify_neg (typeof e)); try solve [inv H | rewrite H; exact (@prop_right mpred _ True _ I)].",
+                        "VernacExtend",
+                        "23605150b0f5e6fd4823d3360fc63a5d08c3f25a"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite !andb_true_iff in H.",
+                        "VernacExtend",
+                        "bf29e3aa7380d9383455394322453f5be06ca9cd"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H.",
+                        "VernacExtend",
+                        "8b2bca015429da94c456243b461e17a2a0582c40"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H; simpl.",
+                        "VernacExtend",
+                        "9d8fceb2956840b5cbf41ba3844c2d68196d141c"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (typeof e) as [| ? [|] | [|] | | | | | |]; try solve [exact (@prop_right mpred _ True _ I)].",
+                        "VernacExtend",
+                        "885ce4717d8ba5f514642d918ecd2df33eb34618"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold_lift.",
+                        "VernacExtend",
+                        "49cc678292f20068718dd6f7d6f838fc96506b4c"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold denote_tc_nosignedover.",
+                        "VernacExtend",
+                        "81b2ea11993ab63e16a119f7adac2d4f830cf58e"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (eval_expr e rho); try solve [inv H0].",
+                        "VernacExtend",
+                        "9120c15519c42c17ddaa7edd80d2a01a0246561d"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite negb_true_iff in H0.",
+                        "VernacExtend",
+                        "a89ba6968f0d98ea575d8bff3ae45f6756eec2c9"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Z.eqb_neq in H0.",
+                        "VernacExtend",
+                        "2206ff1a9470039aff2df9bc47e1c7cbb13554de"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply prop_right.",
+                        "VernacExtend",
+                        "951daa52f148695942d4aefc563d5e92d8ec02ff"
+                    ]
+                },
+                {
+                    "command": [
+                        "change (Int.signed Int.zero) with 0.",
+                        "VernacExtend",
+                        "a14380b0e7f777742c5171007660635936b56e18"
+                    ]
+                },
+                {
+                    "command": [
+                        "rep_omega.",
+                        "VernacExtend",
+                        "41dfe20803b7e2448c0c8c8e355b919fa38aa228"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold_lift.",
+                        "VernacExtend",
+                        "49cc678292f20068718dd6f7d6f838fc96506b4c"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold denote_tc_nosignedover.",
+                        "VernacExtend",
+                        "81b2ea11993ab63e16a119f7adac2d4f830cf58e"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (eval_expr e rho); try solve [inv H0].",
+                        "VernacExtend",
+                        "9120c15519c42c17ddaa7edd80d2a01a0246561d"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite negb_true_iff in H0.",
+                        "VernacExtend",
+                        "a89ba6968f0d98ea575d8bff3ae45f6756eec2c9"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite Z.eqb_neq in H0.",
+                        "VernacExtend",
+                        "2206ff1a9470039aff2df9bc47e1c7cbb13554de"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply prop_right.",
+                        "VernacExtend",
+                        "951daa52f148695942d4aefc563d5e92d8ec02ff"
+                    ]
+                },
+                {
+                    "command": [
+                        "change (Int64.signed Int64.zero) with 0.",
+                        "VernacExtend",
+                        "41b11136ea357420c03a38f9c5f85a26267711b4"
+                    ]
+                },
+                {
+                    "command": [
+                        "rep_omega.",
+                        "VernacExtend",
+                        "41dfe20803b7e2448c0c8c8e355b919fa38aa228"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (Cop.classify_neg (typeof e)); try solve [inv H | rewrite H; exact (@prop_right mpred _ True _ I)].",
+                        "VernacExtend",
+                        "23605150b0f5e6fd4823d3360fc63a5d08c3f25a"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "const_only_isBinOpResultType_spec",
+            "line_nb": 81,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold isBinOpResultType.",
+                        "VernacExtend",
+                        "ff9fe0b2173e11a06274be6d484e03c41cff229c"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold const_only_isBinOpResultType in H.",
+                        "VernacExtend",
+                        "4b601692566d12b014969a4abf36c5b1204935c6"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct b.",
+                        "VernacExtend",
+                        "8903a74740ba2d4b9b293ac81ed015a01a553cd0"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (Cop.classify_add (typeof e1) (typeof e2)).",
+                        "VernacExtend",
+                        "a92293d2c6b7736fdf142ba67b170e1c4118a250"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite !denote_tc_assert_andp; simpl.",
+                        "VernacExtend",
+                        "135f5a3fcf60f4ec7b43d0b91b5d96f4b2da098f"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold_lift.",
+                        "VernacExtend",
+                        "49cc678292f20068718dd6f7d6f838fc96506b4c"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold tc_int_or_ptr_type, denote_tc_isptr.",
+                        "VernacExtend",
+                        "ea05602c289456793ddb8078a4d4b9ee23a71cbe"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (eval_expr e1 rho); inv H.",
+                        "VernacExtend",
+                        "17c6d79f7a951584c439763db4759d0c6022c83b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite !andb_true_iff in H1.",
+                        "VernacExtend",
+                        "e001a2814ec3f8303e7f33eb8fcdde48fc569f82"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H1 as [[? ?] ?].",
+                        "VernacExtend",
+                        "b085f419b47223596bece56ab274775068578083"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H, H0, H1.",
+                        "VernacExtend",
+                        "115db225bae3dda67a9a12550860f771ac0ae010"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat apply andp_right; apply prop_right; auto.",
+                        "VernacExtend",
+                        "9ca9edf02e6168285038f0dba569f27f6ee1cd4b"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite !denote_tc_assert_andp; simpl.",
+                        "VernacExtend",
+                        "135f5a3fcf60f4ec7b43d0b91b5d96f4b2da098f"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold_lift.",
+                        "VernacExtend",
+                        "49cc678292f20068718dd6f7d6f838fc96506b4c"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold tc_int_or_ptr_type, denote_tc_isptr.",
+                        "VernacExtend",
+                        "ea05602c289456793ddb8078a4d4b9ee23a71cbe"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (eval_expr e1 rho); inv H.",
+                        "VernacExtend",
+                        "17c6d79f7a951584c439763db4759d0c6022c83b"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite !andb_true_iff in H1.",
+                        "VernacExtend",
+                        "e001a2814ec3f8303e7f33eb8fcdde48fc569f82"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H1 as [[? ?] ?].",
+                        "VernacExtend",
+                        "b085f419b47223596bece56ab274775068578083"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H, H0, H1.",
+                        "VernacExtend",
+                        "115db225bae3dda67a9a12550860f771ac0ae010"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat apply andp_right; apply prop_right; auto.",
+                        "VernacExtend",
+                        "9ca9edf02e6168285038f0dba569f27f6ee1cd4b"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite !denote_tc_assert_andp; simpl.",
+                        "VernacExtend",
+                        "135f5a3fcf60f4ec7b43d0b91b5d96f4b2da098f"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold_lift.",
+                        "VernacExtend",
+                        "49cc678292f20068718dd6f7d6f838fc96506b4c"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold tc_int_or_ptr_type, denote_tc_isptr.",
+                        "VernacExtend",
+                        "ea05602c289456793ddb8078a4d4b9ee23a71cbe"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (eval_expr e2 rho); inv H.",
+                        "VernacExtend",
+                        "9e6c9d03fd1a0d74e8a8646fa06d322a2918749c"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite !andb_true_iff in H1.",
+                        "VernacExtend",
+                        "e001a2814ec3f8303e7f33eb8fcdde48fc569f82"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H1 as [[? ?] ?].",
+                        "VernacExtend",
+                        "b085f419b47223596bece56ab274775068578083"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H, H0, H1.",
+                        "VernacExtend",
+                        "115db225bae3dda67a9a12550860f771ac0ae010"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat apply andp_right; apply prop_right; auto.",
+                        "VernacExtend",
+                        "9ca9edf02e6168285038f0dba569f27f6ee1cd4b"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite !denote_tc_assert_andp; simpl.",
+                        "VernacExtend",
+                        "135f5a3fcf60f4ec7b43d0b91b5d96f4b2da098f"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold_lift.",
+                        "VernacExtend",
+                        "49cc678292f20068718dd6f7d6f838fc96506b4c"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold tc_int_or_ptr_type, denote_tc_isptr.",
+                        "VernacExtend",
+                        "ea05602c289456793ddb8078a4d4b9ee23a71cbe"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (eval_expr e2 rho); inv H.",
+                        "VernacExtend",
+                        "9e6c9d03fd1a0d74e8a8646fa06d322a2918749c"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite !andb_true_iff in H1.",
+                        "VernacExtend",
+                        "e001a2814ec3f8303e7f33eb8fcdde48fc569f82"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct H1 as [[? ?] ?].",
+                        "VernacExtend",
+                        "b085f419b47223596bece56ab274775068578083"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H, H0, H1.",
+                        "VernacExtend",
+                        "115db225bae3dda67a9a12550860f771ac0ae010"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "repeat apply andp_right; apply prop_right; auto.",
+                        "VernacExtend",
+                        "9ca9edf02e6168285038f0dba569f27f6ee1cd4b"
+                    ]
+                },
+                {
+                    "command": [
+                        "-",
+                        "VernacBullet",
+                        "581cab4bf49fa4b495e569bbda96fc8d28fddcc0"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "const_only_isCastResultType_spec",
+            "line_nb": 161,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "const_only_eval_expr_eq",
+            "line_nb": 165,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "revert v H; induction e; try solve [intros; inv H; auto].",
+                        "VernacExtend",
+                        "edab4a4555ae57f72e984767541267375f713fc3"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct t as [| [| | |] | | | | | | |]; inv H.",
+                        "VernacExtend",
+                        "c75d60bdd4799bdf1e4286bd1b4dd78822389b55"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct t as [| | | [|] | | | | |]; inv H.",
+                        "VernacExtend",
+                        "db6c7aa797ab0a17d08e9afbc02837520e6d02ac"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct t as [| | | [|] | | | | |]; inv H.",
+                        "VernacExtend",
+                        "db6c7aa797ab0a17d08e9afbc02837520e6d02ac"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold option_map in H.",
+                        "VernacExtend",
+                        "55460c9d2d8f20506bcd3aeb30ae196365c384a8"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (const_only_eval_expr e); inv H.",
+                        "VernacExtend",
+                        "f4b04a8d056a6f7cfcf8174c273ba45fb43299db"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (const_only_isUnOpResultType u (typeof e) v0 t); inv H1.",
+                        "VernacExtend",
+                        "40adad8ae77e92bb5959ee14ce7661d0e5d80e3f"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (IHe _ eq_refl).",
+                        "VernacExtend",
+                        "0d00cfcf7190cbb2f7eb1f44c11759410f9eb625"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold_lift.",
+                        "VernacExtend",
+                        "49cc678292f20068718dd6f7d6f838fc96506b4c"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite IHe; auto.",
+                        "VernacExtend",
+                        "7f3466177045975447e9b913f147d09c01124357"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold option_map in H.",
+                        "VernacExtend",
+                        "55460c9d2d8f20506bcd3aeb30ae196365c384a8"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (const_only_eval_expr e1); inv H.",
+                        "VernacExtend",
+                        "0525207a2338a4b3bcc314166645cbd2dde234dd"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (const_only_eval_expr e2); inv H1.",
+                        "VernacExtend",
+                        "cb9d8c1fccbc30fcc26f3cc7f4cf27bfa3d49d12"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (const_only_isBinOpResultType b (typeof e1) v0 (typeof e2) v1 t); inv H0.",
+                        "VernacExtend",
+                        "072ebab90df169b50f66d7239a7af246491f2b68"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (IHe1 _ eq_refl).",
+                        "VernacExtend",
+                        "e184c0fba891ec450e00a7027edca47b6eeb9b3d"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (IHe2 _ eq_refl).",
+                        "VernacExtend",
+                        "ccd8014d89209059fbef3f4cdceefab566894d97"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold_lift.",
+                        "VernacExtend",
+                        "49cc678292f20068718dd6f7d6f838fc96506b4c"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite IHe1, IHe2; auto.",
+                        "VernacExtend",
+                        "1cf5238f79e8cafe6c058d0c4f75b66a96a29d09"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold option_map in H.",
+                        "VernacExtend",
+                        "55460c9d2d8f20506bcd3aeb30ae196365c384a8"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (const_only_eval_expr e); inv H.",
+                        "VernacExtend",
+                        "f4b04a8d056a6f7cfcf8174c273ba45fb43299db"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (complete_type cenv_cs t && eqb_type t0 size_t); inv H.",
+                        "VernacExtend",
+                        "42ed464fc2ebc0d9b4110590709ea825700e3ff3"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (complete_type cenv_cs t && eqb_type t0 size_t); inv H.",
+                        "VernacExtend",
+                        "42ed464fc2ebc0d9b4110590709ea825700e3ff3"
+                    ]
+                },
+                {
+                    "command": [
+                        "auto.",
+                        "VernacExtend",
+                        "1f09da0addd069b3b65326f8c71967acc1e985af"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "const_only_eval_expr_tc",
+            "line_nb": 219,
+            "steps": [
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "intro rho.",
+                        "VernacExtend",
+                        "340a6646b01296f706bfd718a4f2fa78cb01cc3b"
+                    ]
+                },
+                {
+                    "command": [
+                        "revert v H; induction e; try solve [intros; inv H].",
+                        "VernacExtend",
+                        "aaf360d424c6ce93c6c3b3fc5ccea9a7da378519"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct t as [| [| | |] | | | | | | |]; inv H1.",
+                        "VernacExtend",
+                        "d6531a777df51149e8cf3a8d9d358bef5cfbcf6b"
+                    ]
+                },
+                {
+                    "command": [
+                        "exact (@prop_right mpred _ True _ I).",
+                        "VernacExtend",
+                        "f740bb357bdca18d8fbf59119ee0ba0d985c62a0"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct t as [| | | [|] | | | | |]; inv H1.",
+                        "VernacExtend",
+                        "de6d0606df7ed719d1f778169b528c4cc3e8fa3e"
+                    ]
+                },
+                {
+                    "command": [
+                        "exact (@prop_right mpred _ True _ I).",
+                        "VernacExtend",
+                        "f740bb357bdca18d8fbf59119ee0ba0d985c62a0"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct t as [| | | [|] | | | | |]; inv H1.",
+                        "VernacExtend",
+                        "de6d0606df7ed719d1f778169b528c4cc3e8fa3e"
+                    ]
+                },
+                {
+                    "command": [
+                        "exact (@prop_right mpred _ True _ I).",
+                        "VernacExtend",
+                        "f740bb357bdca18d8fbf59119ee0ba0d985c62a0"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold tc_expr in *.",
+                        "VernacExtend",
+                        "529e59d5a4ff6f823356478b061a4680483f0baf"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold option_map in H.",
+                        "VernacExtend",
+                        "55460c9d2d8f20506bcd3aeb30ae196365c384a8"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (const_only_eval_expr e) eqn:HH; inv H.",
+                        "VernacExtend",
+                        "72f9b309f66f51566afad41f5779bb788b1cfbbf"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (IHe _ eq_refl).",
+                        "VernacExtend",
+                        "0d00cfcf7190cbb2f7eb1f44c11759410f9eb625"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold_lift.",
+                        "VernacExtend",
+                        "49cc678292f20068718dd6f7d6f838fc96506b4c"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite denote_tc_assert_andp; simpl; apply andp_right; auto.",
+                        "VernacExtend",
+                        "b043c9ba704f73de33bdb98f3fa810611bc635da"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply const_only_isUnOpResultType_spec.",
+                        "VernacExtend",
+                        "30d3fb798cba0d9fc2576c319aa5b9e7f56624fb"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (const_only_eval_expr_eq rho) in HH.",
+                        "VernacExtend",
+                        "1c33e9145366151c1fe888a78eba1a8df8f8796c"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite HH.",
+                        "VernacExtend",
+                        "da2353338a3557b6b8cb2bfb56a56528ae55710e"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (const_only_isUnOpResultType u (typeof e) v0 t); inv H1; auto.",
+                        "VernacExtend",
+                        "5ca4e770987460f6562d228ee8bf26ab9ed3060c"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold tc_expr in *.",
+                        "VernacExtend",
+                        "529e59d5a4ff6f823356478b061a4680483f0baf"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold option_map in H.",
+                        "VernacExtend",
+                        "55460c9d2d8f20506bcd3aeb30ae196365c384a8"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (const_only_eval_expr e1) eqn:HH1; inv H.",
+                        "VernacExtend",
+                        "2efe4cb0fb4af9f25d02faf8428f7b0a7d8b4fb8"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (const_only_eval_expr e2) eqn:HH2; inv H1.",
+                        "VernacExtend",
+                        "9b40d744145e2e638a333ee71fc592bd95f8a0c7"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (IHe1 _ eq_refl).",
+                        "VernacExtend",
+                        "e184c0fba891ec450e00a7027edca47b6eeb9b3d"
+                    ]
+                },
+                {
+                    "command": [
+                        "specialize (IHe2 _ eq_refl).",
+                        "VernacExtend",
+                        "ccd8014d89209059fbef3f4cdceefab566894d97"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold_lift.",
+                        "VernacExtend",
+                        "49cc678292f20068718dd6f7d6f838fc96506b4c"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite !denote_tc_assert_andp; simpl; repeat apply andp_right; auto.",
+                        "VernacExtend",
+                        "b9dfe195c946d8a064c032e06d8ffaeed224a1d4"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply const_only_isBinOpResultType_spec.",
+                        "VernacExtend",
+                        "590151df2f92621230dd2e12cbc047d4a8f93ca9"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (const_only_eval_expr_eq rho) in HH1.",
+                        "VernacExtend",
+                        "c40991ffbd88a829f212d8b4b89c1e6649374b50"
+                    ]
+                },
+                {
+                    "command": [
+                        "apply (const_only_eval_expr_eq rho) in HH2.",
+                        "VernacExtend",
+                        "bcf8f534327e4f6a2ce9d91cc76692d910b6f8ac"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite HH1, HH2.",
+                        "VernacExtend",
+                        "ae62f951ef3127e2599f1e9e7f740a2192b5f68d"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (const_only_isBinOpResultType b (typeof e1) v0 (typeof e2) v1 t); inv H0; auto.",
+                        "VernacExtend",
+                        "c7e186367c462f399ae0482002bddabf69cd0081"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold tc_expr in *.",
+                        "VernacExtend",
+                        "529e59d5a4ff6f823356478b061a4680483f0baf"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl in *.",
+                        "VernacExtend",
+                        "5f89d9715fcf9b11bc0d0aadc658e9b10c47b606"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold option_map in H.",
+                        "VernacExtend",
+                        "55460c9d2d8f20506bcd3aeb30ae196365c384a8"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (const_only_eval_expr e) eqn:HH; inv H.",
+                        "VernacExtend",
+                        "72f9b309f66f51566afad41f5779bb788b1cfbbf"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold tc_expr.",
+                        "VernacExtend",
+                        "12dc66c97196b373cb3844e16b07a3663bdc69a9"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl typecheck_expr.",
+                        "VernacExtend",
+                        "bf3111365b3bfb5d46d055333ecd013a2357132a"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (complete_type cenv_cs t && eqb_type t0 size_t) eqn:HH; inv H1.",
+                        "VernacExtend",
+                        "2ba949570257c8ac82f1b4d672a2f1b8b65f6ca7"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite andb_true_iff in HH.",
+                        "VernacExtend",
+                        "1630c7e6b2747fd0c417d0e1239e6d53066bb249"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold tuint in HH; destruct HH.",
+                        "VernacExtend",
+                        "9b93e7a3462f24807c8351647fa4c011e588b7f0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H, H0.",
+                        "VernacExtend",
+                        "6a2c6e8b471f6fb686cf1a7e2e3992d01a326476"
+                    ]
+                },
+                {
+                    "command": [
+                        "exact (@prop_right mpred _ True _ I).",
+                        "VernacExtend",
+                        "f740bb357bdca18d8fbf59119ee0ba0d985c62a0"
+                    ]
+                },
+                {
+                    "command": [
+                        "+",
+                        "VernacBullet",
+                        "3ddfc0515f916e562bacf863647e0107cb15aa13"
+                    ]
+                },
+                {
+                    "command": [
+                        "intros.",
+                        "VernacExtend",
+                        "1b4df911c5412d25278e46f48402870ba987996b"
+                    ]
+                },
+                {
+                    "command": [
+                        "inv H.",
+                        "VernacExtend",
+                        "711efba707a6a75ce2cd6ff4b80f031c0d63ab98"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold tc_expr.",
+                        "VernacExtend",
+                        "12dc66c97196b373cb3844e16b07a3663bdc69a9"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl typecheck_expr.",
+                        "VernacExtend",
+                        "bf3111365b3bfb5d46d055333ecd013a2357132a"
+                    ]
+                },
+                {
+                    "command": [
+                        "simpl.",
+                        "VernacExtend",
+                        "1b93169f4cf876d207c1fab22a2347202ab48d85"
+                    ]
+                },
+                {
+                    "command": [
+                        "destruct (complete_type cenv_cs t && eqb_type t0 size_t) eqn:HH; inv H1.",
+                        "VernacExtend",
+                        "2ba949570257c8ac82f1b4d672a2f1b8b65f6ca7"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite andb_true_iff in HH.",
+                        "VernacExtend",
+                        "1630c7e6b2747fd0c417d0e1239e6d53066bb249"
+                    ]
+                },
+                {
+                    "command": [
+                        "unfold tuint in HH; destruct HH.",
+                        "VernacExtend",
+                        "9b93e7a3462f24807c8351647fa4c011e588b7f0"
+                    ]
+                },
+                {
+                    "command": [
+                        "rewrite H, H0.",
+                        "VernacExtend",
+                        "6a2c6e8b471f6fb686cf1a7e2e3992d01a326476"
+                    ]
+                },
+                {
+                    "command": [
+                        "exact (@prop_right mpred _ True _ I).",
+                        "VernacExtend",
+                        "f740bb357bdca18d8fbf59119ee0ba0d985c62a0"
+                    ]
+                },
+                {
+                    "command": [
+                        "Qed.",
+                        "VernacEndProof",
+                        "6eee6c55dea8e22a11abc36404343a43e520a888"
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,328 @@
+{
+    "filename": "cfrontend/SimplExpr.v",
+    "coq_project": "CompCert",
+    "vernac_cmds": [
+        [
+            "Require Import Coqlib.",
+            "VernacRequire",
+            "bbbe15041aca3a03300067f7acd445b462d537cc"
+        ],
+        [
+            "Require Import Errors.",
+            "VernacRequire",
+            "d249a1a104703c044f8b434934dd927cf8ab2709"
+        ],
+        [
+            "Require Import Integers.",
+            "VernacRequire",
+            "688f068e3335df7950b569ef75a5e993414c9874"
+        ],
+        [
+            "Require Import Floats.",
+            "VernacRequire",
+            "b9c4a965f888465bf3445941d179c7194c314789"
+        ],
+        [
+            "Require Import Values.",
+            "VernacRequire",
+            "f69762569c40def2ecf819f8117763d2ee924d2a"
+        ],
+        [
+            "Require Import Memory.",
+            "VernacRequire",
+            "2705b33fd6d3e12818791c70e219eee6a06d5191"
+        ],
+        [
+            "Require Import AST.",
+            "VernacRequire",
+            "d103ecb096c06f34167fba01dd861491b0d5e84e"
+        ],
+        [
+            "Require Import Ctypes.",
+            "VernacRequire",
+            "faff04a71b411c7c14fffc3b7842917b771e9d84"
+        ],
+        [
+            "Require Import Cop.",
+            "VernacRequire",
+            "9be26e05a6d5ac2d3026bbd68199b72ca3abd06a"
+        ],
+        [
+            "Require Import Csyntax.",
+            "VernacRequire",
+            "44b667afb0a3899e083e2b9273f713fd92b17940"
+        ],
+        [
+            "Require Import Clight.",
+            "VernacRequire",
+            "a6c4d5ed9d584e2140fc20811570de83c620b622"
+        ],
+        [
+            "Local Open Scope string_scope.",
+            "VernacOpenCloseScope",
+            "347f91aff322dccfab9c81382e495d8430d8e803"
+        ],
+        [
+            "Local Open Scope list_scope.",
+            "VernacOpenCloseScope",
+            "b7ffbc8664ccf2e54673194b986563efc763189d"
+        ],
+        [
+            "Record generator : Type := mkgenerator { gen_next: ident; gen_trail: list (ident * type) }.",
+            "VernacInductive",
+            "18219f05c09300c075445fdd89ab24e61cd43281"
+        ],
+        [
+            "Inductive result (A: Type) (g: generator) : Type := | Err: Errors.errmsg -> result A g | Res: A -> forall (g': generator), Ple (gen_next g) (gen_next g') -> result A g.",
+            "VernacInductive",
+            "452afa482860d1fea1cab30d16cf02f22901e1df"
+        ],
+        [
+            "Arguments Err [A g].",
+            "VernacArguments",
+            "effbe0814e57f4e152ebd40a5427a94f3b183b24"
+        ],
+        [
+            "Arguments Res [A g].",
+            "VernacArguments",
+            "713af601b9a878a2dca925a30d260cfb63d0b926"
+        ],
+        [
+            "Definition mon (A: Type) := forall (g: generator), result A g.",
+            "VernacDefinition",
+            "b3921b18a098f74bbddfc0ff6dd1884aef7da894"
+        ],
+        [
+            "Definition ret {A: Type} (x: A) : mon A := fun g => Res x g (Ple_refl (gen_next g)).",
+            "VernacDefinition",
+            "44343f086f89f08c10d520d749204764aa947e8d"
+        ],
+        [
+            "Definition error {A: Type} (msg: Errors.errmsg) : mon A := fun g => Err msg.",
+            "VernacDefinition",
+            "3a365565ccb94094a9fb7b41b3c0395abfe80233"
+        ],
+        [
+            "Definition bind {A B: Type} (x: mon A) (f: A -> mon B) : mon B := fun g => match x g with | Err msg => Err msg | Res a g' i => match f a g' with | Err msg => Err msg | Res b g'' i' => Res b g'' (Ple_trans _ _ _ i i') end end.",
+            "VernacDefinition",
+            "d51bcfe9f1b4164884a37f4e09a814ac8fb51aae"
+        ],
+        [
+            "Definition bind2 {A B C: Type} (x: mon (A * B)) (f: A -> B -> mon C) : mon C := bind x (fun p => f (fst p) (snd p)).",
+            "VernacDefinition",
+            "6ff322ab42d90ee3015b9ce33168cf2617885e96"
+        ],
+        [
+            "Notation \"'do' X <- A ; B\" := (bind A (fun X => B)) (at level 200, X ident, A at level 100, B at level 200) : gensym_monad_scope.",
+            "VernacNotation",
+            "a083d06c16e4fdc5d6a6ae1686ce430cfb18bdce"
+        ],
+        [
+            "Notation \"'do' ( X , Y ) <- A ; B\" := (bind2 A (fun X Y => B)) (at level 200, X ident, Y ident, A at level 100, B at level 200) : gensym_monad_scope.",
+            "VernacNotation",
+            "d55834075d0537069bddbf5967d9d21f57d9ac2a"
+        ],
+        [
+            "Local Open Scope gensym_monad_scope.",
+            "VernacOpenCloseScope",
+            "33da05ae441c357749befca49a10341e52909508"
+        ],
+        [
+            "Parameter first_unused_ident: unit -> ident.",
+            "VernacAssumption",
+            "e18de1498bc0a3ed473aba5d60094807e988027a"
+        ],
+        [
+            "Definition initial_generator (x: unit) : generator := mkgenerator (first_unused_ident x) nil.",
+            "VernacDefinition",
+            "9f6071aaf59147e2559a65abe08aad8f8461db8e"
+        ],
+        [
+            "Definition gensym (ty: type): mon ident := fun (g: generator) => Res (gen_next g) (mkgenerator (Pos.succ (gen_next g)) ((gen_next g, ty) :: gen_trail g)) (Ple_succ (gen_next g)).",
+            "VernacDefinition",
+            "db233afdc2c67d17428f7d494a05b64b6795fedc"
+        ],
+        [
+            "Fixpoint makeseq_rec (s: statement) (l: list statement) : statement := match l with | nil => s | s' :: l' => makeseq_rec (Ssequence s s') l' end.",
+            "VernacFixpoint",
+            "6c30877b681e615cc27acf8c991612781e23dc57"
+        ],
+        [
+            "Definition makeseq (l: list statement) : statement := makeseq_rec Sskip l.",
+            "VernacDefinition",
+            "1d77a0138224eeb2d42be4c6a8523145192d240c"
+        ],
+        [
+            "Fixpoint eval_simpl_expr (a: expr) : option val := match a with | Econst_int n _ => Some(Vint n) | Econst_float n _ => Some(Vfloat n) | Econst_single n _ => Some(Vsingle n) | Econst_long n _ => Some(Vlong n) | Ecast b ty => match eval_simpl_expr b with | None => None | Some v => sem_cast v (typeof b) ty Mem.empty end | _ => None end.",
+            "VernacFixpoint",
+            "05a3f695612e40e65249f250a04a94b91845c10c"
+        ],
+        [
+            "Function makeif (a: expr) (s1 s2: statement) : statement := match eval_simpl_expr a with | Some v => match bool_val v (typeof a) Mem.empty with | Some b => if b then s1 else s2 | None => Sifthenelse a s1 s2 end | None => Sifthenelse a s1 s2 end.",
+            "VernacExtend",
+            "dd813fc541e8c3dfec5b62ef1798f368e4d84614"
+        ],
+        [
+            "Definition Ederef' (a: expr) (t: type) : expr := match a with | Eaddrof a' t' => if type_eq t (typeof a') then a' else Ederef a t | _ => Ederef a t end.",
+            "VernacDefinition",
+            "44c24820e430e77d6e85695b3d14c8879829392c"
+        ],
+        [
+            "Definition Eaddrof' (a: expr) (t: type) : expr := match a with | Ederef a' t' => if type_eq t (typeof a') then a' else Eaddrof a t | _ => Eaddrof a t end.",
+            "VernacDefinition",
+            "70bafcf6e85527180a9312190d5abd0f1dbbe2b8"
+        ],
+        [
+            "Definition transl_incrdecr (id: incr_or_decr) (a: expr) (ty: type) : expr := match id with | Incr => Ebinop Oadd a (Econst_int Int.one type_int32s) (incrdecr_type ty) | Decr => Ebinop Osub a (Econst_int Int.one type_int32s) (incrdecr_type ty) end.",
+            "VernacDefinition",
+            "d3b5e8d96055b2e09a3a97681dd6b7672bcb0e58"
+        ],
+        [
+            "Definition chunk_for_volatile_type (ty: type) : option memory_chunk := if type_is_volatile ty then match access_mode ty with By_value chunk => Some chunk | _ => None end else None.",
+            "VernacDefinition",
+            "c8965b33cbdefb7fb6eca2d0ba71285795054f7d"
+        ],
+        [
+            "Definition make_set (id: ident) (l: expr) : statement := match chunk_for_volatile_type (typeof l) with | None => Sset id l | Some chunk => let typtr := Tpointer (typeof l) noattr in Sbuiltin (Some id) (EF_vload chunk) (Tcons typtr Tnil) ((Eaddrof l typtr):: nil) end.",
+            "VernacDefinition",
+            "61e97f946fdfddce4bb4fc1f84c903cf53f52fbc"
+        ],
+        [
+            "Definition transl_valof (ty: type) (l: expr) : mon (list statement * expr) := if type_is_volatile ty then do t <- gensym ty; ret (make_set t l :: nil, Etempvar t ty) else ret (nil, l).",
+            "VernacDefinition",
+            "4d289a17dc6004970f75c864825450cf88d41494"
+        ],
+        [
+            "Definition make_assign (l r: expr) : statement := match chunk_for_volatile_type (typeof l) with | None => Sassign l r | Some chunk => let ty := typeof l in let typtr := Tpointer ty noattr in Sbuiltin None (EF_vstore chunk) (Tcons typtr (Tcons ty Tnil)) (Eaddrof l typtr :: r :: nil) end.",
+            "VernacDefinition",
+            "d19a297474d4e9a8c66d7b87e4c9bef4ce8e6dd4"
+        ],
+        [
+            "Inductive set_destination : Type := | SDbase (tycast ty: type) (tmp: ident) | SDcons (tycast ty: type) (tmp: ident) (sd: set_destination).",
+            "VernacInductive",
+            "8a66f8450396c14f87220b2d3900ea5527b4c151"
+        ],
+        [
+            "Inductive destination : Type := | For_val | For_effects | For_set (sd: set_destination).",
+            "VernacInductive",
+            "8f18da78a605b409605aab9bf97b22a2ca093553"
+        ],
+        [
+            "Definition dummy_expr := Econst_int Int.zero type_int32s.",
+            "VernacDefinition",
+            "662db0aacbf75dcf72b0ee9062f0ec0ae3d9b047"
+        ],
+        [
+            "Fixpoint do_set (sd: set_destination) (a: expr) : list statement := match sd with | SDbase tycast ty tmp => Sset tmp (Ecast a tycast) :: nil | SDcons tycast ty tmp sd' => Sset tmp (Ecast a tycast) :: do_set sd' (Etempvar tmp ty) end.",
+            "VernacFixpoint",
+            "85caefb5c41496f02ff5b3cd59d6d1d9fc190fba"
+        ],
+        [
+            "Definition finish (dst: destination) (sl: list statement) (a: expr) := match dst with | For_val => (sl, a) | For_effects => (sl, a) | For_set sd => (sl ++ do_set sd a, a) end.",
+            "VernacDefinition",
+            "e1ce41cdbf1e6ef07282243e6ee96ba19470b8b7"
+        ],
+        [
+            "Definition sd_temp (sd: set_destination) := match sd with SDbase _ _ tmp => tmp | SDcons _ _ tmp _ => tmp end.",
+            "VernacDefinition",
+            "dc0b868e84c36c25df4a6acb1d8881100b666e33"
+        ],
+        [
+            "Definition sd_seqbool_val (tmp: ident) (ty: type) := SDbase type_bool ty tmp.",
+            "VernacDefinition",
+            "1caeed33c3d7baf30af229cc53f800419f361c6d"
+        ],
+        [
+            "Definition sd_seqbool_set (ty: type) (sd: set_destination) := let tmp := sd_temp sd in SDcons type_bool ty tmp sd.",
+            "VernacDefinition",
+            "5d71c5a76db8d3136545501e2f3dc00baedb5c1b"
+        ],
+        [
+            "Fixpoint transl_expr (dst: destination) (a: Csyntax.expr) : mon (list statement * expr) := match a with | Csyntax.Eloc b ofs ty => error (msg \"SimplExpr.transl_expr: Eloc\") | Csyntax.Evar x ty => ret (finish dst nil (Evar x ty)) | Csyntax.Ederef r ty => do (sl, a) <- transl_expr For_val r; ret (finish dst sl (Ederef' a ty)) | Csyntax.Efield r f ty => do (sl, a) <- transl_expr For_val r; ret (finish dst sl (Efield a f ty)) | Csyntax.Eval (Vint n) ty => ret (finish dst nil (Econst_int n ty)) | Csyntax.Eval (Vfloat n) ty => ret (finish dst nil (Econst_float n ty)) | Csyntax.Eval (Vsingle n) ty => ret (finish dst nil (Econst_single n ty)) | Csyntax.Eval (Vlong n) ty => ret (finish dst nil (Econst_long n ty)) | Csyntax.Eval _ ty => error (msg \"SimplExpr.transl_expr: Eval\") | Csyntax.Esizeof ty' ty => ret (finish dst nil (Esizeof ty' ty)) | Csyntax.Ealignof ty' ty => ret (finish dst nil (Ealignof ty' ty)) | Csyntax.Evalof l ty => do (sl1, a1) <- transl_expr For_val l; do (sl2, a2) <- transl_valof (Csyntax.typeof l) a1; ret (finish dst (sl1 ++ sl2) a2) | Csyntax.Eaddrof l ty => do (sl, a) <- transl_expr For_val l; ret (finish dst sl (Eaddrof' a ty)) | Csyntax.Eunop op r1 ty => do (sl1, a1) <- transl_expr For_val r1; ret (finish dst sl1 (Eunop op a1 ty)) | Csyntax.Ebinop op r1 r2 ty => do (sl1, a1) <- transl_expr For_val r1; do (sl2, a2) <- transl_expr For_val r2; ret (finish dst (sl1 ++ sl2) (Ebinop op a1 a2 ty)) | Csyntax.Ecast r1 ty => do (sl1, a1) <- transl_expr For_val r1; ret (finish dst sl1 (Ecast a1 ty)) | Csyntax.Eseqand r1 r2 ty => do (sl1, a1) <- transl_expr For_val r1; match dst with | For_val => do t <- gensym ty; do (sl2, a2) <- transl_expr (For_set (sd_seqbool_val t ty)) r2; ret (sl1 ++ makeif a1 (makeseq sl2) (Sset t (Econst_int Int.zero ty)) :: nil, Etempvar t ty) | For_effects => do (sl2, a2) <- transl_expr For_effects r2; ret (sl1 ++ makeif a1 (makeseq sl2) Sskip :: nil, dummy_expr) | For_set sd => do (sl2, a2) <- transl_expr (For_set (sd_seqbool_set ty sd)) r2; ret (sl1 ++ makeif a1 (makeseq sl2) (makeseq (do_set sd (Econst_int Int.zero ty))) :: nil, dummy_expr) end | Csyntax.Eseqor r1 r2 ty => do (sl1, a1) <- transl_expr For_val r1; match dst with | For_val => do t <- gensym ty; do (sl2, a2) <- transl_expr (For_set (sd_seqbool_val t ty)) r2; ret (sl1 ++ makeif a1 (Sset t (Econst_int Int.one ty)) (makeseq sl2) :: nil, Etempvar t ty) | For_effects => do (sl2, a2) <- transl_expr For_effects r2; ret (sl1 ++ makeif a1 Sskip (makeseq sl2) :: nil, dummy_expr) | For_set sd => do (sl2, a2) <- transl_expr (For_set (sd_seqbool_set ty sd)) r2; ret (sl1 ++ makeif a1 (makeseq (do_set sd (Econst_int Int.one ty))) (makeseq sl2) :: nil, dummy_expr) end | Csyntax.Econdition r1 r2 r3 ty => do (sl1, a1) <- transl_expr For_val r1; match dst with | For_val => do t <- gensym ty; do (sl2, a2) <- transl_expr (For_set (SDbase ty ty t)) r2; do (sl3, a3) <- transl_expr (For_set (SDbase ty ty t)) r3; ret (sl1 ++ makeif a1 (makeseq sl2) (makeseq sl3) :: nil, Etempvar t ty) | For_effects => do (sl2, a2) <- transl_expr For_effects r2; do (sl3, a3) <- transl_expr For_effects r3; ret (sl1 ++ makeif a1 (makeseq sl2) (makeseq sl3) :: nil, dummy_expr) | For_set sd => do t <- gensym ty; do (sl2, a2) <- transl_expr (For_set (SDcons ty ty t sd)) r2; do (sl3, a3) <- transl_expr (For_set (SDcons ty ty t sd)) r3; ret (sl1 ++ makeif a1 (makeseq sl2) (makeseq sl3) :: nil, dummy_expr) end | Csyntax.Eassign l1 r2 ty => do (sl1, a1) <- transl_expr For_val l1; do (sl2, a2) <- transl_expr For_val r2; let ty1 := Csyntax.typeof l1 in let ty2 := Csyntax.typeof r2 in match dst with | For_val | For_set _ => do t <- gensym ty1; ret (finish dst (sl1 ++ sl2 ++ Sset t (Ecast a2 ty1) :: make_assign a1 (Etempvar t ty1) :: nil) (Etempvar t ty1)) | For_effects => ret (sl1 ++ sl2 ++ make_assign a1 a2 :: nil, dummy_expr) end | Csyntax.Eassignop op l1 r2 tyres ty => let ty1 := Csyntax.typeof l1 in do (sl1, a1) <- transl_expr For_val l1; do (sl2, a2) <- transl_expr For_val r2; do (sl3, a3) <- transl_valof ty1 a1; match dst with | For_val | For_set _ => do t <- gensym ty1; ret (finish dst (sl1 ++ sl2 ++ sl3 ++ Sset t (Ecast (Ebinop op a3 a2 tyres) ty1) :: make_assign a1 (Etempvar t ty1) :: nil) (Etempvar t ty1)) | For_effects => ret (sl1 ++ sl2 ++ sl3 ++ make_assign a1 (Ebinop op a3 a2 tyres) :: nil, dummy_expr) end | Csyntax.Epostincr id l1 ty => let ty1 := Csyntax.typeof l1 in do (sl1, a1) <- transl_expr For_val l1; match dst with | For_val | For_set _ => do t <- gensym ty1; ret (finish dst (sl1 ++ make_set t a1 :: make_assign a1 (transl_incrdecr id (Etempvar t ty1) ty1) :: nil) (Etempvar t ty1)) | For_effects => do (sl2, a2) <- transl_valof ty1 a1; ret (sl1 ++ sl2 ++ make_assign a1 (transl_incrdecr id a2 ty1) :: nil, dummy_expr) end | Csyntax.Ecomma r1 r2 ty => do (sl1, a1) <- transl_expr For_effects r1; do (sl2, a2) <- transl_expr dst r2; ret (sl1 ++ sl2, a2) | Csyntax.Ecall r1 rl2 ty => do (sl1, a1) <- transl_expr For_val r1; do (sl2, al2) <- transl_exprlist rl2; match dst with | For_val | For_set _ => do t <- gensym ty; ret (finish dst (sl1 ++ sl2 ++ Scall (Some t) a1 al2 :: nil) (Etempvar t ty)) | For_effects => ret (sl1 ++ sl2 ++ Scall None a1 al2 :: nil, dummy_expr) end | Csyntax.Ebuiltin ef tyargs rl ty => do (sl, al) <- transl_exprlist rl; match dst with | For_val | For_set _ => do t <- gensym ty; ret (finish dst (sl ++ Sbuiltin (Some t) ef tyargs al :: nil) (Etempvar t ty)) | For_effects => ret (sl ++ Sbuiltin None ef tyargs al :: nil, dummy_expr) end | Csyntax.Eparen r1 tycast ty => error (msg \"SimplExpr.transl_expr: paren\") end with transl_exprlist (rl: exprlist) : mon (list statement * list expr) := match rl with | Csyntax.Enil => ret (nil, nil) | Csyntax.Econs r1 rl2 => do (sl1, a1) <- transl_expr For_val r1; do (sl2, al2) <- transl_exprlist rl2; ret (sl1 ++ sl2, a1 :: al2) end.",
+            "VernacFixpoint",
+            "35e2b586856fe03a61da93cdc6c01af6de3945e0"
+        ],
+        [
+            "Definition transl_expression (r: Csyntax.expr) : mon (statement * expr) := do (sl, a) <- transl_expr For_val r; ret (makeseq sl, a).",
+            "VernacDefinition",
+            "67974d87122f01c8233b28b82f410bdd9b4a0385"
+        ],
+        [
+            "Definition transl_expr_stmt (r: Csyntax.expr) : mon statement := do (sl, a) <- transl_expr For_effects r; ret (makeseq sl).",
+            "VernacDefinition",
+            "df9ec8348fc54c0813c3159063fd0b72e28ad1c9"
+        ],
+        [
+            "Definition transl_if (r: Csyntax.expr) (s1 s2: statement) : mon statement := do (sl, a) <- transl_expr For_val r; ret (makeseq (sl ++ makeif a s1 s2 :: nil)).",
+            "VernacDefinition",
+            "7e8e495c554b6dbfb1f681ea3f2808d531ff7a12"
+        ],
+        [
+            "Definition expr_true := Econst_int Int.one type_int32s.",
+            "VernacDefinition",
+            "daae102799f5cf4a2c8a9c6087f8906290a4218e"
+        ],
+        [
+            "Definition is_Sskip: forall s, {s = Csyntax.Sskip} + {s <> Csyntax.Sskip}.",
+            "VernacDefinition",
+            "f3502f4cfcf3e26e1710fbfe88b5b466a52ff8d4"
+        ],
+        [
+            "destruct s; ((left; reflexivity) || (right; congruence)).",
+            "VernacExtend",
+            "33774ce787e2383fdf74b3ade92bcc0f88058f7c"
+        ],
+        [
+            "Defined.",
+            "VernacEndProof",
+            "88c0be54a50df4bb90276c075406fe442428eb9c"
+        ],
+        [
+            "Fixpoint transl_stmt (s: Csyntax.statement) : mon statement := match s with | Csyntax.Sskip => ret Sskip | Csyntax.Sdo e => transl_expr_stmt e | Csyntax.Ssequence s1 s2 => do ts1 <- transl_stmt s1; do ts2 <- transl_stmt s2; ret (Ssequence ts1 ts2) | Csyntax.Sifthenelse e s1 s2 => do ts1 <- transl_stmt s1; do ts2 <- transl_stmt s2; do (s', a) <- transl_expression e; if is_Sskip s1 && is_Sskip s2 then ret (Ssequence s' Sskip) else ret (Ssequence s' (Sifthenelse a ts1 ts2)) | Csyntax.Swhile e s1 => do s' <- transl_if e Sskip Sbreak; do ts1 <- transl_stmt s1; ret (Sloop (Ssequence s' ts1) Sskip) | Csyntax.Sdowhile e s1 => do s' <- transl_if e Sskip Sbreak; do ts1 <- transl_stmt s1; ret (Sloop ts1 s') | Csyntax.Sfor s1 e2 s3 s4 => do ts1 <- transl_stmt s1; do s' <- transl_if e2 Sskip Sbreak; do ts3 <- transl_stmt s3; do ts4 <- transl_stmt s4; if is_Sskip s1 then ret (Sloop (Ssequence s' ts4) ts3) else ret (Ssequence ts1 (Sloop (Ssequence s' ts4) ts3)) | Csyntax.Sbreak => ret Sbreak | Csyntax.Scontinue => ret Scontinue | Csyntax.Sreturn None => ret (Sreturn None) | Csyntax.Sreturn (Some e) => do (s', a) <- transl_expression e; ret (Ssequence s' (Sreturn (Some a))) | Csyntax.Sswitch e ls => do (s', a) <- transl_expression e; do tls <- transl_lblstmt ls; ret (Ssequence s' (Sswitch a tls)) | Csyntax.Slabel lbl s1 => do ts1 <- transl_stmt s1; ret (Slabel lbl ts1) | Csyntax.Sgoto lbl => ret (Sgoto lbl) end with transl_lblstmt (ls: Csyntax.labeled_statements) : mon labeled_statements := match ls with | Csyntax.LSnil => ret LSnil | Csyntax.LScons c s ls1 => do ts <- transl_stmt s; do tls1 <- transl_lblstmt ls1; ret (LScons c ts tls1) end.",
+            "VernacFixpoint",
+            "946ba1e60633cd2df9011247da7c8854a8d63584"
+        ],
+        [
+            "Definition transl_function (f: Csyntax.function) : res function := match transl_stmt f.(Csyntax.fn_body) (initial_generator tt) with | Err msg => Error msg | Res tbody g i => OK (mkfunction f.(Csyntax.fn_return) f.(Csyntax.fn_callconv) f.(Csyntax.fn_params) f.(Csyntax.fn_vars) g.(gen_trail) tbody) end.",
+            "VernacDefinition",
+            "297b37d645bfbc13bf285cc978e92579aed1cbe9"
+        ],
+        [
+            "Local Open Scope error_monad_scope.",
+            "VernacOpenCloseScope",
+            "c40f2a3704d268aa6535e825182aaec0e665bbd5"
+        ],
+        [
+            "Definition transl_fundef (fd: Csyntax.fundef) : res fundef := match fd with | Internal f => do tf <- transl_function f; OK (Internal tf) | External ef targs tres cc => OK (External ef targs tres cc) end.",
+            "VernacDefinition",
+            "b9eb4d2da2ad6364dcca21fd2ac2b690d9ba6bd6"
+        ],
+        [
+            "Definition transl_program (p: Csyntax.program) : res program := do p1 <- AST.transform_partial_program transl_fundef p; OK {| prog_defs := AST.prog_defs p1; prog_public := AST.prog_public p1; prog_main := AST.prog_main p1; prog_types := prog_types p; prog_comp_env := prog_comp_env p; prog_comp_env_eq := prog_comp_env_eq p |}.",
+            "VernacDefinition",
+            "b95d26655cb57b8e9feae492c306f97e5960b162"
+        ]
+    ],
+    "proofs": [
+        {
+            "name": "is_Sskip",
+            "line_nb": 52,
+            "steps": [
+                {
+                    "command": [
+                        "destruct s; ((left; reflexivity) || (right; congruence)).",
+                        "VernacExtend",
+                        "33774ce787e2383fdf74b3ade92bcc0f88058f7c"
+                    ]
+                },
+                {
+                    "command": [
+                        "Defined.",
+                        "VernacEndProof",
+                        "88c0be54a50df4bb90276c075406fe442428eb9c"
+                    ]
+                }
+            ]
+        }
+    ]
+}
