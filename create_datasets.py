@@ -30,7 +30,6 @@ def create_dataset(root_directory_path: str, dataset_json_file_path: str, projs_
                 except Exception as e:
                     print("Error in filepath: ", file_path)
                     print(e)
-        # print(f"Project {project}: size {proj_size/1024**2:.1f} MB")
     print(f"Total files in {dataset_json_file_path}: ", count)
     print(f"Total size of {dataset_json_file_path}:   {total_size/1024**2:.1f} MB")
 
@@ -47,6 +46,23 @@ def create_datasets(root_directory_path: str, proj_split_path: str, datasets_out
     create_dataset(root_directory_path, os.path.join(datasets_output_dir, "dataset_valid.json"), proj_split_data["projs_valid"])
     create_dataset(root_directory_path, os.path.join(datasets_output_dir, "dataset_test.json"),  proj_split_data["projs_test"])
 
+def create_tokenizer_dataset(coq_projects_dir: str, output_filepath: str):
+    data = []
+    for file_path in iterate_files(coq_projects_dir):
+        if file_path[-2:] == '.v':
+            try:
+                with open(file_path, 'r') as file:
+                    content = file.read()
+                    data.append({"filepath": file_path, "content": content})
+            except Exception as e:
+                print("Error in filepath: ", file_path)
+                print(e)
+
+    json_data = {"data": data}
+    with open(output_filepath, 'w') as json_file:
+        json.dump(json_data, json_file, indent=4)
+
 
 if __name__ == "__main__":
     create_datasets("./coq_projects/", "./projs_split.json", "./datasets/")
+    create_tokenizer_dataset("./coq_projects/", "./datasets/tokenizer_dataset.json")
