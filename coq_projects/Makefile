@@ -1,10 +1,13 @@
+TEST_PROJS = weak-up-to buchberger jordan-curve-theorem dblib disel zchinese zfc dep-map chinese UnifySL hoare-tut huffman PolTac angles coq-procrastination coq-library-undecidability tree-automata coquelicot fermat4 demos coqoban goedel verdi verdi-raft zorns-lemma coqrel fundamental-arithmetics
+TEST_PROJS_DEPS = fcsl-pcm int-map pocklington InfSeqExt
+
 PROJS_TO_INSTALL = Categories CompCert math-comp coq-error-handlers coq-list-plus coq-cunit coq-list-string corespec fcsl-pcm InfSeqExt verdi VST UnifySL coquelicot algebra bellantonicook coq-ext-lib pocklington int-map coq-function-ninjas coq-iterable lin-alg coq-simple-io bigenough zorns-lemma finmap
 PROJS_ONLY_COMPILE = GeoCoq GeometricAlgebra bdds concat euler-formula ruler-compass-geometry twoSquare zfc shuffle hardware coq2html three-gap regexp automata izf lemma-overloading railroad-crossing idxassoc hoare-tut lesniewski-mereology additions checker domain-theory propcalc circuits zsearch-trees bbv ails dep-map markov rsa goedel generic-environments disel ctltctl lazy-pcf weak-up-to groups mini-compiler exceptions higman-s rem tree-automata coq-procrastination higman-cf coqoban ieee754 jordan-curve-theorem huffman zf pigeons hedges functions-in-zfc tortoise-hare-algorithm mod-red traversable-fincontainer buchberger constructive-geometry tarski-geometry float functional-algebra zchinese smc pts param-pi axiomatic-abp lambda maths quicksort-complexity fssec-model ipc chinese cours-de-coq graphs dictionaries dblib cecoa free-groups ramsey qarith amm11262 angles orb-stab qarith-stern-brocot group-theory demos distributed-reference-counting subst miniml fermat4 otway-rees SCEV-coq PolTac fundamental-arithmetics system ChargeCore QuickChick coqrel topology search-trees schroeder verdi-raft area-method coq-library-undecidability maple-mode
 
 .DEFAULT_GOAL := all
-.PHONY : all clean install compile $(PROJS_TO_INSTALL) $(PROJS_ONLY_COMPILE) math-comp metalib StructTact cheerios
+.PHONY : all clean install compile test-projects $(PROJS_TO_INSTALL) $(PROJS_ONLY_COMPILE) math-comp metalib StructTact cheerios
 
-all :
+all : 
 	$(MAKE) core-dependencies
 	$(MAKE) install
 	$(MAKE) compile
@@ -15,8 +18,13 @@ compile : | $(PROJS_ONLY_COMPILE)
 core-dependencies : 
 	$(MAKE) math-comp
 	$(MAKE) metalib
-	$(MAKE) StructTact 
+	$(MAKE) StructTact
 	$(MAKE) cheerios
+
+test-projects : 
+	$(MAKE) core-dependencies
+	$(MAKE) $(TEST_PROJS_DEPS)
+	$(MAKE) $(TEST_PROJS)
 
 LBITS = $(shell getconf LONG_BIT)
 OS = $(shell uname)
