@@ -2,7 +2,7 @@ import json
 import os
 import torch
 import re
-# from transformers import AutoTokenizer, GPT2LMHeadModel, pipeline
+from transformers import AutoTokenizer, GPT2LMHeadModel, pipeline
 
 
 context_length = 1024
@@ -60,14 +60,7 @@ def transform_data_path_into_coq_path(data_folder: str, coq_projs_folder: str, f
     new_path = os.path.join(coq_projs_folder, trimmed_path)[:-5] + ".v"
     return new_path
 
-dd_removed = 0
-poses_1_removed = 0
-poses_2_removed = 0
-pos_end_removed = 0
-count_saved = 0
-dp_proofs = 0
 def find_positions(proof_str, coq_projects_filepath):
-    global dd_removed
     positions = []
 
     coq_file_content = ""
@@ -78,7 +71,6 @@ def find_positions(proof_str, coq_projects_filepath):
     pos_dd = proof_str.find(":")
     if pos_dd == -1:
         positions = find_positions_in_file(proof_name, proof_str, coq_file_content, False)
-        dd_removed += 1
     else:
         proof_name = proof_str[:pos_dd]
         positions = find_positions_in_file(proof_name, proof_str, coq_file_content, True)
@@ -87,7 +79,7 @@ def find_positions(proof_str, coq_projects_filepath):
 
 def process_file(filepath: str, data_root_dir: str,
                  coq_projects_path: str, chars_per_token:float):
-    global max_len_input, context_length, poses_1_removed, poses_2_removed, pos_end_removed, count_saved, dp_proofs
+    global max_len_input, context_length
     coq_projects_filepath = transform_data_path_into_coq_path(
                     data_root_dir, coq_projects_path, filepath
                 )
@@ -111,27 +103,11 @@ def process_file(filepath: str, data_root_dir: str,
             if any(proof_str.startswith(keyword) for keyword in to_remove):
                 continue
             if proof_str in duplicate_proofs:
-                dp_proofs += 1
                 continue
 
             poses, coq_file_content = find_positions(proof_str, coq_projects_filepath)
             if poses == []:
-                print(f"PROOF NOT FOUND FOR {coq_projects_filepath}")
-                print(proof_str)
-                poses_1_removed += 1
                 continue
-            # elif len(poses) > 1:
-            #     poses_2_removed += 1
-            #     if True:
-            #         print(coq_projects_filepath)
-            #         proof_str += "\nProof."
-            #         for step in proof["steps"]:
-            #             if step["command"][1] == "VernacBullet":
-            #                 continue
-            #             proof_str += f'\n{step["command"][0]}'
-            #         print(proof_str)
-            #         print("####################################################")
-            #     continue
             else:
                 pos = poses[0][0]
                 entry["proof_start_offset"] = pos
@@ -149,16 +125,15 @@ def process_file(filepath: str, data_root_dir: str,
                     continue
                 proof_str += f'\n{step["command"][0]}'
             if step["command"][1] != "VernacEndProof":
-                print(f"ERROR, last command is not VernacEndProof: {filepath}")
+                print(f"\nERROR, last command is not VernacEndProof: {filepath}")
             entry["proof"] = proof_str
             entry["end_command"] = step["command"][0]
 
             pos_end = coq_file_content.find(step["command"][0], pos)
             entry["proof_end_offset"] = pos_end + len(step["command"][0])
             if (pos_end == -1):
-                print("CAN NOT FIND POS END")
+                print("\nCAN NOT FIND POS END, SKIPPING PROOF:")
                 print(coq_projects_filepath, proof_str)
-                pos_end_removed += 1
                 continue
 
             theorems.append(entry)
@@ -180,34 +155,22 @@ def create_dataset(dataset_path: str, coq_projects_path: str,
 
 
 if __name__ == "__main__":
-    if False:
-        coq_tokenizer = AutoTokenizer.from_pretrained("Andrusyshyn/gpt2-pretrained-for-coq-pt-custom-train", revision="91aac830c5ff8417d8bf389eea271a9d3dabab9c")
-        print(get_average_chars_per_token("./datasets/dataset_train.json", coq_tokenizer))
+    tokenizer_repo = "Andrusyshyn/gpt2-coq-tokenizer"
+    tokenizer_revision = "0e1383183b23c6764d83c88b83fa99de2a297199"
+    train_dataset_path = "./datasets/dataset_train.json"
+    split_file = "./projs_split.json"
+    output_filepath = "./theorems/test_theorems.json"
+    coq_projects_root_dir = "./coq_projects"
+    json_data_root_dir = "./json_data/"
+    ###############################################################################################
+    coq_tokenizer = AutoTokenizer.from_pretrained(tokenizer_repo, revision=tokenizer_revision)
+    chars_per_token = get_average_chars_per_token(train_dataset_path, coq_tokenizer)    # 3.14
+    print("Tokenizer vocab size: ", len(coq_tokenizer))
+    print("Chars per token:      ", get_average_chars_per_token(train_dataset_path, coq_tokenizer))
 
-    chars_per_token = 3.16
     test_projs = []
-    with open("./projs_split.json", mode='r') as json_file:
+    with open(split_file, mode='r') as json_file:
         test_projs = json.load(json_file)["projs_test"]
 
-    if True:
-        create_dataset("./theorems/test_theorems_exp.json", "./coq_projects", "./json_data/",
-                       test_projs, chars_per_token)
-        print(dp_proofs, dd_removed, poses_1_removed, poses_2_removed, pos_end_removed)
-        print(count_saved)
-
-    if False:
-        with open("./theorems/test_theorems.json", mode='r') as json_file:
-            json_data = json.load(json_file)["projects"]
-            max_len = 0
-            max_theorem = ""
-            max_filepath = ""
-            for project in json_data.keys():
-                for entry in json_data[project]:
-                    length = len(entry["context"]) + len(extract_theorem_statement(entry["proof"]))
-                    if length > max_len:
-                        max_len = length
-                        max_theorem = extract_theorem_statement(entry["proof"])
-                        max_filepath = entry["filepath"]
-            print(max_len // chars_per_token)
-            print(max_filepath)
-            print(max_theorem)
+    create_dataset(output_filepath, coq_projects_root_dir, json_data_root_dir,
+                    test_projs, chars_per_token)
