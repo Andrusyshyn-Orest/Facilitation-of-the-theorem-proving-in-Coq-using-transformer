@@ -61,7 +61,7 @@ def get_new_make_content(make_string: str, start_pos: int, v_filepath):
     return new_content
 
 def test(input_json_file: str, output_json_file: str, coq_projs_root_folder: str, all_proofs: bool):
-    _CoqProject_projects = set(["disel", "huffman", "PolTac", "coq-library-undecidability", "coqrel"])
+    _CoqProject_projects = set(["disel", "huffman", "PolTac", "coq-procrastination", "coq-library-undecidability", "coqrel"])
     Other_projects = set(["UnifySL", "coquelicot", "verdi-raft", "verdi"])
 
     time_total_start = time.perf_counter()
@@ -207,7 +207,8 @@ if __name__ == "__main__":
     #               "./coq_projects/zfc/Make", "./coq_projects/dep-map/Make",
     #               "./coq_projects/chinese/Make", "./coq_projects/hoare-tut/Make",
     #               "./coq_projects/huffman/_CoqProject", "./coq_projects/PolTac/_CoqProject",
-    #               "./coq_projects/angles/Make", "./coq_projects/coq-library-undecidability/_CoqProject",
+    #               "./coq_projects/angles/Make", "./coq_projects/coq-procrastination_CoqProject",
+    #               "./coq_projects/coq-library-undecidability/_CoqProject",
     #               "./coq_projects/tree-automata/Make", "./coq_projects/fermat4/Make",
     #               "./coq_projects/demos/Make", "./coq_projects/coqoban/Make", "./coq_projects/goedel/Make",
     #               "./coq_projects/zorns-lemma/Make", "./coq_projects/coqrel/_CoqProject",

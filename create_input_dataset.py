@@ -45,8 +45,6 @@ def get_average_chars_per_token(dataset_path: str, p_tokenizer):
     return total_chars / total_tokens
 
 def json_file_iterator(project, root_folder):
-    if project == "disel":
-        pass
     project_path = os.path.join(root_folder, project)
     for dirpath, _, filenames in os.walk(project_path):
         for filename in filenames:
