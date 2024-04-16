@@ -1,12 +1,10 @@
 import json
 import os
-import torch
 import re
-from transformers import AutoTokenizer, GPT2LMHeadModel, pipeline
+from transformers import AutoTokenizer
 
 
-context_length = 1024
-max_len_input = 768
+max_len_input = 768    # context length is 1024
 to_remove = ["Instance", "Global Instance", "Local Instance", "Polymorphic Instance",
              "Global Polymorphic Instance", "Local Polymorphic Instance",
              "Next Obligation",
@@ -75,14 +73,27 @@ def find_positions(proof_str, coq_projects_filepath):
 
     return positions, coq_file_content
 
+def truncate_context_length(entry: dict, proof_definition: str, p_tokenizer, max_input_tokens: int):
+        proof_definition_len = len(p_tokenizer(proof_definition, truncation=False)["input_ids"])
+        overflow = 11
+        if proof_definition_len >= max_input_tokens-overflow:
+            print("TOO FEW MAX INPUT TOKENS")
+            return entry
+        context_max_len = max_input_tokens - proof_definition_len-overflow
+        tokenized_context = p_tokenizer(entry["context"], truncation=False)["input_ids"]
+        tokenized_context_trunc = tokenized_context[-context_max_len: ]
+        entry["context"] = p_tokenizer.decode(tokenized_context_trunc)
+        entry["context_tokens"] = len(tokenized_context_trunc)
+        return entry
+
 def process_file(filepath: str, data_root_dir: str,
-                 coq_projects_path: str, chars_per_token:float):
-    global max_len_input, context_length
+                 coq_projects_path: str, chars_per_token:float,
+                 p_tokenizer):
+    global max_len_input
     coq_projects_filepath = transform_data_path_into_coq_path(
                     data_root_dir, coq_projects_path, filepath
                 )
     theorems = []
-    duplicate_proofs = set()
     with open(filepath, mode='r') as json_file:
         json_data = json.load(json_file)
         vernac_cmds = json_data["vernac_cmds"]
@@ -100,8 +111,6 @@ def process_file(filepath: str, data_root_dir: str,
             proof_str = vernac_cmds[proof["line_nb"]][0]
             if any(proof_str.startswith(keyword) for keyword in to_remove):
                 continue
-            if proof_str in duplicate_proofs:
-                continue
 
             poses, coq_file_content = find_positions(proof_str, coq_projects_filepath)
             if poses == []:
@@ -116,6 +125,7 @@ def process_file(filepath: str, data_root_dir: str,
                 context = coq_file_content[context_offset : pos]
                 entry["context"] = context
                 entry["context_tokens"] = int(len(context) // chars_per_token)
+                entry = truncate_context_length(entry, proof_str, p_tokenizer, max_len_input)
 
             proof_str += "\nProof."
             for step in proof["steps"]:
@@ -139,13 +149,13 @@ def process_file(filepath: str, data_root_dir: str,
 
 def create_dataset(dataset_path: str, coq_projects_path: str,
                     root_folder: str, projects: list[str],
-                    chars_per_token: float):
+                    chars_per_token: float, p_tokenizer):
     with open(dataset_path, mode='w') as json_file:
         json_dict = {"projects": dict()}
         for project in projects:
             theorems = []
             for filepath in json_file_iterator(project, root_folder):
-                new_theorems = process_file(filepath, root_folder, coq_projects_path, chars_per_token)
+                new_theorems = process_file(filepath, root_folder, coq_projects_path, chars_per_token, p_tokenizer)
                 theorems.extend(new_theorems)
             json_dict["projects"][project] = theorems
 
@@ -171,4 +181,4 @@ if __name__ == "__main__":
         test_projs = json.load(json_file)["projs_test"]
 
     create_dataset(output_filepath, coq_projects_root_dir, json_data_root_dir,
-                    test_projs, chars_per_token)
+                    test_projs, chars_per_token, coq_tokenizer)
