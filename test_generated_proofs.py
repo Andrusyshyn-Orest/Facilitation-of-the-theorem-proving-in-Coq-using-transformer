@@ -6,7 +6,7 @@ import sys
 import re
 
 
-def compile_coq_project(project_path: str, timeout_duration=5):
+def compile_coq_project(project_path: str, timeout_duration=10):
     result = False
     project = os.path.basename(os.path.normpath(project_path))
     start_dir = os.getcwd()
@@ -151,7 +151,7 @@ def test(input_json_file: str, output_json_file: str, coq_projs_root_folder: str
                 theorems_proved += 1
 
             # checkpoint file save
-            if total_theorems % 30 == 0:
+            if total_theorems % 10 == 0:
                 with open(output_json_file, mode='w') as correct_proofs_file_checkpoint:
                     json.dump(new_json_content, correct_proofs_file_checkpoint, indent=4)
 
@@ -184,32 +184,12 @@ def test(input_json_file: str, output_json_file: str, coq_projs_root_folder: str
 
 
 if __name__ == "__main__":
-    # print(extract_subpath("./coq_projects/demos/Demo.v", "./coq_projects/demos"))
-
-    # test("./theorems/try_generate_output.json", "./theorems/correct_proofs.json", "./coq_projects")
-    #test("./theorems/try_generate_output.json", "./theorems/correct_proofs.json", "./coq_projects")
-    # print(sys.argv)
-    #test("./theorems/correct_proofs_k50_copy.json", "./theorems/correct_proofs_k50_try.json", "./coq_projects", True)
-
-    all_proofs = False
-    if (len(sys.argv) == 5) and (sys.argv[4] == "True"):
-        all_proofs = True
-    print(all_proofs)
-    test(sys.argv[1], sys.argv[2], sys.argv[3], all_proofs)
-
-    # test("./theorems/generated_test_theorems_trunc_k25.json", "./theorems/correct_proofs_k25.json", "./coq_projects1", False)
-
-    # UnifySL, coquelicot, verdi-raft, verdi
-    # filepath = "./coq_projects/weak-up-to/Make"
-    # make_files = ["./coq_projects/weak-up-to/Make", "./coq_projects/buchberger/Make",
-    #               "./coq_projects/jordan-curve-theorem/Make", "./coq_projects/dblib/Make",
-    #               "./coq_projects/disel/_CoqProject", "./coq_projects/zchinese/Make",
-    #               "./coq_projects/zfc/Make", "./coq_projects/dep-map/Make",
-    #               "./coq_projects/chinese/Make", "./coq_projects/hoare-tut/Make",
-    #               "./coq_projects/huffman/_CoqProject", "./coq_projects/PolTac/_CoqProject",
-    #               "./coq_projects/angles/Make", "./coq_projects/coq-procrastination_CoqProject",
-    #               "./coq_projects/coq-library-undecidability/_CoqProject",
-    #               "./coq_projects/tree-automata/Make", "./coq_projects/fermat4/Make",
-    #               "./coq_projects/demos/Make", "./coq_projects/coqoban/Make", "./coq_projects/goedel/Make",
-    #               "./coq_projects/zorns-lemma/Make", "./coq_projects/coqrel/_CoqProject",
-    #               "./coq_projects/fundamental-arithmetics/Make"]
+    if (len(sys.argv) < 4):
+        print("ERROR: Too few command line arguments!")
+    elif (len(sys.argv) > 5):
+        print("ERROR: Too many command line arguments!")
+    else:
+        all_proofs = False
+        if (len(sys.argv) == 5) and (sys.argv[4] == "True"):
+            all_proofs = True
+        test(sys.argv[1], sys.argv[2], sys.argv[3], all_proofs)
