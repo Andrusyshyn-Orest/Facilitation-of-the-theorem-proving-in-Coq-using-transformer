@@ -174,7 +174,7 @@ if __name__ == "__main__":
     coq_tokenizer = AutoTokenizer.from_pretrained(tokenizer_repo, revision=tokenizer_revision)
     chars_per_token = get_average_chars_per_token(train_dataset_path, coq_tokenizer)    # 3.14
     print("Tokenizer vocab size: ", len(coq_tokenizer))
-    print("Chars per token:      ", get_average_chars_per_token(train_dataset_path, coq_tokenizer))
+    print("Chars per token:      ", round(chars_per_token, 2))
 
     test_projs = []
     with open(split_file, mode='r') as json_file:
