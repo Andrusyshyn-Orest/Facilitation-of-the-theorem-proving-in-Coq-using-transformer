@@ -1,3 +1,25 @@
+"""
+This module tests generated proofs.
+def test(input_json_file: str, output_json_file: str, coq_projs_root_folder: str, all_proofs: bool):
+
+
+Usage
+-----
+    python ./scripts/test_generated_proofs.py <input_json_file> <output_json_file> <coq_projs_root_folder> [<all_proofs>]
+
+    Argumets:
+        <input_json_file>       - path to the dataset with generated proofs.
+        <output_json_file>      - output path for the tested proofs.
+        <coq_projs_root_folder> - path to the directory containing pre-compiled test Coq projects.
+        <all_proofs>            - Optional. Set this argument to "True" to test every generated proof.
+                                  Otherwise testing of every theorem will stop on the first correct
+                                  proof and proceed with the next theorem.
+
+Examples
+--------
+    python ./scripts/test_generated_proofs.py ./generated_proofs/n06/generated_comp_n06_k05.json ./tested_proofs/n06/tested_proofs_comp_n06_k05.json ./coq_projects/
+    python ./scripts/test_generated_proofs.py ./generated_proofs/n06/generated_comp_n06_k50.json ./tested_proofs/n06/tested_proofs_comp_n06_k50.json ./coq_projects/ True
+"""
 import json
 import subprocess
 import os
@@ -6,7 +28,25 @@ import sys
 import re
 
 
-def compile_coq_project(project_path: str, timeout_duration=10):
+def compile_coq_project(project_path: str, timeout_duration:int=10) -> tuple[bool, str]:
+    """
+    Compiles Coq project. If compilation does not complete
+    within timeout_duration seconds, interrupts compilation.
+
+    Parameters
+    ----------
+    project_path : str
+        path to project to compile
+    timeout_duration : int, optional
+        compilation timeout. Default value is 10
+
+    Returns
+    -------
+    tuple[bool, str]
+        First tuple element represents compilation status.
+        Second tuple element is error message. Empty string if no
+        error occured.
+    """
     result = False
     project = os.path.basename(os.path.normpath(project_path))
     start_dir = os.getcwd()
@@ -32,7 +72,22 @@ def compile_coq_project(project_path: str, timeout_duration=10):
     os.chdir(start_dir)
     return result, error_msg
 
-def extract_subpath(full_path, root_folder):
+def extract_subpath(full_path: str, root_folder: str) -> str:
+    """
+    Extracts subpath from the full_path given root_folder.
+
+    Parameters
+    ----------
+    full_path : str
+        full path (starts with root_folder)
+    root_folder : str
+        root folder path
+
+    Returns
+    -------
+    str
+        extracted subpath
+    """
     full_path = os.path.normpath(full_path)
     root_folder = os.path.normpath(root_folder)
 
@@ -42,7 +97,25 @@ def extract_subpath(full_path, root_folder):
     else:
         return None
 
-def remove_v_files(make_string: str):
+def remove_v_files(make_string: str) -> tuple[str, int]:
+    """
+    Removes all the ".v" files entries from the content of "Make"
+    or "_CoqProject" file that is used to instruct which
+    files to compile and with which options.
+
+    Parameters
+    ----------
+    make_string : str
+        content of the "Make" or "_CoqProject" file
+
+    Returns
+    -------
+    tuple[str, int]
+        First element of the tuple is the content of the "Make" or "_CoqProject" file
+        without ".v" files entries.
+        Second element of the tuple is the offset position of the first ".v" file entry
+        within the "Make" or "_CoqProject" file.
+    """
     pattern = re.compile(r'^.*\.v *\n+', re.MULTILINE)
     match = pattern.search(make_string)
     insert_pos = -1
@@ -51,7 +124,25 @@ def remove_v_files(make_string: str):
     new_content = pattern.sub('', make_string)
     return new_content, insert_pos
 
-def get_new_make_content(make_string: str, start_pos: int, v_filepath):
+def get_new_make_content(make_string: str, start_pos: int, v_filepath: str) -> str:
+    """
+    Inserts v_filepath into the make_string on the given start_pos.
+
+    Parameters
+    ----------
+    make_string : str
+        content of the "Make" or "_CoqProject" file without ".v" files entries.
+    start_pos : int
+        the offset position of the first ".v" file entry within
+        the original "Make" or "_CoqProject" file.
+    v_filepath : str
+        ".v" file entry to insert.
+
+    Returns
+    -------
+    str
+        new content of the "Make" or "_CoqProject" file.
+    """
     if start_pos == -1:
         new_content = make_string + "\n" + v_filepath + "\n"
     else:
@@ -61,6 +152,68 @@ def get_new_make_content(make_string: str, start_pos: int, v_filepath):
     return new_content
 
 def test(input_json_file: str, output_json_file: str, coq_projs_root_folder: str, all_proofs: bool):
+    """
+    Tests generated proofs. All test Coq projects inside the coq_projs_root_folder directory must be
+    previously built. To build test Coq projects use Makefile. For example, directory "coq_projects"
+    contains Makefile which compiles test projects using command "make test-projects".
+    Iterates over each theorem entry in the input_json_file.
+    Replaces ground proof truth in corresponding Coq source file with the generated one. Recompiles this
+    file and in case of error, saves error message.
+
+    Parameters
+    ----------
+    input_json_file : str
+        path to the JSON file with generated proofs with the following structure:
+        {
+            "hyperparams": {...},
+
+            "projects": {
+                "proj_name": [
+                    {
+                        "filepath": "",
+                        "context": "",
+                        "context_tokens": 0,
+                        "proof_start_offset": -1,
+                        "proof_end_offset": -1,
+                        "proof": "",
+                        "end_command": "",
+                        "generated_proofs": ["", ...]
+                    }, ...
+                ]
+            }
+        }
+    output_json_file : str
+        output path for the JSON file with the following structure:
+        {
+            "hyperparams": {...},
+
+            "projects": {
+                "proj_name": [
+                    {
+                        "filepath": "",
+                        "context": "",
+                        "context_tokens": 0,
+                        "proof_start_offset": -1,
+                        "proof_end_offset": -1,
+                        "proof": "",
+                        "end_command": "",
+                        "generated_proofs": [
+                            {
+                                "proof": "",
+                                "correct": true,
+                                "error_msg": ""
+                            }, ...
+                        ]
+                    }, ...
+                ], ...
+            }
+        }
+    coq_projs_root_folder : str
+        directory with Coq projects
+    all_proofs : bool
+        if True, checks every generated proof. If False, stops on the first correct proof
+        for a given theorem and move to the next theorem.
+    """
     _CoqProject_projects = set(["disel", "huffman", "PolTac", "coq-procrastination", "coq-library-undecidability", "coqrel"])
     Other_projects = set(["UnifySL", "coquelicot", "verdi-raft", "verdi"])
 
@@ -184,12 +337,30 @@ def test(input_json_file: str, output_json_file: str, coq_projs_root_folder: str
 
 
 if __name__ == "__main__":
+    usage_message = \
+'''Error: Wrong CLI usage.
+
+Usage
+-----
+    python ./scripts/test_generated_proofs.py <input_json_file> <output_json_file> <coq_projs_root_folder> [<all_proofs>]
+
+    Argumets:
+        <input_json_file>       - path to the dataset with generated proofs.
+        <output_json_file>      - output path for the tested proofs.
+        <coq_projs_root_folder> - path to the directory containing pre-compiled test Coq projects.
+        <all_proofs>            - Optional. Set this argument to "True" to test every generated proof.
+                                  Otherwise testing of every theorem will stop on the first correct
+                                  proof and proceed with the next theorem.
+'''
     if (len(sys.argv) < 4):
-        print("ERROR: Too few command line arguments!")
+        print(usage_message)
     elif (len(sys.argv) > 5):
-        print("ERROR: Too many command line arguments!")
+        print(usage_message)
     else:
         all_proofs = False
         if (len(sys.argv) == 5) and (sys.argv[4] == "True"):
             all_proofs = True
-        test(sys.argv[1], sys.argv[2], sys.argv[3], all_proofs)
+        try:
+            test(sys.argv[1], sys.argv[2], sys.argv[3], all_proofs)
+        except Exception as e:
+            print(f"Error, an exception occured:\n{e}")

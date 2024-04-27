@@ -350,7 +350,7 @@ def create_dataset(dataset_path: str, coq_projects_path: str,
                     "proof": "",
                     "end_command": ""
                 }, ...
-            ]
+            ], ...
         }
     }
 
