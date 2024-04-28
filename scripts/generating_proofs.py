@@ -1,9 +1,26 @@
+"""
+This is script version of the notebook https://colab.research.google.com/drive/1iXysomZDQIq-dIKUCbtaF2I7w_T3bmFS?usp=sharing
+
+This script generates theorem proofs and calculates test loss of the model.
+
+Usage
+-----
+    python ./scripts/generating_proofs.py [<config_file>]
+
+    Argumets:
+        <config_file> - path to the config file. Optional.
+
+Examples
+--------
+    python ./scripts/generating_proofs.py
+    python ./scripts/generating_proofs.py ./configs/generation_config.json
+"""
 import torch
 from torch.nn import CrossEntropyLoss
 from torch.utils.data.dataloader import DataLoader
 from datasets import load_dataset, Dataset
 
-from transformers import AutoTokenizer, GPT2LMHeadModel, pipeline, AutoModel, AutoConfig
+from transformers import AutoTokenizer, GPT2LMHeadModel, pipeline, TextGenerationPipeline
 
 import json
 import sys
@@ -74,26 +91,60 @@ def parse_config(config_file: str):
 
     torch_seed                     = conf_data["torch_seed"]
 
-# LOSS FUNCTION
-def loss_function(inputs, logits):
+
+def loss_function(inputs: torch.Tensor, logits: torch.Tensor) -> torch.Tensor:
     """
-    Cal
+    Calculates mean CrossEntropyLoss across samples in the batch.
+
+    Parameters
+    ----------
+    inputs : torch.Tensor
+        tensor of input sequences. Dimensions: batch_size X context_length.
+    logits: torch.
+        logits outputted by model. Dimensions: batch_size X context_length X vocab_size.
+
+    Returns
+    -------
+    torch.Tensor
+        mean CrossEntropyLoss loss across samples in the batch.
     """
+    # inputs [batch_size X cl]
+    # logits [batch_size X cl X vocab_size]
+    # Our labels start from second sequence token because first one does not have preceding token.
+    # We drop last logit because last sequence token does not have subsequent token, so no label to compare
     shifted_labels = inputs[..., 1:].contiguous()
     shifted_logits = logits[..., :-1, :].contiguous()
     loss_func = CrossEntropyLoss(reduction='none')
+    # loss [batch_size * (cl-1)] = loss_fct([batch_size * (cl-1) X vocab_size], [batch_size * (cl-1)])
     loss = loss_func(shifted_logits.view(-1, shifted_logits.size(-1)), shifted_labels.view(-1))
+    # loss_per_sequence [batch_size]
     loss_per_sequence = loss.view(shifted_logits.size(0), shifted_logits.size(1)).mean(axis=1)
     return loss_per_sequence.mean()
 
-# LOSS EVALUATION FUNCTION
-def test_loss(p_model, p_test_dataloader, p_device):
+def test_loss(p_model: GPT2LMHeadModel, p_test_dataloader: DataLoader, p_device: torch.device) -> tuple[float, float]:
+    """
+    Calculates test loss and perplexity of the p_model on the test dataset from p_test_dataloader.
+
+    Parameters
+    ----------
+    p_model : GPT2LMHeadModel
+        model to test.
+    p_test_dataloader : DataLoader
+        Dataloader with test data.
+    p_device : torch.device
+        cpu or cuda.
+
+    Returns
+    -------
+    tuple[float, float]
+        test loss, test perplexity
+    """
     if use_gpu and torch.cuda.is_available(): torch.cuda.empty_cache()
 
     p_model.eval()
     losses = []
     with torch.no_grad():
-        for step, batch in enumerate(p_test_dataloader):
+        for batch in p_test_dataloader:
             with torch.no_grad():
                 input_ids = batch["input_ids"].to(p_device)
                 logits = p_model(input_ids).logits
@@ -108,9 +159,24 @@ def test_loss(p_model, p_test_dataloader, p_device):
     if use_gpu and torch.cuda.is_available(): torch.cuda.empty_cache()
     return loss.item(), perplexity.item()
 
-# TOKENIZE RAW DATASET
-def get_tokenized_dataset(p_raw_dataset, p_context_length, p_tokenizer):
+def get_tokenized_dataset(p_raw_dataset: Dataset, p_context_length: int, p_tokenizer: AutoTokenizer) -> Dataset:
     """
+    Tokenizes raw dataset p_raw_dataset.
+
+    Parameters
+    ----------
+    p_raw_dataset : Dataset
+        raw dataset ot tokenize
+    p_context_length : int
+        context length
+    p_tokenizer : AutoTokenizer
+        tokenizer
+
+    Returns
+    -------
+    Dataset
+        tokenized dataset, each entry is the input sequence of the
+        context_length length.
     """
     concatenated_tokenized_samples = []
     for sample in p_raw_dataset:
@@ -125,8 +191,19 @@ def get_tokenized_dataset(p_raw_dataset, p_context_length, p_tokenizer):
 
     return Dataset.from_dict({"input_ids": tokenized_dataset_list})
 
-# EXTRACT THEOREM STATEMENT FROM WHOLE PROOF
-def extract_theorem_statement(theorem_with_proof):
+def extract_theorem_statement(theorem_with_proof: str) -> str:
+    """
+    Extracts theorem statement from theorem_with_proof.
+
+    Parameters
+    ----------
+    theorem_with_proof : str
+        theorem with proof.
+
+    Returns
+    -------
+        theorem statement.
+    """
     pos = theorem_with_proof.find("\nProof.")
     if pos != -1:
         return theorem_with_proof[:pos]
@@ -134,8 +211,23 @@ def extract_theorem_statement(theorem_with_proof):
     print("THEOREM PROOF DOES NOT START WITH 'Proof.'")
     return theorem_with_proof
 
-# TRUNCATE PROOF TILL STOP WORD
-def truncate_on_Qed(generated_proof: str):
+def truncate_on_Qed(generated_proof: str) -> tuple[str, bool]:
+    """
+    Truncate generated_proof on the first occurance of
+    "Qed.", "Defined." or "Save".
+
+    Parameters
+    ----------
+    generated_proof : str
+        generated proof
+
+    Returns
+    -------
+    tuple[str, bool]
+        First element is the trucated proof. Second element is status.
+        Status is False if no finalization command were found. In such
+        case, first element is just whole generated_proof.
+    """
     qed_stop = "Qed."
     defined_stop = "Defined."
     save_stop = "Save"
@@ -156,8 +248,23 @@ def truncate_on_Qed(generated_proof: str):
 
     return (generated_proof[:min(poses_stops)], True)
 
-# PROOF GENERATION
-def generate_proofs(input_file, output_file, p_pipe, num_proofs):
+def generate_proofs(input_file: str, output_file: str, p_pipe: TextGenerationPipeline, num_proofs: int):
+    """
+    Iterates over each theorem entry in the input_file. Generates num_proofs per theorem.
+    Uses generation hyperparameters from global config:
+    batch_size, max_new_tokens, do_sample, top_p, temperature, sequence_length.
+
+    Parameters
+    ----------
+    input_file : str
+        path to the file with theorems (theorem dataset).
+    output_file : str
+        output path of the tested theorems.
+    p_pipe : TextGenerationPipeline
+        text-generation pipeline
+    num_proofs : int
+        number of generated proofs per theorem.
+    """
     cuda_available = torch.cuda.is_available()
     new_json_data = None
     with open(input_file, mode='r') as json_input:
@@ -210,7 +317,8 @@ def generate_proofs(input_file, output_file, p_pipe, num_proofs):
         "do_sample": do_sample,
         "top_p": top_p,
         "model_repo_name": model_repo_name,
-        "model_commit_hash": model_commit_hash
+        "model_commit_hash": model_commit_hash,
+        "torch_seed": torch_seed
     }
     with open(output_file, mode='w') as json_output:
         json.dump(new_json_data, json_output, indent=4)
@@ -219,8 +327,18 @@ def generate_proofs(input_file, output_file, p_pipe, num_proofs):
 
 
 if __name__ == "__main__":
+    error_msg =\
+"""Error. Invalid CLI usage.
+
+Usage
+-----
+    python ./scripts/generating_proofs.py [<config_file>]
+
+    Argumets:
+        <config_file> - path to the config file. Optional.
+"""
     if len(sys.argv) > 2:
-        print("ERROR CLI")
+        print(error_msg)
         sys.exit(1)
     if len(sys.argv) == 2:
         try:
