@@ -109,7 +109,7 @@ def build_training_n12():
     plt.title('Validation loss of n12 model')
     plt.legend()
 
-    plt.savefig("./images/n12_valid.png", dpi=300)
+    plt.savefig("./images/n12_valid.png", dpi=500)
     #########################################################################################################3
     plt.figure()
     plt.figure(figsize=(5, 4))
@@ -120,7 +120,7 @@ def build_training_n12():
     plt.title('Learning rate decay of n12 model')
     plt.legend()
     plt.subplots_adjust(left=0.17)
-    plt.savefig("./images/n12_lr.png", dpi=300)
+    plt.savefig("./images/n12_lr.png", dpi=500)
 
 def build_training_all():
     """
@@ -151,7 +151,7 @@ def build_training_all():
     plt.title('Validation loss of different models')
     plt.legend()
 
-    plt.savefig("./images/nall_valid.png", dpi=300)
+    plt.savefig("./images/nall_valid.png", dpi=500)
 
 def get_success_rate(filepath: str, all: bool=True, projects: list=[]) -> tuple[int, int]:
     """
@@ -295,7 +295,7 @@ def build_success_rate_all(experiment: str):
     plt.title('success rate depending on k')
     plt.legend()
 
-    plt.savefig(f"./images/sr_{experiment}.png", dpi=300)
+    plt.savefig(f"./images/sr_{experiment}.png", dpi=500)
 
 def build_pass_k_all(experiment: str):
     """
@@ -337,7 +337,7 @@ def build_pass_k_all(experiment: str):
     plt.title('pass@k depending on k')
     plt.legend()
 
-    plt.savefig(f"./images/passk_{experiment}.png", dpi=300)
+    plt.savefig(f"./images/passk_{experiment}.png", dpi=500)
 
 
 if __name__ == "__main__":
