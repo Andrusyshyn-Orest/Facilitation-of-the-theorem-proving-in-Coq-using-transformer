@@ -320,6 +320,8 @@ def save_results(filepath: str, split: str, results: list):
         "run_name"                       : _run_name,
         "drive_train_res_path"           : train_logs_path,
         "tensorboard_run_path"           : _tensorboard_run_path,
+        "torch_seed"                     : torch_seed,
+        "data_seed"                      : data_seed
     }
     json_data = {"train": [], "valid": []}
     if os.path.exists(filepath):
