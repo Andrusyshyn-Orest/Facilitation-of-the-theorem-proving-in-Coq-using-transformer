@@ -31,21 +31,21 @@ import time
 do_generate_proofs             = True     # set to True to generate proofs
 sequence_length                = 1024     # input sequence length of the model
 max_new_tokens                 = 256      # only needed if do_generate_proofs == True
-batch_size                     = 1        # only needed if do_generate_proofs == True
+batch_size                     = 2        # only needed if do_generate_proofs == True
 proofs_per_theorem             = 50       # only needed if do_generate_proofs == True
 temperature                    = 1        # only needed if do_generate_proofs == True
 do_sample                      = True     # only needed if do_generate_proofs == True
 top_p                          = 0.95     # only needed if do_generate_proofs == True
 
 model_repo_name                = "Andrusyshyn/gpt2-pretrained-for-coq-pt-custom-train"
-model_commit_hash              = "41d3d96b6b3d0a267bb09893b5f851d658234ad7"
+model_commit_hash              = "32c2695d0f5f0b6117529f2eaa7f240b95cc42eb"
 
-theorems_input_file            = "./theorems/test_theorems_comp.json"
-theorems_output_file           = "./generated_proofs/n02/experiment_gen.json"
+theorems_input_file            = "./theorems/test_theorems_comp.json"             # theorem dataset
+theorems_output_file           = "./generated_proofs/n06/experiment_gen.json"     # output file for generated proofs
 
 do_test_loss                   = False    # set ot True to calculate model loss on the test dataset
-test_batch_size                = 16       # only needed if do_test_loss == True
-raw_test_json                  = "./datasets/dataset_test.json"    # path to the test dataset (after extracting it will be in the current working directory)
+test_batch_size                = 4        # only needed if do_test_loss == True
+raw_test_json                  = "./datasets/dataset_test.json"    # path to the test dataset
 
 use_gpu                        = True
 
