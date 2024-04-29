@@ -247,4 +247,33 @@ Examples
    Notebook and script have already defined parameters in the code for generating k=50 proofs per theorem with t=1 for n06 model on "comp" dataset. If you want to parse config in the notebook,   
    change the config_file global variable to the corresponding value.
 
-   As a result of this step we get generated_proofs/ directory by running above notebook for different configurations. As we were working in the Colab notebook, we recommend to use it for results reproducability.
+   As a result of this step we get generated_proofs/ directory by running above notebook for different configurations. As we were working in the Colab notebook, we recommend to use it for 
+   results reproducability.
+6) The final step is testing the results. Before testing we compile our test project using ```make test-projects``` commands in the ./coq_projects/ directory. The we use 
+   ./scripts/test_generated_proofs.py for testing generated proofs:
+   ```
+   Usage
+   -----
+      python ./scripts/test_generated_proofs.py <input_json_file> <output_json_file> <coq_projs_root_folder> [<all_proofs>]
+  
+      Argumets:
+          <input_json_file>       - path to the dataset with generated proofs.
+          <output_json_file>      - output path for the tested proofs.
+          <coq_projs_root_folder> - path to the directory containing pre-compiled test Coq projects.
+          <all_proofs>            - Optional. Set this argument to "True" to test every generated proof.
+                                    Otherwise testing of every theorem will stop on the first correct
+                                    proof and proceed with the next theorem.
+
+    Examples
+    --------
+        python ./scripts/test_generated_proofs.py ./generated_proofs/n06/generated_comp_n06_k05.json ./tested_proofs/n06/tested_proofs_comp_n06_k05.json ./coq_projects/
+        python ./scripts/test_generated_proofs.py ./generated_proofs/n06/generated_comp_n06_k50.json ./tested_proofs/n06/tested_proofs_comp_n06_k50.json ./coq_projects/ True
+   ```
+   Doing that for every file in the generated_proofs/ directory, we get the tested_proofs/ directory.
+
+   Also, we build plots using ./scripts/build_plots.py:
+   ```
+   python build_plots.py
+   ```
+   The plots are located in images/ directory.
+
