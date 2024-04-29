@@ -51,25 +51,25 @@ Our repository contains the following external resources:
        python ./scripts/clean_data.py ./json_data/
    ```
 2) We construct our training/validation/testing datasets using scripts/create_datasets.py. Usage of the script:
-```
-Usage
------
-    python ./scripts/create_datasets.py [OPTION...]
-
-    Options:
-        -h, --help                           Print help message.
-        -c, --coq_projects <coq_projects>    Specify path to the directory with Coq projects.
-                                             Default value is "./coq_projects/".
-        -p, --projs_split  <projs_split>     Specify path to the split configuration file.
-                                             Default value is "./projs_split.json".
-        -d, --datasets_dir <datasets_dir>    Specify output directory. Datasets JSON files
-                                             will be created here. Default value is "./datasets/".
-
-Examples
---------
-    python ./scripts/create_datasets.py
-    python ./scripts/create_datasets.py -c "./coq_projects/" --projs_split "./projs_split.json" -d "./datasets/"
-```
+   ```
+   Usage
+   -----
+       python ./scripts/create_datasets.py [OPTION...]
+   
+       Options:
+           -h, --help                           Print help message.
+           -c, --coq_projects <coq_projects>    Specify path to the directory with Coq projects.
+                                                Default value is "./coq_projects/".
+           -p, --projs_split  <projs_split>     Specify path to the split configuration file.
+                                                Default value is "./projs_split.json".
+           -d, --datasets_dir <datasets_dir>    Specify output directory. Datasets JSON files
+                                                will be created here. Default value is "./datasets/".
+   
+   Examples
+   --------
+       python ./scripts/create_datasets.py
+       python ./scripts/create_datasets.py -c "./coq_projects/" --projs_split "./projs_split.json" -d "./datasets/"
+   ```
 3) Having constructed these datasets, we can train our tokenizer and models.
    - During our work we used this notebook for training tokenizer: https://colab.research.google.com/drive/1iA12XfpytcU-blnLUEWWXgf4RwCkUGQp?usp=sharing. This is the same notebook as notebooks/training_tokenizer.ipynb, but already loaded into Google Colab. This notebook (and corresponding script) has default config ./config/training_tokenizer_config.json:
      ```
