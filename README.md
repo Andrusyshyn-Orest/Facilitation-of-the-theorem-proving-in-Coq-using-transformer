@@ -166,3 +166,85 @@ Examples
       As we were using Colab notebook, we recommend using Colab notebook for reproducibility of training results.
       As a result of training, we get logs in the training_logs directory. Each log file contains hyperparameters that we used for the specific training.
       Also we get tensorboard_runs/ directory. You can check its contents using ```tensorboard --logdir=./tensorboard_runs/``` command.
+  
+4) We create theorem dataset using scripts/create_input_dataset.py script:
+   ```
+   Usage
+   -----
+      python ./scripts/create_input_dataset.py [OPTION...]
+  
+      Options:
+          -h, --help                           Print help message.
+          -r, --repo <repo_name>               Specify tokenizer repo name.
+                                               Default value is "Andrusyshyn/gpt2-coq-tokenizer"
+          -v, --revision <revision>            Specify commit hash or branch name of the tokenizer to use.
+                                               Default value is "0e1383183b23c6764d83c88b83fa99de2a297199"
+          -d, --train_dataset <dataset>        Specify path to the training dataset.
+                                               Default value is "./datasets/dataset_train.json"
+          -p, --projs_split <projs_split>      Specify path to the split configuration file.
+                                               Default value is "./projs_split.json".
+          -o, --output <output>                Specify output filepath for the theorem dataset.
+                                               Default value is "./theorems/test_theorems.json"
+          -c, --coq_projects <coq_projects>    Specify path to the directory with Coq projects.
+                                               Default value is "./coq_projects/".
+          -j, --json_data <json_date>          Specify cleaned CoqGym dataset directory.
+                                               Default value is json_data_root_dir = "./json_data/".
+
+    Examples
+    --------
+        python ./scripts/create_input_dataset.py
+        python ./scripts/create_input_dataset.py -o "./theorems/test_theorems.json"
+   ```
+   The result is the ./theorems/test_theorems.json theorem dataset which contains every theorem from test set (except for the removed structures as "Instanse"). We than construct our "trunc" and    "comp" datasets (./theorems/test_theorems_trunc.json, ./theorems/test_theorems_comp.json). We do not include code for this but the content of these datasets is described in our thesis.
+5) Having the theorem datasets, we know can generate proofs. We do this with the following notebook: https://colab.research.google.com/drive/1iXysomZDQIq-dIKUCbtaF2I7w_T3bmFS?usp=sharing. As in previous cases, this notebook is also provided in our repository as ./notebooks/generating_proofs.py. The corresponding script ./scripts/generating_proofs.py has default config ./configs/generation_config.json:
+   ```
+   {
+       # generation hyperparameters
+       "do_generate_proofs"           : true,    # if true, then we do the generation
+       "sequence_length"              : 1024,
+       "max_new_tokens"               : 256,
+       "batch_size"                   : 2,
+       "proofs_per_theorem"           : 50,
+       "temperature"                  : 1,
+       "do_sample"                    : true,
+       "top_p"                        : 0.95,
+   
+       "model_repo_name"              : "Andrusyshyn/gpt2-pretrained-for-coq-pt-custom-train",
+       "model_commit_hash"            : "32c2695d0f5f0b6117529f2eaa7f240b95cc42eb",
+   
+       "theorems_input_file"          : "./theorems/test_theorems_comp.json",           # input therem dataset
+       "theorems_output_file"         : "./generated_proofs/n06/experiment_gen.json",   # output generated data
+   
+       "do_test_loss"                 : false,   # if true, then we do the test loss calculation
+       "test_batch_size"              : 4,
+       "raw_test_json"                : "./datasets/dataset_test.json",
+   
+       "use_gpu"                      : true,    # Script-only parameter.
+   
+       "torch_seed"                   : 77,
+   
+       # Notebook-only parameters
+       "drive_mounted"                : false,
+       "drive_mounted_path"           : "/content/gdrive/",
+       "test_data_archived"           : true,
+       "raw_test_archive"             : "./dataset_test.zip"
+   }
+   ```
+   Usage of the script:
+   ```
+   Usage
+   -----
+      python ./scripts/generating_proofs.py [<config_file>]
+  
+      Argumets:
+          <config_file> - path to the config file. Optional.
+
+    Examples
+    --------
+        python ./scripts/generating_proofs.py
+        python ./scripts/generating_proofs.py ./configs/generation_config.json
+   ```
+   Notebook and script have already defined parameters in the code for generating k=50 proofs per theorem with t=1 for n06 model on "comp" dataset. If you want to parse config in the notebook,   
+   change the config_file global variable to the corresponding value.
+
+   As a result of this step we get generated_proofs/ directory by running above notebook for different configurations. As we were working in the Colab notebook, we recommend to use it for results reproducability.
