@@ -49,7 +49,7 @@ Our repository contains the following external resources:
 - generated_proofs -> contains generated proofs.
 - tested_proofs -> contains tested proofs and error messages.
 ## Workflow
-1) Firstly, we clean our json_folder/ using scripts/clean_data.py. This repository contains an already cleaned folder. Usage of the script:
+1) Firstly, we clean our "json_folder/" using "scripts/clean_data.py". This repository contains an already cleaned folder. Usage of the script:
    ```
    Usage
    -----
@@ -63,7 +63,7 @@ Our repository contains the following external resources:
        python ./scripts/clean_data.py
        python ./scripts/clean_data.py ./json_data/
    ```
-2) We construct our training/validation/testing datasets using scripts/create_datasets.py. Usage of the script:
+2) We construct our training/validation/testing datasets using "scripts/create_datasets.py". Usage of the script:
    ```
    Usage
    -----
@@ -84,7 +84,7 @@ Our repository contains the following external resources:
        python ./scripts/create_datasets.py -c "./coq_projects/" --projs_split "./projs_split.json" -d "./datasets/"
    ```
 3) Having constructed these datasets, we can train our tokenizer and models.
-   - During our work we used this notebook for training tokenizer: https://colab.research.google.com/drive/1iA12XfpytcU-blnLUEWWXgf4RwCkUGQp?usp=sharing. This is the same notebook as notebooks/training_tokenizer.ipynb, but already loaded into Google Colab. Corresponding script training_tokenizer.py has default config ./config/training_tokenizer_config.json:
+   - During our work we used this notebook for training tokenizer: https://colab.research.google.com/drive/1iA12XfpytcU-blnLUEWWXgf4RwCkUGQp?usp=sharing. This is the same notebook as "notebooks/training_tokenizer.ipynb", but already loaded into Google Colab. Corresponding script "training_tokenizer.py" has default config "./config/training_tokenizer_config.json":
      ```
      {
         "vocab_size"                   : 30000,    # vocablurary size of the tokenizer.
@@ -110,7 +110,7 @@ Our repository contains the following external resources:
         "user_name"                    : "user_name"
      }
      ```  
-     You can run this notebook with the default provided options in the notebook. If you want to take options from config, specify config_file global variable in the notebook (path to the config      file).
+     You can run this notebook with the default provided options in the notebook. If you want to take options from config, specify "config_file" global variable in the notebook (path to the config file).
      Also you can use the script:  
      ```
      Usage
@@ -125,8 +125,8 @@ Our repository contains the following external resources:
          python ./scripts/training_tokenizer.py
          python ./scripts/training_tokenizer.py ./configs/training_tokenizer_config.json
      ```
-    - During our work we used this notebook for models training: https://colab.research.google.com/drive/17-YH8_0xF8iVEIyoAHBNYeCnkRL71pXW?usp=sharing. this is the same notebook as          
-      notebooks/training_model.ipynb, but already uploaded to the Google Colab. Corresponding script training_model.py has default config ./config/training_model_config.json:
+    - During our work, we used the following notebook for models training: https://colab.research.google.com/drive/17-YH8_0xF8iVEIyoAHBNYeCnkRL71pXW?usp=sharing. This is the same notebook as
+      "notebooks/training_model.ipynb", but already uploaded to the Google Colab. Corresponding script "training_model.py" has default config "./config/training_model_config.json":
       ```
       {
           # These are hyperparameters for training.
@@ -192,7 +192,7 @@ Our repository contains the following external resources:
           "raw_valid_archive"              : "./dataset_valid.zip"     # path to the archived valid data
       }
       ```  
-      Notebooks and script already contain default parameters from our experiment of training n06 model (to run notebook you have to load dataset_train.zip and dataset_valid.zip into the Colab environment). To use config file in notebook set config_file global variable to the corresponding path.
+      Notebooks and script already contain default parameters from our experiment of training n06 model (to run notebook you have to load "dataset_train.zip" and "dataset_valid.zip" into the Colab environment). To use config file in notebook, set "config_file" global variable to the corresponding path.
       Script usage is the following:
       ```
       Usage
@@ -208,10 +208,10 @@ Our repository contains the following external resources:
           python ./scripts/training_model.py ./configs/training_model_config.json
       ```
       As we were using Colab notebook, we recommend using Colab notebook for reproducibility of training results.
-      As a result of training, we get logs in the training_logs directory. Each log file contains hyperparameters that we used for the specific training.
-      Also we get tensorboard_runs/ directory. You can check its contents using ```tensorboard --logdir=./tensorboard_runs/``` command.
+      As a result of training, we get logs in the "training_logs/" directory. Each log file contains hyperparameters that we used for the specific training.
+      Also we get "tensorboard_runs/" directory. You can check its contents using ```tensorboard --logdir=./tensorboard_runs/``` command.
   
-4) We create theorem dataset using scripts/create_input_dataset.py script:
+4) We create theorem dataset using "scripts/create_input_dataset.py" script:
    ```
    Usage
    -----
@@ -239,8 +239,8 @@ Our repository contains the following external resources:
         python ./scripts/create_input_dataset.py
         python ./scripts/create_input_dataset.py -o "./theorems/test_theorems.json"
    ```
-   The result is the ./theorems/test_theorems.json theorem dataset which contains every theorem from test set (except for the removed structures as "Instanse"). We than construct our "trunc" and    "comp" datasets (./theorems/test_theorems_trunc.json, ./theorems/test_theorems_comp.json). We do not include code for this but the content of these datasets is described in our thesis.
-5) Having the theorem datasets, we now can generate proofs. We do this with the following notebook: https://colab.research.google.com/drive/1iXysomZDQIq-dIKUCbtaF2I7w_T3bmFS?usp=sharing. As in previous cases, this notebook is also provided in our repository as ./notebooks/generating_proofs.ipynb. The corresponding script ./scripts/generating_proofs.py has default config ./configs/generation_config.json:
+   The result is the "./theorems/test_theorems.json" theorem dataset which contains every theorem from the test set (except for the removed structures as "Instanse"). We then construct our "trunc" and "comp" datasets ("./theorems/test_theorems_trunc.json", "./theorems/test_theorems_comp.json"). We do not include code for this, but the content of these datasets is described in our thesis.
+5) Having the theorem datasets, we now can generate proofs. We do this with the following notebook: https://colab.research.google.com/drive/1iXysomZDQIq-dIKUCbtaF2I7w_T3bmFS?usp=sharing. As in previous cases, this notebook is also provided in our repository as "./notebooks/generating_proofs.ipynb". The corresponding script "./scripts/generating_proofs.py" has default config "./configs/generation_config.json":
    ```
    {
        # generation hyperparameters
@@ -288,10 +288,10 @@ Our repository contains the following external resources:
         python ./scripts/generating_proofs.py
         python ./scripts/generating_proofs.py ./configs/generation_config.json
    ```
-   Notebook and script have already defined parameters in the code for generating k=50 proofs per theorem with temperature t=1 for n06 model on "comp" dataset (to run notebook you have to load test_theorems_comp.json in the Colab environment). If you want to parse config in the notebook, change the config_file global variable to the corresponding value.
+   Notebook and script have already defined parameters in the code for generating k=50 proofs per theorem with temperature t=1 for n06 model on "comp" dataset (to run notebook you have to load "test_theorems_comp.json" in the Colab environment). If you want to parse config in the notebook, change the "config_file" global variable to the corresponding value.
 
-   As a result of this step we get generated_proofs/ directory by running above notebook for different configurations. Each JSON file in the generated_proofs/ directory contains hyperparameters with which it was created. As we were working in the Colab notebook, we recommend to use it for results reproducibility.
-6) The final step is testing the results. Before testing we compile our test project using ```make test-projects``` commands in the ./coq_projects/ directory. This commmand took more than 1 hour to execute. Then we use ./scripts/test_generated_proofs.py for testing generated proofs:
+   As a result of this step, we get the "generated_proofs/" directory by running the above notebook for different configurations. Each JSON file in the "generated_proofs/" directory contains hyperparameters with which it was created. As we were working in the Colab notebook, we recommend to use it for results reproducibility.
+6) The final step is testing the results. Before testing we compile our test project using ```make test-projects``` commands in the "./coq_projects/" directory. This command took more than 1 hour to execute. Then we use "./scripts/test_generated_proofs.py" for testing generated proofs:
    ```
    Usage
    -----
@@ -310,11 +310,11 @@ Our repository contains the following external resources:
         python ./scripts/test_generated_proofs.py ./generated_proofs/n06/generated_comp_n06_k05.json ./tested_proofs/n06/tested_proofs_comp_n06_k05.json ./coq_projects/
         python ./scripts/test_generated_proofs.py ./generated_proofs/n06/generated_comp_n06_k50.json ./tested_proofs/n06/tested_proofs_comp_n06_k50.json ./coq_projects/ True
    ```
-   Doing that for every file in the generated_proofs/ directory, we get the tested_proofs/ directory.
+   Doing that for every file in the "generated_proofs/" directory, we get the tested_proofs/ directory.
 
-   Also, we build plots using ./scripts/build_plots.py:
+   Also, we build plots using "./scripts/build_plots.py":
    ```
    python ./scripts/build_plots.py
    ```
-   The plots are located in images/ directory.
+   The plots are located in the "images/" directory.
 
