@@ -1,5 +1,6 @@
 # Facilitation-of-the-theorem-proving-in-Coq-using-transformer
-This is the repository with the code used for bachelor thesis "Facilitation of the theorem proving in Coq using transformer". The main aim of this study is to investigate how good are transformers on the theorem-proving task in high-level formal environment Coq.
+This is the repository with the code used for bachelor thesis "Facilitation of the theorem proving in Coq using transformer". The main aim of this study is to investigate how good are transformers on the theorem-proving task in high-level formal environment Coq.  
+During this study we trained tokenizer which can be found here: https://huggingface.co/Andrusyshyn/gpt2-coq-tokenizer, and we trained 6 models which can be found here: https://huggingface.co/Andrusyshyn/gpt2-pretrained-for-coq-pt-custom-train.
 ## Dependencies
 In addition to Google Colab, we conducted our work on Ubuntu 22.04 LTS system. Here is the list of used dependencies:
 1. Python dependencies: can be installed with ```pip install -r requirements.txt```. We installed the following dependencies:  
