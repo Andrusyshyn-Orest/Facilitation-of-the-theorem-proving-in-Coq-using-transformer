@@ -31,9 +31,9 @@ In addition to Google Colab, we conducted our work on Ubuntu 22.04 LTS system. H
 4. git-lfs. This is optional. Used for working with the Hugging Face repos. https://git-lfs.com/
 ## External Resources
 Our repository contains the following external resources:
-- The coq_projects/ folder contains Coq projects collected by the authors of the CoqGym project: https://github.com/princeton-vl/CoqGym. This folder also contains Makefile from the same CoqGym repository, which we modify for our purposes. This folder also contains the Feit-Thompson Odd Order Theorem formalization project (https://github.com/math-comp/odd-order/tree/mathcomp-odd-order.2.0.0) as odd-order-mathcomp-odd-order/ subfolder.
-- projs_split.json contains the train/validation/test split and was also taken from the CoqGym project. We modified the train and validation split slightly but left the test split untouched.
-- json_data/ folder is cleaned for our purposes CoqGym dataset https://zenodo.org/records/8101883. This is the folder with JSON files that contain pre-extracted theorems and proofs from corresponding Coq source files from coq_projects/ directory.
+- The "coq_projects/" folder contains Coq projects collected by the authors of the CoqGym project: https://github.com/princeton-vl/CoqGym. This folder also contains "Makefile" from the same CoqGym repository, which we modify for our purposes. This folder also contains the Feit-Thompson Odd Order Theorem formalization project (https://github.com/math-comp/odd-order/tree/mathcomp-odd-order.2.0.0) as "odd-order-mathcomp-odd-order/" subfolder.
+- "projs_split.json" contains the train/validation/test split and was also taken from the CoqGym project. We modified the train and validation split slightly but left the test split untouched.
+- "json_data/" folder - is cleaned for our purposes CoqGym dataset https://zenodo.org/records/8101883. This is the folder with JSON files that contain pre-extracted theorems and proofs from corresponding Coq source files from "coq_projects/" directory.
 ## Repository Structure
 - coq_projects -> contains Coq projects. This is our training, validation, and test data. It also contains a Makefile with which we can build these projects.
 - json_data -> contains cleaned JSON files from CoqGym dataset with extracted theorems and proofs.
