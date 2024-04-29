@@ -33,17 +33,17 @@ Our repository contains the following external resources:
 - projs_split.json contains the train/validation/test split and was also taken from the CoqGym project. We modified the train and validation split slightly but left the test split untouched.
 - json_data/ folder is cleaned for our purposes CoqGym dataset https://zenodo.org/records/8101883. This is the folder with JSON files that contain pre-extracted theorems and proofs from corresponding Coq source files from coq_projects/ directory.
 ## Repository Structure
-- coq_projects -> contains Coq projects. That is our training, validation, and test data. It also contains a Makefile with which we can build these projects.
+- coq_projects -> contains Coq projects. This is our training, validation, and test data. It also contains a Makefile with which we can build these projects.
 - json_data -> contains cleaned JSON files from CoqGym dataset with extracted theorems and proofs.
 - scripts/ -> contains scripts used in our work.
 - notebooks/ -> contains notebooks used in our work. Note that generating_proofs.py, training_model.py, training_tokenizer.py scripts are just script versions of the notebooks.
 - configs/ -> contains config files for generating_proofs.py, training_model.py, training_tokenizer.py scripts (and corresponding notebooks).
 - projs_split.json -> contains train/validation/test split.
-- datasets/ -> contains datasets we use for training.
+- datasets/ -> contains datasets that we use for training.
 - training_logs -> contains training logs in the form of JSON files.
 - tensorboard_runs -> contain training logs in the form of tensorboard.
 - images/ -> contains images we used in our thesis.
-- theorems/ -> contains theorem datasets. test_theorems.json contains all theorems (except removed structures like Instance). test_theorems_trunc.json is out "trunc" dataset, test_theorems_comp.json is our "comp" dataset.
+- theorems/ -> contains theorem datasets. test_theorems.json contains all theorems (except removed structures like Instance). test_theorems_trunc.json is our "trunc" dataset, test_theorems_comp.json is our "comp" dataset.
 - generated_proofs -> contains generated proofs.
 - tested_proofs -> contains tested proofs and error messages.
 ## Workflow
@@ -109,7 +109,7 @@ Our repository contains the following external resources:
      }
      ```  
      You can run this notebook with the default provided options in the notebook. If you want to take options from config, specify config_file global variable in the notebook (path to the config      file).
-     Also you can run it through script:  
+     Also you can use the script:  
      ```
      Usage
      -----
@@ -238,7 +238,7 @@ Our repository contains the following external resources:
         python ./scripts/create_input_dataset.py -o "./theorems/test_theorems.json"
    ```
    The result is the ./theorems/test_theorems.json theorem dataset which contains every theorem from test set (except for the removed structures as "Instanse"). We than construct our "trunc" and    "comp" datasets (./theorems/test_theorems_trunc.json, ./theorems/test_theorems_comp.json). We do not include code for this but the content of these datasets is described in our thesis.
-5) Having the theorem datasets, we know can generate proofs. We do this with the following notebook: https://colab.research.google.com/drive/1iXysomZDQIq-dIKUCbtaF2I7w_T3bmFS?usp=sharing. As in previous cases, this notebook is also provided in our repository as ./notebooks/generating_proofs.ipynb. The corresponding script ./scripts/generating_proofs.py has default config ./configs/generation_config.json:
+5) Having the theorem datasets, we now can generate proofs. We do this with the following notebook: https://colab.research.google.com/drive/1iXysomZDQIq-dIKUCbtaF2I7w_T3bmFS?usp=sharing. As in previous cases, this notebook is also provided in our repository as ./notebooks/generating_proofs.ipynb. The corresponding script ./scripts/generating_proofs.py has default config ./configs/generation_config.json:
    ```
    {
        # generation hyperparameters
@@ -286,7 +286,7 @@ Our repository contains the following external resources:
         python ./scripts/generating_proofs.py
         python ./scripts/generating_proofs.py ./configs/generation_config.json
    ```
-   Notebook and script have already defined parameters in the code for generating k=50 proofs per theorem with t=1 for n06 model on "comp" dataset. If you want to parse config in the notebook, change the config_file global variable to the corresponding value.
+   Notebook and script have already defined parameters in the code for generating k=50 proofs per theorem with temperature t=1 for n06 model on "comp" dataset. If you want to parse config in the notebook, change the config_file global variable to the corresponding value.
 
    As a result of this step we get generated_proofs/ directory by running above notebook for different configurations. Each JSON file in the generated_proofs/ directory contains hyperparameters with which it was created. As we were working in the Colab notebook, we recommend to use it for results reproducibility.
 6) The final step is testing the results. Before testing we compile our test project using ```make test-projects``` commands in the ./coq_projects/ directory. This commmand took more than 1 hour to execute. Then we use ./scripts/test_generated_proofs.py for testing generated proofs:
