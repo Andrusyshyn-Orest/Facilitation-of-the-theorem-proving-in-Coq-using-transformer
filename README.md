@@ -10,8 +10,8 @@ We compared our transformer models of different sizes with current solutions to 
 | demos                | 53 (77.9%)      | 50 (73.5%)      | 54 (79.4%)      | 49 (72.1%)   | 52 (76.5%)   | 51 (75.0%)   | 49 (72.1%)   | 68                 |
 | coqoban              | 0 (0.0%)        | 0 (0.0%)        | 0 (0.0%)        | 0 (0.0%)     | 0 (0.0%)     | 0 (0.0%)     | 0 (0.0%)     | 2                  |
 | fundamental-arithmetics | 15 (10.6%)   | 11 (7.8%)       | 37 (26.1%)      | 8 (5.63%)    | 8 (5.63%)    | 8 (5.63%)    | 11 (7.7%)    | 142                |
-| **Total**            | 113 (28.0%)     | 98 (24.3%)      | 165 (40.8%)     | 77 (19.1%)   | 83 (20.5%)   | 87 (21.5%)   | 86 (21.3%)   | 404                |
-Our findings and contributions are described in detail in the thesis.
+| **Total**            | 113 (28.0%)     | 98 (24.3%)      | 165 (40.8%)     | 77 (19.1%)   | 83 (20.5%)   | 87 (21.5%)   | 86 (21.3%)   | 404                |  
+Our whole scope of work and contributions are described in detail in the thesis.
 ## Dependencies
 In addition to Google Colab, we conducted our work on Ubuntu 22.04 LTS system. Here is the list of used dependencies:
 1. Python dependencies: can be installed with ```pip install -r requirements.txt```. We installed the following dependencies:  
