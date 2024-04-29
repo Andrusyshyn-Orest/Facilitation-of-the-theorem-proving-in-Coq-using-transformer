@@ -1,5 +1,5 @@
 # Facilitation-of-the-theorem-proving-in-Coq-using-transformer
-This is the repository with the code used for bachelor research "Facilitation of the theorem proving in Coq using transformer". The main aim of this study is to investigate how good are transformers on the theorem-proving task in high-level formal environment, Coq.
+This is the repository with the code used for bachelor thesis "Facilitation of the theorem proving in Coq using transformer". The main aim of this study is to investigate how good are transformers on the theorem-proving task in high-level formal environment Coq.
 ## Dependencies
 In addition to Google Colab, we conducted our work on Ubuntu 22.04 LTS system. Here is the list of used dependencies:
 1. Python dependencies: can be installed with ```pip install -r requirements.txt```. We installed the following dependencies:  
@@ -15,7 +15,7 @@ In addition to Google Colab, we conducted our work on Ubuntu 22.04 LTS system. H
    eval $(opam env --switch=coq9_1)
    opam install coq.8.9.1
    ```
-4. git-lfs. This is optional. Used for pushing models to the Hugging Face repo. https://git-lfs.com/
+4. git-lfs. This is optional. Used for working with the Hugging Face repos. https://git-lfs.com/
 ## External Resources
 Our repository contains the following external resources:
 - The coq_projects/ folder contains Coq projects collected by the authors of the CoqGym project: https://github.com/princeton-vl/CoqGym. This folder also contains Makefile from the same CoqGym repository, which we modify for our purposes. This folder also contains the Feit-Thompson Odd Order Theorem formalization project (https://github.com/math-comp/odd-order/tree/mathcomp-odd-order.2.0.0) as odd-order-mathcomp-odd-order/ subfolder.
