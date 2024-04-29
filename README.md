@@ -190,7 +190,7 @@ Our repository contains the following external resources:
           "raw_valid_archive"              : "./dataset_valid.zip"     # path to the archived valid data
       }
       ```  
-      Notebooks and script already contain default parameters from our experiment of training n06 model (You have to load dataset_train.zip and dataset_valid.zip into the Colab environment). To use config file in notebook set config_file global variable to the corresponding path.
+      Notebooks and script already contain default parameters from our experiment of training n06 model (you have to load dataset_train.zip and dataset_valid.zip into the Colab environment). To use config file in notebook set config_file global variable to the corresponding path.
       Script usage is the following:
       ```
       Usage
@@ -286,7 +286,7 @@ Our repository contains the following external resources:
         python ./scripts/generating_proofs.py
         python ./scripts/generating_proofs.py ./configs/generation_config.json
    ```
-   Notebook and script have already defined parameters in the code for generating k=50 proofs per theorem with temperature t=1 for n06 model on "comp" dataset. If you want to parse config in the notebook, change the config_file global variable to the corresponding value.
+   Notebook and script have already defined parameters in the code for generating k=50 proofs per theorem with temperature t=1 for n06 model on "comp" dataset (to run notebook you have to load test_theorems_comp.json in the Colab environment). If you want to parse config in the notebook, change the config_file global variable to the corresponding value.
 
    As a result of this step we get generated_proofs/ directory by running above notebook for different configurations. Each JSON file in the generated_proofs/ directory contains hyperparameters with which it was created. As we were working in the Colab notebook, we recommend to use it for results reproducibility.
 6) The final step is testing the results. Before testing we compile our test project using ```make test-projects``` commands in the ./coq_projects/ directory. This commmand took more than 1 hour to execute. Then we use ./scripts/test_generated_proofs.py for testing generated proofs:
