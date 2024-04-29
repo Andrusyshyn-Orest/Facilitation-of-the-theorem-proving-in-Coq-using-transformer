@@ -33,7 +33,7 @@ Our repository contains the following external resources:
 - projs_split.json contains the train/validation/test split and was also taken from the CoqGym project. We modified the train and validation split slightly but left the test split untouched.
 - json_data/ folder is cleaned for our purposes CoqGym dataset https://zenodo.org/records/8101883. This is the folder with JSON files that contain pre-extracted theorems and proofs from corresponding Coq source files from coq_projects/ directory.
 ## Repository Structure
-- coq_projects -> contains Coq projects. That is our training data. It also contains a Makefile with which we can build these projects.
+- coq_projects -> contains Coq projects. That is our training, validation, and test data. It also contains a Makefile with which we can build these projects.
 - json_data -> contains cleaned JSON files from CoqGym dataset with extracted theorems and proofs.
 - scripts/ -> contains scripts used in our work.
 - notebooks/ -> contains notebooks used in our work. Note that generating_proofs.py, training_model.py, training_tokenizer.py scripts are just script versions of the notebooks.
