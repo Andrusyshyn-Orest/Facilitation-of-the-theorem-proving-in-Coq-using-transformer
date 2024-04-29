@@ -41,7 +41,7 @@ Examples
     python ./scripts/create_datasets.py -c "./coq_projects/" --projs_split "./projs_split.json" -d "./datasets/"
 ```
 3) Having constructed these datasets, we can train our tokenizer and models.
-   - During our work we used this notebook for training tokenizer: https://colab.research.google.com/drive/1iA12XfpytcU-blnLUEWWXgf4RwCkUGQp?usp=sharing. This is the same notebook as notebooks/training_tokenizer.ipynb but already loaded into Google Colab. This notebook (or corresponding script) has default config ./config/training_tokenizer_config.json:
+   - During our work we used this notebook for training tokenizer: https://colab.research.google.com/drive/1iA12XfpytcU-blnLUEWWXgf4RwCkUGQp?usp=sharing. This is the same notebook as notebooks/training_tokenizer.ipynb, but already loaded into Google Colab. This notebook (and corresponding script) has default config ./config/training_tokenizer_config.json:
      ```
      {
         "vocab_size"                   : 30000,    # vocablurary size of the tokenizer.
@@ -82,4 +82,87 @@ Examples
          python ./scripts/training_tokenizer.py
          python ./scripts/training_tokenizer.py ./configs/training_tokenizer_config.json
      ```
-    
+    - During our work we used this notebook for models training: https://colab.research.google.com/drive/17-YH8_0xF8iVEIyoAHBNYeCnkRL71pXW?usp=sharing. this is the same notebook as notebooks/training_model.ipynb, but already uploaded to the Google Colab. This notebook (and corresponding script) has default config ./config/training_model_config.json:
+      ```
+      {
+          # These are hyperparameters for training.
+          "context_length"                 : 1024,
+          "train_batch_size"               : 8,
+          "eval_batch_size"                : 8,
+          "weight_decay"                   : 0.1,
+          "lr"                             : 8e-4,
+          "lr_scheduler_func"              : "cosine",
+          "adamw_b1"                       : 0.9,
+          "adamw_b2"                       : 0.95,
+          "adamw_e"                        : 1e-8,
+          "num_warmup_steps"               : 30,
+          "gradient_accumulation_steps"    : 4,
+          "gradient_checkpointing"         : false,
+          "eval_steps"                     : 100,
+          "num_train_epochs"               : 10,
+          "mixed_precision"                : "fp16",
+      
+      
+          "save_json_logs"                 : true,    # if set to true, then we save training logs to the "train_logs_path"
+          "train_logs_path"                : "./training_logs/test_run.json",
+          "save_tensorboard_logs"          : true,    # if set to true, then we save training logs to the tensorboard run "tensorboard_run_path"
+          "tensorboard_run_path"           : "./tensorboard_runs/test_run",
+      
+          "raw_train_json"                 : "./datasets/dataset_train.json",    # path to the train split
+          "raw_valid_json"                 : "./datasets/dataset_valid.json",    # path to the validation split
+      
+          "tokenizer_repo_name"            : "Andrusyshyn/gpt2-coq-tokenizer",
+          "tokenizer_commit_hash"          : "0e1383183b23c6764d83c88b83fa99de2a297199",
+      
+          "init_model"                     : "gpt2",
+          "n_layer"                        : 6,         # These two fiels both mean number of heads.
+          "n_head"                         : 6,
+          "n_embd"                         : 384,       # This means embeddings size
+          "model_repo_name"                : "Andrusyshyn/gpt2-pretrained-for-coq-pt-custom-train",
+          "model_output_dir"               : "./gpt2-pretrained-for-coq-pt-custom-train-local",    # local directory for saving the model
+      
+          "push_to_hub"                    : false,             # We pushed our model to the repository during checkpoints.
+          "run_name"                       : "testing_algo",    # branch name
+      
+          # This options were used to continue training of partly trained models.
+          "partially_trained"              : false,
+          "model_commit_hash"              : "",
+          "previously_completed_steps"     : 0,
+          "previous_global_steps"          : 0,
+          "previous_step"                  : 0,
+          "stopped_epoch"                  : 0,
+      
+          # Seeds
+          "torch_seed"                     : 7,
+          "data_seed"                      : 23,
+      
+      
+          # This options are used only by notebooks.
+          "have_git_write_access"          : false,
+          "user_email"                     : "user_email",
+          "user_name"                      : "user_name",
+          "drive_mounted"                  : false,
+          "drive_mounted_path"             : "/content/gdrive/",
+          "data_archived"                  : true,                     # true when we need to extract data
+          "raw_train_archive"              : "./dataset_train.zip",    # path to the archived train data
+          "raw_valid_archive"              : "./dataset_valid.zip"     # path to the archived valid data
+      }
+      ```  
+      Notebooks and script already contain default parameters from our experiment of training n06 model. To use config file in notebook set config_file global variable to the corresponding path.
+      Script usage is the following:
+      ```
+      Usage
+      -----
+          python ./scripts/training_model.py [<config_file>]
+      
+          Argumets:
+              <config_file> - path to the config file. Optional.
+
+      Examples
+      --------
+          python ./scripts/training_model.py
+          python ./scripts/training_model.py ./configs/training_model_config.json
+      ```
+      As we were using Colab notebook, we recommend using Colab notebook for reproducibility of training results.
+      As a result of training, we get logs in the training_logs directory. Each log file contains hyperparameters that we used for the specific training.
+      Also we get tensorboard_runs/ directory. You can check its contents using ```tensorboard --logdir=./tensorboard_runs/``` command.
