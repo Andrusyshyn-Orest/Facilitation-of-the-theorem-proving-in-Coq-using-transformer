@@ -190,7 +190,7 @@ Our repository contains the following external resources:
           "raw_valid_archive"              : "./dataset_valid.zip"     # path to the archived valid data
       }
       ```  
-      Notebooks and script already contain default parameters from our experiment of training n06 model (you have to load dataset_train.zip and dataset_valid.zip into the Colab environment). To use config file in notebook set config_file global variable to the corresponding path.
+      Notebooks and script already contain default parameters from our experiment of training n06 model (to run notebook you have to load dataset_train.zip and dataset_valid.zip into the Colab environment). To use config file in notebook set config_file global variable to the corresponding path.
       Script usage is the following:
       ```
       Usage
