@@ -21,6 +21,20 @@ Our repository contains the following external resources:
 - The coq_projects/ folder contains Coq projects collected by the authors of the CoqGym project: https://github.com/princeton-vl/CoqGym. This folder also contains Makefile from the same CoqGym repository, which we modify for our purposes. This folder also contains the Feit-Thompson Odd Order Theorem formalization project (https://github.com/math-comp/odd-order/tree/mathcomp-odd-order.2.0.0) as odd-order-mathcomp-odd-order/ subfolder.
 - projs_split.json contains the train/validation/test split and was also taken from the CoqGym project. We modified the train and validation split slightly but left the test split untouched.
 - json_data/ folder is cleaned for our purposes CoqGym dataset https://zenodo.org/records/8101883. This is the folder with JSON files that contain pre-extracted theorems and proofs from corresponding Coq source files from coq_projects directory.
+## Repository Structure
+- coq_projects -> contains Coq projects. That is our training data. It also contains a Makefile with which we can build these projects.
+- json_data -> contains cleaned JSON files from CoqGym dataset with extracted theorems and proofs.
+- scripts/ -> contains scripts used in our work.
+- notebooks/ -> contains notebooks used in our work. Note that generating_proofs.py, training_model.py, training_tokenizer.py scripts are just script versions of the notebooks.
+- configs/ -> contains config files for generating_proofs.py, training_model.py, training_tokenizer.py scripts (and corresponding notebooks).
+- projs_split.json -> contains train/validation/test split.
+- datasets/ -> contains datasets we use for training.
+- training_logs -> contains training logs in the form of JSON files.
+- tensorboard_runs -> contain training logs in the form of tensorboard.
+- images/ -> contains images we used in our thesis.
+- theorems/ -> contains theorem datasets. test_theorems.json contains all theorems (except removed structures like Instance). test_theorems_trunc.json is out "trunc" dataset, test_theorems_comp.json is our "comp" dataset.
+- generated_proofs -> contains generated proofs.
+- tested_proofs -> contains tested proofs and error messages.
 ## Workflow
 1) Firstly, we clean our json_folder/ using scripts/clean_data.py. This repository contains an already cleaned folder. Usage of the script:
 ```
