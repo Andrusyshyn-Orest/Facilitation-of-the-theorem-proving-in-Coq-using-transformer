@@ -312,7 +312,7 @@ Our repository contains the following external resources:
 
    Also, we build plots using ./scripts/build_plots.py:
    ```
-   python build_plots.py
+   python ./scripts/build_plots.py
    ```
    The plots are located in images/ directory.
 
