@@ -37,19 +37,19 @@ Our repository contains the following external resources:
 - tested_proofs -> contains tested proofs and error messages.
 ## Workflow
 1) Firstly, we clean our json_folder/ using scripts/clean_data.py. This repository contains an already cleaned folder. Usage of the script:
-```
-Usage
------
-    python ./scripts/clean_data.py [<root_dir>]
-
-    Argumets:
-        <root_dir> - path to the folder to clean. Optional, default value: "./json_data/".
-
-Examples
---------
-    python ./scripts/clean_data.py
-    python ./scripts/clean_data.py ./json_data/
-```
+   ```
+   Usage
+   -----
+       python ./scripts/clean_data.py [<root_dir>]
+   
+       Argumets:
+           <root_dir> - path to the folder to clean. Optional, default value: "./json_data/".
+   
+   Examples
+   --------
+       python ./scripts/clean_data.py
+       python ./scripts/clean_data.py ./json_data/
+   ```
 2) We construct our training/validation/testing datasets using scripts/create_datasets.py. Usage of the script:
 ```
 Usage
