@@ -1,5 +1,21 @@
 # Facilitation-of-the-theorem-proving-in-Coq-using-transformer
 This is the repository with the code used for bachelor research "Facilitation of the theorem proving in Coq using transformer". The main aim of this study is to investigate how good are transformers on the theorem-proving task in high-level formal environment, Coq.
+## Dependencies
+In addition to Google Colab, we conducted our work on Ubuntu 22.04 LTS system. Here is the list of used dependencies:
+1. Python dependencies: can be installed with ```pip install -r requirements.txt```. We installed the following dependencies:  
+   ```pip install torch "transformers[sentencepiece]" datasets matplotlib accelerate tensorboard```
+2. We used GNU Make 4.3
+3. We were working with Coq 8.9.1 formal environment. To install Coq, we installed opam - OCaml package manager https://opam.ocaml.org/doc/Install.html
+   We run the following set of command to install Coq on our system:
+   ```
+   sudo apt-get install opam
+   opam init -y
+   eval $(opam env) 
+   opam switch create coq9_1 4.07.1+flambda
+   eval $(opam env --switch=coq9_1)
+   opam install coq.8.9.1
+   ```
+4. git-lfs. This is optional. Used for pushing models to the Hugging Face repo. https://git-lfs.com/
 ## External Resources
 Our repository contains the following external resources:
 - The coq_projects/ folder contains Coq projects collected by the authors of the CoqGym project: https://github.com/princeton-vl/CoqGym. This folder also contains Makefile from the same CoqGym repository, which we modify for our purposes. This folder also contains the Feit-Thompson Odd Order Theorem formalization project (https://github.com/math-comp/odd-order/tree/mathcomp-odd-order.2.0.0) as odd-order-mathcomp-odd-order/ subfolder.
