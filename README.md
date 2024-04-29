@@ -1,6 +1,6 @@
 # Facilitation-of-the-theorem-proving-in-Coq-using-transformer
 This is the repository with the code used for bachelor thesis "Facilitation of the theorem proving in Coq using transformer". The main aim of this study is to investigate how good are transformers on the theorem-proving task in high-level formal environment Coq.  
-During this study we trained tokenizer which can be found here: https://huggingface.co/Andrusyshyn/gpt2-coq-tokenizer, and we trained 6 transformers which can be found here: https://huggingface.co/Andrusyshyn/gpt2-pretrained-for-coq-pt-custom-train.  
+During this study, we trained tokenizer, which can be found here: https://huggingface.co/Andrusyshyn/gpt2-coq-tokenizer, and we trained 6 transformers, which can be found here: https://huggingface.co/Andrusyshyn/gpt2-pretrained-for-coq-pt-custom-train.  
 We compared our transformer models of different sizes with current solutions to the ATP (As was mentioned in the thesis, the results for "TacTok", "ASTactic", "CoqHammer" are taken from the TacTok paper https://dl.acm.org/doi/10.1145/3428299, page 22):
 | Project              | **TacTok**      | **ASTactic**    | **CoqHammer**   | **n06**      | **n08**      | **n10**      | **n12**      | **Total Theorems** |
 |----------------------|-----------------|-----------------|-----------------|--------------|--------------|--------------|--------------|--------------------|
@@ -11,6 +11,7 @@ We compared our transformer models of different sizes with current solutions to 
 | coqoban              | 0 (0.0%)        | 0 (0.0%)        | 0 (0.0%)        | 0 (0.0%)     | 0 (0.0%)     | 0 (0.0%)     | 0 (0.0%)     | 2                  |
 | fundamental-arithmetics | 15 (10.6%)   | 11 (7.8%)       | 37 (26.1%)      | 8 (5.63%)    | 8 (5.63%)    | 8 (5.63%)    | 11 (7.7%)    | 142                |
 | **Total**            | 113 (28.0%)     | 98 (24.3%)      | 165 (40.8%)     | 77 (19.1%)   | 83 (20.5%)   | 87 (21.5%)   | 86 (21.3%)   | 404                |
+Our findings and contributions are described in detail in the thesis.
 ## Dependencies
 In addition to Google Colab, we conducted our work on Ubuntu 22.04 LTS system. Here is the list of used dependencies:
 1. Python dependencies: can be installed with ```pip install -r requirements.txt```. We installed the following dependencies:  
